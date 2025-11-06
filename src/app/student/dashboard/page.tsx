@@ -1,30 +1,208 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import StatCard from '../../../components/student/StatCard';
 import CourseCard from '../../../components/student/CourseCard';
 import { getCourses } from '../../../lib/data';
+
+// Deterministic function to generate consistent values based on course ID
+function getDeterministicProgress(courseId: string): number {
+  let hash = 0;
+  for (let i = 0; i < courseId.length; i++) {
+    const char = courseId.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash; // Convert to 32bit integer
+  }
+  return Math.abs(hash) % 70 + 10; // Returns value between 10-80
+}
 
 export default function StudentDashboard() {
   const [courses] = useState(getCourses());
   const [showRequestModal, setShowRequestModal] = useState(false);
   const [selectedCourse, setSelectedCourse] = useState<string | null>(null);
   const [requestNote, setRequestNote] = useState('');
-
-  // Mock data - in real app, this would come from API
-  const studentData = {
-    name: 'John Doe',
-    enrolledCourses: ['course-1'],
-    activeStatus: true,
-  };
-
-  const stats = {
-    coursesEnrolled: 2,
+  const [user, setUser] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [stats, setStats] = useState({
+    coursesEnrolled: 0,
     coursesCompleted: 0,
-    hoursLearned: 12.5,
-    quizzesCompleted: 8,
-    currentStreak: 5,
-    totalPoints: 450,
+    hoursLearned: 0,
+    quizzesCompleted: 0,
+    currentStreak: 0,
+    totalPoints: 0,
+  });
+  const [enrolledCourseIds, setEnrolledCourseIds] = useState<string[]>([]);
+
+  // Fetch real user data - CRITICAL: Must fetch before showing dashboard
+  useEffect(() => {
+    const fetchUser = async () => {
+      // First, try to get user data from sessionStorage (set during login)
+      const storedUserData = sessionStorage.getItem('userData');
+      let hasStoredData = false;
+      if (storedUserData) {
+        try {
+          const parsedUser = JSON.parse(storedUserData);
+          console.log('📦 Using user data from sessionStorage:', parsedUser);
+          setUser(parsedUser);
+          hasStoredData = true;
+          setIsLoading(false); // Show dashboard immediately with stored data
+        } catch (e) {
+          console.error('Failed to parse stored user data:', e);
+        }
+      }
+      
+      // Wait a bit for cookie to be available, then fetch from API
+      await new Promise(resolve => setTimeout(resolve, 1000)); // Increased delay
+      
+      try {
+        console.log('🔍 Fetching user data from /api/auth/me...');
+        const response = await fetch('/api/auth/me', { 
+          credentials: 'include',
+          cache: 'no-store', // Ensure fresh data
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        });
+        
+        console.log('📡 Response status:', response.status);
+        
+        if (response.ok) {
+          const data = await response.json();
+          console.log('✅ User data received from API:', data.user);
+          if (data.user) {
+            // Update with fresh data from API
+            setUser(data.user);
+            setIsLoading(false);
+            // Clear sessionStorage only after successful API fetch
+            if (storedUserData) {
+              sessionStorage.removeItem('userData');
+            }
+          } else {
+            console.error('❌ No user data in API response');
+            // If we already have user data displayed, don't redirect
+            if (!hasStoredData) {
+              setIsLoading(false);
+              setTimeout(() => {
+                window.location.href = '/login';
+              }, 2000);
+            }
+            return;
+          }
+        } else if (response.status === 401) {
+          console.error('❌ Unauthorized (401) - cookie might not be set yet');
+          // If we already have user data displayed, don't redirect - just retry
+          if (hasStoredData) {
+            console.log('⚠️ Using stored user data while cookie is being set - will retry');
+            // Retry fetching after a longer delay
+            setTimeout(async () => {
+              try {
+                console.log('🔄 Retrying /api/auth/me...');
+                const retryResponse = await fetch('/api/auth/me', { 
+                  credentials: 'include',
+                  cache: 'no-store'
+                });
+                if (retryResponse.ok) {
+                  const retryData = await retryResponse.json();
+                  if (retryData.user) {
+                    console.log('✅ Retry successful - updating user data');
+                    setUser(retryData.user);
+                    sessionStorage.removeItem('userData');
+                  }
+                } else {
+                  console.error('❌ Retry still failed - status:', retryResponse.status);
+                }
+              } catch (e) {
+                console.error('Retry failed:', e);
+              }
+            }, 3000); // Longer retry delay
+          } else {
+            // No stored data and API failed - redirect
+            setIsLoading(false);
+            setTimeout(() => {
+              window.location.href = '/login';
+            }, 2000);
+          }
+          return;
+        } else {
+          console.error('❌ Failed to fetch user - status:', response.status);
+          // If we already have user data displayed, don't redirect
+          if (!hasStoredData) {
+            setIsLoading(false);
+            setTimeout(() => {
+              window.location.href = '/login';
+            }, 2000);
+          }
+          return;
+        }
+      } catch (error) {
+        console.error('❌ Exception fetching user:', error);
+        // If we already have user data displayed, don't redirect
+        if (!hasStoredData) {
+          setIsLoading(false);
+          setTimeout(() => {
+            window.location.href = '/login';
+          }, 2000);
+        }
+        return;
+      }
+    };
+    fetchUser();
+  }, []);
+
+  // Fetch stats and enrolled courses
+  useEffect(() => {
+    if (!user) return;
+
+    const fetchStats = async () => {
+      try {
+        const [statsResponse, coursesResponse] = await Promise.all([
+          fetch('/api/student/stats', {
+            credentials: 'include',
+            cache: 'no-store',
+          }),
+          fetch('/api/student/enrolled-courses', {
+            credentials: 'include',
+            cache: 'no-store',
+          }),
+        ]);
+
+        if (statsResponse.ok) {
+          const statsData = await statsResponse.json();
+          setStats(statsData.stats);
+          console.log('✅ Stats fetched:', statsData.stats);
+        }
+
+        if (coursesResponse.ok) {
+          const coursesData = await coursesResponse.json();
+          const courseIds = coursesData.enrolledCourses.map((ec: any) => ec.courseId);
+          setEnrolledCourseIds(courseIds);
+          console.log('✅ Enrolled courses fetched:', courseIds);
+        }
+      } catch (error) {
+        console.error('Error fetching stats/courses:', error);
+      }
+    };
+
+    fetchStats();
+  }, [user]);
+
+  // Don't render dashboard content until user data is loaded
+  if (isLoading || !user) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading your dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Use REAL user data - user is guaranteed to be loaded at this point
+  const studentData = {
+    name: user.name, // Real user name from database
+    enrolledCourses: enrolledCourseIds, // Real enrolled courses from API
+    activeStatus: user.isActive,
   };
 
   const handleRequestAccess = (courseId: string) => {
@@ -50,13 +228,13 @@ export default function StudentDashboard() {
   return (
     <div className="space-y-8">
       {/* Welcome Section */}
-      <div className="bg-gradient-to-r from-purple-600 via-blue-600 to-indigo-600 rounded-3xl shadow-2xl p-8 text-white relative overflow-hidden">
+      <div className="bg-gradient-to-r from-purple-600 via-blue-600 to-indigo-600 rounded-3xl shadow-2xl p-8 text-white relative overflow-hidden" style={{ background: 'linear-gradient(to right, #9333ea, #2563eb, #4f46e5)' }}>
         <div className="absolute top-0 right-0 w-64 h-64 bg-white opacity-5 rounded-full -mr-32 -mt-32"></div>
         <div className="absolute bottom-0 left-0 w-48 h-48 bg-white opacity-5 rounded-full -ml-24 -mb-24"></div>
 
         <div className="relative z-10">
-          <h1 className="text-4xl font-bold mb-2">
-            Welcome back, {studentData.name}! 👋
+          <h1 className="text-4xl font-bold mb-2 text-white">
+            Welcome back, {user.name}! 👋
           </h1>
           <p className="text-blue-100 text-lg">
             Ready to continue your learning journey today?
@@ -64,21 +242,21 @@ export default function StudentDashboard() {
 
           {/* Quick Stats */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-8">
-            <div className="bg-white bg-opacity-10 backdrop-blur-sm rounded-xl p-4">
-              <div className="text-3xl font-bold text-white">{stats.currentStreak}</div>
-              <div className="text-sm text-blue-100">Day Streak 🔥</div>
+            <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/20 shadow-lg">
+              <div className="text-3xl font-bold text-white drop-shadow-lg">{stats.currentStreak}</div>
+              <div className="text-sm text-white font-semibold drop-shadow-md mt-1">Day Streak 🔥</div>
             </div>
-            <div className="bg-white bg-opacity-10 backdrop-blur-sm rounded-xl p-4">
-              <div className="text-3xl font-bold text-white">{stats.coursesEnrolled}</div>
-              <div className="text-sm text-blue-100">Active Courses</div>
+            <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/20 shadow-lg">
+              <div className="text-3xl font-bold text-white drop-shadow-lg">{stats.coursesEnrolled}</div>
+              <div className="text-sm text-white font-semibold drop-shadow-md mt-1">Active Courses</div>
             </div>
-            <div className="bg-white bg-opacity-10 backdrop-blur-sm rounded-xl p-4">
-              <div className="text-3xl font-bold text-white">{stats.hoursLearned}</div>
-              <div className="text-sm text-blue-100">Hours Learned</div>
+            <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/20 shadow-lg">
+              <div className="text-3xl font-bold text-white drop-shadow-lg">{stats.hoursLearned.toFixed(1)}</div>
+              <div className="text-sm text-white font-semibold drop-shadow-md mt-1">Hours Learned</div>
             </div>
-            <div className="bg-white bg-opacity-10 backdrop-blur-sm rounded-xl p-4">
-              <div className="text-3xl font-bold text-white">{stats.totalPoints}</div>
-              <div className="text-sm text-blue-100">Points Earned 🏆</div>
+            <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/20 shadow-lg">
+              <div className="text-3xl font-bold text-white drop-shadow-lg">{stats.totalPoints}</div>
+              <div className="text-sm text-white font-semibold drop-shadow-md mt-1">Points Earned 🏆</div>
             </div>
           </div>
         </div>
@@ -118,7 +296,7 @@ export default function StudentDashboard() {
             </svg>
           }
           label="Hours Learned"
-          value={stats.hoursLearned}
+          value={stats.hoursLearned.toFixed(1)}
           bgColor="bg-purple-100"
           textColor="text-purple-600"
           trend={{ value: '+2.5 hrs this week', isPositive: true }}
@@ -187,7 +365,8 @@ export default function StudentDashboard() {
                 key={course.id}
                 course={course}
                 isLocked={false}
-                progress={Math.floor(Math.random() * 70) + 10} // Mock progress
+                userId={1} // TODO: Get from auth context
+                progress={getDeterministicProgress(course.id)} // Deterministic progress
               />
             ))}
           </div>
@@ -214,6 +393,7 @@ export default function StudentDashboard() {
                 key={course.id}
                 course={course}
                 isLocked={true}
+                userId={1} // TODO: Get from auth context
                 onRequestAccess={() => handleRequestAccess(course.id)}
               />
             ))}

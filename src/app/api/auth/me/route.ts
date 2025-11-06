@@ -1,0 +1,86 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { verifyToken } from '@/lib/auth';
+import { db } from '@/lib/db';
+import { users } from '@/lib/db/schema';
+import { eq } from 'drizzle-orm';
+
+export async function GET(request: NextRequest) {
+  try {
+    const token = request.cookies.get('token')?.value;
+
+    if (!token) {
+      return NextResponse.json(
+        { message: 'Not authenticated' },
+        { status: 401 }
+      );
+    }
+
+    const decoded = verifyToken(token);
+
+    if (!decoded || !decoded.userId) {
+      return NextResponse.json(
+        { message: 'Invalid token' },
+        { status: 401 }
+      );
+    }
+
+    // Get user from database
+    const user = await db
+      .select()
+      .from(users)
+      .where(eq(users.id, decoded.userId))
+      .limit(1);
+
+    if (!user.length) {
+      return NextResponse.json(
+        { message: 'User not found' },
+        { status: 404 }
+      );
+    }
+
+    // Log user data for debugging
+    const phoneValue = user[0].phone;
+    const phoneString = phoneValue && String(phoneValue).trim() ? String(phoneValue).trim() : null;
+    
+    console.log('User data from database:', {
+      id: user[0].id,
+      name: user[0].name,
+      email: user[0].email,
+      phone: phoneValue,
+      phoneType: typeof phoneValue,
+      phoneIsNull: phoneValue === null,
+      phoneIsUndefined: phoneValue === undefined,
+      phoneIsEmptyString: phoneValue === '',
+      phoneAfterProcessing: phoneString,
+      role: user[0].role,
+    });
+
+    return NextResponse.json({
+      user: {
+        id: user[0].id,
+        name: user[0].name,
+        email: user[0].email,
+        phone: phoneString, // Convert to string and trim, or null if empty
+        bio: user[0].bio && String(user[0].bio).trim() ? String(user[0].bio).trim() : null,
+        profilePicture: user[0].profilePicture || null,
+        role: user[0].role,
+        isActive: user[0].isActive,
+        faceIdEnrolled: user[0].faceIdEnrolled,
+        fingerprintEnrolled: user[0].fingerprintEnrolled,
+        twoFactorEnabled: user[0].twoFactorEnabled,
+        joinedDate: user[0].joinedDate ? new Date(user[0].joinedDate).toISOString() : null,
+        lastLogin: user[0].lastLogin ? new Date(user[0].lastLogin).toISOString() : null,
+      },
+    });
+  } catch (error: any) {
+    console.error('Get current user error:', error);
+    return NextResponse.json(
+      { 
+        message: 'Failed to get user',
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      },
+      { status: 500 }
+    );
+  }
+}
+

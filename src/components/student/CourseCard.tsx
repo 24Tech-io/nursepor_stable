@@ -1,11 +1,15 @@
+'use client';
+
 import Link from 'next/link';
 import { Course } from '../../lib/types';
+import PaymentButton from './PaymentButton';
 
 interface CourseCardProps {
   course: Course;
   isLocked: boolean;
   progress?: number;
   onRequestAccess?: () => void;
+  userId?: string | number;
 }
 
 export default function CourseCard({
@@ -13,6 +17,7 @@ export default function CourseCard({
   isLocked,
   progress = 0,
   onRequestAccess,
+  userId,
 }: CourseCardProps) {
   return (
     <div className="group bg-white rounded-2xl shadow-sm hover:shadow-2xl transition-all duration-300 overflow-hidden border border-gray-100">
@@ -97,12 +102,21 @@ export default function CourseCard({
 
         {/* Action Button */}
         {isLocked ? (
-          <button
-            onClick={onRequestAccess}
-            className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold py-3 rounded-xl hover:from-purple-700 hover:to-blue-700 transition-all duration-300 shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
-          >
-            Request Access
-          </button>
+          course.pricing && course.pricing > 0 ? (
+            <PaymentButton
+              courseId={course.id}
+              courseTitle={course.title}
+              price={course.pricing}
+              userId={userId || '1'}
+            />
+          ) : (
+            <button
+              onClick={onRequestAccess}
+              className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold py-3 rounded-xl hover:from-purple-700 hover:to-blue-700 transition-all duration-300 shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
+            >
+              Request Access
+            </button>
+          )
         ) : (
           <Link href={`/student/courses/${course.id}`}>
             <button className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold py-3 rounded-xl hover:from-blue-700 hover:to-purple-700 transition-all duration-300 shadow-md hover:shadow-lg transform hover:-translate-y-0.5 flex items-center justify-center space-x-2">

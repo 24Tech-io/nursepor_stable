@@ -2,7 +2,8 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import RoleSwitcher from '@/components/common/RoleSwitcher';
 
 const navigation = [
   {
@@ -62,6 +63,9 @@ export default function StudentLayout({
   const pathname = usePathname();
   const router = useRouter();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const notificationsRef = useRef<HTMLDivElement>(null);
+  const [user, setUser] = useState<any>(null);
 
   async function handleLogout() {
     try {
@@ -69,6 +73,108 @@ export default function StudentLayout({
     } catch {}
     router.push('/login');
   }
+
+  // Mock notifications - in real app, this would come from API
+  const notifications = [
+    { id: 1, message: 'New course available: Advanced React Patterns', time: '2 hours ago', read: false },
+    { id: 2, message: 'Your quiz score: 85% - Great job!', time: '1 day ago', read: false },
+    { id: 3, message: 'Course access request approved', time: '2 days ago', read: true },
+  ];
+
+  // Fetch user data for profile display
+  useEffect(() => {
+    const fetchUser = async () => {
+      // First, try to get user data from sessionStorage (set during login)
+      const storedUserData = sessionStorage.getItem('userData');
+      if (storedUserData) {
+        try {
+          const parsedUser = JSON.parse(storedUserData);
+          console.log('📦 Layout: Using user data from sessionStorage:', parsedUser);
+          setUser(parsedUser);
+        } catch (e) {
+          console.error('Failed to parse stored user data:', e);
+        }
+      }
+      
+      // Wait a bit for cookie to be available, then fetch from API
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      try {
+        console.log('🔍 Layout: Fetching user data from /api/auth/me...');
+        const response = await fetch('/api/auth/me', { 
+          credentials: 'include',
+          cache: 'no-store',
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          console.log('✅ Layout: User data received from API:', data.user);
+          if (data.user) {
+            setUser(data.user);
+            // Clear sessionStorage only after successful API fetch
+            if (storedUserData) {
+              sessionStorage.removeItem('userData');
+            }
+          }
+        } else if (response.status === 401) {
+          console.error('❌ Layout: Unauthorized (401) - cookie might not be set yet');
+          // If we have stored data, use it temporarily and retry
+          if (storedUserData) {
+            setTimeout(async () => {
+              try {
+                const retryResponse = await fetch('/api/auth/me', { 
+                  credentials: 'include',
+                  cache: 'no-store'
+                });
+                if (retryResponse.ok) {
+                  const retryData = await retryResponse.json();
+                  if (retryData.user) {
+                    setUser(retryData.user);
+                    sessionStorage.removeItem('userData');
+                  }
+                }
+              } catch (e) {
+                console.error('Layout retry failed:', e);
+              }
+            }, 3000);
+          }
+        }
+      } catch (error) {
+        console.error('❌ Layout: Exception fetching user:', error);
+      }
+    };
+    fetchUser();
+  }, []);
+
+  // Close notifications when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (notificationsRef.current && !notificationsRef.current.contains(event.target as Node)) {
+        setShowNotifications(false);
+      }
+    }
+
+    if (showNotifications) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showNotifications]);
+
+  // Helper function to get user initials
+  const getUserInitials = (name: string) => {
+    if (!name) return 'U';
+    const parts = name.trim().split(' ');
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    }
+    return name.substring(0, 2).toUpperCase();
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50">
@@ -120,31 +226,83 @@ export default function StudentLayout({
 
             {/* Profile & Notifications */}
             <div className="flex items-center space-x-4">
+              {/* Role Switcher */}
+              <RoleSwitcher />
+              
               {/* Notifications */}
-              <button className="relative p-2 text-gray-600 hover:bg-gray-100 rounded-xl transition">
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-                </svg>
-                <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
-              </button>
+              <div className="relative" ref={notificationsRef}>
+                <button 
+                  onClick={() => setShowNotifications(!showNotifications)}
+                  className="relative p-2 text-gray-600 hover:bg-gray-100 rounded-xl transition"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                  </svg>
+                  {notifications.filter(n => !n.read).length > 0 && (
+                    <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
+                  )}
+                </button>
+
+                {/* Notifications Dropdown */}
+                {showNotifications && (
+                  <div className="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-xl border border-gray-100 z-50 max-h-96 overflow-y-auto">
+                    <div className="p-4 border-b border-gray-100 flex items-center justify-between">
+                      <h3 className="font-bold text-gray-900">Notifications</h3>
+                      <button 
+                        onClick={() => setShowNotifications(false)}
+                        className="text-gray-400 hover:text-gray-600"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                    <div className="divide-y divide-gray-100">
+                      {notifications.length > 0 ? (
+                        notifications.map(notification => (
+                          <div 
+                            key={notification.id} 
+                            className={`p-4 hover:bg-gray-50 transition ${!notification.read ? 'bg-blue-50' : ''}`}
+                          >
+                            <p className="text-sm text-gray-900 font-medium">{notification.message}</p>
+                            <p className="text-xs text-gray-500 mt-1">{notification.time}</p>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="p-4 text-center text-gray-500 text-sm">No notifications</div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
 
               {/* Profile Dropdown */}
               <div className="relative group">
                 <button className="flex items-center space-x-3 p-2 hover:bg-gray-100 rounded-xl transition">
                   <div className="w-9 h-9 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center shadow-md">
-                    <span className="text-white font-bold text-sm">JD</span>
+                    <span className="text-white font-bold text-sm">
+                      {user ? getUserInitials(user.name) : 'U'}
+                    </span>
                   </div>
                   <div className="hidden lg:block text-left">
-                    <p className="text-sm font-semibold text-gray-900">John Doe</p>
-                    <p className="text-xs text-gray-500">Student</p>
+                    <p className="text-sm font-semibold text-gray-900">
+                      {user?.name || 'Loading...'}
+                    </p>
+                    <p className="text-xs text-gray-500 capitalize">
+                      {user?.role || 'Student'}
+                    </p>
                   </div>
                 </button>
 
                 {/* Dropdown Menu */}
                 <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-gray-100 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
                   <div className="p-4 border-b border-gray-100">
-                    <p className="font-semibold text-gray-900">John Doe</p>
-                    <p className="text-sm text-gray-500">john@example.com</p>
+                    <p className="font-semibold text-gray-900">
+                      {user?.name || 'Loading...'}
+                    </p>
+                    <p className="text-sm text-gray-500">
+                      {user?.email || 'Loading...'}
+                    </p>
                   </div>
                   <div className="p-2">
                     <Link href="/student/profile" className="flex items-center space-x-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg">

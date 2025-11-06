@@ -2,26 +2,243 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { getAchievements, getNotifications } from '../../../lib/data';
+import BiometricEnrollment from '@/components/auth/BiometricEnrollment';
 
 export default function ProfilePage() {
   const [activeTab, setActiveTab] = useState<'profile' | 'achievements' | 'notifications' | 'settings'>('profile');
+  const [user, setUser] = useState<any>(null);
+  const [showFaceEnrollment, setShowFaceEnrollment] = useState(false);
+  const [showFingerprintEnrollment, setShowFingerprintEnrollment] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [uploadingPicture, setUploadingPicture] = useState(false);
+  const [stats, setStats] = useState({
+    coursesEnrolled: 0,
+    coursesCompleted: 0,
+    hoursLearned: 0,
+    avgRating: 0,
+  });
 
-  const achievements = getAchievements();
+  useEffect(() => {
+    // Fetch user data
+    const fetchUser = async () => {
+      // First, try to get user data from sessionStorage (set during login)
+      const storedUserData = sessionStorage.getItem('userData');
+      let hasStoredData = false;
+      if (storedUserData) {
+        try {
+          const parsedUser = JSON.parse(storedUserData);
+          console.log('📦 Profile: Using user data from sessionStorage:', parsedUser);
+          setUser({
+            ...parsedUser,
+            // Use real data from API, ensure phone is a string
+            phone: parsedUser.phone ? String(parsedUser.phone) : null,
+            bio: parsedUser.bio || null,
+            joinedDate: parsedUser.joinedDate ? new Date(parsedUser.joinedDate) : new Date(),
+            // Use profile picture if available, otherwise generate avatar from name initials
+            avatar: parsedUser.profilePicture || `https://ui-avatars.com/api/?name=${encodeURIComponent(parsedUser.name || 'User')}&background=9333ea&color=fff&size=150`,
+            faceIdEnrolled: parsedUser.faceIdEnrolled || false,
+            fingerprintEnrolled: parsedUser.fingerprintEnrolled || false,
+          });
+          hasStoredData = true;
+          setIsLoading(false); // Show profile immediately with stored data
+        } catch (e) {
+          console.error('Failed to parse stored user data:', e);
+        }
+      }
+      
+      // Wait a bit for cookie to be available, then fetch from API
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      try {
+        console.log('🔍 Profile: Fetching user data from /api/auth/me...');
+        const response = await fetch('/api/auth/me', { 
+          credentials: 'include',
+          cache: 'no-store',
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          console.log('✅ Profile: User data received from API:', data.user);
+          console.log('✅ Profile: Phone number from API:', data.user?.phone, 'Type:', typeof data.user?.phone);
+          if (data.user) {
+            // Update with fresh data from API
+            setUser({
+              ...data.user,
+              // Use real data from API, ensure phone is a string
+              phone: data.user.phone ? String(data.user.phone) : null,
+              bio: data.user.bio || null,
+              joinedDate: data.user.joinedDate ? new Date(data.user.joinedDate) : new Date(),
+              // Use profile picture if available, otherwise generate avatar from name initials
+              avatar: data.user.profilePicture || `https://ui-avatars.com/api/?name=${encodeURIComponent(data.user.name || 'User')}&background=9333ea&color=fff&size=150`,
+              faceIdEnrolled: data.user.faceIdEnrolled || false,
+              fingerprintEnrolled: data.user.fingerprintEnrolled || false,
+            });
+            setIsLoading(false);
+            // Clear sessionStorage only after successful API fetch
+            if (storedUserData) {
+              sessionStorage.removeItem('userData');
+            }
+          } else {
+            console.error('❌ Profile: No user data in API response');
+            if (!hasStoredData) {
+              setIsLoading(false);
+            }
+          }
+        } else if (response.status === 401) {
+          console.error('❌ Profile: Unauthorized (401) - cookie might not be set yet');
+          // If we already have user data displayed, don't redirect - just retry
+          if (hasStoredData) {
+            console.log('⚠️ Profile: Using stored user data while cookie is being set - will retry');
+            // Retry fetching after a longer delay
+            setTimeout(async () => {
+              try {
+                console.log('🔄 Profile: Retrying /api/auth/me...');
+                const retryResponse = await fetch('/api/auth/me', { 
+                  credentials: 'include',
+                  cache: 'no-store'
+                });
+                if (retryResponse.ok) {
+                  const retryData = await retryResponse.json();
+                  if (retryData.user) {
+                    console.log('✅ Profile: Retry successful - updating user data');
+                    setUser({
+                      ...retryData.user,
+                      // Use real data from API, ensure phone is a string
+                      phone: retryData.user.phone ? String(retryData.user.phone) : null,
+                      bio: retryData.user.bio || null,
+                      joinedDate: retryData.user.joinedDate ? new Date(retryData.user.joinedDate) : new Date(),
+                      // Use profile picture if available, otherwise generate avatar from name initials
+                      avatar: retryData.user.profilePicture || `https://ui-avatars.com/api/?name=${encodeURIComponent(retryData.user.name || 'User')}&background=9333ea&color=fff&size=150`,
+                      faceIdEnrolled: retryData.user.faceIdEnrolled || false,
+                      fingerprintEnrolled: retryData.user.fingerprintEnrolled || false,
+                    });
+                    sessionStorage.removeItem('userData');
+                  }
+                } else {
+                  console.error('❌ Profile: Retry still failed - status:', retryResponse.status);
+                }
+              } catch (e) {
+                console.error('Profile retry failed:', e);
+              }
+            }, 3000);
+          } else {
+            setIsLoading(false);
+          }
+        } else {
+          console.error('❌ Profile: Failed to fetch user - status:', response.status);
+          if (!hasStoredData) {
+            setIsLoading(false);
+          }
+        }
+      } catch (error) {
+        console.error('❌ Profile: Exception fetching user:', error);
+        if (!hasStoredData) {
+          setIsLoading(false);
+        }
+      }
+    };
+    fetchUser();
+  }, []);
+
+  // Fetch stats when user is loaded
+  useEffect(() => {
+    if (!user) return;
+
+    const fetchStats = async () => {
+      try {
+        const response = await fetch('/api/student/stats', {
+          credentials: 'include',
+          cache: 'no-store',
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setStats({
+            coursesEnrolled: data.stats.coursesEnrolled,
+            coursesCompleted: data.stats.coursesCompleted,
+            hoursLearned: data.stats.hoursLearned,
+            avgRating: 0, // TODO: Calculate from course ratings
+          });
+        }
+      } catch (error) {
+        console.error('Error fetching stats:', error);
+      }
+    };
+
+    fetchStats();
+  }, [user]);
+
+  // For now, show empty achievements - in future, fetch from database
+  const achievements: any[] = []; // TODO: Fetch real achievements from API
   const notifications = getNotifications();
 
-  // Mock user data - in real app this would come from auth context
-  const user = {
-    id: '1',
-    name: 'John Doe',
-    email: 'john@example.com',
-    phone: '+91-9876543210',
-    bio: 'Passionate learner exploring web development and design.',
-    joinedDate: new Date('2024-01-15'),
-    faceIdEnrolled: true,
-    avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face'
+  // Handle profile picture upload
+  const handlePictureUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'];
+    if (!allowedTypes.includes(file.type)) {
+      alert('Invalid file type. Only JPEG, PNG, WebP, and GIF are allowed.');
+      return;
+    }
+
+    // Validate file size (5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      alert('File size exceeds 5MB limit.');
+      return;
+    }
+
+    setUploadingPicture(true);
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await fetch('/api/profile/upload-picture', {
+        method: 'POST',
+        credentials: 'include',
+        body: formData,
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        // Update user state with new profile picture URL
+        setUser((prev: any) => ({
+          ...prev,
+          profilePicture: data.url,
+          avatar: data.url,
+        }));
+        alert('Profile picture uploaded successfully!');
+      } else {
+        alert(data.error || 'Failed to upload profile picture');
+      }
+    } catch (error) {
+      console.error('Error uploading profile picture:', error);
+      alert('An error occurred while uploading the profile picture');
+    } finally {
+      setUploadingPicture(false);
+      // Reset file input
+      if (event.target) {
+        event.target.value = '';
+      }
+    }
   };
+
+  if (isLoading || !user) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+      </div>
+    );
+  }
 
   const tabs = [
     { id: 'profile', label: 'Profile', icon: '👤' },
@@ -38,22 +255,51 @@ export default function ProfilePage() {
         <div className="absolute bottom-0 left-0 w-48 h-48 bg-white opacity-10 rounded-full -ml-24 -mb-24"></div>
 
         <div className="relative z-10 flex items-center space-x-6">
-          <div className="relative">
+          <div className="relative group">
             <img
-              src={user.avatar}
+              src={user.profilePicture || user.avatar}
               alt={user.name}
-              className="w-24 h-24 rounded-full border-4 border-white shadow-lg"
+              className="w-24 h-24 rounded-full border-4 border-white shadow-lg object-cover"
             />
             <div className="absolute -bottom-1 -right-1 w-8 h-8 bg-green-500 rounded-full border-4 border-white flex items-center justify-center">
               <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
               </svg>
             </div>
+            {/* Upload overlay */}
+            <div className="absolute inset-0 bg-black bg-opacity-50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer">
+              <input
+                type="file"
+                accept="image/jpeg,image/jpg,image/png,image/webp,image/gif"
+                onChange={handlePictureUpload}
+                className="hidden"
+                id="profile-picture-upload"
+                disabled={uploadingPicture}
+              />
+              <label
+                htmlFor="profile-picture-upload"
+                className="cursor-pointer flex flex-col items-center justify-center text-white"
+              >
+                {uploadingPicture ? (
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white"></div>
+                ) : (
+                  <>
+                    <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                    <span className="text-xs font-semibold">Change</span>
+                  </>
+                )}
+              </label>
+            </div>
           </div>
           <div>
             <h1 className="text-3xl font-bold mb-2">{user.name}</h1>
             <p className="text-blue-100 mb-1">{user.email}</p>
-            <p className="text-sm text-blue-200">Member since {user.joinedDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</p>
+            <p className="text-sm text-blue-200">
+              Member since {user.joinedDate ? (typeof user.joinedDate === 'string' ? new Date(user.joinedDate) : user.joinedDate).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : 'Recently'}
+            </p>
           </div>
         </div>
       </div>
@@ -118,7 +364,7 @@ export default function ProfilePage() {
                         </div>
                         <div>
                           <p className="text-sm text-gray-500">Phone Number</p>
-                          <p className="font-semibold text-gray-900">{user.phone}</p>
+                          <p className="font-semibold text-gray-900">{user.phone || 'Not provided'}</p>
                         </div>
                       </div>
                     </div>
@@ -126,7 +372,7 @@ export default function ProfilePage() {
 
                   <div>
                     <h3 className="text-xl font-bold text-gray-900 mb-4">Bio</h3>
-                    <p className="text-gray-600 leading-relaxed">{user.bio}</p>
+                    <p className="text-gray-600 leading-relaxed">{user.bio || 'No bio provided yet.'}</p>
                   </div>
                 </div>
 
@@ -168,19 +414,19 @@ export default function ProfilePage() {
                     <h3 className="text-xl font-bold text-gray-900 mb-4">Quick Stats</h3>
                     <div className="grid grid-cols-2 gap-4">
                       <div className="text-center p-4 bg-gray-50 rounded-xl">
-                        <p className="text-2xl font-bold text-gray-900">12</p>
+                        <p className="text-2xl font-bold text-gray-900">{stats.coursesEnrolled}</p>
                         <p className="text-sm text-gray-600">Courses Enrolled</p>
                       </div>
                       <div className="text-center p-4 bg-gray-50 rounded-xl">
-                        <p className="text-2xl font-bold text-gray-900">8</p>
+                        <p className="text-2xl font-bold text-gray-900">{stats.coursesCompleted}</p>
                         <p className="text-sm text-gray-600">Courses Completed</p>
                       </div>
                       <div className="text-center p-4 bg-gray-50 rounded-xl">
-                        <p className="text-2xl font-bold text-gray-900">156</p>
+                        <p className="text-2xl font-bold text-gray-900">{stats.hoursLearned.toFixed(1)}</p>
                         <p className="text-sm text-gray-600">Hours Learned</p>
                       </div>
                       <div className="text-center p-4 bg-gray-50 rounded-xl">
-                        <p className="text-2xl font-bold text-gray-900">4.8</p>
+                        <p className="text-2xl font-bold text-gray-900">{stats.avgRating > 0 ? stats.avgRating.toFixed(1) : 'N/A'}</p>
                         <p className="text-sm text-gray-600">Avg Rating</p>
                       </div>
                     </div>
@@ -198,26 +444,34 @@ export default function ProfilePage() {
                 <p className="text-gray-600">Celebrate your learning milestones</p>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {achievements.map(achievement => (
-                  <div key={achievement.id} className="bg-white border border-gray-200 rounded-2xl p-6 hover:shadow-lg transition-shadow">
-                    <div className="flex items-center space-x-4">
-                      <div className={`w-16 h-16 rounded-2xl flex items-center justify-center text-2xl ${achievement.color}`}>
-                        {achievement.icon}
-                      </div>
-                      <div className="flex-1">
-                        <h3 className="font-bold text-gray-900 mb-1">{achievement.title}</h3>
-                        <p className="text-sm text-gray-600 mb-2">{achievement.description}</p>
-                        {achievement.unlockedAt && (
-                          <p className="text-xs text-green-600 font-medium">
-                            Unlocked {achievement.unlockedAt.toLocaleDateString()}
-                          </p>
-                        )}
+              {achievements.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {achievements.map(achievement => (
+                    <div key={achievement.id} className="bg-white border border-gray-200 rounded-2xl p-6 hover:shadow-lg transition-shadow">
+                      <div className="flex items-center space-x-4">
+                        <div className={`w-16 h-16 rounded-2xl flex items-center justify-center text-2xl ${achievement.color}`}>
+                          {achievement.icon}
+                        </div>
+                        <div className="flex-1">
+                          <h3 className="font-bold text-gray-900 mb-1">{achievement.title}</h3>
+                          <p className="text-sm text-gray-600 mb-2">{achievement.description}</p>
+                          {achievement.unlockedAt && (
+                            <p className="text-xs text-green-600 font-medium">
+                              Unlocked {achievement.unlockedAt.toLocaleDateString()}
+                            </p>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="bg-white border border-gray-200 rounded-2xl p-12 text-center">
+                  <div className="text-6xl mb-4">🎯</div>
+                  <h3 className="text-xl font-bold text-gray-900 mb-2">No Achievements Yet</h3>
+                  <p className="text-gray-600">Start learning to unlock achievements and track your progress!</p>
+                </div>
+              )}
             </div>
           )}
 
@@ -314,15 +568,70 @@ export default function ProfilePage() {
                   <div className="bg-gray-50 rounded-2xl p-6">
                     <h3 className="text-lg font-semibold text-gray-900 mb-4">Security Settings</h3>
                     <div className="space-y-4">
-                      <div className="flex items-center justify-between p-4 bg-white rounded-xl">
-                        <div>
-                          <p className="font-semibold text-gray-900">Face ID Authentication</p>
-                          <p className="text-sm text-gray-600">Use biometric authentication for login</p>
+                      {/* Face ID Authentication */}
+                      <div className="flex items-center justify-between p-4 bg-white rounded-xl border border-gray-200">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3 mb-2">
+                            <div className="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center">
+                              <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                              </svg>
+                            </div>
+                            <div>
+                              <p className="font-semibold text-gray-900">Face ID Authentication</p>
+                              <p className="text-sm text-gray-600">
+                                {user.faceIdEnrolled ? 'Face ID is enrolled' : 'Use your face for quick login'}
+                              </p>
+                            </div>
+                          </div>
                         </div>
-                        <label className="relative inline-flex items-center cursor-pointer">
-                          <input type="checkbox" defaultChecked={user.faceIdEnrolled} className="sr-only peer" />
-                          <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
-                        </label>
+                        <div className="flex items-center gap-3">
+                          {user.faceIdEnrolled ? (
+                            <span className="px-3 py-1 bg-green-100 text-green-700 rounded-lg text-sm font-medium">
+                              Active
+                            </span>
+                          ) : (
+                            <button
+                              onClick={() => setShowFaceEnrollment(true)}
+                              className="px-4 py-2 bg-purple-600 text-white rounded-lg font-semibold hover:bg-purple-700 transition text-sm"
+                            >
+                              Enroll
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Fingerprint Authentication */}
+                      <div className="flex items-center justify-between p-4 bg-white rounded-xl border border-gray-200">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3 mb-2">
+                            <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
+                              <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04c.654-1.923 1.011-3.96 1.011-6.131 0-1.623-.277-3.18-.784-4.612M17.193 9.75c.585 1.923.907 3.96.907 6.131 0 1.623-.277 3.18-.784 4.612m-2.753-9.571c-1.744 2.772-4.753 4.571-8.193 4.571-3.44 0-6.449-1.799-8.193-4.571" />
+                              </svg>
+                            </div>
+                            <div>
+                              <p className="font-semibold text-gray-900">Fingerprint Authentication</p>
+                              <p className="text-sm text-gray-600">
+                                {user.fingerprintEnrolled ? 'Fingerprint is enrolled' : 'Use your fingerprint for quick login'}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          {user.fingerprintEnrolled ? (
+                            <span className="px-3 py-1 bg-green-100 text-green-700 rounded-lg text-sm font-medium">
+                              Active
+                            </span>
+                          ) : (
+                            <button
+                              onClick={() => setShowFingerprintEnrollment(true)}
+                              className="px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition text-sm"
+                            >
+                              Enroll
+                            </button>
+                          )}
+                        </div>
                       </div>
 
                       <div className="flex items-center justify-between p-4 bg-white rounded-xl">
@@ -378,6 +687,45 @@ export default function ProfilePage() {
           )}
         </div>
       </div>
+
+      {/* Biometric Enrollment Modals */}
+      {showFaceEnrollment && (
+        <BiometricEnrollment
+          type="face"
+          onComplete={() => {
+            setShowFaceEnrollment(false);
+            // Refresh user data
+            fetch('/api/auth/me', { credentials: 'include' })
+              .then(res => res.json())
+              .then(data => setUser({ ...user, faceIdEnrolled: data.user.faceIdEnrolled }))
+              .catch(console.error);
+          }}
+          onError={(error) => {
+            console.error('Face enrollment error:', error);
+            alert(error);
+          }}
+          onCancel={() => setShowFaceEnrollment(false)}
+        />
+      )}
+
+      {showFingerprintEnrollment && (
+        <BiometricEnrollment
+          type="fingerprint"
+          onComplete={() => {
+            setShowFingerprintEnrollment(false);
+            // Refresh user data
+            fetch('/api/auth/me', { credentials: 'include' })
+              .then(res => res.json())
+              .then(data => setUser({ ...user, fingerprintEnrolled: data.user.fingerprintEnrolled }))
+              .catch(console.error);
+          }}
+          onError={(error) => {
+            console.error('Fingerprint enrollment error:', error);
+            alert(error);
+          }}
+          onCancel={() => setShowFingerprintEnrollment(false)}
+        />
+      )}
     </div>
   );
 }

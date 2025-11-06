@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState } from 'react';
+import RoleSwitcher from '@/components/common/RoleSwitcher';
 
 const nav = [
   { name: 'Students', href: '/admin/students', icon: (
@@ -19,6 +20,9 @@ const nav = [
   )},
   { name: 'Reports', href: '/admin/reports', icon: (
     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V9m6 10V5M5 19h14" /></svg>
+  )},
+  { name: 'Profile', href: '/admin/profile', icon: (
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
   )},
 ];
 
@@ -47,6 +51,7 @@ export default function AdminLayout({
             <span className="text-2xl font-bold bg-gradient-to-r from-white to-slate-200 bg-clip-text text-transparent">Admin</span>
           </Link>
           <div className="hidden md:flex items-center space-x-1">
+            <RoleSwitcher />
             {nav.map(item => {
               const active = pathname === item.href;
               return (
@@ -74,6 +79,10 @@ export default function AdminLayout({
                   </Link>
                 );
               })}
+              <Link href="/admin/profile" onClick={() => setIsOpen(false)} className="flex items-center space-x-3 px-4 py-3 rounded-xl text-slate-200 hover:bg-white/10">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                <span>Profile</span>
+              </Link>
               <button onClick={handleLogout} className="w-full text-left px-4 py-3 rounded-xl text-red-200 hover:bg-red-500/10 border border-red-500/30">Logout</button>
             </div>
           </div>

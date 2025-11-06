@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from 'react';
 import { getCourses, getStudents, getAccessRequests } from '@/lib/data';
 import Link from 'next/link';
 
@@ -18,6 +19,128 @@ function getDeterministicValue(str: string, min: number, max: number): number {
 }
 
 export default function AdminDashboard() {
+  const [user, setUser] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  
+  // Fetch real user data - CRITICAL: Must fetch before showing dashboard
+  useEffect(() => {
+    const fetchUser = async () => {
+      // First, try to get user data from sessionStorage (set during login)
+      const storedUserData = sessionStorage.getItem('userData');
+      let hasStoredData = false;
+      if (storedUserData) {
+        try {
+          const parsedUser = JSON.parse(storedUserData);
+          console.log('📦 Using admin user data from sessionStorage:', parsedUser);
+          setUser(parsedUser);
+          hasStoredData = true;
+          setIsLoading(false); // Show dashboard immediately with stored data
+        } catch (e) {
+          console.error('Failed to parse stored user data:', e);
+        }
+      }
+      
+      // Wait a bit for cookie to be available, then fetch from API
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      try {
+        console.log('🔍 Fetching admin user data from /api/auth/me...');
+        const response = await fetch('/api/auth/me', { 
+          credentials: 'include',
+          cache: 'no-store', // Ensure fresh data
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        });
+        
+        console.log('📡 Response status:', response.status);
+        
+        if (response.ok) {
+          const data = await response.json();
+          console.log('✅ Admin user data received from API:', data.user);
+          if (data.user) {
+            // Update with fresh data from API
+            setUser(data.user);
+            setIsLoading(false);
+            // Clear sessionStorage only after successful API fetch
+            if (storedUserData) {
+              sessionStorage.removeItem('userData');
+            }
+          } else {
+            console.error('❌ No user data in API response');
+            // If we have stored data, use it; otherwise redirect
+            if (!storedUserData) {
+              setIsLoading(false);
+              setTimeout(() => {
+                window.location.href = '/login';
+              }, 2000);
+            } else {
+              setIsLoading(false);
+            }
+            return;
+          }
+        } else if (response.status === 401) {
+          console.error('❌ Unauthorized (401) - cookie might not be set yet');
+          // If we have stored data, use it temporarily
+          if (storedUserData) {
+            console.log('⚠️ Using stored user data while cookie is being set');
+            setIsLoading(false);
+            // Retry fetching after a delay
+            setTimeout(async () => {
+              try {
+                const retryResponse = await fetch('/api/auth/me', { 
+                  credentials: 'include',
+                  cache: 'no-store'
+                });
+                if (retryResponse.ok) {
+                  const retryData = await retryResponse.json();
+                  if (retryData.user) {
+                    console.log('✅ Admin: Retry successful - updating user data:', retryData.user.name);
+                    setUser(retryData.user);
+                    sessionStorage.removeItem('userData');
+                  }
+                }
+              } catch (e) {
+                console.error('Retry failed:', e);
+              }
+            }, 2000);
+          } else {
+            setIsLoading(false);
+            setTimeout(() => {
+              window.location.href = '/login';
+            }, 2000);
+          }
+          return;
+        } else {
+          console.error('❌ Failed to fetch user - status:', response.status);
+          // If we have stored data, use it; otherwise redirect
+          if (!storedUserData) {
+            setIsLoading(false);
+            setTimeout(() => {
+              window.location.href = '/login';
+            }, 2000);
+          } else {
+            setIsLoading(false);
+          }
+          return;
+        }
+      } catch (error) {
+        console.error('❌ Exception fetching user:', error);
+        // If we have stored data, use it; otherwise redirect
+        if (!storedUserData) {
+          setIsLoading(false);
+          setTimeout(() => {
+            window.location.href = '/login';
+          }, 2000);
+        } else {
+          setIsLoading(false);
+        }
+        return;
+      }
+    };
+    fetchUser();
+  }, []);
+
   const courses = getCourses();
   const students = getStudents();
   const requests = getAccessRequests();
@@ -49,13 +172,27 @@ export default function AdminDashboard() {
     completionRate: getDeterministicValue(course.id + '_rate', 60, 100),
   }));
 
+  // Don't render dashboard content until user data is loaded
+  if (isLoading || !user) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading your dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-8">
       <div className="bg-gradient-to-r from-purple-600 via-blue-600 to-indigo-600 rounded-3xl shadow-2xl p-8 text-white relative overflow-hidden">
         <div className="absolute top-0 right-0 w-96 h-96 bg-white opacity-10 rounded-full -mr-48 -mt-48" />
         <div className="absolute bottom-0 left-0 w-64 h-64 bg-white opacity-10 rounded-full -ml-32 -mb-32" />
         <div className="relative z-10">
-          <h1 className="text-4xl font-bold mb-2">Welcome back, Admin! 👋</h1>
+          <h1 className="text-4xl font-bold mb-2">
+            Welcome back, {user?.name || 'Admin'}! 👋
+          </h1>
           <p className="text-purple-100 text-lg">Here's what's happening with your platform today</p>
         </div>
       </div>
@@ -160,24 +297,24 @@ export default function AdminDashboard() {
           </div>
 
           <div className="bg-gradient-to-br from-purple-600 to-blue-600 rounded-2xl shadow-lg p-6 text-white">
-            <h3 className="font-bold mb-4">Quick Actions</h3>
+            <h3 className="font-bold mb-4 text-white">Quick Actions</h3>
             <div className="space-y-2">
               <Link href="/admin/courses">
-                <button className="w-full text-left px-4 py-3 bg-white bg-opacity-20 backdrop-blur-sm rounded-xl hover:bg-opacity-30 transition flex items-center space-x-3">
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>
-                  <span className="font-semibold">Create New Course</span>
+                <button className="w-full text-left px-4 py-3 bg-white bg-opacity-20 backdrop-blur-sm rounded-xl hover:bg-opacity-30 transition flex items-center space-x-3 text-white">
+                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>
+                  <span className="font-semibold text-white">Create New Course</span>
                 </button>
               </Link>
               <Link href="/admin/students">
-                <button className="w-full text-left px-4 py-3 bg-white bg-opacity-20 backdrop-blur-sm rounded-xl hover:bg-opacity-30 transition flex items-center space-x-3">
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" /></svg>
-                  <span className="font-semibold">Add New Student</span>
+                <button className="w-full text-left px-4 py-3 bg-white bg-opacity-20 backdrop-blur-sm rounded-xl hover:bg-opacity-30 transition flex items-center space-x-3 text-white">
+                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" /></svg>
+                  <span className="font-semibold text-white">Add New Student</span>
                 </button>
               </Link>
               <Link href="/admin/blogs">
-                <button className="w-full text-left px-4 py-3 bg-white bg-opacity-20 backdrop-blur-sm rounded-xl hover:bg-opacity-30 transition flex items-center space-x-3">
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
-                  <span className="font-semibold">Write Blog Post</span>
+                <button className="w-full text-left px-4 py-3 bg-white bg-opacity-20 backdrop-blur-sm rounded-xl hover:bg-opacity-30 transition flex items-center space-x-3 text-white">
+                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                  <span className="font-semibold text-white">Write Blog Post</span>
                 </button>
               </Link>
             </div>

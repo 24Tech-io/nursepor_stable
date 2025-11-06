@@ -1,25 +1,37 @@
-import { pgTable, text, serial, integer, real, boolean, timestamp } from 'drizzle-orm/pg-core';
+import { pgTable, text, serial, integer, real, boolean, timestamp, unique } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 
 // Users table
+// Changed: email is no longer unique alone - now (email, role) must be unique together
+// This allows same email to have both student and admin accounts
 export const users = pgTable('users', {
   id: serial('id').primaryKey(),
   name: text('name').notNull(),
-  email: text('email').unique().notNull(),
+  email: text('email').notNull(), // Removed .unique() - now part of composite unique
   password: text('password').notNull(),
   phone: text('phone'),
   role: text('role').notNull().default('student'),
   isActive: boolean('is_active').notNull().default(true),
   faceIdEnrolled: boolean('face_id_enrolled').notNull().default(false),
   faceTemplate: text('face_template'),
+  fingerprintEnrolled: boolean('fingerprint_enrolled').notNull().default(false),
+  fingerprintCredentialId: text('fingerprint_credential_id'), // WebAuthn credential ID
+  twoFactorEnabled: boolean('two_factor_enabled').notNull().default(false),
+  twoFactorSecret: text('two_factor_secret'), // TOTP secret
+  twoFactorBackupCodes: text('two_factor_backup_codes'), // JSON array of backup codes
   bio: text('bio'),
+  profilePicture: text('profile_picture'), // URL or path to profile picture
   joinedDate: timestamp('joined_date').notNull().defaultNow(),
   lastLogin: timestamp('last_login'),
   resetToken: text('reset_token'),
   resetTokenExpiry: timestamp('reset_token_expiry'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
-});
+}, (table) => ({
+  // Composite unique constraint: same email can have student AND admin accounts
+  // But cannot have duplicate student or duplicate admin with same email
+  emailRoleUnique: unique('users_email_role_unique').on(table.email, table.role),
+}));
 
 // Courses table
 export const courses = pgTable('courses', {
@@ -173,6 +185,23 @@ export const sessions = pgTable('sessions', {
   createdAt: timestamp('created_at').notNull().defaultNow(),
 });
 
+// Payments/Transactions table
+export const payments = pgTable('payments', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  courseId: integer('course_id').notNull().references(() => courses.id, { onDelete: 'cascade' }),
+  amount: real('amount').notNull(),
+  currency: text('currency').notNull().default('INR'),
+  status: text('status').notNull().default('pending'), // pending, completed, failed, refunded
+  stripePaymentIntentId: text('stripe_payment_intent_id'),
+  stripeSessionId: text('stripe_session_id'),
+  paymentMethod: text('payment_method'),
+  transactionId: text('transaction_id'),
+  metadata: text('metadata'), // JSON string for additional data
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
 // Relations
 export const usersRelations = relations(users, ({ many }) => ({
   accessRequests: many(accessRequests),
@@ -269,5 +298,16 @@ export const sessionsRelations = relations(sessions, ({ one }) => ({
   user: one(users, {
     fields: [sessions.userId],
     references: [users.id],
+  }),
+}));
+
+export const paymentsRelations = relations(payments, ({ one }) => ({
+  user: one(users, {
+    fields: [payments.userId],
+    references: [users.id],
+  }),
+  course: one(courses, {
+    fields: [payments.courseId],
+    references: [courses.id],
   }),
 }));

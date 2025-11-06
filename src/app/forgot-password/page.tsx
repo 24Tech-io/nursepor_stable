@@ -8,12 +8,14 @@ export default function ForgotPasswordPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const [resetLink, setResetLink] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError('');
     setMessage('');
+    setResetLink('');
 
     try {
       const response = await fetch('/api/auth/forgot-password', {
@@ -27,7 +29,13 @@ export default function ForgotPasswordPage() {
       const data = await response.json();
 
       if (response.ok) {
-        setMessage('Password reset instructions have been sent to your email.');
+        // Check if SMTP is not configured and reset link is provided
+        if (data.resetUrl) {
+          setMessage('SMTP is not configured. Use the reset link below:');
+          setResetLink(data.resetUrl);
+        } else {
+          setMessage('Password reset instructions have been sent to your email.');
+        }
       } else {
         setError(data.message || 'Failed to send reset email');
       }
@@ -82,8 +90,24 @@ export default function ForgotPasswordPage() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                 </div>
-                <div className="ml-3">
+                <div className="ml-3 flex-1">
                   <p className="text-sm text-emerald-200">{message}</p>
+                  {resetLink && (
+                    <div className="mt-3 space-y-2">
+                      <p className="text-xs text-emerald-300/80">Click the link below to reset your password:</p>
+                      <a
+                        href={resetLink}
+                        className="block w-full px-4 py-2 bg-emerald-600/20 border border-emerald-500/30 rounded-lg text-emerald-200 hover:bg-emerald-600/30 transition text-sm break-all"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        {resetLink}
+                      </a>
+                      <p className="text-xs text-emerald-300/60 mt-2">
+                        💡 To receive emails, configure SMTP settings in .env.local
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

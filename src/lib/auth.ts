@@ -3,16 +3,31 @@ import jwt from 'jsonwebtoken';
 import { db } from './db';
 import { users, sessions } from './db/schema';
 import { eq, and } from 'drizzle-orm';
+import { generateSecureToken } from './security';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
+// JWT_SECRET must be set - no fallback for security
+if (!process.env.JWT_SECRET || process.env.JWT_SECRET === 'your-secret-key' || process.env.JWT_SECRET.length < 32) {
+  throw new Error(
+    'JWT_SECRET must be set in environment variables and must be at least 32 characters long. ' +
+    'Please set a strong random secret in .env.local'
+  );
+}
+
+const JWT_SECRET = process.env.JWT_SECRET;
 const JWT_EXPIRES_IN = '7d';
 
 export interface AuthUser {
   id: number;
   name: string;
   email: string;
+  phone: string | null;
+  bio: string | null;
   role: string;
   isActive: boolean;
+  faceIdEnrolled: boolean;
+  fingerprintEnrolled: boolean;
+  twoFactorEnabled: boolean;
+  joinedDate: Date | null;
 }
 
 export async function hashPassword(password: string): Promise<string> {
@@ -52,8 +67,32 @@ export function verifyToken(token: string): AuthUser | null {
   }
 }
 
-export async function createSession(userId: number, deviceInfo?: any): Promise<string> {
-  const sessionToken = generateToken({ id: userId, name: '', email: '', role: '', isActive: true });
+export async function createSession(userId: number, deviceInfo?: any, userData?: AuthUser): Promise<string> {
+  // Get user data if not provided
+  let user: AuthUser;
+  if (userData) {
+    user = userData;
+  } else {
+    const userResult = await db
+      .select()
+      .from(users)
+      .where(eq(users.id, userId))
+      .limit(1);
+    
+    if (!userResult.length) {
+      throw new Error('User not found');
+    }
+    
+    user = {
+      id: userResult[0].id,
+      name: userResult[0].name,
+      email: userResult[0].email,
+      role: userResult[0].role,
+      isActive: userResult[0].isActive,
+    };
+  }
+
+  const sessionToken = generateToken(user);
   const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
 
   await db.insert(sessions).values({
@@ -97,11 +136,17 @@ export async function destroyAllUserSessions(userId: number): Promise<void> {
   await db.delete(sessions).where(eq(sessions.userId, userId));
 }
 
-export async function authenticateUser(email: string, password: string): Promise<AuthUser | null> {
+export async function authenticateUser(email: string, password: string, role?: string): Promise<AuthUser | null> {
+  // If role is specified, authenticate that specific role
+  // Otherwise, get the first matching account (for backward compatibility)
+  const whereConditions = role 
+    ? and(eq(users.email, email), eq(users.role, role), eq(users.isActive, true))
+    : and(eq(users.email, email), eq(users.isActive, true));
+  
   const user = await db
     .select()
     .from(users)
-    .where(and(eq(users.email, email), eq(users.isActive, true)))
+    .where(whereConditions)
     .limit(1);
 
   if (!user.length) return null;
@@ -119,9 +164,37 @@ export async function authenticateUser(email: string, password: string): Promise
     id: user[0].id,
     name: user[0].name,
     email: user[0].email,
+    phone: user[0].phone || null,
+    bio: user[0].bio || null,
     role: user[0].role,
     isActive: user[0].isActive,
+    faceIdEnrolled: user[0].faceIdEnrolled || false,
+    fingerprintEnrolled: user[0].fingerprintEnrolled || false,
+    twoFactorEnabled: user[0].twoFactorEnabled || false,
+    joinedDate: user[0].joinedDate || null,
   };
+}
+
+// Get all accounts (roles) for an email
+export async function getUserAccounts(email: string): Promise<AuthUser[]> {
+  const accounts = await db
+    .select()
+    .from(users)
+    .where(and(eq(users.email, email), eq(users.isActive, true)));
+
+  return accounts.map(user => ({
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    phone: user.phone || null,
+    bio: user.bio || null,
+    role: user.role,
+    isActive: user.isActive,
+    faceIdEnrolled: user.faceIdEnrolled || false,
+    fingerprintEnrolled: user.fingerprintEnrolled || false,
+    twoFactorEnabled: user.twoFactorEnabled || false,
+    joinedDate: user.joinedDate || null,
+  }));
 }
 
 export async function createUser(userData: {
@@ -131,26 +204,57 @@ export async function createUser(userData: {
   phone?: string;
   role?: string;
 }): Promise<AuthUser> {
-  const hashedPassword = await hashPassword(userData.password);
+  try {
+    console.log('createUser called with:', { email: userData.email, role: userData.role });
+    
+    // Check if database is initialized
+    if (!db) {
+      throw new Error('Database not initialized. Please check DATABASE_URL in .env.local');
+    }
 
-  const newUser = await db
-    .insert(users)
-    .values({
-      name: userData.name,
-      email: userData.email,
-      password: hashedPassword,
-      phone: userData.phone,
-      role: userData.role || 'student',
-    })
-    .returning();
+    const hashedPassword = await hashPassword(userData.password);
+    console.log('Password hashed successfully');
 
-  return {
-    id: newUser[0].id,
-    name: newUser[0].name,
-    email: newUser[0].email,
-    role: newUser[0].role,
-    isActive: newUser[0].isActive,
-  };
+    const newUser = await db
+      .insert(users)
+      .values({
+        name: userData.name,
+        email: userData.email,
+        password: hashedPassword,
+        phone: userData.phone,
+        role: userData.role || 'student',
+      })
+      .returning();
+
+    if (!newUser || newUser.length === 0) {
+      throw new Error('Failed to create user - no data returned from database');
+    }
+
+    console.log('User inserted successfully:', { id: newUser[0].id, email: newUser[0].email, phone: newUser[0].phone });
+
+    return {
+      id: newUser[0].id,
+      name: newUser[0].name,
+      email: newUser[0].email,
+      phone: newUser[0].phone || null,
+      bio: newUser[0].bio || null,
+      role: newUser[0].role,
+      isActive: newUser[0].isActive,
+      faceIdEnrolled: newUser[0].faceIdEnrolled || false,
+      fingerprintEnrolled: newUser[0].fingerprintEnrolled || false,
+      twoFactorEnabled: newUser[0].twoFactorEnabled || false,
+      joinedDate: newUser[0].joinedDate || null,
+    };
+  } catch (error: any) {
+    console.error('createUser function error:', error);
+    console.error('Error details:', {
+      message: error?.message,
+      code: error?.code,
+      detail: error?.detail,
+      constraint: error?.constraint,
+    });
+    throw error; // Re-throw to let the caller handle it
+  }
 }
 
 export async function generateResetToken(email: string): Promise<string | null> {
@@ -162,7 +266,8 @@ export async function generateResetToken(email: string): Promise<string | null> 
 
   if (!user.length) return null;
 
-  const resetToken = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+  // Use cryptographically secure random token
+  const resetToken = generateSecureToken(32);
   const resetTokenExpiry = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
 
   await db

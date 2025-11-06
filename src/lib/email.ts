@@ -1,16 +1,36 @@
 import nodemailer from 'nodemailer';
 
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST,
-  port: parseInt(process.env.SMTP_PORT || '587'),
-  secure: process.env.SMTP_SECURE === 'true',
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
-  },
-});
+// Create transporter only if SMTP is configured
+let transporter: nodemailer.Transporter | null = null;
+
+if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
+  try {
+    transporter = nodemailer.createTransport({
+      host: process.env.SMTP_HOST,
+      port: parseInt(process.env.SMTP_PORT || '587'),
+      secure: process.env.SMTP_SECURE === 'true',
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS,
+      },
+    });
+    console.log('✅ SMTP email configured');
+  } catch (error) {
+    console.error('❌ Failed to configure SMTP:', error);
+  }
+} else {
+  console.warn('⚠️ SMTP not configured - email features will be disabled');
+  console.warn('   To enable email, add SMTP_HOST, SMTP_USER, and SMTP_PASS to .env.local');
+}
 
 export async function sendPasswordResetEmail(email: string, resetToken: string): Promise<void> {
+  if (!transporter) {
+    const resetUrl = `${process.env.NEXT_PUBLIC_APP_URL}/reset-password?email=${encodeURIComponent(email)}&token=${resetToken}`;
+    console.log('📧 SMTP not configured - Password reset link (for development):');
+    console.log(`   ${resetUrl}`);
+    throw new Error('SMTP is not configured. Please configure SMTP settings in .env.local to send emails. For development, check the server console for the reset link.');
+  }
+
   const resetUrl = `${process.env.NEXT_PUBLIC_APP_URL}/reset-password?email=${encodeURIComponent(email)}&token=${resetToken}`;
 
   const mailOptions = {
@@ -44,6 +64,11 @@ export async function sendPasswordResetEmail(email: string, resetToken: string):
 }
 
 export async function sendWelcomeEmail(email: string, name: string): Promise<void> {
+  if (!transporter) {
+    console.log(`📧 SMTP not configured - Welcome email skipped for ${email}`);
+    return; // Don't throw error for welcome email, just skip it
+  }
+
   const mailOptions = {
     from: process.env.SMTP_FROM || 'noreply@lms-platform.com',
     to: email,
@@ -67,6 +92,11 @@ export async function sendWelcomeEmail(email: string, name: string): Promise<voi
 }
 
 export async function sendAccessRequestNotification(adminEmail: string, studentName: string, courseTitle: string): Promise<void> {
+  if (!transporter) {
+    console.log(`📧 SMTP not configured - Access request notification skipped`);
+    return; // Don't throw error, just skip it
+  }
+
   const mailOptions = {
     from: process.env.SMTP_FROM || 'noreply@lms-platform.com',
     to: adminEmail,
