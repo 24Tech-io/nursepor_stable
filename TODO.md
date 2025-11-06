@@ -1,0 +1,25 @@
+# LMS Platform Project Setup TODO
+
+- [x] Create lms-platform directory
+- [x] Create package.json with Next.js dependencies
+- [x] Create next.config.js
+- [x] Create tsconfig.json
+- [x] Create src/app/layout.tsx
+- [x] Create src/app/page.tsx
+- [x] Create src/app/admin/layout.tsx
+- [x] Create src/app/admin/students/page.tsx
+- [x] Create src/app/admin/courses/page.tsx
+- [x] Create src/app/admin/requests/page.tsx
+- [x] Create src/app/admin/blogs/page.tsx
+- [x] Create src/app/admin/reports/page.tsx
+- [x] Create src/app/student/layout.tsx
+- [x] Create src/app/student/dashboard/page.tsx
+- [x] Create src/app/student/courses/page.tsx
+- [x] Create src/app/student/daily-video/page.tsx
+- [x] Create src/app/student/blogs/page.tsx
+- [x] Create src/lib/types.ts
+- [x] Create src/lib/data.ts
+- [x] Create src/components/index.ts (placeholder)
+- [x] Create src/styles/globals.css
+- [x] Run npm install in lms-platform directory
+- [x] Test the project with npm run dev
