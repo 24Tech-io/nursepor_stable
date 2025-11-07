@@ -40,6 +40,10 @@ export async function POST(request: NextRequest) {
     // Get all accounts for this email
     const accounts = await getUserAccounts(sanitizedEmail);
 
+    console.log('get-roles API - Email requested:', sanitizedEmail);
+    console.log('get-roles API - Accounts found:', accounts.length);
+    console.log('get-roles API - Accounts:', accounts.map(a => ({ id: a.id, role: a.role, name: a.name, email: a.email, isActive: a.isActive })));
+
     return NextResponse.json({
       email: sanitizedEmail,
       accounts: accounts.map(acc => ({

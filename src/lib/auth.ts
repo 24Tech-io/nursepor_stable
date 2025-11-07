@@ -2,7 +2,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { getDatabase } from './db';
 import { users, sessions } from './db/schema';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, sql } from 'drizzle-orm';
 import { generateSecureToken } from './security';
 
 // JWT_SECRET must be set - no fallback for security
@@ -201,10 +201,19 @@ export async function authenticateUser(email: string, password: string, role?: s
 // Get all accounts (roles) for an email
 export async function getUserAccounts(email: string): Promise<AuthUser[]> {
   const db = getDatabase();
+  // Use case-insensitive email comparison
+  const normalizedEmail = email.toLowerCase().trim();
   const accounts = await db
     .select()
     .from(users)
-    .where(and(eq(users.email, email), eq(users.isActive, true)));
+    .where(and(
+      sql`LOWER(${users.email}) = LOWER(${normalizedEmail})`,
+      eq(users.isActive, true)
+    ));
+
+  console.log('getUserAccounts - Email searched:', normalizedEmail);
+  console.log('getUserAccounts - Accounts found:', accounts.length);
+  console.log('getUserAccounts - Accounts:', accounts.map((a: any) => ({ id: a.id, email: a.email, role: a.role, name: a.name, isActive: a.isActive })));
 
   return accounts.map((user: any) => ({
     id: user.id,

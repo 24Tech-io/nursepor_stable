@@ -2,28 +2,61 @@
 
 'use client';
 
-import { useState } from 'react';
-import { getBlogPosts } from '../../../lib/data';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 
 export default function BlogsPage() {
-  const allBlogs = getBlogPosts();
+  const [allBlogs, setAllBlogs] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
 
+  useEffect(() => {
+    const fetchBlogs = async () => {
+      try {
+        const response = await fetch('/api/blogs?status=published');
+        if (response.ok) {
+          const data = await response.json();
+          setAllBlogs(data.blogs || []);
+        }
+      } catch (error) {
+        console.error('Failed to fetch blogs:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchBlogs();
+  }, []);
+
   // Get all unique tags
-  const allTags = Array.from(new Set(allBlogs.flatMap(blog => blog.tags)));
+  const allTags = Array.from(new Set(allBlogs.flatMap(blog => blog.tags || [])));
 
   // Filter blogs
   const filteredBlogs = allBlogs.filter(blog => {
     const matchesSearch = blog.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         blog.content.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesTag = !selectedTag || blog.tags.includes(selectedTag);
+                         (blog.content || '').toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesTag = !selectedTag || (blog.tags || []).includes(selectedTag);
     return matchesSearch && matchesTag && blog.status === 'published';
   });
 
   const featuredBlog = filteredBlogs[0];
   const regularBlogs = filteredBlogs.slice(1);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-96">
+        <div className="text-center">
+          <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg className="w-8 h-8 text-gray-400 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+          </div>
+          <h3 className="text-xl font-semibold text-gray-900">Loading blogs...</h3>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
@@ -131,7 +164,7 @@ export default function BlogsPage() {
           >
             All Topics
           </button>
-          {allTags.map(tag => (
+          {allTags.map((tag: string) => (
             <button
               key={tag}
               onClick={() => setSelectedTag(tag)}
@@ -166,7 +199,7 @@ export default function BlogsPage() {
             </div>
             <div className="p-8 flex flex-col justify-center">
               <div className="flex items-center space-x-2 mb-4">
-                {featuredBlog.tags.slice(0, 2).map(tag => (
+                {featuredBlog.tags.slice(0, 2).map((tag: string) => (
                   <span key={tag} className="px-3 py-1 bg-purple-100 text-purple-700 text-xs font-semibold rounded-full uppercase">
                     {tag}
                   </span>
@@ -184,7 +217,7 @@ export default function BlogsPage() {
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                     </svg>
-                    <span>{featuredBlog.createdAt.toLocaleDateString()}</span>
+                    <span>{featuredBlog.createdAt ? new Date(featuredBlog.createdAt).toLocaleDateString() : ''}</span>
                   </span>
                   <span>•</span>
                   <span>5 min read</span>
@@ -221,7 +254,7 @@ export default function BlogsPage() {
                   </div>
                   <div className="p-6">
                     <div className="flex items-center space-x-2 mb-3">
-                      {blog.tags.slice(0, 2).map(tag => (
+                      {blog.tags.slice(0, 2).map((tag: string) => (
                         <span key={tag} className="px-2 py-1 bg-purple-100 text-purple-700 text-xs font-semibold rounded-full uppercase">
                           {tag}
                         </span>
@@ -238,7 +271,7 @@ export default function BlogsPage() {
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                         </svg>
-                        <span>{blog.createdAt.toLocaleDateString()}</span>
+                        <span>{blog.createdAt ? new Date(blog.createdAt).toLocaleDateString() : ''}</span>
                       </span>
                       <span className="text-purple-600 font-semibold flex items-center space-x-1">
                         <span>Read</span>

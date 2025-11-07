@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from 'react';
-import { getBlogPosts } from '@/lib/data';
+import { useState, useEffect } from 'react';
 
 export default function AdminBlogsPage() {
-  const [blogs, setBlogs] = useState(getBlogPosts());
+  const [blogs, setBlogs] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingBlog, setEditingBlog] = useState<any>(null);
   const [formData, setFormData] = useState({
@@ -24,36 +24,140 @@ export default function AdminBlogsPage() {
 
   const handleEdit = (blog: any) => {
     setEditingBlog(blog);
-    setFormData({ title: blog.title, slug: blog.slug, cover: blog.cover, content: blog.content, tags: blog.tags.join(', '), status: blog.status });
+    setFormData({ 
+      title: blog.title, 
+      slug: blog.slug, 
+      cover: blog.cover || '', 
+      content: blog.content, 
+      tags: (blog.tags || []).join(', '), 
+      status: blog.status 
+    });
     setShowModal(true);
   };
 
-  const handleSave = () => {
-    const blogData = {
-      id: editingBlog?.id || `blog-${Date.now()}`,
-      ...formData,
-      author: editingBlog?.author || 'Nurse Pro Academy Team',
-      tags: formData.tags.split(',').map(t => t.trim()).filter(t => t),
-      createdAt: editingBlog?.createdAt || new Date(),
-      updatedAt: new Date(),
+  const generateSlug = (title: string) => title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+
+  useEffect(() => {
+    const fetchBlogs = async () => {
+      try {
+        const response = await fetch('/api/blogs');
+        if (response.ok) {
+          const data = await response.json();
+          setBlogs(data.blogs || []);
+        }
+      } catch (error) {
+        console.error('Failed to fetch blogs:', error);
+      } finally {
+        setLoading(false);
+      }
     };
 
-    if (editingBlog) setBlogs(blogs.map(b => b.id === editingBlog.id ? blogData : b));
-    else setBlogs([...blogs, blogData]);
+    fetchBlogs();
+  }, []);
 
-    setShowModal(false);
-    alert(editingBlog ? 'Blog updated!' : 'Blog created!');
+  const handleSave = async () => {
+    const blogData = {
+      title: formData.title,
+      slug: formData.slug,
+      cover: formData.cover,
+      content: formData.content,
+      tags: formData.tags.split(',').map(t => t.trim()).filter(t => t),
+      status: formData.status,
+      author: editingBlog?.author || 'Nurse Pro Academy Team',
+    };
+
+    try {
+      if (editingBlog) {
+        // Update existing blog
+        const response = await fetch(`/api/blogs/${editingBlog.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(blogData),
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setBlogs(blogs.map(b => b.id === editingBlog.id ? data.blog : b));
+          alert('Blog updated!');
+        } else {
+          alert('Failed to update blog');
+        }
+      } else {
+        // Create new blog
+        const response = await fetch('/api/blogs', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(blogData),
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setBlogs([...blogs, data.blog]);
+          alert('Blog created!');
+        } else {
+          alert('Failed to create blog');
+        }
+      }
+      setShowModal(false);
+    } catch (error) {
+      console.error('Failed to save blog:', error);
+      alert('Failed to save blog');
+    }
   };
 
-  const handleDelete = (id: string) => {
-    if (confirm('Are you sure you want to delete this blog post?')) setBlogs(blogs.filter(b => b.id !== id));
+  const handleDelete = async (id: string) => {
+    if (confirm('Are you sure you want to delete this blog post?')) {
+      try {
+        const response = await fetch(`/api/blogs/${id}`, {
+          method: 'DELETE',
+        });
+        if (response.ok) {
+          setBlogs(blogs.filter(b => b.id !== id));
+        } else {
+          alert('Failed to delete blog');
+        }
+      } catch (error) {
+        console.error('Failed to delete blog:', error);
+        alert('Failed to delete blog');
+      }
+    }
   };
 
-  const handleToggleStatus = (id: string) => {
-    setBlogs(blogs.map(b => b.id === id ? { ...b, status: b.status === 'draft' ? 'published' : 'draft' } : b));
+  const handleToggleStatus = async (id: string) => {
+    const blog = blogs.find(b => b.id === id);
+    if (!blog) return;
+
+    const newStatus = blog.status === 'draft' ? 'published' : 'draft';
+    try {
+      const response = await fetch(`/api/blogs/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...blog, status: newStatus }),
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setBlogs(blogs.map(b => b.id === id ? data.blog : b));
+      } else {
+        alert('Failed to update blog status');
+      }
+    } catch (error) {
+      console.error('Failed to update blog status:', error);
+      alert('Failed to update blog status');
+    }
   };
 
-  const generateSlug = (title: string) => title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-96">
+        <div className="text-center">
+          <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg className="w-8 h-8 text-gray-400 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+          </div>
+          <h3 className="text-xl font-semibold text-gray-900">Loading blogs...</h3>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
@@ -153,7 +257,7 @@ export default function AdminBlogsPage() {
                     {blog.status === 'published' ? 'Published' : 'Draft'}
                   </button>
                 </td>
-                <td className="px-6 py-4 text-sm text-gray-600">{new Date(blog.createdAt).toLocaleDateString()}</td>
+                <td className="px-6 py-4 text-sm text-gray-600">{blog.createdAt ? new Date(blog.createdAt).toLocaleDateString() : ''}</td>
                 <td className="px-6 py-4 text-right space-x-2">
                   <button onClick={() => handleEdit(blog)} className="text-blue-600 hover:text-blue-700 font-medium">Edit</button>
                   <button onClick={() => handleDelete(blog.id)} className="text-red-600 hover:text-red-700 font-medium">Delete</button>

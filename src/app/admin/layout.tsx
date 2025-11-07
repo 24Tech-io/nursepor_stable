@@ -3,9 +3,11 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState } from 'react';
-import RoleSwitcher from '@/components/common/RoleSwitcher';
 
 const nav = [
+  { name: 'Dashboard', href: '/admin', icon: (
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>
+  )},
   { name: 'Students', href: '/admin/students', icon: (
     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a4 4 0 00-4-4h-1" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20H4v-2a4 4 0 014-4h1" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
   )},
@@ -44,16 +46,15 @@ export default function AdminLayout({
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-indigo-950 to-black">
       <nav className="bg-white/10 backdrop-blur-xl border-b border-white/10 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <Link href="/admin/students" className="flex items-center space-x-2">
+          <Link href="/admin" className="flex items-center space-x-2">
             <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-fuchsia-600 rounded-xl flex items-center justify-center shadow-[0_10px_40px_-12px_rgba(99,102,241,0.6)]">
               <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.8 5.5 9.2 5 7.5 5 5.8 5 4.2 5.5 3 6.253v13" /></svg>
             </div>
             <span className="text-2xl font-bold bg-gradient-to-r from-white to-slate-200 bg-clip-text text-transparent">Nurse Pro Academy</span>
           </Link>
           <div className="hidden md:flex items-center space-x-1">
-            <RoleSwitcher />
             {nav.map(item => {
-              const active = pathname === item.href;
+              const active = pathname === item.href || (item.href === '/admin' && pathname === '/admin');
               return (
                 <Link key={item.name} href={item.href} className={`relative px-4 py-2 rounded-xl font-medium text-sm transition-all duration-200 flex items-center space-x-2 ${active ? 'bg-gradient-to-r from-indigo-600 to-fuchsia-600 text-white shadow-[0_10px_40px_-12px_rgba(99,102,241,0.6)]' : 'text-slate-200 hover:bg-white/10'}`}>
                   {item.icon}
@@ -71,7 +72,7 @@ export default function AdminLayout({
           <div className="md:hidden border-t border-white/10">
             <div className="px-4 py-3 space-y-1">
               {nav.map(item => {
-                const active = pathname === item.href;
+                const active = pathname === item.href || (item.href === '/admin' && pathname === '/admin');
                 return (
                   <Link key={item.name} href={item.href} onClick={() => setIsOpen(false)} className={`flex items-center space-x-3 px-4 py-3 rounded-xl font-medium transition-all ${active ? 'bg-gradient-to-r from-indigo-600 to-fuchsia-600 text-white' : 'text-slate-200 hover:bg-white/10'}`}>
                     {item.icon}

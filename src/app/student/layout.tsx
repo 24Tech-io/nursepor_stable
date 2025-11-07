@@ -3,7 +3,6 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState, useEffect, useRef } from 'react';
-import RoleSwitcher from '@/components/common/RoleSwitcher';
 
 const navigation = [
   {
@@ -226,9 +225,6 @@ export default function StudentLayout({
 
             {/* Profile & Notifications */}
             <div className="flex items-center space-x-4">
-              {/* Role Switcher */}
-              <RoleSwitcher />
-              
               {/* Notifications */}
               <div className="relative" ref={notificationsRef}>
                 <button 

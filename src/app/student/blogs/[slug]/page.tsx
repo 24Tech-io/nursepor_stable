@@ -3,7 +3,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getBlogPosts } from '../../../../lib/data';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 
@@ -12,22 +11,41 @@ export default function BlogDetailPage() {
   const slug = params.slug as string;
   const [blog, setBlog] = useState<any>(null);
   const [relatedBlogs, setRelatedBlogs] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const allBlogs = getBlogPosts();
-    const currentBlog = allBlogs.find(b => b.slug === slug);
-    setBlog(currentBlog);
+    const fetchBlog = async () => {
+      try {
+        const response = await fetch(`/api/blogs/slug/${slug}`);
+        if (response.ok) {
+          const data = await response.json();
+          setBlog(data.blog);
 
-    if (currentBlog) {
-      // Find related blogs by tags
-      const related = allBlogs
-        .filter(b => b.id !== currentBlog.id && b.tags.some(tag => currentBlog.tags.includes(tag)))
-        .slice(0, 3);
-      setRelatedBlogs(related);
-    }
+          // Fetch all blogs to find related ones
+          const allBlogsResponse = await fetch('/api/blogs?status=published');
+          if (allBlogsResponse.ok) {
+            const allBlogsData = await allBlogsResponse.json();
+            const allBlogs = allBlogsData.blogs || [];
+            const currentBlog = data.blog;
+            
+            // Find related blogs by tags
+            const related = allBlogs
+              .filter((b: any) => b.id !== currentBlog.id && (b.tags || []).some((tag: string) => (currentBlog.tags || []).includes(tag)))
+              .slice(0, 3);
+            setRelatedBlogs(related);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch blog:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchBlog();
   }, [slug]);
 
-  if (!blog) {
+  if (loading || !blog) {
     return (
       <div className="flex items-center justify-center min-h-96">
         <div className="text-center">
@@ -36,7 +54,7 @@ export default function BlogDetailPage() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
             </svg>
           </div>
-          <h3 className="text-xl font-semibold text-gray-900">Loading article...</h3>
+          <h3 className="text-xl font-semibold text-gray-900">{loading ? 'Loading article...' : 'Article not found'}</h3>
         </div>
       </div>
     );
