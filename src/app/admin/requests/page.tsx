@@ -1,14 +1,49 @@
 "use client";
 
-import { useMemo, useState } from 'react';
-import { getAccessRequests } from '@/lib/data';
+import { useMemo, useState, useEffect } from 'react';
 
-type Request = ReturnType<typeof getAccessRequests>[number];
+type Request = {
+  id: string;
+  studentId: string;
+  courseId: string;
+  studentName: string;
+  courseTitle: string;
+  reason: string;
+  status: 'pending' | 'approved' | 'rejected';
+  requestedAt?: string;
+  reviewedAt?: string;
+  reviewedBy?: string;
+};
 
 export default function RequestsPage() {
-  const [requests, setRequests] = useState<Request[]>(getAccessRequests());
+  const [requests, setRequests] = useState<Request[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [query, setQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
+  const [processing, setProcessing] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchRequests();
+  }, []);
+
+  async function fetchRequests() {
+    try {
+      setIsLoading(true);
+      const response = await fetch('/api/admin/requests', {
+        credentials: 'include',
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setRequests(data.requests || []);
+      } else {
+        console.error('Failed to fetch requests');
+      }
+    } catch (error) {
+      console.error('Error fetching requests:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  }
 
   const filtered = useMemo(() => {
     const q = query.toLowerCase();
@@ -19,12 +54,65 @@ export default function RequestsPage() {
     });
   }, [requests, query, statusFilter]);
 
-  function updateRequest(id: string, next: 'approved' | 'rejected') {
-    setRequests(requests.map(r => r.id === id ? { ...r, status: next, reviewedAt: new Date(), reviewedBy: 'Admin' } : r));
+  async function updateRequest(id: string, status: 'approved' | 'rejected') {
+    setProcessing(id);
+    try {
+      const response = await fetch(`/api/admin/requests/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ status }),
+      });
+
+      if (response.ok) {
+        await fetchRequests(); // Refresh the list
+        alert(`Request ${status} successfully!`);
+      } else {
+        const error = await response.json();
+        alert(error.message || 'Failed to update request');
+      }
+    } catch (error) {
+      console.error('Error updating request:', error);
+      alert('Failed to update request');
+    } finally {
+      setProcessing(null);
+    }
   }
 
-  function removeRequest(id: string) {
-    if (confirm('Delete this request?')) setRequests(requests.filter(r => r.id !== id));
+  async function removeRequest(id: string) {
+    if (!confirm('Delete this request?')) return;
+
+    setProcessing(id);
+    try {
+      const response = await fetch(`/api/admin/requests/${id}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+
+      if (response.ok) {
+        await fetchRequests(); // Refresh the list
+        alert('Request deleted successfully!');
+      } else {
+        const error = await response.json();
+        alert(error.message || 'Failed to delete request');
+      }
+    } catch (error) {
+      console.error('Error deleting request:', error);
+      alert('Failed to delete request');
+    } finally {
+      setProcessing(null);
+    }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading requests...</p>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -33,6 +121,9 @@ export default function RequestsPage() {
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Course Access Requests</h1>
           <p className="mt-2 text-gray-600">Review and approve/deny student requests</p>
+        </div>
+        <div className="text-sm text-gray-600 bg-blue-50 px-4 py-2 rounded-lg">
+          Total: {requests.length} | Pending: {requests.filter(r => r.status === 'pending').length}
         </div>
       </div>
 
@@ -76,11 +167,29 @@ export default function RequestsPage() {
                 <td className="px-6 py-4 text-right space-x-2">
                   {r.status==='pending' && (
                     <>
-                      <button onClick={() => updateRequest(r.id,'approved')} className="text-green-600 hover:text-green-700 font-medium">Approve</button>
-                      <button onClick={() => updateRequest(r.id,'rejected')} className="text-red-600 hover:text-red-700 font-medium">Deny</button>
+                      <button 
+                        onClick={() => updateRequest(r.id,'approved')} 
+                        disabled={processing === r.id}
+                        className="text-green-600 hover:text-green-700 font-medium disabled:opacity-50"
+                      >
+                        {processing === r.id ? 'Processing...' : 'Approve'}
+                      </button>
+                      <button 
+                        onClick={() => updateRequest(r.id,'rejected')} 
+                        disabled={processing === r.id}
+                        className="text-red-600 hover:text-red-700 font-medium disabled:opacity-50"
+                      >
+                        Deny
+                      </button>
                     </>
                   )}
-                  <button onClick={() => removeRequest(r.id)} className="text-gray-600 hover:text-gray-800 font-medium">Delete</button>
+                  <button 
+                    onClick={() => removeRequest(r.id)} 
+                    disabled={processing === r.id}
+                    className="text-gray-600 hover:text-gray-800 font-medium disabled:opacity-50"
+                  >
+                    Delete
+                  </button>
                 </td>
               </tr>
             ))}

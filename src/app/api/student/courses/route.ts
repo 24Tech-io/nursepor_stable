@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/auth';
 import { getDatabase } from '@/lib/db';
-import { courses, studentProgress } from '@/lib/db/schema';
-import { eq, desc } from 'drizzle-orm';
+import { courses, studentProgress, payments } from '@/lib/db/schema';
+import { desc, eq, and } from 'drizzle-orm';
 
 export async function GET(request: NextRequest) {
   try {
@@ -24,7 +24,6 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Get database instance
     const db = getDatabase();
 
     // Get all published courses
@@ -34,13 +33,26 @@ export async function GET(request: NextRequest) {
       .where(eq(courses.status, 'published'))
       .orderBy(desc(courses.createdAt));
 
-    // Get student's enrolled courses
-    const enrolledCourses = await db
-      .select()
+    // Get enrolled course IDs (from student progress or payments)
+    const enrolledProgress = await db
+      .select({ courseId: studentProgress.courseId })
       .from(studentProgress)
       .where(eq(studentProgress.studentId, decoded.id));
 
-    const enrolledCourseIds = new Set(enrolledCourses.map((ec: any) => ec.courseId.toString()));
+    const purchasedCourses = await db
+      .select({ courseId: payments.courseId })
+      .from(payments)
+      .where(
+        and(
+          eq(payments.userId, decoded.id),
+          eq(payments.status, 'completed')
+        )
+      );
+
+    const enrolledCourseIds = new Set([
+      ...enrolledProgress.map((p: typeof enrolledProgress[0]) => p.courseId.toString()),
+      ...purchasedCourses.map((p: typeof purchasedCourses[0]) => p.courseId.toString()),
+    ]);
 
     return NextResponse.json({
       courses: allCourses.map((course: any) => ({
@@ -52,7 +64,6 @@ export async function GET(request: NextRequest) {
         pricing: course.pricing || 0,
         status: course.status,
         isRequestable: course.isRequestable,
-        isDefaultUnlocked: course.isDefaultUnlocked,
         isEnrolled: enrolledCourseIds.has(course.id.toString()),
         createdAt: course.createdAt?.toISOString(),
         updatedAt: course.updatedAt?.toISOString(),
@@ -69,4 +80,3 @@ export async function GET(request: NextRequest) {
     );
   }
 }
-

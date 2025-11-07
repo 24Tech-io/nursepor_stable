@@ -22,12 +22,20 @@ export default function CourseCard({
   return (
     <div className="group bg-white rounded-2xl shadow-sm hover:shadow-2xl transition-all duration-300 overflow-hidden border border-gray-100">
       {/* Thumbnail with Overlay */}
-      <div className="relative h-52 overflow-hidden">
-        <img
-          src={course.thumbnail}
-          alt={course.title}
-          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-        />
+      <div className="relative h-52 overflow-hidden bg-gradient-to-br from-purple-100 to-blue-100">
+        {course.thumbnail ? (
+          <img
+            src={course.thumbnail}
+            alt={course.title}
+            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center">
+            <svg className="w-16 h-16 text-purple-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+            </svg>
+          </div>
+        )}
 
         {/* Lock Overlay */}
         {isLocked && (
@@ -67,7 +75,7 @@ export default function CourseCard({
       <div className="p-6">
         <div className="flex items-center justify-between mb-3">
           <span className="text-xs font-semibold text-purple-600 bg-purple-50 px-3 py-1 rounded-full">
-            {course.modules.length} Modules
+            {course.modules?.length || 0} Modules
           </span>
           {course.pricing && (
             <span className="text-lg font-bold text-gray-900">

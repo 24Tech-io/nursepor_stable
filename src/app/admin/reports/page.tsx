@@ -2,15 +2,52 @@
 
 'use client';
 
-import { useState } from 'react';
-import { getStudents, getCourses, getAccessRequests } from '../../../lib/data';
+import { useState, useEffect } from 'react';
 
 export default function ReportsPage() {
   const [activeTab, setActiveTab] = useState<'overview' | 'students' | 'courses' | 'requests'>('overview');
+  const [students, setStudents] = useState<any[]>([]);
+  const [courses, setCourses] = useState<any[]>([]);
+  const [requests, setRequests] = useState<any[]>([]);
+  const [stats, setStats] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const students = getStudents();
-  const courses = getCourses();
-  const requests = getAccessRequests();
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  async function fetchData() {
+    try {
+      setIsLoading(true);
+      const [coursesRes, studentsRes, requestsRes, statsRes] = await Promise.all([
+        fetch('/api/admin/courses', { credentials: 'include' }),
+        fetch('/api/admin/students', { credentials: 'include' }),
+        fetch('/api/admin/requests', { credentials: 'include' }),
+        fetch('/api/admin/stats', { credentials: 'include' }),
+      ]);
+
+      if (coursesRes.ok) {
+        const data = await coursesRes.json();
+        setCourses(data.courses || []);
+      }
+      if (studentsRes.ok) {
+        const data = await studentsRes.json();
+        setStudents(data.students || []);
+      }
+      if (requestsRes.ok) {
+        const data = await requestsRes.json();
+        setRequests(data.requests || []);
+      }
+      if (statsRes.ok) {
+        const data = await statsRes.json();
+        setStats(data.stats || {});
+      }
+    } catch (error) {
+      console.error('Error fetching reports data:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  }
 
   const tabs = [
     { id: 'overview', label: 'Overview', icon: '📊' },
@@ -19,10 +56,21 @@ export default function ReportsPage() {
     { id: 'requests', label: 'Requests', icon: '📋' }
   ];
 
-  const totalRevenue = courses.reduce((sum, course) => sum + (course.pricing || 0), 0);
-  const activeStudents = students.filter(s => s.isActive).length;
-  const totalEnrollments = 45; // Mock data
-  const completionRate = 78; // Mock data
+  const totalRevenue = stats?.revenue || 0;
+  const activeStudents = stats?.activeStudents || students.filter(s => s.isActive).length;
+  const totalEnrollments = stats?.totalEnrollments || 0;
+  const completionRate = stats?.completionRate || 0;
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading reports...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
@@ -195,7 +243,7 @@ export default function ReportsPage() {
                           <td className="px-6 py-4">
                             <div className="flex items-center space-x-3">
                               <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white font-bold">
-                                {student.name.split(' ').map(n => n[0]).join('')}
+                                {student.name.split(' ').map((n: string) => n[0]).join('')}
                               </div>
                               <div>
                                 <p className="font-semibold text-gray-900">{student.name}</p>
@@ -246,7 +294,7 @@ export default function ReportsPage() {
                   <div key={course.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
                     <div className="flex items-start space-x-4 mb-4">
                       <img
-                        src={course.thumbnail}
+                        src={course.thumbnail ?? undefined}
                         alt={course.title}
                         className="w-16 h-16 rounded-xl object-cover"
                       />
@@ -308,7 +356,7 @@ export default function ReportsPage() {
                     <div className="flex items-start justify-between mb-4">
                       <div className="flex items-start space-x-4">
                         <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full flex items-center justify-center text-white font-bold">
-                          {request.studentName.split(' ').map(n => n[0]).join('')}
+                          {request.studentName.split(' ').map((n: string) => n[0]).join('')}
                         </div>
                         <div>
                           <h3 className="font-bold text-gray-900">{request.studentName}</h3>

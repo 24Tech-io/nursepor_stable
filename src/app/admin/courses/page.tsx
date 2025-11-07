@@ -1,16 +1,28 @@
 "use client";
 
 import Link from 'next/link';
-import { useMemo, useState } from 'react';
-import { getCourses } from '@/lib/data';
+import { useMemo, useState, useEffect } from 'react';
 
-type Course = ReturnType<typeof getCourses>[number];
+type Course = {
+  id: string;
+  title: string;
+  description: string;
+  instructor: string;
+  thumbnail: string | null;
+  pricing: number;
+  status: 'draft' | 'published';
+  isRequestable: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+};
 
 export default function CoursesPage() {
-  const [courses, setCourses] = useState<Course[]>(getCourses());
+  const [courses, setCourses] = useState<Course[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [query, setQuery] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<Course | null>(null);
+  const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
     title: '',
     description: '',
@@ -20,6 +32,29 @@ export default function CoursesPage() {
     status: 'draft' as 'draft' | 'published',
     isRequestable: true,
   });
+
+  useEffect(() => {
+    fetchCourses();
+  }, []);
+
+  async function fetchCourses() {
+    try {
+      setIsLoading(true);
+      const response = await fetch('/api/admin/courses', {
+        credentials: 'include',
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setCourses(data.courses || []);
+      } else {
+        console.error('Failed to fetch courses');
+      }
+    } catch (error) {
+      console.error('Error fetching courses:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  }
 
   const filtered = useMemo(() => {
     const q = query.toLowerCase();
@@ -34,27 +69,103 @@ export default function CoursesPage() {
 
   function openEdit(c: Course) {
     setEditing(c);
-    setForm({ title: c.title, description: c.description, instructor: c.instructor, thumbnail: c.thumbnail, pricing: c.pricing || 0, status: c.status as any, isRequestable: !!c.isRequestable });
+    setForm({ title: c.title, description: c.description, instructor: c.instructor, thumbnail: c.thumbnail || '', pricing: c.pricing || 0, status: c.status, isRequestable: c.isRequestable });
     setShowModal(true);
   }
 
-  function saveCourse() {
-    if (!form.title) return;
-    if (editing) {
-      setCourses(courses.map(c => c.id === editing.id ? { ...c, ...form } as any : c));
-    } else {
-      const id = `course-${Date.now()}`;
-      setCourses([{ id, modules: [], createdAt: new Date(), updatedAt: new Date(), ...form } as any, ...courses]);
+  async function saveCourse() {
+    if (!form.title || !form.description || !form.instructor) {
+      alert('Please fill in all required fields');
+      return;
     }
-    setShowModal(false);
+
+    setSaving(true);
+    try {
+      const url = editing ? '/api/admin/courses' : '/api/admin/courses';
+      const method = editing ? 'PUT' : 'POST';
+      const body = editing ? { id: editing.id, ...form } : form;
+
+      const response = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(body),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        await fetchCourses(); // Refresh the list
+        setShowModal(false);
+        alert(editing ? 'Course updated successfully!' : 'Course created successfully!');
+      } else {
+        const error = await response.json();
+        alert(error.message || 'Failed to save course');
+      }
+    } catch (error) {
+      console.error('Error saving course:', error);
+      alert('Failed to save course');
+    } finally {
+      setSaving(false);
+    }
   }
 
-  function removeCourse(id: string) {
-    if (confirm('Delete this course?')) setCourses(courses.filter(c => c.id !== id));
+  async function removeCourse(id: string) {
+    if (!confirm('Delete this course? This action cannot be undone.')) return;
+
+    try {
+      const response = await fetch(`/api/admin/courses?id=${id}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+
+      if (response.ok) {
+        await fetchCourses(); // Refresh the list
+        alert('Course deleted successfully!');
+      } else {
+        const error = await response.json();
+        alert(error.message || 'Failed to delete course');
+      }
+    } catch (error) {
+      console.error('Error deleting course:', error);
+      alert('Failed to delete course');
+    }
   }
 
-  function toggleStatus(id: string) {
-    setCourses(courses.map(c => c.id === id ? { ...c, status: c.status === 'published' ? 'draft' : 'published' } : c));
+  async function toggleStatus(id: string) {
+    const course = courses.find(c => c.id === id);
+    if (!course) return;
+
+    const newStatus = course.status === 'published' ? 'draft' : 'published';
+    
+    try {
+      const response = await fetch('/api/admin/courses', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ id, status: newStatus }),
+      });
+
+      if (response.ok) {
+        await fetchCourses(); // Refresh the list
+      } else {
+        const error = await response.json();
+        alert(error.message || 'Failed to update course status');
+      }
+    } catch (error) {
+      console.error('Error updating course status:', error);
+      alert('Failed to update course status');
+    }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading courses...</p>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -78,7 +189,7 @@ export default function CoursesPage() {
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filtered.map(course => (
           <div key={course.id} className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm hover:shadow-md transition">
-            <img src={course.thumbnail} alt={course.title} className="w-full h-40 object-cover" />
+            <img src={course.thumbnail ?? undefined} alt={course.title} className="w-full h-40 object-cover" />
             <div className="p-4 space-y-3">
               <div className="flex items-start justify-between">
                 <div>
@@ -141,8 +252,10 @@ export default function CoursesPage() {
               </div>
             </div>
             <div className="mt-6 flex justify-end gap-3">
-              <button onClick={() => setShowModal(false)} className="px-5 py-3 bg-gray-200 text-gray-700 rounded-xl font-semibold hover:bg-gray-300">Cancel</button>
-              <button onClick={saveCourse} disabled={!form.title || !form.instructor} className="px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl font-semibold hover:from-purple-700 hover:to-blue-700 disabled:opacity-50">{editing ? 'Save Changes' : 'Create Course'}</button>
+              <button onClick={() => setShowModal(false)} disabled={saving} className="px-5 py-3 bg-gray-200 text-gray-700 rounded-xl font-semibold hover:bg-gray-300 disabled:opacity-50">Cancel</button>
+              <button onClick={saveCourse} disabled={!form.title || !form.instructor || !form.description || saving} className="px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl font-semibold hover:from-purple-700 hover:to-blue-700 disabled:opacity-50">
+                {saving ? 'Saving...' : (editing ? 'Save Changes' : 'Create Course')}
+              </button>
             </div>
           </div>
         </div>

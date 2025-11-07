@@ -1,15 +1,28 @@
 "use client";
 
-import { useMemo, useState } from 'react';
-import { getStudents } from '@/lib/data';
+import { useMemo, useState, useEffect } from 'react';
 
-type Student = ReturnType<typeof getStudents>[number];
+type Student = {
+  id: string;
+  name: string;
+  email: string;
+  phone: string | null;
+  isActive: boolean;
+  faceIdEnrolled: boolean;
+  fingerprintEnrolled: boolean;
+  role: string;
+  joinedDate?: string;
+  lastLogin?: string;
+  profilePicture?: string | null;
+};
 
 export default function StudentsPage() {
-  const [students, setStudents] = useState<Student[]>(getStudents());
+  const [students, setStudents] = useState<Student[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [query, setQuery] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<Student | null>(null);
+  const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
     name: '',
     email: '',
@@ -18,6 +31,29 @@ export default function StudentsPage() {
     faceIdEnrolled: false,
     role: 'student' as 'student' | 'admin',
   });
+
+  useEffect(() => {
+    fetchStudents();
+  }, []);
+
+  async function fetchStudents() {
+    try {
+      setIsLoading(true);
+      const response = await fetch('/api/admin/students', {
+        credentials: 'include',
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setStudents(data.students || []);
+      } else {
+        console.error('Failed to fetch students');
+      }
+    } catch (error) {
+      console.error('Error fetching students:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  }
 
   const filtered = useMemo(() => {
     const q = query.toLowerCase();
@@ -36,28 +72,84 @@ export default function StudentsPage() {
     setShowModal(true);
   }
 
-  function saveStudent() {
-    if (!form.name || !form.email) return;
-    if (editing) {
-      setStudents(students.map(s => s.id === editing.id ? { ...s, ...form } as any : s));
-    } else {
-      const id = String(Date.now());
-      setStudents([{ id, joinedDate: new Date(), ...form } as any, ...students]);
+  async function saveStudent() {
+    if (!form.name || !form.email) {
+      alert('Name and email are required');
+      return;
     }
-    setShowModal(false);
+
+    // Note: Student creation should be done through registration
+    // This is just for editing existing students
+    if (!editing) {
+      alert('Please use the registration page to create new students');
+      setShowModal(false);
+      return;
+    }
+
+    setSaving(true);
+    try {
+      // For now, we'll just show a message that student editing API needs to be implemented
+      // In a real app, you'd have PUT /api/admin/students/[id]
+      alert('Student editing API endpoint needs to be implemented');
+      setShowModal(false);
+      await fetchStudents();
+    } catch (error) {
+      console.error('Error saving student:', error);
+      alert('Failed to save student');
+    } finally {
+      setSaving(false);
+    }
   }
 
-  function toggleActive(id: string) {
-    setStudents(students.map(s => s.id === id ? { ...s, isActive: !s.isActive } : s));
+  async function toggleActive(id: string) {
+    const student = students.find(s => s.id === id);
+    if (!student) return;
+
+    try {
+      // Note: This would require a PUT endpoint for updating student status
+      alert('Student status update API needs to be implemented');
+      await fetchStudents();
+    } catch (error) {
+      console.error('Error updating student status:', error);
+      alert('Failed to update student status');
+    }
   }
 
-  function resetFace(id: string) {
-    setStudents(students.map(s => s.id === id ? { ...s, faceIdEnrolled: false } : s));
-    alert('Face ID enrollment has been reset for this student.');
+  async function resetFace(id: string) {
+    if (!confirm('Reset Face ID enrollment for this student?')) return;
+
+    try {
+      // Note: This would require an API endpoint to reset face ID
+      alert('Face ID reset API needs to be implemented');
+      await fetchStudents();
+    } catch (error) {
+      console.error('Error resetting face ID:', error);
+      alert('Failed to reset Face ID');
+    }
   }
 
-  function removeStudent(id: string) {
-    if (confirm('Remove this student?')) setStudents(students.filter(s => s.id !== id));
+  async function removeStudent(id: string) {
+    if (!confirm('Remove this student? This action cannot be undone.')) return;
+
+    try {
+      // Note: This would require a DELETE endpoint
+      alert('Student deletion API needs to be implemented');
+      await fetchStudents();
+    } catch (error) {
+      console.error('Error removing student:', error);
+      alert('Failed to remove student');
+    }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading students...</p>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -67,7 +159,9 @@ export default function StudentsPage() {
           <h1 className="text-3xl font-bold text-gray-900">Students</h1>
           <p className="mt-2 text-gray-600">Manage student accounts, status and Face ID</p>
         </div>
-        <button onClick={openCreate} className="px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl font-semibold hover:from-purple-700 hover:to-blue-700 transition shadow-lg">Add Student</button>
+        <div className="text-sm text-gray-600 bg-blue-50 px-4 py-2 rounded-lg">
+          Total: {students.length} | Active: {students.filter(s => s.isActive).length}
+        </div>
       </div>
 
       <div className="bg-white rounded-2xl shadow-sm p-4 border border-gray-100 flex items-center gap-3">
@@ -109,8 +203,10 @@ export default function StudentsPage() {
                 </td>
                 <td className="px-6 py-4">
                   <div className="flex items-center gap-2">
-                    <span className={`w-2 h-2 rounded-full ${s.faceIdEnrolled ? 'bg-green-500' : 'bg-gray-300'}`} />
-                    <button onClick={() => resetFace(s.id)} className="text-purple-600 hover:text-purple-700 text-sm font-medium">Reset</button>
+                    <span className={`w-2 h-2 rounded-full ${s.faceIdEnrolled ? 'bg-green-500' : 'bg-gray-300'}`} title={s.faceIdEnrolled ? 'Face ID Enrolled' : 'Not Enrolled'} />
+                    {s.faceIdEnrolled && (
+                      <button onClick={() => resetFace(s.id)} className="text-purple-600 hover:text-purple-700 text-sm font-medium">Reset</button>
+                    )}
                   </div>
                 </td>
                 <td className="px-6 py-4 text-right space-x-2">
@@ -152,8 +248,10 @@ export default function StudentsPage() {
               </div>
             </div>
             <div className="mt-6 flex justify-end gap-3">
-              <button onClick={() => setShowModal(false)} className="px-5 py-3 bg-gray-200 text-gray-700 rounded-xl font-semibold hover:bg-gray-300">Cancel</button>
-              <button onClick={saveStudent} disabled={!form.name || !form.email} className="px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl font-semibold hover:from-purple-700 hover:to-blue-700 disabled:opacity-50">{editing ? 'Save Changes' : 'Create Student'}</button>
+              <button onClick={() => setShowModal(false)} disabled={saving} className="px-5 py-3 bg-gray-200 text-gray-700 rounded-xl font-semibold hover:bg-gray-300 disabled:opacity-50">Cancel</button>
+              <button onClick={saveStudent} disabled={!form.name || !form.email || saving} className="px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl font-semibold hover:from-purple-700 hover:to-blue-700 disabled:opacity-50">
+                {saving ? 'Saving...' : (editing ? 'Save Changes' : 'Create Student')}
+              </button>
             </div>
           </div>
         </div>

@@ -419,7 +419,7 @@ export default function AdminDashboard() {
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
           {topCourses.map(course => (
             <div key={course.id} className="border border-gray-200 rounded-xl p-4 hover:shadow-md transition">
-              <img src={course.thumbnail} alt={course.title} className="w-full h-32 object-cover rounded-lg mb-3" />
+              <img src={course.thumbnail ?? undefined} alt={course.title} className="w-full h-32 object-cover rounded-lg mb-3" />
               <h3 className="font-bold text-gray-900 mb-2 line-clamp-2">{course.title}</h3>
               <div className="flex items-center justify-between text-sm mb-2">
                 <span className="text-gray-600">{course.enrollments} enrolled</span>

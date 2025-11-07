@@ -25,7 +25,19 @@ export async function GET(request: NextRequest) {
     }
 
     // Get database instance (will throw if not available)
-    const db = getDatabase();
+    let db;
+    try {
+      db = getDatabase();
+    } catch (dbError: any) {
+      console.error('Database connection error:', dbError);
+      return NextResponse.json(
+        { 
+          message: 'Database connection error. Please check your DATABASE_URL in .env.local',
+          error: process.env.NODE_ENV === 'development' ? dbError.message : undefined
+        },
+        { status: 500 }
+      );
+    }
 
     // Get user from database
     const user = await db
@@ -85,6 +97,38 @@ export async function GET(request: NextRequest) {
     });
   } catch (error: any) {
     console.error('Get current user error:', error);
+    console.error('Error details:', {
+      message: error?.message,
+      code: error?.code,
+      detail: error?.detail,
+    });
+
+    // Handle database connection errors
+    if (error?.message?.includes('DATABASE_URL') || 
+        error?.message?.includes('Database is not available') ||
+        error?.message?.includes('connection') ||
+        error?.code === 'ECONNREFUSED') {
+      return NextResponse.json(
+        { 
+          message: 'Database connection error. Please check your DATABASE_URL in .env.local',
+          error: process.env.NODE_ENV === 'development' ? error.message : undefined
+        },
+        { status: 500 }
+      );
+    }
+
+    // Handle table not found errors (migrations not run)
+    if (error?.message?.includes('does not exist') || 
+        error?.code === '42P01') {
+      return NextResponse.json(
+        { 
+          message: 'Database tables not found. Please run migrations: npx drizzle-kit migrate',
+          error: process.env.NODE_ENV === 'development' ? error.message : undefined
+        },
+        { status: 500 }
+      );
+    }
+
     return NextResponse.json(
       { 
         message: 'Failed to get user',

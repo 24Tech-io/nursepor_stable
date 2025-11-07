@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/auth';
 import { getDatabase } from '@/lib/db';
-import { users, courses, accessRequests, studentProgress } from '@/lib/db/schema';
+import { users, courses, accessRequests, studentProgress, payments } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
 
 export async function GET(request: NextRequest) {
@@ -25,7 +25,19 @@ export async function GET(request: NextRequest) {
     }
 
     // Get database instance (will throw if not available)
-    const db = getDatabase();
+    let db;
+    try {
+      db = getDatabase();
+    } catch (dbError: any) {
+      console.error('Database connection error:', dbError);
+      return NextResponse.json(
+        { 
+          message: 'Database connection error. Please check your DATABASE_URL in .env.local',
+          error: process.env.NODE_ENV === 'development' ? dbError.message : undefined
+        },
+        { status: 500 }
+      );
+    }
 
     // Get all stats from database - use simpler queries
     const allStudentsList = await db
@@ -56,18 +68,18 @@ export async function GET(request: NextRequest) {
       .select()
       .from(studentProgress);
 
-    // Calculate revenue (sum of course pricing for enrolled courses)
+    // Calculate revenue from actual completed payments
     let revenue = 0;
     try {
-      const enrollmentsWithCourses = await db
+      const completedPayments = await db
         .select({
-          pricing: courses.pricing,
+          amount: payments.amount,
         })
-        .from(studentProgress)
-        .leftJoin(courses, eq(studentProgress.courseId, courses.id));
+        .from(payments)
+        .where(eq(payments.status, 'completed'));
       
-      revenue = enrollmentsWithCourses.reduce((sum: number, item: any) => {
-        return sum + (Number(item.pricing) || 0);
+      revenue = completedPayments.reduce((sum: number, item: any) => {
+        return sum + (Number(item.amount) || 0);
       }, 0);
     } catch (e) {
       console.error('Error calculating revenue:', e);

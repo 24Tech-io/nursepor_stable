@@ -1,8 +1,20 @@
 'use client';
 
 import { useMemo, useState, useEffect } from 'react';
-import { getCourses } from '@/lib/data';
 import CourseCard from '@/components/student/CourseCard';
+
+type Course = {
+  id: string;
+  title: string;
+  description: string;
+  instructor: string;
+  thumbnail: string | null;
+  pricing: number;
+  status: string;
+  isRequestable: boolean;
+  isEnrolled: boolean;
+  modules?: any[];
+};
 
 // Deterministic function to generate consistent values based on course ID
 function getDeterministicProgress(courseId: string): number {
@@ -16,41 +28,64 @@ function getDeterministicProgress(courseId: string): number {
 }
 
 export default function CoursesPage() {
-  const [courses] = useState(getCourses());
+  const [courses, setCourses] = useState<Course[]>([]);
   const [query, setQuery] = useState('');
   const [note, setNote] = useState('');
   const [requestingId, setRequestingId] = useState<string | null>(null);
   const [enrolledCourseIds, setEnrolledCourseIds] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [user, setUser] = useState<any>(null);
 
-  // Fetch real enrolled courses from API
+  // Fetch user data
   useEffect(() => {
-    const fetchEnrolledCourses = async () => {
+    const fetchUser = async () => {
       try {
-        const response = await fetch('/api/student/enrolled-courses', {
+        const response = await fetch('/api/auth/me', {
+          credentials: 'include',
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setUser(data.user);
+        }
+      } catch (error) {
+        console.error('Error fetching user:', error);
+      }
+    };
+    fetchUser();
+  }, []);
+
+  // Fetch courses and enrolled courses
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setIsLoading(true);
+        
+        // Fetch all available courses
+        const coursesResponse = await fetch('/api/student/courses', {
           credentials: 'include',
           cache: 'no-store',
         });
         
-        if (response.ok) {
-          const data = await response.json();
-          // Map course IDs to strings to match the course.id format
-          const courseIds = data.enrolledCourses.map((ec: any) => ec.courseId);
-          setEnrolledCourseIds(courseIds);
-          console.log('✅ Enrolled courses fetched:', courseIds);
+        if (coursesResponse.ok) {
+          const coursesData = await coursesResponse.json();
+          setCourses(coursesData.courses || []);
+          
+          // Extract enrolled course IDs
+          const enrolledIds = (coursesData.courses || [])
+            .filter((c: Course) => c.isEnrolled)
+            .map((c: Course) => c.id);
+          setEnrolledCourseIds(enrolledIds);
         } else {
-          console.error('Failed to fetch enrolled courses:', response.status);
-          setEnrolledCourseIds([]);
+          console.error('Failed to fetch courses:', coursesResponse.status);
         }
       } catch (error) {
-        console.error('Error fetching enrolled courses:', error);
-        setEnrolledCourseIds([]);
+        console.error('Error fetching data:', error);
       } finally {
         setIsLoading(false);
       }
     };
     
-    fetchEnrolledCourses();
+    fetchData();
   }, []);
 
   const filtered = useMemo(() => {
@@ -58,17 +93,39 @@ export default function CoursesPage() {
     return courses.filter(c => [c.title, c.description, c.instructor].some(v => v?.toLowerCase().includes(q)));
   }, [courses, query]);
 
-  const enrolled = filtered.filter(c => enrolledCourseIds.includes(c.id) && c.status === 'published');
-  const locked = filtered.filter(c => !enrolledCourseIds.includes(c.id) && c.status === 'published');
+  const enrolled = filtered.filter(c => c.isEnrolled && c.status === 'published');
+  const locked = filtered.filter(c => !c.isEnrolled && c.status === 'published');
 
   function requestAccess(courseId: string) {
     setRequestingId(courseId);
   }
 
-  function submitRequest() {
-    alert(`Requested access to ${requestingId}\nNote: ${note || '-'}\nStatus: pending`);
-    setRequestingId(null);
-    setNote('');
+  async function submitRequest() {
+    if (!requestingId) return;
+
+    try {
+      const response = await fetch('/api/admin/requests', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          courseId: requestingId,
+          reason: note || 'Requesting access to this course',
+        }),
+      });
+
+      if (response.ok) {
+        alert('Access request submitted successfully!');
+        setRequestingId(null);
+        setNote('');
+      } else {
+        const error = await response.json();
+        alert(error.message || 'Failed to submit request');
+      }
+    } catch (error) {
+      console.error('Error submitting request:', error);
+      alert('Failed to submit request');
+    }
   }
 
   if (isLoading) {
@@ -99,7 +156,7 @@ export default function CoursesPage() {
         {enrolled.length ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {enrolled.map(c => (
-              <CourseCard key={c.id} course={c} isLocked={false} progress={getDeterministicProgress(c.id)} />
+              <CourseCard key={c.id} course={{...c, modules: c.modules || [], status: c.status as 'draft' | 'published'}} isLocked={false} progress={getDeterministicProgress(c.id)} />
             ))}
           </div>
         ) : (
@@ -112,7 +169,13 @@ export default function CoursesPage() {
         {locked.length ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {locked.map(c => (
-              <CourseCard key={c.id} course={c} isLocked userId={enrolledCourseIds.length > 0 ? '1' : undefined} onRequestAccess={() => requestAccess(c.id)} />
+              <CourseCard 
+                key={c.id} 
+                course={{...c, modules: c.modules || [], status: c.status as 'draft' | 'published'}} 
+                isLocked 
+                userId={user?.id || undefined} 
+                onRequestAccess={() => requestAccess(c.id)} 
+              />
             ))}
           </div>
         ) : (

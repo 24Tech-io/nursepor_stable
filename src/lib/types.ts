@@ -15,8 +15,8 @@ export interface Course {
   title: string
   description: string
   instructor: string
-  thumbnail: string
-  modules: Module[]
+  thumbnail: string | null
+  modules?: Module[]
   pricing?: number
   status: 'draft' | 'published'
   isRequestable: boolean

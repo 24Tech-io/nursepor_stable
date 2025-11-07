@@ -1,16 +1,16 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
-import { getCourses } from '@/lib/data';
 import Link from 'next/link';
 
 export default function CourseEditorPage() {
   const params = useParams();
   const courseId = params.courseId as string;
 
-  const courses = getCourses();
-  const [course, setCourse] = useState<any>(courses.find(c => c.id === courseId));
+  const [course, setCourse] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
   const [activeTab, setActiveTab] = useState<'details' | 'curriculum' | 'settings'>('details');
   const [showModuleModal, setShowModuleModal] = useState(false);
@@ -19,10 +19,12 @@ export default function CourseEditorPage() {
   const [editingModule, setEditingModule] = useState<any>(null);
   const [editingChapter, setEditingChapter] = useState<any>(null);
 
-  const [moduleForm, setModuleForm] = useState({ title: '', order: 1, isPublished: true });
+  const [moduleForm, setModuleForm] = useState({ title: '', description: '', order: 1, isPublished: true, duration: 0 });
+  const [savingModule, setSavingModule] = useState(false);
 
   const [chapterForm, setChapterForm] = useState({
     title: '',
+    description: '',
     type: 'video' as 'video' | 'textbook' | 'mcq',
     order: 1,
     isPublished: true,
@@ -30,11 +32,80 @@ export default function CourseEditorPage() {
     videoDuration: 0,
     videoProvider: 'youtube' as 'youtube' | 'vimeo',
     transcript: '',
-    richText: '',
-    pdfUrl: '',
+    textbookContent: '',
+    textbookFileUrl: '',
     readingTime: 0,
     prerequisiteChapterId: '',
+    mcqData: '',
   });
+  const [savingChapter, setSavingChapter] = useState(false);
+
+  useEffect(() => {
+    fetchCourse();
+  }, [courseId]);
+
+  async function fetchCourse() {
+    try {
+      setIsLoading(true);
+      const response = await fetch(`/api/admin/courses/${courseId}`, {
+        credentials: 'include',
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setCourse(data.course);
+      } else {
+        console.error('Failed to fetch course');
+      }
+    } catch (error) {
+      console.error('Error fetching course:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  async function saveCourseDetails() {
+    if (!course) return;
+    setSaving(true);
+    try {
+      const response = await fetch('/api/admin/courses', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          id: course.id,
+          title: course.title,
+          description: course.description,
+          instructor: course.instructor,
+          thumbnail: course.thumbnail,
+          pricing: course.pricing,
+          status: course.status,
+          isRequestable: course.isRequestable,
+        }),
+      });
+      if (response.ok) {
+        alert('Course updated successfully!');
+      } else {
+        const error = await response.json();
+        alert(error.message || 'Failed to update course');
+      }
+    } catch (error) {
+      console.error('Error saving course:', error);
+      alert('Failed to save course');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading course...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!course) {
     return (
@@ -47,78 +118,184 @@ export default function CourseEditorPage() {
 
   const handleCreateModule = () => {
     setEditingModule(null);
-    setModuleForm({ title: '', order: (course.modules?.length || 0) + 1, isPublished: true });
+    setModuleForm({ title: '', description: '', order: (course.modules?.length || 0) + 1, isPublished: true, duration: 0 });
     setShowModuleModal(true);
   };
 
   const handleEditModule = (module: any) => {
     setEditingModule(module);
-    setModuleForm({ title: module.title, order: module.order || 1, isPublished: !!module.isPublished });
+    setModuleForm({ title: module.title, description: module.description || '', order: module.order || 1, isPublished: !!module.isPublished, duration: module.duration || 0 });
     setShowModuleModal(true);
   };
 
-  const handleSaveModule = () => {
-    const moduleData = { id: editingModule?.id || `module-${Date.now()}`, courseId: course.id, ...moduleForm, chapters: editingModule?.chapters || [] };
-
-    if (editingModule) {
-      const updatedModules = (course.modules || []).map((m: any) => (m.id === editingModule.id ? moduleData : m));
-      setCourse({ ...course, modules: updatedModules });
-    } else {
-      setCourse({ ...course, modules: [...(course.modules || []), moduleData] });
+  async function handleSaveModule() {
+    if (!moduleForm.title) {
+      alert('Module title is required');
+      return;
     }
 
-    setShowModuleModal(false);
-    alert(editingModule ? 'Module updated!' : 'Module created!');
-  };
+    setSavingModule(true);
+    try {
+      const url = `/api/admin/courses/${courseId}/modules`;
+      const method = editingModule ? 'PUT' : 'POST';
+      const body = editingModule ? { id: editingModule.id, ...moduleForm } : moduleForm;
 
-  const handleDeleteModule = (moduleId: string) => {
-    if (confirm('Delete this module and all its chapters?')) setCourse({ ...course, modules: (course.modules || []).filter((m: any) => m.id !== moduleId) });
-  };
+      const response = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(body),
+      });
+
+      if (response.ok) {
+        await fetchCourse(); // Refresh course data
+        setShowModuleModal(false);
+        alert(editingModule ? 'Module updated!' : 'Module created!');
+      } else {
+        const error = await response.json();
+        alert(error.message || 'Failed to save module');
+      }
+    } catch (error) {
+      console.error('Error saving module:', error);
+      alert('Failed to save module');
+    } finally {
+      setSavingModule(false);
+    }
+  }
+
+  async function handleDeleteModule(moduleId: string) {
+    if (!confirm('Delete this module and all its chapters?')) return;
+
+    try {
+      const response = await fetch(`/api/admin/courses/${courseId}/modules?id=${moduleId}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+
+      if (response.ok) {
+        await fetchCourse(); // Refresh course data
+        alert('Module deleted successfully!');
+      } else {
+        const error = await response.json();
+        alert(error.message || 'Failed to delete module');
+      }
+    } catch (error) {
+      console.error('Error deleting module:', error);
+      alert('Failed to delete module');
+    }
+  }
 
   const handleCreateChapter = (module: any) => {
     setSelectedModule(module);
     setEditingChapter(null);
-    setChapterForm({ title: '', type: 'video', order: (module.chapters?.length || 0) + 1, isPublished: true, videoUrl: '', videoDuration: 0, videoProvider: 'youtube', transcript: '', richText: '', pdfUrl: '', readingTime: 0, prerequisiteChapterId: '' });
+    setChapterForm({ 
+      title: '', 
+      description: '',
+      type: 'video', 
+      order: (module.chapters?.length || 0) + 1, 
+      isPublished: true, 
+      videoUrl: '', 
+      videoDuration: 0, 
+      videoProvider: 'youtube', 
+      transcript: '', 
+      textbookContent: '', 
+      textbookFileUrl: '', 
+      readingTime: 0, 
+      prerequisiteChapterId: '',
+      mcqData: '',
+    });
     setShowChapterModal(true);
   };
 
   const handleEditChapter = (module: any, chapter: any) => {
     setSelectedModule(module);
     setEditingChapter(chapter);
-    let formData: any = { title: chapter.title, type: chapter.type, order: chapter.order, isPublished: chapter.isPublished, prerequisiteChapterId: chapter.prerequisiteChapterId || '' };
-    if (chapter.type === 'video') formData = { ...formData, videoUrl: chapter.content?.url, videoDuration: chapter.content?.duration, videoProvider: chapter.content?.provider, transcript: chapter.content?.transcript || '' };
-    else if (chapter.type === 'textbook') formData = { ...formData, richText: chapter.content?.richText || '', pdfUrl: chapter.content?.pdfUrl || '', readingTime: chapter.content?.readingTime || 0 };
+    let formData: any = { 
+      title: chapter.title, 
+      description: chapter.description || '',
+      type: chapter.type, 
+      order: chapter.order, 
+      isPublished: chapter.isPublished, 
+      prerequisiteChapterId: chapter.prerequisiteChapterId || '' 
+    };
+    if (chapter.type === 'video') {
+      formData = { 
+        ...formData, 
+        videoUrl: chapter.videoUrl || '', 
+        videoDuration: chapter.videoDuration || 0, 
+        videoProvider: chapter.videoProvider || 'youtube', 
+        transcript: chapter.transcript || '' 
+      };
+    } else if (chapter.type === 'textbook') {
+      formData = { 
+        ...formData, 
+        textbookContent: chapter.textbookContent || '', 
+        textbookFileUrl: chapter.textbookFileUrl || '', 
+        readingTime: chapter.readingTime || 0 
+      };
+    } else if (chapter.type === 'mcq') {
+      formData = { ...formData, mcqData: chapter.mcqData || '' };
+    }
     setChapterForm(formData);
     setShowChapterModal(true);
   };
 
-  const handleSaveChapter = () => {
-    let content: any = {};
-    if (chapterForm.type === 'video') content = { url: chapterForm.videoUrl, duration: chapterForm.videoDuration, provider: chapterForm.videoProvider, transcript: chapterForm.transcript };
-    else if (chapterForm.type === 'textbook') content = { richText: chapterForm.richText, pdfUrl: chapterForm.pdfUrl, readingTime: chapterForm.readingTime };
-    else if (chapterForm.type === 'mcq') content = { questions: [] };
-
-    const chapterData = { id: editingChapter?.id || `chapter-${Date.now()}`, moduleId: selectedModule.id, title: chapterForm.title, type: chapterForm.type, order: chapterForm.order, isPublished: chapterForm.isPublished, content, prerequisiteChapterId: chapterForm.prerequisiteChapterId || undefined };
-
-    const updatedModules = (course.modules || []).map((m: any) => {
-      if (m.id === selectedModule.id) {
-        if (editingChapter) return { ...m, chapters: (m.chapters || []).map((ch: any) => (ch.id === editingChapter.id ? chapterData : ch)) };
-        return { ...m, chapters: [...(m.chapters || []), chapterData] };
-      }
-      return m;
-    });
-
-    setCourse({ ...course, modules: updatedModules });
-    setShowChapterModal(false);
-    alert(editingChapter ? 'Chapter updated!' : 'Chapter created!');
-  };
-
-  const handleDeleteChapter = (moduleId: string, chapterId: string) => {
-    if (confirm('Delete this chapter?')) {
-      const updatedModules = (course.modules || []).map((m: any) => (m.id === moduleId ? { ...m, chapters: (m.chapters || []).filter((ch: any) => ch.id !== chapterId) } : m));
-      setCourse({ ...course, modules: updatedModules });
+  async function handleSaveChapter() {
+    if (!chapterForm.title) {
+      alert('Chapter title is required');
+      return;
     }
-  };
+
+    setSavingChapter(true);
+    try {
+      const url = `/api/admin/courses/${courseId}/modules/${selectedModule.id}/chapters`;
+      const method = editingChapter ? 'PUT' : 'POST';
+      const body = editingChapter ? { id: editingChapter.id, ...chapterForm } : chapterForm;
+
+      const response = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(body),
+      });
+
+      if (response.ok) {
+        await fetchCourse(); // Refresh course data
+        setShowChapterModal(false);
+        alert(editingChapter ? 'Chapter updated!' : 'Chapter created!');
+      } else {
+        const error = await response.json();
+        alert(error.message || 'Failed to save chapter');
+      }
+    } catch (error) {
+      console.error('Error saving chapter:', error);
+      alert('Failed to save chapter');
+    } finally {
+      setSavingChapter(false);
+    }
+  }
+
+  async function handleDeleteChapter(moduleId: string, chapterId: string) {
+    if (!confirm('Delete this chapter?')) return;
+
+    try {
+      const response = await fetch(`/api/admin/courses/${courseId}/modules/${moduleId}/chapters?id=${chapterId}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+
+      if (response.ok) {
+        await fetchCourse(); // Refresh course data
+        alert('Chapter deleted successfully!');
+      } else {
+        const error = await response.json();
+        alert(error.message || 'Failed to delete chapter');
+      }
+    } catch (error) {
+      console.error('Error deleting chapter:', error);
+      alert('Failed to delete chapter');
+    }
+  }
 
   return (
     <div className="space-y-8">
@@ -134,7 +311,9 @@ export default function CourseEditorPage() {
         </div>
         <div className="flex items-center space-x-3">
           <span className={`px-4 py-2 rounded-xl text-sm font-semibold ${course.status === 'published' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>{course.status === 'published' ? 'Published' : 'Draft'}</span>
-          <button className="px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl font-semibold hover:from-purple-700 hover:to-blue-700 transition shadow-lg">Save Changes</button>
+          <button onClick={saveCourseDetails} disabled={saving} className="px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl font-semibold hover:from-purple-700 hover:to-blue-700 transition shadow-lg disabled:opacity-50">
+            {saving ? 'Saving...' : 'Save Changes'}
+          </button>
         </div>
       </div>
 
@@ -153,7 +332,11 @@ export default function CourseEditorPage() {
             <div className="grid md:grid-cols-2 gap-6">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Course Title *</label>
-                <input type="text" value={course.title} onChange={(e) => setCourse({ ...course, title: e.target.value })} className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-900 bg-white" />
+                <input type="text" value={course.title || ''} onChange={(e) => setCourse({ ...course, title: e.target.value })} className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-900 bg-white" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Instructor *</label>
+                <input type="text" value={course.instructor || ''} onChange={(e) => setCourse({ ...course, instructor: e.target.value })} className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-900 bg-white" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Pricing (₹)</label>
@@ -162,11 +345,11 @@ export default function CourseEditorPage() {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
-              <textarea value={course.description} onChange={(e) => setCourse({ ...course, description: e.target.value })} rows={4} className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-900 bg-white" />
+              <textarea value={course.description || ''} onChange={(e) => setCourse({ ...course, description: e.target.value })} rows={4} className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-900 bg-white" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Thumbnail URL</label>
-              <input type="text" value={course.thumbnail} onChange={(e) => setCourse({ ...course, thumbnail: e.target.value })} className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-900 bg-white" />
+              <input type="text" value={course.thumbnail || ''} onChange={(e) => setCourse({ ...course, thumbnail: e.target.value })} className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-900 bg-white" />
               {course.thumbnail && (<img src={course.thumbnail} alt="Preview" className="mt-3 w-full h-64 object-cover rounded-xl" />)}
             </div>
           </div>
@@ -228,7 +411,7 @@ export default function CourseEditorPage() {
                             </div>
                             <div>
                               <p className="font-semibold text-gray-900">{chapterIndex + 1}. {chapter.title}</p>
-                              <p className="text-sm text-gray-600 capitalize">{chapter.type}{chapter.type === 'video' && chapter.content?.duration ? ` · ${chapter.content.duration} min` : ''}{chapter.prerequisiteChapterId ? ' · Has prerequisite' : ''}</p>
+                              <p className="text-sm text-gray-600 capitalize">{chapter.type}{chapter.type === 'video' && chapter.videoDuration ? ` · ${chapter.videoDuration} min` : ''}{chapter.prerequisiteChapterId ? ' · Has prerequisite' : ''}</p>
                             </div>
                           </div>
                           <div className="flex items-center space-x-2">
@@ -270,11 +453,17 @@ export default function CourseEditorPage() {
             <div>
               <h3 className="font-semibold text-gray-900 mb-4">Publication Status</h3>
               <div className="flex space-x-4">
-                <button onClick={() => setCourse({ ...course, status: 'draft' })} className={`flex-1 p-4 rounded-xl border-2 transition ${course.status === 'draft' ? 'border-yellow-500 bg-yellow-50' : 'border-gray-200 hover:border-gray-300'}`}>
+                <button onClick={async () => {
+                  setCourse({ ...course, status: 'draft' });
+                  await saveCourseDetails();
+                }} className={`flex-1 p-4 rounded-xl border-2 transition ${course.status === 'draft' ? 'border-yellow-500 bg-yellow-50' : 'border-gray-200 hover:border-gray-300'}`}>
                   <p className="font-semibold text-gray-900">Draft</p>
                   <p className="text-sm text-gray-600">Only visible to admins</p>
                 </button>
-                <button onClick={() => setCourse({ ...course, status: 'published' })} className={`flex-1 p-4 rounded-xl border-2 transition ${course.status === 'published' ? 'border-green-500 bg-green-50' : 'border-gray-200 hover:border-gray-300'}`}>
+                <button onClick={async () => {
+                  setCourse({ ...course, status: 'published' });
+                  await saveCourseDetails();
+                }} className={`flex-1 p-4 rounded-xl border-2 transition ${course.status === 'published' ? 'border-green-500 bg-green-50' : 'border-gray-200 hover:border-gray-300'}`}>
                   <p className="font-semibold text-gray-900">Published</p>
                   <p className="text-sm text-gray-600">Visible to students</p>
                 </button>
@@ -282,7 +471,24 @@ export default function CourseEditorPage() {
             </div>
             <div className="border-t border-gray-200 pt-6">
               <h3 className="font-semibold text-red-900 mb-4">Danger Zone</h3>
-              <button className="px-6 py-3 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition">Delete Course</button>
+              <button onClick={async () => {
+                if (!confirm('Are you sure you want to delete this course? This action cannot be undone.')) return;
+                try {
+                  const response = await fetch(`/api/admin/courses?id=${course.id}`, {
+                    method: 'DELETE',
+                    credentials: 'include',
+                  });
+                  if (response.ok) {
+                    window.location.href = '/admin/courses';
+                  } else {
+                    const error = await response.json();
+                    alert(error.message || 'Failed to delete course');
+                  }
+                } catch (error) {
+                  console.error('Error deleting course:', error);
+                  alert('Failed to delete course');
+                }
+              }} className="px-6 py-3 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition">Delete Course</button>
             </div>
           </div>
         </div>
@@ -298,8 +504,16 @@ export default function CourseEditorPage() {
                 <input type="text" value={moduleForm.title} onChange={(e) => setModuleForm({ ...moduleForm, title: e.target.value })} className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-900 bg-white" placeholder="e.g., Introduction to HTML" />
               </div>
               <div>
-                <label className="block text.sm font-medium text-gray-700 mb-2">Order</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
+                <textarea value={moduleForm.description} onChange={(e) => setModuleForm({ ...moduleForm, description: e.target.value })} rows={2} className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-900 bg-white" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Order</label>
                 <input type="number" value={moduleForm.order} onChange={(e) => setModuleForm({ ...moduleForm, order: Number(e.target.value) })} className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-900 bg-white" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Duration (minutes)</label>
+                <input type="number" value={moduleForm.duration} onChange={(e) => setModuleForm({ ...moduleForm, duration: Number(e.target.value) })} className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-900 bg-white" />
               </div>
               <label className="flex items-center space-x-3">
                 <input type="checkbox" checked={moduleForm.isPublished} onChange={(e) => setModuleForm({ ...moduleForm, isPublished: e.target.checked })} className="w-5 h-5 text-purple-600 rounded" />
@@ -307,7 +521,9 @@ export default function CourseEditorPage() {
               </label>
             </div>
             <div className="mt-6 flex space-x-3">
-              <button onClick={handleSaveModule} disabled={!moduleForm.title} className="flex-1 bg-purple-600 text-white py-3 rounded-xl font-semibold hover:bg-purple-700 transition disabled:opacity-50 disabled:cursor-not-allowed">{editingModule ? 'Update Module' : 'Create Module'}</button>
+              <button onClick={handleSaveModule} disabled={!moduleForm.title || savingModule} className="flex-1 bg-purple-600 text-white py-3 rounded-xl font-semibold hover:bg-purple-700 transition disabled:opacity-50 disabled:cursor-not-allowed">
+                {savingModule ? 'Saving...' : (editingModule ? 'Update Module' : 'Create Module')}
+              </button>
               <button onClick={() => setShowModuleModal(false)} className="px-6 bg-gray-200 text-gray-700 py-3 rounded-xl font-semibold hover:bg-gray-300 transition">Cancel</button>
             </div>
           </div>
@@ -322,6 +538,10 @@ export default function CourseEditorPage() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Chapter Title *</label>
                 <input type="text" value={chapterForm.title} onChange={(e) => setChapterForm({ ...chapterForm, title: e.target.value })} className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-900 bg-white" placeholder="e.g., Introduction to React Hooks" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
+                <textarea value={chapterForm.description} onChange={(e) => setChapterForm({ ...chapterForm, description: e.target.value })} rows={2} className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-900 bg-white" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-3">Chapter Type *</label>
@@ -374,12 +594,12 @@ export default function CourseEditorPage() {
                     <input type="number" value={chapterForm.readingTime} onChange={(e) => setChapterForm({ ...chapterForm, readingTime: Number(e.target.value) })} className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-900 bg-white" />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">PDF URL (Optional)</label>
-                    <input type="text" value={chapterForm.pdfUrl} onChange={(e) => setChapterForm({ ...chapterForm, pdfUrl: e.target.value })} className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-900 bg-white" placeholder="https://example.com/document.pdf" />
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Rich Text Content</label>
+                    <textarea value={chapterForm.textbookContent} onChange={(e) => setChapterForm({ ...chapterForm, textbookContent: e.target.value })} rows={8} className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-900 bg-white font-mono text-sm" placeholder="<h1>Chapter Content</h1><p>Your content here...</p>" />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Rich Text Content</label>
-                    <textarea value={chapterForm.richText} onChange={(e) => setChapterForm({ ...chapterForm, richText: e.target.value })} rows={8} className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-900 bg-white font-mono text-sm" placeholder="<h1>Chapter Content</h1><p>Your content here...</p>" />
+                    <label className="block text-sm font-medium text-gray-700 mb-2">PDF URL (Optional)</label>
+                    <input type="text" value={chapterForm.textbookFileUrl} onChange={(e) => setChapterForm({ ...chapterForm, textbookFileUrl: e.target.value })} className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-900 bg-white" placeholder="https://example.com/document.pdf" />
                   </div>
                 </>
               )}
@@ -413,7 +633,9 @@ export default function CourseEditorPage() {
               </div>
             </div>
             <div className="mt-8 flex space-x-3">
-              <button onClick={handleSaveChapter} disabled={!chapterForm.title} className="flex-1 bg-gradient-to-r from-purple-600 to-blue-600 text-white py-3 rounded-xl font-semibold hover:from-purple-700 hover:to-blue-700 transition shadow-lg disabled:opacity-50 disabled:cursor-not-allowed">{editingChapter ? 'Update Chapter' : 'Create Chapter'}</button>
+              <button onClick={handleSaveChapter} disabled={!chapterForm.title || savingChapter} className="flex-1 bg-gradient-to-r from-purple-600 to-blue-600 text-white py-3 rounded-xl font-semibold hover:from-purple-700 hover:to-blue-700 transition shadow-lg disabled:opacity-50 disabled:cursor-not-allowed">
+                {savingChapter ? 'Saving...' : (editingChapter ? 'Update Chapter' : 'Create Chapter')}
+              </button>
               <button onClick={() => setShowChapterModal(false)} className="px-8 bg-gray-200 text-gray-700 py-3 rounded-xl font-semibold hover:bg-gray-300 transition">Cancel</button>
             </div>
           </div>
