@@ -48,7 +48,7 @@ export default function AdminLayout({
             <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-fuchsia-600 rounded-xl flex items-center justify-center shadow-[0_10px_40px_-12px_rgba(99,102,241,0.6)]">
               <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.8 5.5 9.2 5 7.5 5 5.8 5 4.2 5.5 3 6.253v13" /></svg>
             </div>
-            <span className="text-2xl font-bold bg-gradient-to-r from-white to-slate-200 bg-clip-text text-transparent">Admin</span>
+            <span className="text-2xl font-bold bg-gradient-to-r from-white to-slate-200 bg-clip-text text-transparent">Nurse Pro Academy</span>
           </Link>
           <div className="hidden md:flex items-center space-x-1">
             <RoleSwitcher />

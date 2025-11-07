@@ -1,22 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { getCourses, getStudents, getAccessRequests } from '@/lib/data';
 import Link from 'next/link';
-
-// Deterministic function to generate consistent values based on course ID
-// This ensures server and client render the same values to avoid hydration errors
-function getDeterministicValue(str: string, min: number, max: number): number {
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    const char = str.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-    hash = hash & hash; // Convert to 32bit integer
-  }
-  // Use absolute value and modulo to get consistent result
-  const range = max - min + 1;
-  return Math.abs(hash) % range + min;
-}
 
 export default function AdminDashboard() {
   const [user, setUser] = useState<any>(null);
@@ -148,7 +133,7 @@ export default function AdminDashboard() {
 
   // Fetch real data from API when user is authenticated
   useEffect(() => {
-    const fetchDashboardData = async () => {
+    const fetchDashboardData = async (retryCount = 0) => {
       if (!user || user.role !== 'admin') {
         setIsLoadingData(false);
         return;
@@ -157,67 +142,109 @@ export default function AdminDashboard() {
       try {
         setIsLoadingData(true);
         
-        // Fetch all data in parallel
+        // Fetch all data in parallel with error handling
         const [coursesRes, studentsRes, requestsRes, statsRes] = await Promise.all([
-          fetch('/api/admin/courses', { credentials: 'include' }),
-          fetch('/api/admin/students', { credentials: 'include' }),
-          fetch('/api/admin/requests', { credentials: 'include' }),
-          fetch('/api/admin/stats', { credentials: 'include' }),
+          fetch('/api/admin/courses', { credentials: 'include' }).catch(err => {
+            console.error('Error fetching courses:', err);
+            return { ok: false, status: 500, json: async () => ({ courses: [] }) };
+          }),
+          fetch('/api/admin/students', { credentials: 'include' }).catch(err => {
+            console.error('Error fetching students:', err);
+            return { ok: false, status: 500, json: async () => ({ students: [] }) };
+          }),
+          fetch('/api/admin/requests', { credentials: 'include' }).catch(err => {
+            console.error('Error fetching requests:', err);
+            return { ok: false, status: 500, json: async () => ({ requests: [] }) };
+          }),
+          fetch('/api/admin/stats', { credentials: 'include' }).catch(err => {
+            console.error('Error fetching stats:', err);
+            return { ok: false, status: 500, json: async () => ({ stats: {} }) };
+          }),
         ]);
 
-        if (coursesRes.ok) {
-          const data = await coursesRes.json();
-          setCourses(data.courses || []);
-        } else {
-          // Fallback to demo data if API fails
-          setCourses(getCourses());
+        // Parse all responses once and store the data
+        let coursesData: any = { courses: [] };
+        let studentsData: any = { students: [] };
+        let requestsData: any = { requests: [] };
+        let statsData: any = { stats: {} };
+
+        try {
+          coursesData = await coursesRes.json();
+          setCourses(coursesData.courses || []);
+        } catch (e) {
+          console.error('Error parsing courses data:', e);
+          setCourses([]);
         }
 
-        if (studentsRes.ok) {
-          const data = await studentsRes.json();
-          setStudents(data.students || []);
-        } else {
-          setStudents(getStudents());
+        try {
+          studentsData = await studentsRes.json();
+          setStudents(studentsData.students || []);
+        } catch (e) {
+          console.error('Error parsing students data:', e);
+          setStudents([]);
         }
 
-        if (requestsRes.ok) {
-          const data = await requestsRes.json();
-          setRequests(data.requests || []);
-        } else {
-          setRequests(getAccessRequests());
+        try {
+          requestsData = await requestsRes.json();
+          setRequests(requestsData.requests || []);
+        } catch (e) {
+          console.error('Error parsing requests data:', e);
+          setRequests([]);
         }
 
-        if (statsRes.ok) {
-          const data = await statsRes.json();
-          setStats(data.stats || {});
-        } else {
-          // Fallback stats
-          const fallbackCourses = getCourses();
-          const fallbackStudents = getStudents();
-          const fallbackRequests = getAccessRequests();
+        try {
+          statsData = await statsRes.json();
+          if (statsData.stats && Object.keys(statsData.stats).length > 0) {
+            setStats(statsData.stats);
+          } else {
+            // If stats API failed, calculate from fetched data
+            setStats({
+              totalStudents: (studentsData.students || []).length,
+              activeStudents: (studentsData.students || []).filter((s: any) => s.isActive).length,
+              totalCourses: (coursesData.courses || []).length,
+              publishedCourses: (coursesData.courses || []).filter((c: any) => c.status === 'published').length,
+              pendingRequests: (requestsData.requests || []).filter((r: any) => r.status === 'pending').length,
+              totalEnrollments: 0,
+              revenue: 0,
+              completionRate: 0,
+            });
+          }
+        } catch (e) {
+          console.error('Error parsing stats data:', e);
+          // Calculate stats from fetched arrays
           setStats({
-            totalStudents: fallbackStudents.length,
-            activeStudents: fallbackStudents.filter((s: any) => s.isActive).length,
-            totalCourses: fallbackCourses.length,
-            publishedCourses: fallbackCourses.filter((c: any) => c.status === 'published').length,
-            pendingRequests: fallbackRequests.filter((r: any) => r.status === 'pending').length,
+            totalStudents: (studentsData.students || []).length,
+            activeStudents: (studentsData.students || []).filter((s: any) => s.isActive).length,
+            totalCourses: (coursesData.courses || []).length,
+            publishedCourses: (coursesData.courses || []).filter((c: any) => c.status === 'published').length,
+            pendingRequests: (requestsData.requests || []).filter((r: any) => r.status === 'pending').length,
             totalEnrollments: 0,
             revenue: 0,
             completionRate: 0,
           });
         }
+
+        // Retry if critical data failed and we haven't retried yet
+        if ((!coursesRes.ok || !studentsRes.ok || !statsRes.ok) && retryCount < 2) {
+          console.log(`Retrying data fetch (attempt ${retryCount + 1})...`);
+          setTimeout(() => fetchDashboardData(retryCount + 1), 2000);
+          return;
+        }
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
-        // Fallback to demo data on error
-        setCourses(getCourses());
-        setStudents(getStudents());
-        setRequests(getAccessRequests());
+        // Retry on error if we haven't retried yet
+        if (retryCount < 2) {
+          console.log(`Retrying after error (attempt ${retryCount + 1})...`);
+          setTimeout(() => fetchDashboardData(retryCount + 1), 2000);
+          return;
+        }
+        // On final failure, set empty arrays but still try to show what we can
         setStats({
-          totalStudents: 0,
-          activeStudents: 0,
-          totalCourses: 0,
-          publishedCourses: 0,
-          pendingRequests: 0,
+          totalStudents: students.length,
+          activeStudents: students.filter((s: any) => s.isActive).length,
+          totalCourses: courses.length,
+          publishedCourses: courses.filter((c: any) => c.status === 'published').length,
+          pendingRequests: requests.filter((r: any) => r.status === 'pending').length,
           totalEnrollments: 0,
           revenue: 0,
           completionRate: 0,
@@ -228,37 +255,45 @@ export default function AdminDashboard() {
     };
 
     fetchDashboardData();
+    
+    // Auto-refresh data every 30 seconds to keep it up-to-date
+    const refreshInterval = setInterval(() => {
+      if (user && user.role === 'admin') {
+        fetchDashboardData();
+      }
+    }, 30000);
+
+    return () => clearInterval(refreshInterval);
   }, [user]);
 
-  // Use demo data if not authenticated or data is loading
-  const displayCourses = courses.length > 0 ? courses : getCourses();
-  const displayStudents = students.length > 0 ? students : getStudents();
-  const displayRequests = requests.length > 0 ? requests : getAccessRequests();
-  const displayStats = stats || {
-    totalStudents: displayStudents.length,
-    activeStudents: displayStudents.filter((s: any) => s.isActive).length,
-    totalCourses: displayCourses.length,
-    publishedCourses: displayCourses.filter((c: any) => c.status === 'published').length,
-    pendingRequests: displayRequests.filter((r: any) => r.status === 'pending').length,
+  // Always use real data from API - ensure we have the latest
+  const displayCourses = courses;
+  const displayStudents = students;
+  const displayRequests = requests;
+  
+  // Always use stats from API if available, otherwise calculate from real data arrays
+  // This ensures we always show real data, never fake data
+  const displayStats = stats && Object.keys(stats).length > 0 ? stats : {
+    totalStudents: students.length,
+    activeStudents: students.filter((s: any) => s.isActive).length,
+    totalCourses: courses.length,
+    publishedCourses: courses.filter((c: any) => c.status === 'published').length,
+    pendingRequests: requests.filter((r: any) => r.status === 'pending').length,
     totalEnrollments: 0,
     revenue: 0,
     completionRate: 0,
   };
 
   const recentStudents = displayStudents.slice(0, 5);
-  const recentActivity = [
-    { type: 'enrollment', student: 'John Doe', course: 'Web Development', time: '5 min ago', icon: '📚' },
-    { type: 'completion', student: 'Jane Smith', course: 'Advanced JavaScript', time: '12 min ago', icon: '🎓' },
-    { type: 'request', student: 'Bob Wilson', course: 'React Masterclass', time: '25 min ago', icon: '📨' },
-    { type: 'quiz', student: 'Alice Brown', course: 'Web Development', time: '1 hour ago', icon: '✅' },
-    { type: 'login', student: 'Charlie Davis', course: null as any, time: '2 hours ago', icon: '🔐' },
-  ];
-
-  // Use deterministic values based on course ID to avoid hydration mismatch
+  
+  // No fake activity - show empty state if no real activity exists
+  const recentActivity: any[] = [];
+  
+  // Show only real courses with real data (no fake enrollments/completion rates)
   const topCourses = displayCourses.slice(0, 4).map((course: any) => ({
     ...course,
-    enrollments: getDeterministicValue(course.id, 10, 60),
-    completionRate: getDeterministicValue(course.id + '_rate', 60, 100),
+    enrollments: 0, // Will be calculated from real enrollment data when available
+    completionRate: 0, // Will be calculated from real progress data when available
   }));
 
   // Don't render dashboard content until user data is loaded
@@ -292,7 +327,6 @@ export default function AdminDashboard() {
             <div className="w-14 h-14 bg-blue-100 rounded-xl flex items-center justify-center">
               <svg className="w-7 h-7 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
             </div>
-            <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full font-semibold">+12% ↑</span>
           </div>
           <p className="text-3xl font-bold text-gray-900 mb-1">{displayStats.totalStudents}</p>
           <p className="text-gray-600 text-sm">Total Students</p>
@@ -328,7 +362,6 @@ export default function AdminDashboard() {
             <div className="w-14 h-14 bg-green-100 rounded-xl flex items-center justify-center">
               <svg className="w-7 h-7 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
             </div>
-            <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full font-semibold">+8% ↑</span>
           </div>
           <p className="text-3xl font-bold text-gray-900 mb-1">₹{(displayStats.revenue / 1000).toFixed(0)}k</p>
           <p className="text-gray-600 text-sm">Total Revenue</p>
@@ -339,28 +372,37 @@ export default function AdminDashboard() {
       <div className="grid lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
           <h2 className="text-xl font-bold text-gray-900 mb-6">Recent Activity</h2>
-          <div className="space-y-4">
-            {recentActivity.map((activity, idx) => (
-              <div key={idx} className="flex items-center space-x-4 p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition">
-                <div className="text-3xl">{activity.icon}</div>
-                <div className="flex-1">
-                  <p className="font-semibold text-gray-900">
-                    {activity.student}
-                    {activity.type === 'enrollment' && ' enrolled in '}
-                    {activity.type === 'completion' && ' completed '}
-                    {activity.type === 'request' && ' requested access to '}
-                    {activity.type === 'quiz' && ' took a quiz in '}
-                    {activity.type === 'login' && ' logged in'}
-                    {activity.course && <span className="text-purple-600"> {activity.course}</span>}
-                  </p>
-                  <p className="text-sm text-gray-600">{activity.time}</p>
-                </div>
+          {recentActivity.length > 0 ? (
+            <>
+              <div className="space-y-4">
+                {recentActivity.map((activity, idx) => (
+                  <div key={idx} className="flex items-center space-x-4 p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition">
+                    <div className="text-3xl">{activity.icon}</div>
+                    <div className="flex-1">
+                      <p className="font-semibold text-gray-900">
+                        {activity.student}
+                        {activity.type === 'enrollment' && ' enrolled in '}
+                        {activity.type === 'completion' && ' completed '}
+                        {activity.type === 'request' && ' requested access to '}
+                        {activity.type === 'quiz' && ' took a quiz in '}
+                        {activity.type === 'login' && ' logged in'}
+                        {activity.course && <span className="text-purple-600"> {activity.course}</span>}
+                      </p>
+                      <p className="text-sm text-gray-600">{activity.time}</p>
+                    </div>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-          <div className="mt-4 text-center">
-            <button className="text-purple-600 font-semibold hover:text-purple-700">View All Activity →</button>
-          </div>
+              <div className="mt-4 text-center">
+                <button className="text-purple-600 font-semibold hover:text-purple-700">View All Activity →</button>
+              </div>
+            </>
+          ) : (
+            <div className="text-center py-12">
+              <p className="text-gray-500">No recent activity</p>
+              <p className="text-sm text-gray-400 mt-2">Activity will appear here as students interact with courses</p>
+            </div>
+          )}
         </div>
 
         <div className="space-y-6">
@@ -369,20 +411,27 @@ export default function AdminDashboard() {
               <h3 className="font-bold text-gray-900">Recent Students</h3>
               <Link href="/admin/students" className="text-sm text-purple-600 font-semibold hover:text-purple-700">View All</Link>
             </div>
-            <div className="space-y-3">
-              {recentStudents.map(student => (
-                <div key={student.id} className="flex items-center space-x-3">
-                  <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
-                    <span className="text-purple-600 font-semibold text-sm">{student.name.charAt(0)}</span>
+            {recentStudents.length > 0 ? (
+              <div className="space-y-3">
+                {recentStudents.map(student => (
+                  <div key={student.id} className="flex items-center space-x-3">
+                    <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
+                      <span className="text-purple-600 font-semibold text-sm">{student.name.charAt(0)}</span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-gray-900 text-sm truncate">{student.name}</p>
+                      <p className="text-xs text-gray-600 truncate">{student.phone || 'No phone'}</p>
+                    </div>
+                    <span className={`w-2 h-2 rounded-full ${student.isActive ? 'bg-green-500' : 'bg-gray-300'}`}></span>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-gray-900 text-sm truncate">{student.name}</p>
-                    <p className="text-xs text-gray-600 truncate">{student.phone}</p>
-                  </div>
-                  <span className={`w-2 h-2 rounded-full ${student.isActive ? 'bg-green-500' : 'bg-gray-300'}`}></span>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <p className="text-gray-500 text-sm">No students yet</p>
+                <Link href="/admin/students" className="text-purple-600 text-sm hover:text-purple-700 mt-2 inline-block">Add your first student →</Link>
+              </div>
+            )}
           </div>
 
           <div className="bg-gradient-to-br from-purple-600 to-blue-600 rounded-2xl shadow-lg p-6 text-white">
@@ -416,27 +465,44 @@ export default function AdminDashboard() {
           <h2 className="text-xl font-bold text-gray-900">Top Performing Courses</h2>
           <Link href="/admin/courses" className="text-purple-600 font-semibold hover:text-purple-700">View All Courses →</Link>
         </div>
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {topCourses.map(course => (
-            <div key={course.id} className="border border-gray-200 rounded-xl p-4 hover:shadow-md transition">
-              <img src={course.thumbnail ?? undefined} alt={course.title} className="w-full h-32 object-cover rounded-lg mb-3" />
-              <h3 className="font-bold text-gray-900 mb-2 line-clamp-2">{course.title}</h3>
-              <div className="flex items-center justify-between text-sm mb-2">
-                <span className="text-gray-600">{course.enrollments} enrolled</span>
-                <span className={`px-2 py-1 rounded-full text-xs font-semibold ${course.status === 'published' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>{course.status}</span>
-              </div>
-              <div className="mb-2">
-                <div className="flex items-center justify-between text-xs mb-1">
-                  <span className="text-gray-600">Completion Rate</span>
-                  <span className="font-semibold text-gray-900">{course.completionRate}%</span>
+        {topCourses.length > 0 ? (
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {topCourses.map(course => (
+              <div key={course.id} className="border border-gray-200 rounded-xl p-4 hover:shadow-md transition">
+                {course.thumbnail ? (
+                  <img src={course.thumbnail} alt={course.title} className="w-full h-32 object-cover rounded-lg mb-3" />
+                ) : (
+                  <div className="w-full h-32 bg-gradient-to-br from-purple-100 to-blue-100 rounded-lg mb-3 flex items-center justify-center">
+                    <svg className="w-12 h-12 text-purple-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                    </svg>
+                  </div>
+                )}
+                <h3 className="font-bold text-gray-900 mb-2 line-clamp-2">{course.title}</h3>
+                <div className="flex items-center justify-between text-sm mb-2">
+                  <span className="text-gray-600">{course.enrollments} enrolled</span>
+                  <span className={`px-2 py-1 rounded-full text-xs font-semibold ${course.status === 'published' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>{course.status}</span>
                 </div>
-                <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                  <div className="h-full bg-gradient-to-r from-purple-500 to-blue-500 rounded-full" style={{ width: `${course.completionRate}%` }} />
-                </div>
+                {course.completionRate > 0 && (
+                  <div className="mb-2">
+                    <div className="flex items-center justify-between text-xs mb-1">
+                      <span className="text-gray-600">Completion Rate</span>
+                      <span className="font-semibold text-gray-900">{course.completionRate}%</span>
+                    </div>
+                    <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                      <div className="h-full bg-gradient-to-r from-purple-500 to-blue-500 rounded-full" style={{ width: `${course.completionRate}%` }} />
+                    </div>
+                  </div>
+                )}
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-12">
+            <p className="text-gray-500">No courses yet</p>
+            <Link href="/admin/courses" className="text-purple-600 hover:text-purple-700 mt-2 inline-block">Create your first course →</Link>
+          </div>
+        )}
       </div>
     </div>
   );
