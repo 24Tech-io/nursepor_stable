@@ -1,5 +1,5 @@
 # Comprehensive Startup Check Script
-Write-Host "=== LMS Platform Startup Check ===" -ForegroundColor Cyan
+Write-Host "=== Nurse Pro Academy Startup Check ===" -ForegroundColor Cyan
 
 # Check Node.js
 Write-Host "`n[1/6] Checking Node.js..." -ForegroundColor Yellow
@@ -54,7 +54,7 @@ SMTP_PORT="587"
 SMTP_SECURE="false"
 SMTP_USER=""
 SMTP_PASS=""
-SMTP_FROM="LMS Platform <noreply@example.com>"
+SMTP_FROM="Nurse Pro Academy <noreply@example.com>"
 "@
     
     $envTemplate | Out-File -FilePath .env.local -Encoding UTF8

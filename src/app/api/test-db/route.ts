@@ -62,6 +62,8 @@ export async function GET(request: NextRequest) {
 
     // Test 4: Try to count users (if table exists)
     try {
+      const { getDatabase } = await import('@/lib/db');
+      const db = getDatabase();
       const userCount = await db.select().from(users).limit(1);
       return NextResponse.json({
         success: true,

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/auth';
-import { db } from '@/lib/db';
+import { getDatabase } from '@/lib/db';
 import { users } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 
@@ -17,18 +17,21 @@ export async function GET(request: NextRequest) {
 
     const decoded = verifyToken(token);
 
-    if (!decoded || !decoded.userId) {
+    if (!decoded || !decoded.id) {
       return NextResponse.json(
         { message: 'Invalid token' },
         { status: 401 }
       );
     }
 
+    // Get database instance (will throw if not available)
+    const db = getDatabase();
+
     // Get user from database
     const user = await db
       .select()
       .from(users)
-      .where(eq(users.id, decoded.userId))
+      .where(eq(users.id, decoded.id))
       .limit(1);
 
     if (!user.length) {
@@ -42,7 +45,8 @@ export async function GET(request: NextRequest) {
     const phoneValue = user[0].phone;
     const phoneString = phoneValue && String(phoneValue).trim() ? String(phoneValue).trim() : null;
     
-    console.log('User data from database:', {
+    console.log('🔍 /api/auth/me - Token decoded ID:', decoded.id);
+    console.log('🔍 /api/auth/me - User found in database:', {
       id: user[0].id,
       name: user[0].name,
       email: user[0].email,
@@ -53,24 +57,31 @@ export async function GET(request: NextRequest) {
       phoneIsEmptyString: phoneValue === '',
       phoneAfterProcessing: phoneString,
       role: user[0].role,
+      bio: user[0].bio,
+      profilePicture: user[0].profilePicture,
+      joinedDate: user[0].joinedDate,
     });
 
+    const userResponse = {
+      id: user[0].id,
+      name: user[0].name,
+      email: user[0].email,
+      phone: phoneString, // Convert to string and trim, or null if empty
+      bio: user[0].bio && String(user[0].bio).trim() ? String(user[0].bio).trim() : null,
+      profilePicture: user[0].profilePicture || null,
+      role: user[0].role,
+      isActive: user[0].isActive,
+      faceIdEnrolled: user[0].faceIdEnrolled || false,
+      fingerprintEnrolled: user[0].fingerprintEnrolled || false,
+      twoFactorEnabled: user[0].twoFactorEnabled || false,
+      joinedDate: user[0].joinedDate ? new Date(user[0].joinedDate).toISOString() : null,
+      lastLogin: user[0].lastLogin ? new Date(user[0].lastLogin).toISOString() : null,
+    };
+
+    console.log('✅ /api/auth/me - Returning user data:', userResponse);
+
     return NextResponse.json({
-      user: {
-        id: user[0].id,
-        name: user[0].name,
-        email: user[0].email,
-        phone: phoneString, // Convert to string and trim, or null if empty
-        bio: user[0].bio && String(user[0].bio).trim() ? String(user[0].bio).trim() : null,
-        profilePicture: user[0].profilePicture || null,
-        role: user[0].role,
-        isActive: user[0].isActive,
-        faceIdEnrolled: user[0].faceIdEnrolled,
-        fingerprintEnrolled: user[0].fingerprintEnrolled,
-        twoFactorEnabled: user[0].twoFactorEnabled,
-        joinedDate: user[0].joinedDate ? new Date(user[0].joinedDate).toISOString() : null,
-        lastLogin: user[0].lastLogin ? new Date(user[0].lastLogin).toISOString() : null,
-      },
+      user: userResponse,
     });
   } catch (error: any) {
     console.error('Get current user error:', error);

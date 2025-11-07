@@ -17,7 +17,7 @@ function getDeterministicProgress(courseId: string): number {
 }
 
 export default function StudentDashboard() {
-  const [courses] = useState(getCourses());
+  const [courses, setCourses] = useState<any[]>([]);
   const [showRequestModal, setShowRequestModal] = useState(false);
   const [selectedCourse, setSelectedCourse] = useState<string | null>(null);
   const [requestNote, setRequestNote] = useState('');
@@ -32,6 +32,7 @@ export default function StudentDashboard() {
     totalPoints: 0,
   });
   const [enrolledCourseIds, setEnrolledCourseIds] = useState<string[]>([]);
+  const [isLoadingCourses, setIsLoadingCourses] = useState(true);
 
   // Fetch real user data - CRITICAL: Must fetch before showing dashboard
   useEffect(() => {
@@ -148,6 +149,37 @@ export default function StudentDashboard() {
     };
     fetchUser();
   }, []);
+
+  // Fetch real courses from API when user is authenticated
+  useEffect(() => {
+    const fetchCourses = async () => {
+      if (!user || user.role !== 'student') {
+        setIsLoadingCourses(false);
+        setCourses(getCourses()); // Fallback to demo data
+        return;
+      }
+
+      try {
+        setIsLoadingCourses(true);
+        const response = await fetch('/api/student/courses', { credentials: 'include' });
+        
+        if (response.ok) {
+          const data = await response.json();
+          setCourses(data.courses || []);
+        } else {
+          // Fallback to demo data if API fails
+          setCourses(getCourses());
+        }
+      } catch (error) {
+        console.error('Error fetching courses:', error);
+        setCourses(getCourses()); // Fallback to demo data
+      } finally {
+        setIsLoadingCourses(false);
+      }
+    };
+
+    fetchCourses();
+  }, [user]);
 
   // Fetch stats and enrolled courses
   useEffect(() => {

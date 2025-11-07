@@ -104,7 +104,7 @@ export default function BlogDetailPage() {
           <div className="flex-1">
             <h3 className="text-xl font-bold text-gray-900 mb-2">About {blog.author}</h3>
             <p className="text-gray-600 leading-relaxed">
-              LearnHub Team is dedicated to providing high-quality educational content and resources
+              Nurse Pro Academy Team is dedicated to providing high-quality educational content and resources
               to help learners of all levels achieve their goals. Our team consists of experienced
               educators, developers, and industry professionals passionate about sharing knowledge.
             </p>

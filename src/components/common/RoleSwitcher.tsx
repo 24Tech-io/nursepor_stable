@@ -132,7 +132,7 @@ export default function RoleSwitcher() {
                 <button
                   key={account.id}
                   onClick={() => handleSwitchRole(account.role)}
-                  disabled={isLoading || account.role === currentRole}
+                  disabled={isLoading || account.role === currentUser.role}
                   className={`w-full px-3 py-2 rounded-lg text-left transition-all ${
                     account.role === currentUser.role
                       ? 'bg-indigo-500/20 text-indigo-200 cursor-default'

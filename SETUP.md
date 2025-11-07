@@ -1,4 +1,4 @@
-# LMS Platform Setup Guide
+# Nurse Pro Academy Setup Guide
 
 ## ✅ Fixed Issues
 
@@ -22,13 +22,22 @@ DATABASE_URL="postgresql://username:password@host.neon.tech/dbname?sslmode=requi
 # JWT Secret for authentication tokens
 JWT_SECRET="your-super-secret-jwt-key-change-this-in-production"
 
-# SMTP Configuration for Email (optional)
+# SMTP Configuration for Email (optional but recommended)
+# For Gmail:
 SMTP_HOST="smtp.gmail.com"
 SMTP_PORT="587"
 SMTP_SECURE="false"
 SMTP_USER="your-email@gmail.com"
-SMTP_PASS="your-app-password"
-SMTP_FROM="noreply@lms-platform.com"
+SMTP_PASS="your-app-password"  # Use App Password, not regular password
+SMTP_FROM="Nurse Pro Academy <noreply@nurseproacademy.com>"
+SMTP_REQUIRE_TLS="true"
+SMTP_REJECT_UNAUTHORIZED="true"
+
+# For other providers:
+# Outlook: smtp-mail.outlook.com, port 587
+# Yahoo: smtp.mail.yahoo.com, port 587
+# SendGrid: smtp.sendgrid.net, port 587, user: "apikey", pass: your-api-key
+# Mailgun: smtp.mailgun.org, port 587
 
 # App URL
 NEXT_PUBLIC_APP_URL="http://localhost:3000"

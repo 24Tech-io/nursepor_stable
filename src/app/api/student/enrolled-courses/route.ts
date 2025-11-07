@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/auth';
-import { db } from '@/lib/db';
+import { getDatabase } from '@/lib/db';
 import { studentProgress, courses } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
 
@@ -17,12 +17,15 @@ export async function GET(request: NextRequest) {
 
     const decoded = verifyToken(token);
 
-    if (!decoded || !decoded.userId) {
+    if (!decoded || !decoded.id) {
       return NextResponse.json(
         { message: 'Invalid token' },
         { status: 401 }
       );
     }
+
+    // Get database instance
+    const db = getDatabase();
 
     // Get enrolled courses for the student
     const progress = await db
@@ -44,13 +47,13 @@ export async function GET(request: NextRequest) {
       .innerJoin(courses, eq(studentProgress.courseId, courses.id))
       .where(
         and(
-          eq(studentProgress.studentId, decoded.userId),
+          eq(studentProgress.studentId, decoded.id),
           eq(courses.status, 'published')
         )
       );
 
     return NextResponse.json({
-      enrolledCourses: progress.map(p => ({
+      enrolledCourses: progress.map((p: any) => ({
         courseId: p.courseId.toString(),
         progress: p.totalProgress,
         lastAccessed: p.lastAccessed ? new Date(p.lastAccessed).toISOString() : null,

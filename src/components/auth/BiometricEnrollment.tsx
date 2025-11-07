@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { detectFace, enrollFace, loadFaceModels, checkBrowserSupport } from '@/lib/face-recognition';
+import { detectFace, descriptorToBase64, loadFaceModels, checkBrowserSupport } from '@/lib/face-recognition';
 
 interface BiometricEnrollmentProps {
   type: 'face' | 'fingerprint';
@@ -103,9 +103,9 @@ export default function BiometricEnrollment({ type, onComplete, onError, onCance
         setStatus(`Capturing sample ${i + 1}/${sampleCount}...`);
         setEnrollmentProgress(((i + 1) / sampleCount) * 100);
 
-        const descriptor = await detectFace(canvas);
-        if (descriptor) {
-          samples.push(descriptor);
+        const faceResult = await detectFace(canvas);
+        if (faceResult && faceResult.descriptor) {
+          samples.push(faceResult.descriptor);
           await new Promise(resolve => setTimeout(resolve, 500)); // Wait between samples
         } else {
           throw new Error('No face detected. Please ensure your face is clearly visible.');
@@ -124,7 +124,7 @@ export default function BiometricEnrollment({ type, onComplete, onError, onCance
       }
 
       setStatus('Saving face data...');
-      const base64Descriptor = await enrollFace(avgDescriptor);
+      const base64Descriptor = descriptorToBase64(avgDescriptor);
 
       // Send to server
       const response = await fetch('/api/auth/face-enroll', {
@@ -175,11 +175,11 @@ export default function BiometricEnrollment({ type, onComplete, onError, onCance
           crypto.getRandomValues(new Uint8Array(32))
         ),
         rp: {
-          name: 'LearnHub LMS',
+          name: 'Nurse Pro Academy',
           id: window.location.hostname,
         },
         user: {
-          id: Uint8Array.from(user.email, c => c.charCodeAt(0)),
+          id: new TextEncoder().encode(user.email),
           name: user.email,
           displayName: user.name,
         },
@@ -212,8 +212,8 @@ export default function BiometricEnrollment({ type, onComplete, onError, onCance
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           credentialId: Array.from(new Uint8Array(credential.rawId)).map(b => b.toString(16).padStart(2, '0')).join(''),
-          clientDataJSON: btoa(String.fromCharCode(...clientDataJSON)),
-          attestationObject: btoa(String.fromCharCode(...attestationObject)),
+          clientDataJSON: btoa(String.fromCharCode(...Array.from(clientDataJSON))),
+          attestationObject: btoa(String.fromCharCode(...Array.from(attestationObject))),
         }),
         credentials: 'include',
       });

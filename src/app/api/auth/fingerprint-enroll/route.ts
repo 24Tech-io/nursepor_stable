@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth-helpers';
-import { db } from '@/lib/db';
+import { getDatabase } from '@/lib/db';
 import { users } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 
@@ -10,6 +10,9 @@ export async function POST(request: NextRequest) {
     const authResult = await requireAuth(request);
     if (authResult instanceof NextResponse) return authResult;
     const currentUser = authResult.user;
+
+    // Get database instance
+    const db = getDatabase();
 
     const { credentialId, clientDataJSON, attestationObject } = await request.json();
 

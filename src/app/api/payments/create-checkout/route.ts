@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { stripe, convertToStripeAmount } from '@/lib/stripe';
-import { db } from '@/lib/db';
+import { getDatabase } from '@/lib/db';
 import { courses, payments } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { requireAuth } from '@/lib/auth-helpers';
@@ -18,6 +18,9 @@ export async function POST(request: NextRequest) {
   const authResult = await requireAuth(request);
   if (authResult instanceof NextResponse) return authResult;
   const user = authResult.user;
+
+  // Get database instance
+  const db = getDatabase();
 
   try {
     // Validate request body size

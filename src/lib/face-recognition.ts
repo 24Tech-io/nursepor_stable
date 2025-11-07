@@ -179,7 +179,7 @@ export async function verifyFace(
  */
 export function descriptorToBase64(descriptor: Float32Array): string {
   const bytes = new Uint8Array(descriptor.buffer);
-  const binary = String.fromCharCode(...bytes);
+  const binary = String.fromCharCode(...Array.from(bytes));
   return btoa(binary);
 }
 

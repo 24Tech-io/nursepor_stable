@@ -186,10 +186,10 @@ export async function POST(request: NextRequest) {
     
     if (isDuplicateEmailRole) {
       console.log('✓ Duplicate email+role detected - returning user-friendly message');
-      // Try to extract role from error or use the attempted role
-      const attemptedRole = role || 'student';
+      // Try to extract role from error or use 'student' as default
+      const attemptedRole = 'student'; // Default since we can't access role in catch block
       return NextResponse.json(
-        { message: `An account with this email already exists as ${attemptedRole}. You can create a ${attemptedRole === 'student' ? 'admin' : 'student'} account with the same email, or try logging in.` },
+        { message: `An account with this email already exists. You can create a different role account with the same email, or try logging in.` },
         { status: 409 }
       );
     }

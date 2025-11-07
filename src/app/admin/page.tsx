@@ -21,6 +21,11 @@ function getDeterministicValue(str: string, min: number, max: number): number {
 export default function AdminDashboard() {
   const [user, setUser] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [courses, setCourses] = useState<any[]>([]);
+  const [students, setStudents] = useState<any[]>([]);
+  const [requests, setRequests] = useState<any[]>([]);
+  const [stats, setStats] = useState<any>(null);
+  const [isLoadingData, setIsLoadingData] = useState(true);
   
   // Fetch real user data - CRITICAL: Must fetch before showing dashboard
   useEffect(() => {
@@ -141,22 +146,106 @@ export default function AdminDashboard() {
     fetchUser();
   }, []);
 
-  const courses = getCourses();
-  const students = getStudents();
-  const requests = getAccessRequests();
+  // Fetch real data from API when user is authenticated
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      if (!user || user.role !== 'admin') {
+        setIsLoadingData(false);
+        return;
+      }
 
-  const stats = {
-    totalStudents: students.length,
-    activeStudents: students.filter(s => s.isActive).length,
-    totalCourses: courses.length,
-    publishedCourses: courses.filter(c => c.status === 'published').length,
-    pendingRequests: requests.filter(r => r.status === 'pending').length,
-    totalEnrollments: 45,
-    revenue: 125000,
-    completionRate: 68,
+      try {
+        setIsLoadingData(true);
+        
+        // Fetch all data in parallel
+        const [coursesRes, studentsRes, requestsRes, statsRes] = await Promise.all([
+          fetch('/api/admin/courses', { credentials: 'include' }),
+          fetch('/api/admin/students', { credentials: 'include' }),
+          fetch('/api/admin/requests', { credentials: 'include' }),
+          fetch('/api/admin/stats', { credentials: 'include' }),
+        ]);
+
+        if (coursesRes.ok) {
+          const data = await coursesRes.json();
+          setCourses(data.courses || []);
+        } else {
+          // Fallback to demo data if API fails
+          setCourses(getCourses());
+        }
+
+        if (studentsRes.ok) {
+          const data = await studentsRes.json();
+          setStudents(data.students || []);
+        } else {
+          setStudents(getStudents());
+        }
+
+        if (requestsRes.ok) {
+          const data = await requestsRes.json();
+          setRequests(data.requests || []);
+        } else {
+          setRequests(getAccessRequests());
+        }
+
+        if (statsRes.ok) {
+          const data = await statsRes.json();
+          setStats(data.stats || {});
+        } else {
+          // Fallback stats
+          const fallbackCourses = getCourses();
+          const fallbackStudents = getStudents();
+          const fallbackRequests = getAccessRequests();
+          setStats({
+            totalStudents: fallbackStudents.length,
+            activeStudents: fallbackStudents.filter((s: any) => s.isActive).length,
+            totalCourses: fallbackCourses.length,
+            publishedCourses: fallbackCourses.filter((c: any) => c.status === 'published').length,
+            pendingRequests: fallbackRequests.filter((r: any) => r.status === 'pending').length,
+            totalEnrollments: 0,
+            revenue: 0,
+            completionRate: 0,
+          });
+        }
+      } catch (error) {
+        console.error('Error fetching dashboard data:', error);
+        // Fallback to demo data on error
+        setCourses(getCourses());
+        setStudents(getStudents());
+        setRequests(getAccessRequests());
+        setStats({
+          totalStudents: 0,
+          activeStudents: 0,
+          totalCourses: 0,
+          publishedCourses: 0,
+          pendingRequests: 0,
+          totalEnrollments: 0,
+          revenue: 0,
+          completionRate: 0,
+        });
+      } finally {
+        setIsLoadingData(false);
+      }
+    };
+
+    fetchDashboardData();
+  }, [user]);
+
+  // Use demo data if not authenticated or data is loading
+  const displayCourses = courses.length > 0 ? courses : getCourses();
+  const displayStudents = students.length > 0 ? students : getStudents();
+  const displayRequests = requests.length > 0 ? requests : getAccessRequests();
+  const displayStats = stats || {
+    totalStudents: displayStudents.length,
+    activeStudents: displayStudents.filter((s: any) => s.isActive).length,
+    totalCourses: displayCourses.length,
+    publishedCourses: displayCourses.filter((c: any) => c.status === 'published').length,
+    pendingRequests: displayRequests.filter((r: any) => r.status === 'pending').length,
+    totalEnrollments: 0,
+    revenue: 0,
+    completionRate: 0,
   };
 
-  const recentStudents = students.slice(0, 5);
+  const recentStudents = displayStudents.slice(0, 5);
   const recentActivity = [
     { type: 'enrollment', student: 'John Doe', course: 'Web Development', time: '5 min ago', icon: '📚' },
     { type: 'completion', student: 'Jane Smith', course: 'Advanced JavaScript', time: '12 min ago', icon: '🎓' },
@@ -166,14 +255,14 @@ export default function AdminDashboard() {
   ];
 
   // Use deterministic values based on course ID to avoid hydration mismatch
-  const topCourses = courses.slice(0, 4).map(course => ({
+  const topCourses = displayCourses.slice(0, 4).map((course: any) => ({
     ...course,
     enrollments: getDeterministicValue(course.id, 10, 60),
     completionRate: getDeterministicValue(course.id + '_rate', 60, 100),
   }));
 
   // Don't render dashboard content until user data is loaded
-  if (isLoading || !user) {
+  if (isLoading || !user || isLoadingData) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
@@ -205,9 +294,9 @@ export default function AdminDashboard() {
             </div>
             <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full font-semibold">+12% ↑</span>
           </div>
-          <p className="text-3xl font-bold text-gray-900 mb-1">{stats.totalStudents}</p>
+          <p className="text-3xl font-bold text-gray-900 mb-1">{displayStats.totalStudents}</p>
           <p className="text-gray-600 text-sm">Total Students</p>
-          <div className="mt-3 flex items-center text-sm"><span className="text-green-600 font-semibold">{stats.activeStudents} active</span></div>
+          <div className="mt-3 flex items-center text-sm"><span className="text-green-600 font-semibold">{displayStats.activeStudents} active</span></div>
         </div>
 
         <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100 hover:shadow-xl transition-shadow">
@@ -215,11 +304,11 @@ export default function AdminDashboard() {
             <div className="w-14 h-14 bg-purple-100 rounded-xl flex items-center justify-center">
               <svg className="w-7 h-7 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
             </div>
-            <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full font-semibold">{stats.publishedCourses}/{stats.totalCourses}</span>
+            <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full font-semibold">{displayStats.publishedCourses}/{displayStats.totalCourses}</span>
           </div>
-          <p className="text-3xl font-bold text-gray-900 mb-1">{stats.totalCourses}</p>
+          <p className="text-3xl font-bold text-gray-900 mb-1">{displayStats.totalCourses}</p>
           <p className="text-gray-600 text-sm">Total Courses</p>
-          <div className="mt-3 flex items-center text-sm"><span className="text-blue-600 font-semibold">{stats.publishedCourses} published</span></div>
+          <div className="mt-3 flex items-center text-sm"><span className="text-blue-600 font-semibold">{displayStats.publishedCourses} published</span></div>
         </div>
 
         <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100 hover:shadow-xl transition-shadow">
@@ -227,9 +316,9 @@ export default function AdminDashboard() {
             <div className="w-14 h-14 bg-orange-100 rounded-xl flex items-center justify-center">
               <svg className="w-7 h-7 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>
             </div>
-            {stats.pendingRequests > 0 && (<span className="text-xs bg-red-100 text-red-700 px-2 py-1 rounded-full font-semibold animate-pulse">{stats.pendingRequests} new</span>)}
+            {displayStats.pendingRequests > 0 && (<span className="text-xs bg-red-100 text-red-700 px-2 py-1 rounded-full font-semibold animate-pulse">{displayStats.pendingRequests} new</span>)}
           </div>
-          <p className="text-3xl font-bold text-gray-900 mb-1">{stats.pendingRequests}</p>
+          <p className="text-3xl font-bold text-gray-900 mb-1">{displayStats.pendingRequests}</p>
           <p className="text-gray-600 text-sm">Pending Requests</p>
           <div className="mt-3"><Link href="/admin/requests" className="text-sm text-orange-600 font-semibold hover:text-orange-700">Review now →</Link></div>
         </div>
@@ -241,7 +330,7 @@ export default function AdminDashboard() {
             </div>
             <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full font-semibold">+8% ↑</span>
           </div>
-          <p className="text-3xl font-bold text-gray-900 mb-1">₹{(stats.revenue / 1000).toFixed(0)}k</p>
+          <p className="text-3xl font-bold text-gray-900 mb-1">₹{(displayStats.revenue / 1000).toFixed(0)}k</p>
           <p className="text-gray-600 text-sm">Total Revenue</p>
           <div className="mt-3 flex items-center text-sm"><span className="text-green-600 font-semibold">This month</span></div>
         </div>

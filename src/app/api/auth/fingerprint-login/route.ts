@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { getDatabase } from '@/lib/db';
 import { users } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { createSession } from '@/lib/auth';
@@ -14,6 +14,9 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    // Get database instance
+    const db = getDatabase();
 
     // Find user by fingerprint credential ID
     const user = await db
@@ -43,8 +46,14 @@ export async function POST(request: NextRequest) {
       id: user[0].id,
       name: user[0].name,
       email: user[0].email,
+      phone: user[0].phone || null,
+      bio: user[0].bio || null,
       role: user[0].role,
       isActive: user[0].isActive,
+      faceIdEnrolled: user[0].faceIdEnrolled || false,
+      fingerprintEnrolled: user[0].fingerprintEnrolled || false,
+      twoFactorEnabled: user[0].twoFactorEnabled || false,
+      joinedDate: user[0].joinedDate || null,
     });
 
     // Update last login

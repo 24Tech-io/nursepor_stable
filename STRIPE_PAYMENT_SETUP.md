@@ -1,6 +1,6 @@
 # Stripe Payment Setup Guide
 
-This guide will help you configure Stripe payments for your LMS Platform.
+This guide will help you configure Stripe payments for your Nurse Pro Academy.
 
 ## Step 1: Create a Stripe Account
 

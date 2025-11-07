@@ -191,7 +191,7 @@ export default function StudentLayout({
                   </svg>
                 </div>
                 <span className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
-                  LearnHub
+                  Nurse Pro Academy
                 </span>
               </Link>
             </div>
@@ -386,7 +386,7 @@ export default function StudentLayout({
       <footer className="bg-white border-t border-gray-100 mt-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="text-center text-sm text-gray-500">
-            © 2024 LearnHub. All rights reserved. | <Link href="/terms" className="hover:text-purple-600">Terms</Link> | <Link href="/privacy" className="hover:text-purple-600">Privacy</Link>
+            © 2024 Nurse Pro Academy. All rights reserved. | <Link href="/terms" className="hover:text-purple-600">Terms</Link> | <Link href="/privacy" className="hover:text-purple-600">Privacy</Link>
           </div>
         </div>
       </footer>

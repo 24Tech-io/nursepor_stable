@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { stripe } from '@/lib/stripe';
-import { db } from '@/lib/db';
+import { getDatabase } from '@/lib/db';
 import { payments, studentProgress } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
 
@@ -45,6 +45,9 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    // Get database instance
+    const db = getDatabase();
+
     // Handle the event
     switch (event.type) {
       case 'checkout.session.completed': {

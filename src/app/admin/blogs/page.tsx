@@ -32,6 +32,7 @@ export default function AdminBlogsPage() {
     const blogData = {
       id: editingBlog?.id || `blog-${Date.now()}`,
       ...formData,
+      author: editingBlog?.author || 'Nurse Pro Academy Team',
       tags: formData.tags.split(',').map(t => t.trim()).filter(t => t),
       createdAt: editingBlog?.createdAt || new Date(),
       updatedAt: new Date(),

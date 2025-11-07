@@ -12,27 +12,59 @@ export default function AdminProfilePage() {
   const [showFingerprintEnrollment, setShowFingerprintEnrollment] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [uploadingPicture, setUploadingPicture] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editForm, setEditForm] = useState({ name: '', phone: '', bio: '' });
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     // Fetch user data
     const fetchUser = async () => {
       try {
-        const response = await fetch('/api/auth/me', { credentials: 'include' });
+        console.log('🔍 Admin Profile: Fetching user data from /api/auth/me...');
+        const response = await fetch('/api/auth/me', { 
+          credentials: 'include',
+          cache: 'no-store',
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        });
+        
+        console.log('📡 Admin Profile: Response status:', response.status);
+        
         if (response.ok) {
           const data = await response.json();
-          setUser({
-            ...data.user,
-            phone: data.user.phone || null,
-            bio: data.user.bio || null,
-            joinedDate: data.user.joinedDate ? new Date(data.user.joinedDate) : new Date(),
-            // Use profile picture if available, otherwise generate avatar from name initials
-            avatar: data.user.profilePicture || `https://ui-avatars.com/api/?name=${encodeURIComponent(data.user.name || 'Admin')}&background=9333ea&color=fff&size=150`,
-            faceIdEnrolled: data.user.faceIdEnrolled || false,
-            fingerprintEnrolled: data.user.fingerprintEnrolled || false,
-          });
+          console.log('✅ Admin Profile: User data received:', data);
+          
+          if (data.user) {
+            setUser({
+              ...data.user,
+              phone: data.user.phone || null,
+              bio: data.user.bio || null,
+              joinedDate: data.user.joinedDate ? new Date(data.user.joinedDate) : new Date(),
+              // Use profile picture if available, otherwise generate avatar from name initials
+              avatar: data.user.profilePicture || `https://ui-avatars.com/api/?name=${encodeURIComponent(data.user.name || 'Admin')}&background=9333ea&color=fff&size=150`,
+              faceIdEnrolled: data.user.faceIdEnrolled || false,
+              fingerprintEnrolled: data.user.fingerprintEnrolled || false,
+            });
+            console.log('✅ Admin Profile: User state updated');
+          } else {
+            console.error('❌ Admin Profile: No user data in response:', data);
+            alert('Failed to load user data. Please try logging in again.');
+            window.location.href = '/login';
+          }
+        } else {
+          const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
+          console.error('❌ Admin Profile: API error:', response.status, errorData);
+          if (response.status === 401 || response.status === 403) {
+            alert('Session expired. Please log in again.');
+            window.location.href = '/login';
+          } else {
+            alert('Failed to load profile data. Please refresh the page.');
+          }
         }
       } catch (error) {
-        console.error('Failed to fetch user:', error);
+        console.error('❌ Admin Profile: Failed to fetch user:', error);
+        alert('Network error. Please check your connection and try again.');
       } finally {
         setIsLoading(false);
       }
@@ -101,6 +133,70 @@ export default function AdminProfilePage() {
         event.target.value = '';
       }
     }
+  };
+
+  // Handle profile update
+  const handleUpdateProfile = async () => {
+    setIsSaving(true);
+    try {
+      const response = await fetch('/api/profile/update', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(editForm),
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        // Update local state
+        setUser((prev: any) => ({
+          ...prev,
+          ...data.user,
+        }));
+        setIsEditing(false);
+        alert('Profile updated successfully!');
+        // Refresh user data
+        const refreshResponse = await fetch('/api/auth/me', { credentials: 'include' });
+        if (refreshResponse.ok) {
+          const refreshData = await refreshResponse.json();
+          if (refreshData.user) {
+            setUser({
+              ...refreshData.user,
+              phone: refreshData.user.phone || null,
+              bio: refreshData.user.bio || null,
+              joinedDate: refreshData.user.joinedDate ? new Date(refreshData.user.joinedDate) : new Date(),
+              avatar: refreshData.user.profilePicture || `https://ui-avatars.com/api/?name=${encodeURIComponent(refreshData.user.name || 'Admin')}&background=9333ea&color=fff&size=150`,
+              faceIdEnrolled: refreshData.user.faceIdEnrolled || false,
+              fingerprintEnrolled: refreshData.user.fingerprintEnrolled || false,
+            });
+          }
+        }
+      } else {
+        alert(data.message || 'Failed to update profile');
+      }
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      alert('An error occurred while updating your profile');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Start editing
+  const handleStartEdit = () => {
+    setEditForm({
+      name: user.name || '',
+      phone: user.phone || '',
+      bio: user.bio || '',
+    });
+    setIsEditing(true);
+  };
+
+  // Cancel editing
+  const handleCancelEdit = () => {
+    setIsEditing(false);
+    setEditForm({ name: '', phone: '', bio: '' });
   };
 
   const tabs = [
@@ -185,34 +281,103 @@ export default function AdminProfilePage() {
 
             {/* User Info */}
             <div className="flex-1 space-y-4">
-              <div>
-                <h2 className="text-2xl font-bold text-gray-900">{user.name}</h2>
-                <p className="text-gray-600">{user.email}</p>
-                <p className="text-gray-500 text-sm mt-2">{user.bio}</p>
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  {isEditing ? (
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                        <input
+                          type="text"
+                          value={editForm.name}
+                          onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-900"
+                          placeholder="Your name"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+                        <input
+                          type="tel"
+                          value={editForm.phone}
+                          onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-900"
+                          placeholder="Your phone number"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Bio</label>
+                        <textarea
+                          value={editForm.bio}
+                          onChange={(e) => setEditForm({ ...editForm, bio: e.target.value })}
+                          rows={3}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-900"
+                          placeholder="Tell us about yourself"
+                        />
+                      </div>
+                      <div className="flex space-x-3">
+                        <button
+                          onClick={handleUpdateProfile}
+                          disabled={isSaving}
+                          className="px-6 py-2 bg-purple-600 text-white rounded-lg font-semibold hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {isSaving ? 'Saving...' : 'Save Changes'}
+                        </button>
+                        <button
+                          onClick={handleCancelEdit}
+                          disabled={isSaving}
+                          className="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg font-semibold hover:bg-gray-300 disabled:opacity-50"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="flex items-center justify-between mb-2">
+                        <h2 className="text-2xl font-bold text-gray-900">{user.name || 'Admin User'}</h2>
+                        <button
+                          onClick={handleStartEdit}
+                          className="px-4 py-2 text-sm font-semibold text-purple-600 hover:text-purple-700 hover:bg-purple-50 rounded-lg transition"
+                        >
+                          ✏️ Edit Profile
+                        </button>
+                      </div>
+                      <p className="text-gray-600">{user.email || 'No email'}</p>
+                      {user.bio && (
+                        <p className="text-gray-500 text-sm mt-2">{user.bio}</p>
+                      )}
+                    </>
+                  )}
+                </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
-                  <p className="text-gray-900">{user.phone}</p>
+              {!isEditing && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+                    <p className="text-gray-900">{user.phone || 'Not provided'}</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
+                    <p className="text-gray-900 capitalize">{user.role || 'admin'}</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                      user.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                    }`}>
+                      {user.isActive ? 'Active' : 'Inactive'}
+                    </span>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Joined</label>
+                    <p className="text-gray-900">
+                      {user.joinedDate ? (user.joinedDate instanceof Date ? user.joinedDate.toLocaleDateString() : new Date(user.joinedDate).toLocaleDateString()) : 'N/A'}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
-                  <p className="text-gray-900 capitalize">{user.role}</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                    user.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                  }`}>
-                    {user.isActive ? 'Active' : 'Inactive'}
-                  </span>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Joined</label>
-                  <p className="text-gray-900">{user.joinedDate.toLocaleDateString()}</p>
-                </div>
-              </div>
+              )}
             </div>
           </div>
         </div>
@@ -309,6 +474,9 @@ export default function AdminProfilePage() {
             alert(`Face enrollment failed: ${error}`);
             setShowFaceEnrollment(false);
           }}
+          onCancel={() => {
+            setShowFaceEnrollment(false);
+          }}
         />
       )}
 
@@ -328,6 +496,9 @@ export default function AdminProfilePage() {
           }}
           onError={(error) => {
             alert(`Fingerprint enrollment failed: ${error}`);
+            setShowFingerprintEnrollment(false);
+          }}
+          onCancel={() => {
             setShowFingerprintEnrollment(false);
           }}
         />

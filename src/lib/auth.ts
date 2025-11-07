@@ -1,6 +1,6 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { db } from './db';
+import { getDatabase } from './db';
 import { users, sessions } from './db/schema';
 import { eq, and } from 'drizzle-orm';
 import { generateSecureToken } from './security';
@@ -59,8 +59,14 @@ export function verifyToken(token: string): AuthUser | null {
       id: decoded.id,
       name: decoded.name,
       email: decoded.email,
+      phone: decoded.phone || null,
+      bio: decoded.bio || null,
       role: decoded.role,
       isActive: decoded.isActive,
+      faceIdEnrolled: decoded.faceIdEnrolled || false,
+      fingerprintEnrolled: decoded.fingerprintEnrolled || false,
+      twoFactorEnabled: decoded.twoFactorEnabled || false,
+      joinedDate: decoded.joinedDate || null,
     };
   } catch (error) {
     return null;
@@ -68,6 +74,9 @@ export function verifyToken(token: string): AuthUser | null {
 }
 
 export async function createSession(userId: number, deviceInfo?: any, userData?: AuthUser): Promise<string> {
+  // Get database instance
+  const db = getDatabase();
+
   // Get user data if not provided
   let user: AuthUser;
   if (userData) {
@@ -87,8 +96,14 @@ export async function createSession(userId: number, deviceInfo?: any, userData?:
       id: userResult[0].id,
       name: userResult[0].name,
       email: userResult[0].email,
+      phone: userResult[0].phone || null,
+      bio: userResult[0].bio || null,
       role: userResult[0].role,
       isActive: userResult[0].isActive,
+      faceIdEnrolled: userResult[0].faceIdEnrolled || false,
+      fingerprintEnrolled: userResult[0].fingerprintEnrolled || false,
+      twoFactorEnabled: userResult[0].twoFactorEnabled || false,
+      joinedDate: userResult[0].joinedDate || null,
     };
   }
 
@@ -108,6 +123,9 @@ export async function createSession(userId: number, deviceInfo?: any, userData?:
 export async function validateSession(sessionToken: string): Promise<AuthUser | null> {
   const user = verifyToken(sessionToken);
   if (!user) return null;
+
+  // Get database instance
+  const db = getDatabase();
 
   // Check if session exists in database
   const session = await db
@@ -129,14 +147,19 @@ export async function validateSession(sessionToken: string): Promise<AuthUser | 
 }
 
 export async function destroySession(sessionToken: string): Promise<void> {
+  const db = getDatabase();
   await db.delete(sessions).where(eq(sessions.sessionToken, sessionToken));
 }
 
 export async function destroyAllUserSessions(userId: number): Promise<void> {
+  const db = getDatabase();
   await db.delete(sessions).where(eq(sessions.userId, userId));
 }
 
 export async function authenticateUser(email: string, password: string, role?: string): Promise<AuthUser | null> {
+  // Get database instance
+  const db = getDatabase();
+
   // If role is specified, authenticate that specific role
   // Otherwise, get the first matching account (for backward compatibility)
   const whereConditions = role 
@@ -177,12 +200,13 @@ export async function authenticateUser(email: string, password: string, role?: s
 
 // Get all accounts (roles) for an email
 export async function getUserAccounts(email: string): Promise<AuthUser[]> {
+  const db = getDatabase();
   const accounts = await db
     .select()
     .from(users)
     .where(and(eq(users.email, email), eq(users.isActive, true)));
 
-  return accounts.map(user => ({
+  return accounts.map((user: any) => ({
     id: user.id,
     name: user.name,
     email: user.email,
@@ -207,10 +231,8 @@ export async function createUser(userData: {
   try {
     console.log('createUser called with:', { email: userData.email, role: userData.role });
     
-    // Check if database is initialized
-    if (!db) {
-      throw new Error('Database not initialized. Please check DATABASE_URL in .env.local');
-    }
+    // Get database instance
+    const db = getDatabase();
 
     const hashedPassword = await hashPassword(userData.password);
     console.log('Password hashed successfully');
@@ -258,6 +280,7 @@ export async function createUser(userData: {
 }
 
 export async function generateResetToken(email: string): Promise<string | null> {
+  const db = getDatabase();
   const user = await db
     .select()
     .from(users)
@@ -282,6 +305,7 @@ export async function generateResetToken(email: string): Promise<string | null> 
 }
 
 export async function verifyResetToken(email: string, token: string): Promise<boolean> {
+  const db = getDatabase();
   const user = await db
     .select()
     .from(users)
@@ -300,6 +324,7 @@ export async function resetPassword(email: string, token: string, newPassword: s
   const isValid = await verifyResetToken(email, token);
   if (!isValid) return false;
 
+  const db = getDatabase();
   const hashedPassword = await hashPassword(newPassword);
 
   await db

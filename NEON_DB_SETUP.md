@@ -1,6 +1,6 @@
 # Neon DB Setup Guide
 
-This guide will help you connect your LMS Platform to Neon DB and fix any connection issues.
+This guide will help you connect your Nurse Pro Academy to Neon DB and fix any connection issues.
 
 ## Step 1: Get Your Neon DB Connection String
 
@@ -35,7 +35,7 @@ SMTP_PORT="587"
 SMTP_SECURE="false"
 SMTP_USER="your-email@gmail.com"
 SMTP_PASS="your-app-password"
-SMTP_FROM="LMS Platform <noreply@example.com>"
+SMTP_FROM="Nurse Pro Academy <noreply@example.com>"
 ```
 
 **Important:** Replace the `DATABASE_URL` with your actual Neon connection string!

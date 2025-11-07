@@ -1,6 +1,6 @@
-# LMS Platform
+# Nurse Pro Academy
 
-Premium Next.js LMS with Drizzle ORM (SQLite/Neon Postgres) and Tailwind CSS v4.
+Premium Next.js Nursing Education Platform with Drizzle ORM (SQLite/Neon Postgres) and Tailwind CSS v4.
 
 ## Quickstart
 
@@ -38,7 +38,7 @@ SMTP_PORT=587
 SMTP_SECURE=false
 SMTP_USER=your-user
 SMTP_PASS=your-pass
-SMTP_FROM="LMS Platform <noreply@example.com>"
+SMTP_FROM="Nurse Pro Academy <noreply@example.com>"
 ```
 
 - If you set `DATABASE_URL`, the app uses Neon/Postgres; otherwise it uses local SQLite `lms.db`.
@@ -56,9 +56,9 @@ SMTP_FROM="LMS Platform <noreply@example.com>"
 - HttpOnly session cookie set on login
 - Forgot/reset password email via SMTP
 
-# LMS Platform
+# Nurse Pro Academy
 
-A modern Learning Management System built with Next.js 14, TypeScript, and Tailwind CSS.
+A modern Professional Nursing Education Platform built with Next.js 14, TypeScript, and Tailwind CSS.
 
 ## Features
 
@@ -92,7 +92,7 @@ A modern Learning Management System built with Next.js 14, TypeScript, and Tailw
 1. Clone the repository:
 ```bash
 git clone <repository-url>
-cd lms-platform
+cd nurse-pro-academy
 ```
 
 2. Install dependencies:
@@ -114,7 +114,7 @@ SMTP_PORT="587"
 SMTP_SECURE="false"
 SMTP_USER="your-email@gmail.com"
 SMTP_PASS="your-app-password"
-SMTP_FROM="noreply@lms-platform.com"
+SMTP_FROM="noreply@nurseproacademy.com"
 NEXT_PUBLIC_APP_URL="http://localhost:3000"
 ```
 
@@ -139,7 +139,7 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 ## Project Structure
 
 ```
-lms-platform/
+nurse-pro-academy/
 ├── src/
 │   ├── app/                    # Next.js app router pages
 │   │   ├── admin/             # Admin dashboard pages
@@ -220,7 +220,7 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ## Support
 
-For support, email support@lms-platform.com or join our Discord community.
+For support, email support@nurseproacademy.com or join our Discord community.
 
 ---
 

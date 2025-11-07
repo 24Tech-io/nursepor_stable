@@ -2,7 +2,7 @@
 
 ## Overview
 
-Face login has been integrated into the LMS platform using face-api.js. This allows users to enroll their face and login using facial recognition.
+Face login has been integrated into the Nurse Pro Academy platform using face-api.js. This allows users to enroll their face and login using facial recognition.
 
 ## Installation
 

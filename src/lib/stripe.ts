@@ -5,13 +5,19 @@ let stripe: Stripe | null = null;
 
 if (process.env.STRIPE_SECRET_KEY) {
   stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-    apiVersion: '2024-12-18.acacia',
+    apiVersion: '2024-12-18.acacia' as any,
     typescript: true,
   });
-  console.log('✅ Stripe payment configured');
+  // Only log in development mode to avoid build warnings
+  if (process.env.NODE_ENV === 'development') {
+    console.log('✅ Stripe payment configured');
+  }
 } else {
-  console.warn('⚠️ Stripe not configured - payment features will be disabled');
-  console.warn('   To enable payments, add STRIPE_SECRET_KEY to .env.local');
+  // Only warn in development mode to avoid build warnings
+  if (process.env.NODE_ENV === 'development') {
+    console.warn('⚠️ Stripe not configured - payment features will be disabled');
+    console.warn('   To enable payments, add STRIPE_SECRET_KEY to .env.local');
+  }
 }
 
 export { stripe };

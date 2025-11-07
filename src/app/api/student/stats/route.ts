@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/auth';
-import { db } from '@/lib/db';
+import { getDatabase } from '@/lib/db';
 import { studentProgress, courses, users } from '@/lib/db/schema';
 import { eq, and, sql } from 'drizzle-orm';
 
@@ -17,14 +17,17 @@ export async function GET(request: NextRequest) {
 
     const decoded = verifyToken(token);
 
-    if (!decoded || !decoded.userId) {
+    if (!decoded || !decoded.id) {
       return NextResponse.json(
         { message: 'Invalid token' },
         { status: 401 }
       );
     }
 
-    const userId = decoded.userId;
+    // Get database instance
+    const db = getDatabase();
+
+    const userId = decoded.id;
 
     // Get enrolled courses count
     const enrolledCoursesResult = await db

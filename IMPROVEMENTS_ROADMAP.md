@@ -1,4 +1,4 @@
-# LMS Platform - Advanced Improvements Roadmap
+# Nurse Pro Academy - Advanced Improvements Roadmap
 
 ## 🎯 Priority Features
 

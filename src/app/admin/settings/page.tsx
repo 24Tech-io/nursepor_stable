@@ -6,9 +6,9 @@ import { getCourses } from '@/lib/data';
 export default function AdminSettingsPage() {
   const courses = getCourses();
   const [settings, setSettings] = useState({
-    siteName: 'LearnHub',
-    siteDescription: 'Premium Learning Management System',
-    supportEmail: 'support@learnhub.com',
+    siteName: 'Nurse Pro Academy',
+    siteDescription: 'Professional Nursing Education Platform',
+    supportEmail: 'support@nurseproacademy.com',
     dailyVideoEnabled: true,
     dailyVideoSourceType: 'manual' as 'manual' | 'auto',
     dailyVideoSourceCourses: [] as string[],

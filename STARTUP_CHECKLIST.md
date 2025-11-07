@@ -1,4 +1,4 @@
-# 🚀 LMS Platform - Startup Checklist
+# 🚀 Nurse Pro Academy - Startup Checklist
 
 ## ✅ Pre-Startup Checks
 

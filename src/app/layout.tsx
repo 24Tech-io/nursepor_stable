@@ -2,8 +2,8 @@ import type { Metadata } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'LMS Platform',
-  description: 'Learning Management System',
+  title: 'Nurse Pro Academy',
+  description: 'Professional Nursing Education Platform',
 }
 
 export default function RootLayout({

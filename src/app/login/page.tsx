@@ -295,7 +295,7 @@ export default function LoginPage() {
             </svg>
           </div>
           <h2 className="mt-6 text-3xl font-bold bg-gradient-to-r from-white to-slate-200 bg-clip-text text-transparent">Welcome back</h2>
-          <p className="mt-2 text-sm text-slate-300">Sign in to your LMS Platform account</p>
+          <p className="mt-2 text-sm text-slate-300">Sign in to your Nurse Pro Academy account</p>
         </div>
 
         {/* Form */}
@@ -555,11 +555,14 @@ export default function LoginPage() {
                         } else {
                           router.push('/student');
                         }
+                        return true;
                       } else {
                         setError(data.message || 'Face login failed');
+                        return false;
                       }
                     } catch (err) {
                       setError('Network error. Please try again.');
+                      return false;
                     }
                   }}
                   onComplete={() => setShowFaceLogin(false)}

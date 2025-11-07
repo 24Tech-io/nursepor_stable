@@ -9,6 +9,11 @@ const nextConfig = {
   // Security: Compress responses
   compress: true,
   
+  // Enable webpack build worker to suppress warning
+  experimental: {
+    webpackBuildWorker: true,
+  },
+  
   // Fix for face-api.js trying to use 'fs' module in browser
   webpack: (config, { isServer }) => {
     if (!isServer) {

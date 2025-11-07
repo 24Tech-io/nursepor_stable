@@ -32,7 +32,7 @@ export default function StudentsPage() {
 
   function openEdit(s: Student) {
     setEditing(s);
-    setForm({ name: s.name, email: s.email, phone: s.phone || '', isActive: s.isActive, faceIdEnrolled: !!s.faceIdEnrolled, role: s.role as any });
+    setForm({ name: s.name, email: s.email, phone: s.phone || '', isActive: s.isActive ?? true, faceIdEnrolled: s.faceIdEnrolled ?? false, role: s.role as any });
     setShowModal(true);
   }
 

@@ -190,7 +190,7 @@ export const mockBlogPosts: BlogPost[] = [
 └── package.json</code></pre>
 
 <p>The <code>pages</code> directory contains your application's pages, and Next.js automatically handles routing based on the file names.</p>`,
-    author: 'LearnHub Team',
+    author: 'Nurse Pro Academy Team',
     cover: 'https://images.unsplash.com/photo-1555949963-aa79dcee981c?w=800&h=400&fit=crop',
     tags: ['nextjs', 'react', 'javascript', 'web-development'],
     status: 'published',
@@ -226,7 +226,7 @@ export const mockBlogPosts: BlogPost[] = [
 
 <h3>Practical Examples</h3>
 <p>Let's look at some real-world examples of CSS Grid in action...</p>`,
-    author: 'LearnHub Team',
+    author: 'Nurse Pro Academy Team',
     cover: 'https://images.unsplash.com/photo-1461749280684-dccba630e2f6?w=800&h=400&fit=crop',
     tags: ['css', 'grid', 'layout', 'frontend'],
     status: 'published',
@@ -264,7 +264,7 @@ closure(); // Logs: "I am from outer scope"</code></pre>
 
 <h3>Common Pitfalls</h3>
 <p>Closures can sometimes lead to memory leaks if not handled properly. Always be mindful of what variables you're capturing in your closures.</p>`,
-    author: 'LearnHub Team',
+    author: 'Nurse Pro Academy Team',
     cover: 'https://images.unsplash.com/photo-1579468118864-1b9ea3c0db4a?w=800&h=400&fit=crop',
     tags: ['javascript', 'closures', 'programming', 'advanced'],
     status: 'published',
@@ -303,7 +303,7 @@ app.listen(3000, () => {
 
 <h3>Middleware</h3>
 <p>Express middleware functions have access to the request object (req), response object (res), and the next middleware function in the application's request-response cycle.</p>`,
-    author: 'LearnHub Team',
+    author: 'Nurse Pro Academy Team',
     cover: 'https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=800&h=400&fit=crop',
     tags: ['nodejs', 'express', 'api', 'backend'],
     status: 'published',
@@ -341,7 +341,7 @@ app.listen(3000, () => {
 <li>Support Vector Machines</li>
 <li>Neural Networks</li>
 </ul>`,
-    author: 'LearnHub Team',
+    author: 'Nurse Pro Academy Team',
     cover: 'https://images.unsplash.com/photo-1555255707-c07966088b7b?w=800&h=400&fit=crop',
     tags: ['machine-learning', 'ai', 'python', 'data-science'],
     status: 'published',

@@ -4,6 +4,9 @@ import { useEffect, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 
+// Force dynamic rendering since we use searchParams
+export const dynamic = 'force-dynamic';
+
 export default function PaymentSuccessPage() {
   const searchParams = useSearchParams();
   const router = useRouter();

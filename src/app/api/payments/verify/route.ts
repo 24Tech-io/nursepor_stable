@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { getDatabase } from '@/lib/db';
 import { payments } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
+
+// Force dynamic rendering since we use searchParams
+export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
   try {
@@ -14,6 +17,9 @@ export async function GET(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    // Get database instance
+    const db = getDatabase();
 
     // Check payment status
     const payment = await db

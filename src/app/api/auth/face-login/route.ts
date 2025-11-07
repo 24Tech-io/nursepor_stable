@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { getDatabase } from '@/lib/db';
 import { users } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { createSession } from '@/lib/auth';
@@ -21,6 +21,9 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    // Get database instance
+    const db = getDatabase();
 
     // Get user from database
     const userResult = await db
