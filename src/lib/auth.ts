@@ -6,14 +6,25 @@ import { eq, and, sql } from 'drizzle-orm';
 import { generateSecureToken } from './security';
 
 // JWT_SECRET must be set - no fallback for security
-if (!process.env.JWT_SECRET || process.env.JWT_SECRET === 'your-secret-key' || process.env.JWT_SECRET.length < 32) {
-  throw new Error(
-    'JWT_SECRET must be set in environment variables and must be at least 32 characters long. ' +
-    'Please set a strong random secret in .env.local'
-  );
+function getJWTSecret(): string {
+  if (!process.env.JWT_SECRET || process.env.JWT_SECRET === 'your-secret-key') {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error(
+        'JWT_SECRET must be set in environment variables and must be at least 32 characters long. ' +
+        'Please set a strong random secret in .env.local'
+      );
+    }
+    // Use a default secret in development only (for hot reload)
+    console.warn('⚠️ Using default JWT_SECRET in development. Set JWT_SECRET in .env.local for production.');
+    return 'dev-secret-key-change-this-in-production-at-least-32-chars-long';
+  }
+  if (process.env.JWT_SECRET.length < 32) {
+    throw new Error('JWT_SECRET must be at least 32 characters long');
+  }
+  return process.env.JWT_SECRET;
 }
 
-const JWT_SECRET = process.env.JWT_SECRET;
+const JWT_SECRET = getJWTSecret();
 const JWT_EXPIRES_IN = '7d';
 
 export interface AuthUser {

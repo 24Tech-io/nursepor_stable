@@ -311,3 +311,272 @@ export const paymentsRelations = relations(payments, ({ one }) => ({
     references: [courses.id],
   }),
 }));
+
+// Course Reviews & Ratings
+export const courseReviews = pgTable('course_reviews', {
+  id: serial('id').primaryKey(),
+  courseId: integer('course_id').notNull().references(() => courses.id, { onDelete: 'cascade' }),
+  userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  rating: integer('rating').notNull(), // 1-5 stars
+  review: text('review'),
+  isPublished: boolean('is_published').notNull().default(true),
+  helpful: integer('helpful').notNull().default(0), // Number of helpful votes
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+}, (table) => ({
+  // One review per user per course
+  userCourseUnique: unique('user_course_review_unique').on(table.userId, table.courseId),
+}));
+
+export const courseReviewsRelations = relations(courseReviews, ({ one }) => ({
+  course: one(courses, {
+    fields: [courseReviews.courseId],
+    references: [courses.id],
+  }),
+  user: one(users, {
+    fields: [courseReviews.userId],
+    references: [users.id],
+  }),
+}));
+
+// Wishlist / Favorites
+export const wishlist = pgTable('wishlist', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  courseId: integer('course_id').notNull().references(() => courses.id, { onDelete: 'cascade' }),
+  addedAt: timestamp('added_at').notNull().defaultNow(),
+}, (table) => ({
+  // One wishlist entry per user per course
+  userCourseUnique: unique('user_course_wishlist_unique').on(table.userId, table.courseId),
+}));
+
+export const wishlistRelations = relations(wishlist, ({ one }) => ({
+  user: one(users, {
+    fields: [wishlist.userId],
+    references: [users.id],
+  }),
+  course: one(courses, {
+    fields: [wishlist.courseId],
+    references: [courses.id],
+  }),
+}));
+
+// Course Categories
+export const courseCategories = pgTable('course_categories', {
+  id: serial('id').primaryKey(),
+  name: text('name').notNull(),
+  slug: text('slug').notNull().unique(),
+  description: text('description'),
+  icon: text('icon'),
+  parentId: integer('parent_id').references((): any => courseCategories.id),
+  order: integer('order').notNull().default(0),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+});
+
+export const categoriesRelations = relations(courseCategories, ({ one, many }) => ({
+  parent: one(courseCategories, {
+    fields: [courseCategories.parentId],
+    references: [courseCategories.id],
+    relationName: 'parent',
+  }),
+  children: many(courseCategories, { relationName: 'parent' }),
+  courses: many(courses),
+}));
+
+// Course-Category mapping (many-to-many)
+export const courseCategoryMapping = pgTable('course_category_mapping', {
+  courseId: integer('course_id').notNull().references(() => courses.id, { onDelete: 'cascade' }),
+  categoryId: integer('category_id').notNull().references(() => courseCategories.id, { onDelete: 'cascade' }),
+}, (table) => ({
+  pk: unique('course_category_pk').on(table.courseId, table.categoryId),
+}));
+
+// Completion Certificates
+export const certificates = pgTable('certificates', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  courseId: integer('course_id').notNull().references(() => courses.id, { onDelete: 'cascade' }),
+  certificateNumber: text('certificate_number').notNull().unique(),
+  completedAt: timestamp('completed_at').notNull().defaultNow(),
+  pdfUrl: text('pdf_url'),
+  issuedAt: timestamp('issued_at').notNull().defaultNow(),
+}, (table) => ({
+  // One certificate per user per course
+  userCourseUnique: unique('user_course_certificate_unique').on(table.userId, table.courseId),
+}));
+
+export const certificatesRelations = relations(certificates, ({ one }) => ({
+  user: one(users, {
+    fields: [certificates.userId],
+    references: [users.id],
+  }),
+  course: one(courses, {
+    fields: [certificates.courseId],
+    references: [courses.id],
+  }),
+}));
+
+// Student Notes (Timestamped)
+export const courseNotes = pgTable('course_notes', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  chapterId: integer('chapter_id').notNull().references(() => chapters.id, { onDelete: 'cascade' }),
+  timestamp: integer('timestamp'), // Video timestamp in seconds
+  note: text('note').notNull(),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+export const courseNotesRelations = relations(courseNotes, ({ one }) => ({
+  user: one(users, {
+    fields: [courseNotes.userId],
+    references: [users.id],
+  }),
+  chapter: one(chapters, {
+    fields: [courseNotes.chapterId],
+    references: [chapters.id],
+  }),
+}));
+
+// Course Bookmarks
+export const courseBookmarks = pgTable('course_bookmarks', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  chapterId: integer('chapter_id').notNull().references(() => chapters.id, { onDelete: 'cascade' }),
+  timestamp: integer('timestamp'), // Video timestamp in seconds
+  title: text('title'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+});
+
+export const courseBookmarksRelations = relations(courseBookmarks, ({ one }) => ({
+  user: one(users, {
+    fields: [courseBookmarks.userId],
+    references: [users.id],
+  }),
+  chapter: one(chapters, {
+    fields: [courseBookmarks.chapterId],
+    references: [chapters.id],
+  }),
+}));
+
+// Course Q&A
+export const courseQuestions = pgTable('course_questions', {
+  id: serial('id').primaryKey(),
+  courseId: integer('course_id').notNull().references(() => courses.id, { onDelete: 'cascade' }),
+  chapterId: integer('chapter_id').references(() => chapters.id, { onDelete: 'cascade' }),
+  userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  question: text('question').notNull(),
+  isAnswered: boolean('is_answered').notNull().default(false),
+  upvotes: integer('upvotes').notNull().default(0),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+export const courseQuestionsRelations = relations(courseQuestions, ({ one, many }) => ({
+  course: one(courses, {
+    fields: [courseQuestions.courseId],
+    references: [courses.id],
+  }),
+  chapter: one(chapters, {
+    fields: [courseQuestions.chapterId],
+    references: [chapters.id],
+  }),
+  user: one(users, {
+    fields: [courseQuestions.userId],
+    references: [users.id],
+  }),
+  answers: many(courseAnswers),
+}));
+
+// Course Answers
+export const courseAnswers = pgTable('course_answers', {
+  id: serial('id').primaryKey(),
+  questionId: integer('question_id').notNull().references(() => courseQuestions.id, { onDelete: 'cascade' }),
+  userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  answer: text('answer').notNull(),
+  isInstructorAnswer: boolean('is_instructor_answer').notNull().default(false),
+  upvotes: integer('upvotes').notNull().default(0),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+export const courseAnswersRelations = relations(courseAnswers, ({ one }) => ({
+  question: one(courseQuestions, {
+    fields: [courseAnswers.questionId],
+    references: [courseQuestions.id],
+  }),
+  user: one(users, {
+    fields: [courseAnswers.userId],
+    references: [users.id],
+  }),
+}));
+
+// Coupons & Discount Codes
+export const coupons = pgTable('coupons', {
+  id: serial('id').primaryKey(),
+  code: text('code').notNull().unique(),
+  description: text('description'),
+  discountType: text('discount_type').notNull(), // 'percentage' or 'fixed'
+  discountValue: real('discount_value').notNull(),
+  maxUses: integer('max_uses'),
+  usedCount: integer('used_count').notNull().default(0),
+  validFrom: timestamp('valid_from').notNull().defaultNow(),
+  validUntil: timestamp('valid_until'),
+  isActive: boolean('is_active').notNull().default(true),
+  applicableCourses: text('applicable_courses'), // JSON array of course IDs, null = all courses
+  minPurchaseAmount: real('min_purchase_amount'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+});
+
+// Coupon Usage Tracking
+export const couponUsage = pgTable('coupon_usage', {
+  id: serial('id').primaryKey(),
+  couponId: integer('coupon_id').notNull().references(() => coupons.id, { onDelete: 'cascade' }),
+  userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  paymentId: integer('payment_id').references(() => payments.id),
+  discountAmount: real('discount_amount').notNull(),
+  usedAt: timestamp('used_at').notNull().defaultNow(),
+});
+
+// Video Progress Tracking (Detailed)
+export const videoProgress = pgTable('video_progress', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  chapterId: integer('chapter_id').notNull().references(() => chapters.id, { onDelete: 'cascade' }),
+  currentTime: integer('current_time').notNull().default(0), // In seconds
+  duration: integer('duration').notNull(), // In seconds
+  watchedPercentage: real('watched_percentage').notNull().default(0),
+  completed: boolean('completed').notNull().default(false),
+  lastWatchedAt: timestamp('last_watched_at').notNull().defaultNow(),
+}, (table) => ({
+  userChapterUnique: unique('user_chapter_progress_unique').on(table.userId, table.chapterId),
+}));
+
+export const videoProgressRelations = relations(videoProgress, ({ one }) => ({
+  user: one(users, {
+    fields: [videoProgress.userId],
+    references: [users.id],
+  }),
+  chapter: one(chapters, {
+    fields: [videoProgress.chapterId],
+    references: [chapters.id],
+  }),
+}));
+
+// Course Announcements
+export const courseAnnouncements = pgTable('course_announcements', {
+  id: serial('id').primaryKey(),
+  courseId: integer('course_id').notNull().references(() => courses.id, { onDelete: 'cascade' }),
+  title: text('title').notNull(),
+  content: text('content').notNull(),
+  isPublished: boolean('is_published').notNull().default(true),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+export const courseAnnouncementsRelations = relations(courseAnnouncements, ({ one }) => ({
+  course: one(courses, {
+    fields: [courseAnnouncements.courseId],
+    references: [courses.id],
+  }),
+}));

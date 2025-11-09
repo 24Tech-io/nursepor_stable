@@ -9,9 +9,20 @@ const nextConfig = {
   // Security: Compress responses
   compress: true,
   
-  // Enable webpack build worker to suppress warning
+  // Enable standalone output for Docker
+  output: 'standalone',
+  
+  // Next.js 15 optimizations
   experimental: {
-    webpackBuildWorker: true,
+    // Turbopack for faster development (Next.js 15+)
+    turbo: {
+      rules: {
+        '*.svg': {
+          loaders: ['@svgr/webpack'],
+          as: '*.js',
+        },
+      },
+    },
   },
   
   // Fix for face-api.js trying to use 'fs' module in browser

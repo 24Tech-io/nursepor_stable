@@ -1,6 +1,6 @@
-import { defineConfig } from 'drizzle-kit';
+import type { Config } from 'drizzle-kit';
 
-export default defineConfig({
+export default {
   schema: './src/lib/db/schema.ts',
   out: './drizzle',
   dialect: process.env.DATABASE_URL ? 'postgresql' : 'sqlite',
@@ -9,4 +9,4 @@ export default defineConfig({
   } : {
     url: 'lms.db',
   },
-});
+} satisfies Config;

@@ -9,13 +9,14 @@ The face-api.js models are required for face recognition to work. Follow these s
 1. **Go to the GitHub repository:**
    - Visit: https://github.com/justadudewhohacks/face-api.js-models
 
-2. **Download the following 6 files:**
+2. **Download the following 7 files:**
    - `tiny_face_detector_model-weights_manifest.json`
    - `tiny_face_detector_model-shard1`
    - `face_landmark_68_model-weights_manifest.json`
    - `face_landmark_68_model-shard1`
    - `face_recognition_model-weights_manifest.json`
    - `face_recognition_model-shard1`
+   - `face_recognition_model-shard2`
 
 3. **Place them in the `public/models/` directory:**
    ```
@@ -27,6 +28,7 @@ The face-api.js models are required for face recognition to work. Follow these s
        face_landmark_68_model-shard1
        face_recognition_model-weights_manifest.json
        face_recognition_model-shard1
+       face_recognition_model-shard2
    ```
 
 ### Option 2: Direct Download Links
@@ -34,22 +36,25 @@ The face-api.js models are required for face recognition to work. Follow these s
 You can download each file directly:
 
 1. **tiny_face_detector_model-weights_manifest.json**
-   - https://raw.githubusercontent.com/justadudewhohacks/face-api.js-models/master/tiny_face_detector_model-weights_manifest.json
+   - https://raw.githubusercontent.com/justadudewhohacks/face-api.js-models/master/tiny_face_detector/tiny_face_detector_model-weights_manifest.json
 
 2. **tiny_face_detector_model-shard1**
-   - https://raw.githubusercontent.com/justadudewhohacks/face-api.js-models/master/tiny_face_detector_model-shard1
+   - https://raw.githubusercontent.com/justadudewhohacks/face-api.js-models/master/tiny_face_detector/tiny_face_detector_model-shard1
 
 3. **face_landmark_68_model-weights_manifest.json**
-   - https://raw.githubusercontent.com/justadudewhohacks/face-api.js-models/master/face_landmark_68_model-weights_manifest.json
+   - https://raw.githubusercontent.com/justadudewhohacks/face-api.js-models/master/face_landmark_68/face_landmark_68_model-weights_manifest.json
 
 4. **face_landmark_68_model-shard1**
-   - https://raw.githubusercontent.com/justadudewhohacks/face-api.js-models/master/face_landmark_68_model-shard1
+   - https://raw.githubusercontent.com/justadudewhohacks/face-api.js-models/master/face_landmark_68/face_landmark_68_model-shard1
 
 5. **face_recognition_model-weights_manifest.json**
-   - https://raw.githubusercontent.com/justadudewhohacks/face-api.js-models/master/face_recognition_model-weights_manifest.json
+   - https://raw.githubusercontent.com/justadudewhohacks/face-api.js-models/master/face_recognition/face_recognition_model-weights_manifest.json
 
 6. **face_recognition_model-shard1**
-   - https://raw.githubusercontent.com/justadudewhohacks/face-api.js-models/master/face_recognition_model-shard1
+   - https://raw.githubusercontent.com/justadudewhohacks/face-api.js-models/master/face_recognition/face_recognition_model-shard1
+
+7. **face_recognition_model-shard2**
+   - https://raw.githubusercontent.com/justadudewhohacks/face-api.js-models/master/face_recognition/face_recognition_model-shard2
 
 ### Option 3: Using Git (if you have Git installed)
 
@@ -63,7 +68,7 @@ Then move the files from `public/models/face-api.js-models/` to `public/models/`
 ### Verification
 
 After downloading, verify the files exist:
-- Check that `public/models/` contains all 6 files
+- Check that `public/models/` contains all 7 files
 - Restart your Next.js dev server
 - Try face login again
 

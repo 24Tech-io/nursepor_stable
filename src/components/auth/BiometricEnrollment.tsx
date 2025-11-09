@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { detectFace, descriptorToBase64, loadFaceModels, checkBrowserSupport } from '@/lib/face-recognition';
+import { enrollFace, checkBrowserSupport, initializeCamera, stopCamera } from '@/lib/simple-face-auth';
 
 interface BiometricEnrollmentProps {
   type: 'face' | 'fingerprint';
@@ -41,25 +41,19 @@ export default function BiometricEnrollment({ type, onComplete, onError, onCance
         return;
       }
 
-      const modelsLoaded = await loadFaceModels();
-      if (!modelsLoaded) {
-        const errorMsg = 'Failed to load face recognition models. Please download the models from https://github.com/justadudewhohacks/face-api.js-models and place them in public/models/ directory. See FACE_MODELS_DOWNLOAD.md for detailed instructions.';
-        setError(errorMsg);
-        setIsLoading(false);
-        if (onError) onError(errorMsg);
-        return;
-      }
       setModelsReady(true);
 
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { width: 640, height: 480, facingMode: 'user' },
-      });
+      const stream = await initializeCamera();
+
+      if (!stream) {
+        throw new Error('Failed to initialize camera');
+      }
 
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         streamRef.current = stream;
         setIsLoading(false);
-        setStatus('Position your face in the frame');
+        setStatus('Position your face in the oval and click "Start Enrollment"');
       }
     } catch (err: any) {
       setError(err.message || 'Failed to access camera');
@@ -80,58 +74,45 @@ export default function BiometricEnrollment({ type, onComplete, onError, onCance
   };
 
   const handleFaceEnrollment = async () => {
-    if (!videoRef.current || !canvasRef.current || !modelsReady) return;
+    if (!videoRef.current || !modelsReady) return;
 
     setIsProcessing(true);
-    setStatus('Capturing face...');
+    setStatus('Get ready...');
     setEnrollmentProgress(0);
 
     try {
-      const canvas = canvasRef.current;
-      const video = videoRef.current;
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) throw new Error('Canvas context not available');
-
-      // Capture multiple samples for better accuracy
-      const samples: Float32Array[] = [];
-      const sampleCount = 5;
-
-      for (let i = 0; i < sampleCount; i++) {
-        ctx.drawImage(video, 0, 0);
-        setStatus(`Capturing sample ${i + 1}/${sampleCount}...`);
-        setEnrollmentProgress(((i + 1) / sampleCount) * 100);
-
-        const faceResult = await detectFace(canvas);
-        if (faceResult && faceResult.descriptor) {
-          samples.push(faceResult.descriptor);
-          await new Promise(resolve => setTimeout(resolve, 500)); // Wait between samples
-        } else {
-          throw new Error('No face detected. Please ensure your face is clearly visible.');
-        }
+      // Countdown
+      for (let i = 3; i > 0; i--) {
+        setStatus(`Capturing in ${i}...`);
+        await new Promise(resolve => setTimeout(resolve, 1000));
       }
 
-      // Average the descriptors for better accuracy
-      const avgDescriptor = new Float32Array(samples[0].length);
-      samples.forEach(sample => {
-        for (let i = 0; i < sample.length; i++) {
-          avgDescriptor[i] += sample[i];
-        }
-      });
-      for (let i = 0; i < avgDescriptor.length; i++) {
-        avgDescriptor[i] /= samples.length;
+      setStatus('Capturing face...');
+      setEnrollmentProgress(30);
+
+      // Capture face using simple method (no models needed!)
+      const result = await enrollFace(videoRef.current);
+
+      if (!result.success) {
+        throw new Error(result.error || 'Face capture failed');
+      }
+
+      if (!result.features) {
+        throw new Error('No face features extracted');
       }
 
       setStatus('Saving face data...');
-      const base64Descriptor = descriptorToBase64(avgDescriptor);
+      setEnrollmentProgress(70);
+
+      // Convert features to base64 for storage
+      const featuresBase64 = btoa(JSON.stringify(result.features));
 
       // Send to server
       const response = await fetch('/api/auth/face-enroll', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          faceTemplate: base64Descriptor,
+          faceTemplate: featuresBase64,
         }),
         credentials: 'include',
       });
@@ -141,14 +122,20 @@ export default function BiometricEnrollment({ type, onComplete, onError, onCance
         throw new Error(data.message || 'Failed to save face data');
       }
 
-      setStatus('Face enrollment successful!');
-      stopCamera();
+      setStatus('✓ Face enrollment successful!');
+      setEnrollmentProgress(100);
+      
+      if (streamRef.current) {
+        stopCamera(streamRef.current);
+      }
+      
       setTimeout(() => {
         onComplete();
-      }, 1000);
+      }, 1500);
     } catch (err: any) {
       setError(err.message || 'Face enrollment failed');
       setIsProcessing(false);
+      setEnrollmentProgress(0);
     }
   };
 

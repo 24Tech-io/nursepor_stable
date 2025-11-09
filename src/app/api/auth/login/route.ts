@@ -1,11 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { authenticateUser, createSession } from '@/lib/auth';
 import { sanitizeString, validateEmail, getClientIP, rateLimit, validateBodySize } from '@/lib/security';
+import { 
+  isIPBlocked, 
+  isUsernameBlocked, 
+  recordFailedAttempt, 
+  recordSuccessfulLogin 
+} from '@/lib/brute-force-protection';
+import { reportSecurityIncident } from '@/lib/threat-detection';
+import { securityLogger } from '@/lib/edge-logger';
 
 export async function POST(request: NextRequest) {
   try {
     // Rate limiting - stricter for login
     const clientIP = getClientIP(request);
+    
+    // Check brute force protection
+    if (isIPBlocked(clientIP)) {
+      securityLogger.logSecurityEvent('Blocked IP attempted login', { ip: clientIP });
+      return NextResponse.json(
+        { message: 'Too many failed login attempts. Please try again later.' },
+        { status: 429 }
+      );
+    }
+    
     const rateLimitResult = rateLimit(`login:${clientIP}`, 5, 15 * 60 * 1000); // 5 attempts per 15 minutes
     if (!rateLimitResult.allowed) {
       return NextResponse.json(
@@ -95,6 +113,15 @@ export async function POST(request: NextRequest) {
       }, { status: 200 }); // 200 because we want to show the role selector
     }
     
+    // Check if username is blocked
+    if (isUsernameBlocked(email)) {
+      securityLogger.logSecurityEvent('Blocked username attempted login', { email, ip: clientIP });
+      return NextResponse.json(
+        { message: 'Too many failed login attempts for this account. Please try again later.' },
+        { status: 429 }
+      );
+    }
+
     // Authenticate with specific role if provided, or first account if only one
     const targetRole = hasExplicitRole ? data.role : (allAccounts.length > 0 ? allAccounts[0].role : undefined);
     console.log('Target role for authentication:', targetRole);
@@ -102,10 +129,30 @@ export async function POST(request: NextRequest) {
 
     if (!user) {
       console.log('Authentication failed: Invalid email or password');
-      return NextResponse.json(
-        { message: 'Invalid email or password' },
+      
+      // Record failed attempt
+      const attemptResult = recordFailedAttempt(clientIP, email);
+      securityLogger.logFailedAuth(clientIP, email, 'Invalid credentials');
+      reportSecurityIncident(clientIP, 'Failed login attempt', { email }, 'low');
+      
+      // Add delay for failed attempt (progressive delay)
+      if (attemptResult.delayMs > 0) {
+        await new Promise(resolve => setTimeout(resolve, attemptResult.delayMs));
+      }
+      
+      const response = NextResponse.json(
+        { 
+          message: 'Invalid email or password',
+          remainingAttempts: attemptResult.remainingAttempts,
+          ...(attemptResult.blocked && {
+            blocked: true,
+            blockDuration: Math.ceil((attemptResult.blockDuration || 0) / 1000 / 60), // minutes
+          }),
+        },
         { status: 401 }
       );
+      
+      return response;
     }
 
     console.log('User authenticated:', { id: user.id, email: user.email, role: user.role });
@@ -117,6 +164,10 @@ export async function POST(request: NextRequest) {
         { status: 403 }
       );
     }
+
+    // Record successful login (clear failed attempts)
+    recordSuccessfulLogin(clientIP, email);
+    securityLogger.logSuccessfulAuth(clientIP, email);
 
     // Create session with user data
     console.log('Creating session for user:', user.id);

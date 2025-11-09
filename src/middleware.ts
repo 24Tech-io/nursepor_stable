@@ -1,9 +1,70 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { verifyToken } from './lib/auth';
+import {
+  applySecurityHeaders,
+  rateLimit,
+  checkCORS,
+  applyCORSHeaders,
+  requireHTTPS,
+  getClientIP
+} from './lib/security-middleware';
+import { securityLogger } from './lib/edge-logger';
+import { applyRequestSizeCheck } from './lib/request-size-middleware';
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  const clientIP = getClientIP(request);
+
+  // HTTPS redirect (production only)
+  const httpsRedirect = requireHTTPS(request);
+  if (httpsRedirect) {
+    return httpsRedirect;
+  }
+
+  // Handle CORS preflight
+  if (request.method === 'OPTIONS') {
+    const corsCheck = checkCORS(request);
+    const response = new NextResponse(null, { status: 204 });
+    applySecurityHeaders(response);
+    if (corsCheck.allowed && corsCheck.origin) {
+      applyCORSHeaders(response, corsCheck.origin);
+    }
+    return response;
+  }
+
+  // Apply rate limiting (except for webhooks)
+  if (!pathname.startsWith('/api/payments/webhook')) {
+    const rateLimitResult = rateLimit(request);
+    if (rateLimitResult.limited) {
+      securityLogger.logRateLimitExceeded(clientIP, pathname);
+      const response = NextResponse.json(
+        { error: 'Too many requests. Please try again later.' },
+        { status: 429 }
+      );
+      response.headers.set('Retry-After', '900'); // 15 minutes
+      applySecurityHeaders(response);
+      return response;
+    }
+  }
+
+  // Check CORS
+  const corsCheck = checkCORS(request);
+  if (!corsCheck.allowed) {
+    const response = NextResponse.json(
+      { error: 'CORS policy violation' },
+      { status: 403 }
+    );
+    applySecurityHeaders(response);
+    return response;
+  }
+
+  // Check request body size (for POST/PUT/PATCH)
+  const sizeCheckResult = applyRequestSizeCheck(request);
+  if (sizeCheckResult) {
+    applySecurityHeaders(sizeCheckResult);
+    return sizeCheckResult;
+  }
 
   // Public routes that don't require authentication
   const publicRoutes = ['/login', '/register', '/forgot-password', '/reset-password', '/', '/admin', '/student'];
@@ -24,7 +85,10 @@ export async function middleware(request: NextRequest) {
   // If it's a public route or API route, allow access
   if (isPublicRoute || isPublicApiRoute) {
     const response = NextResponse.next();
-    addSecurityHeaders(response);
+    applySecurityHeaders(response);
+    if (corsCheck.origin) {
+      applyCORSHeaders(response, corsCheck.origin);
+    }
     return response;
   }
 
@@ -42,12 +106,16 @@ export async function middleware(request: NextRequest) {
       // Allow public API routes through
       if (isPublicApiRoute) {
         const response = NextResponse.next();
-        addSecurityHeaders(response);
+        applySecurityHeaders(response);
+        if (corsCheck.origin) {
+          applyCORSHeaders(response, corsCheck.origin);
+        }
         return response;
       }
       // For protected API routes, return 401
+      securityLogger.logUnauthorizedAccess(clientIP, pathname);
       const response = NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
-      addSecurityHeaders(response);
+      applySecurityHeaders(response);
       return response;
     }
     
@@ -55,7 +123,7 @@ export async function middleware(request: NextRequest) {
     // The pages themselves will handle authentication and redirect if needed
     // This prevents middleware from blocking access while cookies are being set
     const response = NextResponse.next();
-    addSecurityHeaders(response);
+    applySecurityHeaders(response);
     return response;
   }
 
@@ -65,84 +133,61 @@ export async function middleware(request: NextRequest) {
     user = verifyToken(token);
   } catch (error) {
     console.error('Token verification error in middleware:', error);
+    securityLogger.logSecurityEvent('Token verification failed', {
+      ip: clientIP,
+      path: pathname,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
     user = null;
   }
   
   if (!user) {
     if (pathname.startsWith('/api/')) {
       const response = NextResponse.json({ message: 'Invalid or expired token' }, { status: 401 });
-      addSecurityHeaders(response);
+      applySecurityHeaders(response);
       return response;
     } else {
       const response = NextResponse.redirect(new URL('/login', request.url));
       response.cookies.delete('token');
-      addSecurityHeaders(response);
+      applySecurityHeaders(response);
       return response;
     }
   }
 
   // Check admin routes
   if (pathname.startsWith('/admin') && user.role !== 'admin') {
+    securityLogger.logUnauthorizedAccess(clientIP, pathname, user.id?.toString());
     if (pathname.startsWith('/api/')) {
       const response = NextResponse.json({ error: 'Admin access required' }, { status: 403 });
-      addSecurityHeaders(response);
+      applySecurityHeaders(response);
       return response;
     } else {
       const response = NextResponse.redirect(new URL('/student/dashboard', request.url));
-      addSecurityHeaders(response);
+      applySecurityHeaders(response);
       return response;
     }
   }
 
   // Check student routes
   if (pathname.startsWith('/student') && user.role !== 'student' && user.role !== 'admin') {
+    securityLogger.logUnauthorizedAccess(clientIP, pathname, user.id?.toString());
     if (pathname.startsWith('/api/')) {
       const response = NextResponse.json({ error: 'Student access required' }, { status: 403 });
-      addSecurityHeaders(response);
+      applySecurityHeaders(response);
       return response;
     } else {
       const response = NextResponse.redirect(new URL('/login', request.url));
-      addSecurityHeaders(response);
+      applySecurityHeaders(response);
       return response;
     }
   }
 
   const response = NextResponse.next();
-  addSecurityHeaders(response);
-  return response;
-}
-
-// Add security headers
-function addSecurityHeaders(response: NextResponse) {
-  // Security headers
-  response.headers.set('X-Content-Type-Options', 'nosniff');
-  response.headers.set('X-Frame-Options', 'DENY');
-  response.headers.set('X-XSS-Protection', '1; mode=block');
-  response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
-  response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
-  
-  // Content Security Policy
-  const csp = [
-    "default-src 'self'",
-    "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://js.stripe.com",
-    "style-src 'self' 'unsafe-inline'",
-    "img-src 'self' data: https: blob:",
-    "font-src 'self' data:",
-    "connect-src 'self' https://api.stripe.com https://*.neon.tech",
-    "frame-src https://js.stripe.com https://hooks.stripe.com",
-    "object-src 'none'",
-    "base-uri 'self'",
-    "form-action 'self'",
-    "frame-ancestors 'none'",
-    "upgrade-insecure-requests",
-  ].join('; ');
-  
-  response.headers.set('Content-Security-Policy', csp);
-  
-  // Strict Transport Security (only in production)
-  if (process.env.NODE_ENV === 'production') {
-    response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
+  applySecurityHeaders(response);
+  if (corsCheck.origin) {
+    applyCORSHeaders(response, corsCheck.origin);
   }
+  return response;
 }
 
 export const config = {
