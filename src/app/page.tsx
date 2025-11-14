@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import NclexRegistrationCTA from '@/components/forms/NclexRegistrationCTA';
 
 export default function HomePage() {
   return (
@@ -92,6 +93,8 @@ export default function HomePage() {
             <p className="text-gray-600">Connect with fellow learners, share insights, and get help from instructors and peers.</p>
           </div>
         </div>
+
+        <NclexRegistrationCTA />
 
         {/* Stats Section */}
         <div className="mt-20 bg-gradient-to-r from-blue-600 to-purple-600 rounded-3xl p-8 text-white">

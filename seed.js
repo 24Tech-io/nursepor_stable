@@ -16,7 +16,7 @@ async function seedDatabase() {
   // Insert admin user
   await db.insert(users).values({
     name: 'Admin User',
-    email: 'admin@lms.com',
+    email: 'admiin@lms.com',
     password: hashedPassword,
     role: 'admin',
     isActive: true,
@@ -38,7 +38,7 @@ async function seedDatabase() {
   });
 
   console.log('Database seeded successfully!');
-  console.log('Admin login: admin@lms.com / password123');
+  console.log('Admin login: admiin@lms.com / password123');
   console.log('Student login: student@lms.com / password123');
 
   process.exit(0);

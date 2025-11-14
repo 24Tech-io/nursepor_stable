@@ -79,6 +79,7 @@ export async function middleware(request: NextRequest) {
     '/api/test-db',
     '/api/payments/webhook', // Stripe webhook
     '/api/auth/me', // Allow /api/auth/me to be called - it will check token internally
+    '/api/nursing-candidates', // Public NCLEX-RN registration form
   ];
   const isPublicApiRoute = publicApiRoutes.some(route => pathname.startsWith(route));
 

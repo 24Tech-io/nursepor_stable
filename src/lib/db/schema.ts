@@ -1,4 +1,5 @@
-import { pgTable, text, serial, integer, real, boolean, timestamp, unique } from 'drizzle-orm/pg-core';
+import { pgTable, text, serial, integer, real, boolean, timestamp, unique, jsonb } from 'drizzle-orm/pg-core';
+import type { NursingCandidateFormPayload } from '@/types/nursing-candidate';
 import { relations } from 'drizzle-orm';
 
 // Users table
@@ -580,3 +581,20 @@ export const courseAnnouncementsRelations = relations(courseAnnouncements, ({ on
     references: [courses.id],
   }),
 }));
+
+// Nursing Candidate Registration Forms
+export const nursingCandidateForms = pgTable('nursing_candidate_forms', {
+  id: serial('id').primaryKey(),
+  referenceNumber: text('reference_number').notNull(),
+  personalDetails: jsonb('personal_details').$type<NursingCandidateFormPayload['personalDetails']>().notNull(),
+  educationDetails: jsonb('education_details').$type<NursingCandidateFormPayload['educationDetails']>().notNull(),
+  registrationDetails: jsonb('registration_details').$type<NursingCandidateFormPayload['registrationDetails']>().notNull(),
+  employmentHistory: jsonb('employment_history').$type<NursingCandidateFormPayload['employmentHistory']>().notNull(),
+  canadaEmploymentHistory: jsonb('canada_employment_history').$type<NursingCandidateFormPayload['canadaEmploymentHistory']>().notNull(),
+  documentChecklistAcknowledged: boolean('document_checklist_acknowledged').notNull().default(false),
+  disciplinaryAction: text('disciplinary_action').notNull(),
+  documentEmailStatus: text('document_email_status').notNull().default('pending'),
+  documentEmailError: text('document_email_error'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});

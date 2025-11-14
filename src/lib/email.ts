@@ -1,4 +1,6 @@
 import nodemailer from 'nodemailer';
+import type { NursingCandidateFormPayload } from '@/types/nursing-candidate';
+import { formatNursingCandidateDocument } from './nursing-candidate';
 
 // Create transporter only if SMTP is configured
 let transporter: nodemailer.Transporter | null = null;
@@ -288,5 +290,49 @@ export async function sendTestEmail(to: string): Promise<{ success: boolean; mes
       success: false,
       message: `Failed to send test email: ${error.message}`,
     };
+  }
+}
+
+export async function sendNursingCandidateSubmissionEmail(
+  payload: NursingCandidateFormPayload,
+  referenceNumber: string
+): Promise<'sent' | 'skipped'> {
+  if (!transporter) {
+    transporter = createTransporter();
+  }
+
+  const document = formatNursingCandidateDocument({
+    ...payload,
+    referenceNumber,
+  });
+
+  const recipient = process.env.NURSING_FORM_RECIPIENT || 'nurses@nurseproacademy.ca';
+  const subject = `New NCLEX-RN Candidate Submission – ${referenceNumber}`;
+
+  if (!transporter) {
+    console.log('📧 SMTP not configured - nursing candidate submission logged locally');
+    console.log(`Recipient: ${recipient}`);
+    console.log(`Subject: ${subject}`);
+    console.log(document);
+    return 'skipped';
+  }
+
+  try {
+    await transporter.sendMail({
+      from: process.env.SMTP_FROM || 'noreply@nurseproacademy.com',
+      to: recipient,
+      subject,
+      text: `New submission received from ${payload.personalDetails.firstName} ${payload.personalDetails.lastName} (${payload.personalDetails.email}). Reference: ${referenceNumber}.`,
+      attachments: [
+        {
+          filename: `${referenceNumber}.txt`,
+          content: Buffer.from(document, 'utf8'),
+        },
+      ],
+    });
+    return 'sent';
+  } catch (error) {
+    console.error('❌ Failed to send nursing candidate submission email:', (error as any)?.message || error);
+    throw error;
   }
 }
