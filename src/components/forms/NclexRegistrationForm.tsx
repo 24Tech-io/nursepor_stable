@@ -1,7 +1,94 @@
 'use client';
 
-import { useState } from 'react';
-import type { NursingCandidateFormPayload } from '@/types/nursing-candidate';
+import { useState, type FormEvent, type HTMLInputTypeAttribute } from 'react';
+import type {
+  DateRange,
+  NursingCandidateFormPayload,
+  NursingEducationEntry,
+} from '@/types/nursing-candidate';
+
+const languageOptions = [
+  'English',
+  'Hindi',
+  'Malayalam',
+  'Tamil',
+  'Telugu',
+  'Kannada',
+  'Marathi',
+  'Gujarati',
+  'Tagalog',
+  'Spanish',
+  'Arabic',
+  'French',
+];
+
+const countrySuggestions = [
+  'India',
+  'Philippines',
+  'United Arab Emirates',
+  'Qatar',
+  'Saudi Arabia',
+  'Canada',
+  'United States',
+  'Australia',
+  'United Kingdom',
+  'New Zealand',
+  'South Africa',
+];
+
+const councilSuggestions = [
+  'Indian Nursing Council',
+  'Kerala Nurses and Midwives Council',
+  'Tamil Nadu Nurses and Midwives Council',
+  'Maharashtra Nursing Council',
+  'Nursing and Midwifery Council (UK)',
+  'College of Nurses of Ontario',
+  'British Columbia College of Nurses and Midwives',
+  'Philippine Board of Nursing',
+];
+
+const institutionSuggestions = [
+  'Government College of Nursing',
+  'Christian Medical College, Vellore',
+  'AIIMS College of Nursing',
+  'Rajiv Gandhi College of Nursing',
+  'Nightingale Institute of Nursing',
+  'Manipal College of Nursing',
+  'Aster College of Nursing',
+];
+
+const employerSuggestions = [
+  'Apollo Hospitals',
+  'Fortis Healthcare',
+  'Aster DM Healthcare',
+  'Narayana Health',
+  'Max Healthcare',
+  'Cleveland Clinic Abu Dhabi',
+  'Mount Sinai Hospital',
+  'NHS Foundation Trust',
+];
+
+const jobRoleSuggestions = [
+  'Registered Nurse',
+  'Staff Nurse',
+  'Charge Nurse',
+  'Nurse Supervisor',
+  'Nurse Educator',
+  'Clinical Nurse Specialist',
+  'ICU Nurse',
+  'Pediatric Nurse',
+];
+
+const employmentTypeOptions: Array<NursingCandidateFormPayload['canadaEmploymentHistory'][number]['employmentType']> = [
+  'Full-time',
+  'Part-time',
+  'Casual',
+  'Contract',
+];
+
+const registrationStatusOptions: Array<
+  NursingCandidateFormPayload['registrationDetails']['entries'][number]['status']
+> = ['Active', 'Pending', 'Inactive', 'Expired', 'Suspended'];
 
 const educationSections = [
   { key: 'gnm', label: 'GNM – General Nursing and Midwifery', programType: 'GNM' },
@@ -13,11 +100,20 @@ const educationSections = [
   { key: 'primaryHighSchool', label: 'Primary and High School (Grades 1–10)', programType: 'Primary & High School' },
 ] as const;
 
+const programOptions = Array.from(
+  new Set<string>([
+    ...educationSections.map((section) => section.programType),
+    'Diploma in Nursing',
+    'Bridge Program',
+    'Other',
+  ])
+);
+
 const createEducationEntry = (programType: string) => ({
   institutionName: '',
   address: '',
   programType,
-  studyPeriod: '',
+  studyPeriod: { from: '', to: '' },
 });
 
 const createRegistrationEntry = () => ({
@@ -31,7 +127,7 @@ const createRegistrationEntry = () => ({
 const createExperienceEntry = () => ({
   employer: '',
   position: '',
-  dates: '',
+  dates: { from: '', to: '' },
 });
 
 const createCanadaExperienceEntry = () => ({
@@ -78,22 +174,97 @@ const initialState: NursingCandidateFormPayload = {
   documentChecklistAcknowledged: false,
 };
 
-const personalFields = [
-  { name: 'firstName', label: 'First name (as in passport)', required: true },
-  { name: 'lastName', label: 'Last name (as in passport)', required: true },
-  { name: 'collegeNameVariant', label: 'Name as in college documents (if different)', required: false },
-  { name: 'maidenName', label: 'Maiden name (before marriage, if applicable)', required: false },
-  { name: 'motherMaidenName', label: 'Mother’s maiden name', required: false },
-  { name: 'dateOfBirth', label: 'Date of birth (DD/MM/YYYY)', required: true },
-  { name: 'placeOfBirth', label: 'Place of birth (city, state, country)', required: true },
-  { name: 'address', label: 'Current residential address (with postal code & country)', required: true, textarea: true },
-  { name: 'phoneNumber', label: 'Phone number (with country code)', required: true },
-  { name: 'email', label: 'Email ID', required: true },
-  { name: 'firstLanguage', label: 'First language / mother tongue', required: true },
+type PersonalFieldConfig = {
+  name: keyof NursingCandidateFormPayload['personalDetails'];
+  label: string;
+  required?: boolean;
+  component?: 'input' | 'textarea' | 'select';
+  inputType?: HTMLInputTypeAttribute;
+  placeholder?: string;
+  listId?: string;
+  options?: string[];
+  autoComplete?: string;
+};
+
+const personalFields: PersonalFieldConfig[] = [
+  {
+    name: 'firstName',
+    label: 'First name (as in passport)',
+    required: true,
+    component: 'input',
+    inputType: 'text',
+    autoComplete: 'given-name',
+  },
+  {
+    name: 'lastName',
+    label: 'Last name (as in passport)',
+    required: true,
+    component: 'input',
+    inputType: 'text',
+    autoComplete: 'family-name',
+  },
+  {
+    name: 'collegeNameVariant',
+    label: 'Name as in college documents (if different)',
+    component: 'input',
+  },
+  {
+    name: 'maidenName',
+    label: 'Maiden name (before marriage, if applicable)',
+    component: 'input',
+  },
+  {
+    name: 'motherMaidenName',
+    label: 'Mother’s maiden name',
+    component: 'input',
+  },
+  {
+    name: 'dateOfBirth',
+    label: 'Date of birth',
+    required: true,
+    component: 'input',
+    inputType: 'date',
+  },
+  {
+    name: 'placeOfBirth',
+    label: 'Place of birth (city, country)',
+    required: true,
+    component: 'input',
+    listId: 'country-suggestions',
+  },
+  {
+    name: 'address',
+    label: 'Current residential address (with postal code & country)',
+    required: true,
+    component: 'textarea',
+  },
+  {
+    name: 'phoneNumber',
+    label: 'Phone number (with country code)',
+    required: true,
+    component: 'input',
+    inputType: 'tel',
+    autoComplete: 'tel',
+  },
+  {
+    name: 'email',
+    label: 'Email ID',
+    required: true,
+    component: 'input',
+    inputType: 'email',
+    autoComplete: 'email',
+  },
+  {
+    name: 'firstLanguage',
+    label: 'First language / mother tongue',
+    required: true,
+    component: 'select',
+    options: languageOptions,
+  },
 ];
 
 interface NclexRegistrationFormProps {
-  variant?: 'inline' | 'modal';
+  variant?: 'inline' | 'modal' | 'page';
 }
 
 export default function NclexRegistrationForm({ variant = 'inline' }: NclexRegistrationFormProps) {
@@ -101,8 +272,8 @@ export default function NclexRegistrationForm({ variant = 'inline' }: NclexRegis
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error'; message: string; reference?: string } | null>(null);
 
-  const handlePersonalChange = (field: string, value: string) => {
-    setFormState((prev) => ({
+  const handlePersonalChange = (field: keyof NursingCandidateFormPayload['personalDetails'], value: string) => {
+    setFormState((prev: NursingCandidateFormPayload) => ({
       ...prev,
       personalDetails: {
         ...prev.personalDetails,
@@ -111,21 +282,41 @@ export default function NclexRegistrationForm({ variant = 'inline' }: NclexRegis
     }));
   };
 
-  const handleEducationChange = (sectionKey: keyof typeof formState.educationDetails, field: string, value: string) => {
-    setFormState((prev) => ({
+  const handleEducationChange = (
+    sectionKey: keyof typeof formState.educationDetails,
+    field: keyof NursingEducationEntry,
+    value: string | DateRange
+  ) => {
+    setFormState((prev: NursingCandidateFormPayload) => ({
       ...prev,
       educationDetails: {
         ...prev.educationDetails,
         [sectionKey]: {
           ...prev.educationDetails[sectionKey],
-          [field]: value,
+          [field]: value as NursingEducationEntry[keyof NursingEducationEntry],
         },
       },
     }));
   };
 
-  const handleRegistrationChange = (index: number, field: string, value: string) => {
-    setFormState((prev) => {
+  const handleEducationDateChange = (
+    sectionKey: keyof typeof formState.educationDetails,
+    boundary: keyof DateRange,
+    value: string
+  ) => {
+    const existing = formState.educationDetails[sectionKey].studyPeriod;
+    handleEducationChange(sectionKey, 'studyPeriod', {
+      ...existing,
+      [boundary]: value,
+    });
+  };
+
+  const handleRegistrationChange = (
+    index: number,
+    field: keyof NursingCandidateFormPayload['registrationDetails']['entries'][number],
+    value: string
+  ) => {
+    setFormState((prev: NursingCandidateFormPayload) => {
       const updated = [...prev.registrationDetails.entries];
       updated[index] = {
         ...updated[index],
@@ -147,9 +338,33 @@ export default function NclexRegistrationForm({ variant = 'inline' }: NclexRegis
     field: string,
     value: string
   ) => {
-    setFormState((prev) => {
+    setFormState((prev: NursingCandidateFormPayload) => {
       const updated = [...prev[arrayKey]];
-      (updated[index] as any)[field] = value;
+      const entry = { ...updated[index], [field]: value } as (typeof updated)[number];
+      updated[index] = entry;
+      return {
+        ...prev,
+        [arrayKey]: updated,
+      };
+    });
+  };
+
+  const handleEmploymentDateChange = (
+    arrayKey: 'employmentHistory' | 'canadaEmploymentHistory',
+    index: number,
+    boundary: keyof DateRange,
+    value: string
+  ) => {
+    setFormState((prev: NursingCandidateFormPayload) => {
+      const updated = [...prev[arrayKey]];
+      const entry = updated[index];
+      updated[index] = {
+        ...entry,
+        dates: {
+          ...entry.dates,
+          [boundary]: value,
+        },
+      };
       return {
         ...prev,
         [arrayKey]: updated,
@@ -168,7 +383,7 @@ export default function NclexRegistrationForm({ variant = 'inline' }: NclexRegis
     return null;
   };
 
-  const handleSubmit = async (event: React.FormEvent) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const validationError = validateRequiredFields();
     if (validationError) {
@@ -207,15 +422,14 @@ export default function NclexRegistrationForm({ variant = 'inline' }: NclexRegis
   };
 
   const containerClasses =
-    variant === 'inline'
-      ? 'mt-20 bg-white rounded-3xl shadow-2xl border border-slate-100 p-8'
-      : 'bg-white rounded-3xl shadow-2xl border border-slate-100 p-6';
+    variant === 'modal'
+      ? 'bg-white rounded-3xl shadow-2xl border border-slate-100 p-6'
+      : variant === 'page'
+        ? 'bg-white rounded-3xl shadow-2xl border border-slate-100 p-10'
+        : 'mt-20 bg-white rounded-3xl shadow-2xl border border-slate-100 p-8';
 
   return (
-    <section
-      id={variant === 'inline' ? 'nclex-registration' : undefined}
-      className={`${containerClasses} relative overflow-hidden`}
-    >
+    <section id={variant !== 'modal' ? 'nclex-registration' : undefined} className={`${containerClasses} relative overflow-hidden`}>
       <div className="absolute inset-0 bg-slate-900">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(99,102,241,0.25),_transparent_45%)]" />
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom,_rgba(236,72,153,0.2),_transparent_50%)]" />
@@ -272,59 +486,112 @@ export default function NclexRegistrationForm({ variant = 'inline' }: NclexRegis
               <h3 className="text-2xl font-semibold text-white">Section 1: Personal / Identity Details</h3>
             </div>
             <div className="grid md:grid-cols-2 gap-6">
-              {personalFields.map((field) => (
-                <div key={field.name} className={field.textarea ? 'md:col-span-2' : ''}>
-                  <label className="block text-sm font-semibold text-slate-700 mb-2">
-                    <span className="bg-gradient-to-r from-indigo-300 to-purple-300 bg-clip-text text-transparent">
-                      {field.label}
-                    </span>
-                    {field.required && <span className="text-red-500 ml-1">*</span>}
-                  </label>
-                  {field.textarea ? (
-                    <textarea
-                      className="w-full rounded-2xl border border-white/10 bg-white/5 text-white placeholder:text-slate-400 focus:ring-2 focus:ring-indigo-500/70 focus:border-indigo-500/70 p-3 backdrop-blur"
-                      rows={3}
-                      value={formState.personalDetails[field.name as keyof typeof formState.personalDetails] as string}
-                      onChange={(e) => handlePersonalChange(field.name, e.target.value)}
-                      placeholder="Enter details exactly as on official documents"
-                    />
-                  ) : (
-                    <input
-                      type={field.name === 'email' ? 'email' : 'text'}
-                      className="w-full rounded-2xl border border-white/10 bg-white/5 text-white placeholder:text-slate-400 focus:ring-2 focus:ring-indigo-500/70 focus:border-indigo-500/70 p-3 backdrop-blur"
-                      value={formState.personalDetails[field.name as keyof typeof formState.personalDetails] as string}
-                      onChange={(e) => handlePersonalChange(field.name, e.target.value)}
-                      placeholder="Enter details exactly as on official documents"
-                    />
-                  )}
-                </div>
-              ))}
+              {personalFields.map((field) => {
+                const value = formState.personalDetails[field.name];
+                const isTextarea = field.component === 'textarea';
+                const isSelect = field.component === 'select';
+                const placeholder = field.placeholder ?? 'Enter details exactly as on official documents';
+                return (
+                  <div key={field.name} className={isTextarea ? 'md:col-span-2' : ''}>
+                    <label className="block text-sm font-semibold text-slate-700 mb-2">
+                      <span className="bg-gradient-to-r from-indigo-300 to-purple-300 bg-clip-text text-transparent">
+                        {field.label}
+                      </span>
+                      {field.required && <span className="text-red-500 ml-1">*</span>}
+                    </label>
+                    {isSelect ? (
+                      <select
+                        className="w-full rounded-2xl border border-white/10 bg-white/5 text-white focus:ring-2 focus:ring-indigo-500/70 focus:border-indigo-500/70 p-3 backdrop-blur"
+                        value={value}
+                        onChange={(e) => handlePersonalChange(field.name, e.target.value)}
+                      >
+                        <option value="">Select an option</option>
+                        {field.options?.map((option) => (
+                          <option key={option} value={option}>
+                            {option}
+                          </option>
+                        ))}
+                      </select>
+                    ) : isTextarea ? (
+                      <textarea
+                        className="w-full rounded-2xl border border-white/10 bg-white/5 text-white placeholder:text-slate-400 focus:ring-2 focus:ring-indigo-500/70 focus:border-indigo-500/70 p-3 backdrop-blur resize-none min-h-[140px]"
+                        rows={4}
+                        value={value}
+                        onChange={(e) => handlePersonalChange(field.name, e.target.value)}
+                        placeholder={placeholder}
+                      />
+                    ) : (
+                      <input
+                        type={field.inputType || 'text'}
+                        list={field.listId}
+                        autoComplete={field.autoComplete}
+                        className="w-full rounded-2xl border border-white/10 bg-white/5 text-white placeholder:text-slate-400 focus:ring-2 focus:ring-indigo-500/70 focus:border-indigo-500/70 p-3 backdrop-blur"
+                        value={value}
+                        onChange={(e) => handlePersonalChange(field.name, e.target.value)}
+                        placeholder={placeholder}
+                      />
+                    )}
+                  </div>
+                );
+              })}
 
-              <div>
-              <label className="block text-sm font-semibold text-slate-400 mb-2 tracking-wide uppercase">Any name change</label>
-                <select
-                className="w-full rounded-2xl border border-white/10 bg-slate-900/40 text-white focus:border-indigo-500/80 focus:ring-2 focus:ring-indigo-500/80 p-3"
-                  value={formState.personalDetails.hasNameChange}
-                  onChange={(e) => handlePersonalChange('hasNameChange', e.target.value)}
-                >
-                  <option value="No">No</option>
-                  <option value="Yes">Yes</option>
-                </select>
+              <div className="md:col-span-2">
+                <label className="block text-sm font-semibold text-slate-400 mb-3 tracking-wide uppercase">Any name change</label>
+                <div className="flex flex-wrap gap-4">
+                  {['Yes', 'No'].map((option) => (
+                    <label
+                      key={option}
+                      className={`flex items-center gap-2 px-4 py-2 rounded-2xl border cursor-pointer ${
+                        formState.personalDetails.hasNameChange === option
+                          ? 'border-indigo-400 bg-indigo-500/20 text-white'
+                          : 'border-white/10 text-slate-200'
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="has-name-change"
+                        className="text-indigo-400 focus:ring-indigo-500"
+                        value={option}
+                        checked={formState.personalDetails.hasNameChange === option}
+                        onChange={(e) => handlePersonalChange('hasNameChange', e.target.value)}
+                      />
+                      <span>{option}</span>
+                    </label>
+                  ))}
+                </div>
               </div>
 
-              <div>
-              <label className="block text-sm font-semibold text-slate-400 mb-2 tracking-wide uppercase">Gender</label>
-                <select
-                className="w-full rounded-2xl border border-white/10 bg-slate-900/40 text-white focus:border-indigo-500/80 focus:ring-2 focus:ring-indigo-500/80 p-3"
-                  value={formState.personalDetails.gender}
-                  onChange={(e) => handlePersonalChange('gender', e.target.value)}
-                >
-                  <option value="Female">Female</option>
-                  <option value="Male">Male</option>
-                  <option value="Other">Other</option>
-                </select>
+              <div className="md:col-span-2">
+                <label className="block text-sm font-semibold text-slate-400 mb-3 tracking-wide uppercase">Gender</label>
+                <div className="flex flex-wrap gap-4">
+                  {['Female', 'Male', 'Other'].map((option) => (
+                    <label
+                      key={option}
+                      className={`flex items-center gap-2 px-4 py-2 rounded-2xl border cursor-pointer ${
+                        formState.personalDetails.gender === option
+                          ? 'border-fuchsia-400 bg-fuchsia-500/20 text-white'
+                          : 'border-white/10 text-slate-200'
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="gender"
+                        className="text-fuchsia-400 focus:ring-fuchsia-500"
+                        value={option}
+                        checked={formState.personalDetails.gender === option}
+                        onChange={(e) => handlePersonalChange('gender', e.target.value)}
+                      />
+                      <span>{option}</span>
+                    </label>
+                  ))}
+                </div>
               </div>
             </div>
+            <datalist id="country-suggestions">
+              {countrySuggestions.map((country) => (
+                <option key={country} value={country} />
+              ))}
+            </datalist>
           </div>
 
           {/* Section 2 */}
@@ -346,35 +613,73 @@ export default function NclexRegistrationForm({ variant = 'inline' }: NclexRegis
                     {section.label}
                   </h4>
                   <div className="grid md:grid-cols-2 gap-4">
-                    <input
-                      className="rounded-2xl border border-white/10 bg-slate-900/40 text-white placeholder:text-slate-400 focus:ring-2 focus:ring-fuchsia-400/60 focus:border-fuchsia-400/60 p-3"
-                      placeholder="College / School name"
-                      value={formState.educationDetails[section.key as keyof typeof formState.educationDetails].institutionName}
-                      onChange={(e) => handleEducationChange(section.key as keyof typeof formState.educationDetails, 'institutionName', e.target.value)}
-                    />
-                    <input
-                      className="rounded-2xl border border-white/10 bg-slate-900/40 text-white placeholder:text-slate-400 focus:ring-2 focus:ring-fuchsia-400/60 focus:border-fuchsia-400/60 p-3"
-                      placeholder="Program / Degree type"
-                      value={formState.educationDetails[section.key as keyof typeof formState.educationDetails].programType}
-                      onChange={(e) => handleEducationChange(section.key as keyof typeof formState.educationDetails, 'programType', e.target.value)}
-                    />
-                    <textarea
-                      className="md:col-span-2 rounded-2xl border border-white/10 bg-slate-900/40 text-white placeholder:text-slate-400 focus:ring-2 focus:ring-fuchsia-400/60 focus:border-fuchsia-400/60 p-3"
-                      rows={2}
-                      placeholder="Full address (with postal code and country)"
-                      value={formState.educationDetails[section.key as keyof typeof formState.educationDetails].address}
-                      onChange={(e) => handleEducationChange(section.key as keyof typeof formState.educationDetails, 'address', e.target.value)}
-                    />
-                    <input
-                      className="rounded-2xl border border-white/10 bg-slate-900/40 text-white placeholder:text-slate-400 focus:ring-2 focus:ring-fuchsia-400/60 focus:border-fuchsia-400/60 p-3"
-                      placeholder="Dates studied (From – To)"
-                      value={formState.educationDetails[section.key as keyof typeof formState.educationDetails].studyPeriod}
-                      onChange={(e) => handleEducationChange(section.key as keyof typeof formState.educationDetails, 'studyPeriod', e.target.value)}
-                    />
+                    <div className="space-y-2">
+                      <label className="block text-xs uppercase tracking-[0.3em] text-indigo-200">Institution</label>
+                      <input
+                        className="rounded-2xl border border-white/10 bg-slate-900/40 text-white placeholder:text-slate-400 focus:ring-2 focus:ring-fuchsia-400/60 focus:border-fuchsia-400/60 p-3"
+                        placeholder="College / School name"
+                        list="institution-suggestions"
+                        value={formState.educationDetails[section.key as keyof typeof formState.educationDetails].institutionName}
+                        onChange={(e) => handleEducationChange(section.key as keyof typeof formState.educationDetails, 'institutionName', e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="block text-xs uppercase tracking-[0.3em] text-indigo-200">Program / Degree type</label>
+                      <select
+                        className="rounded-2xl border border-white/10 bg-slate-900/40 text-white focus:ring-2 focus:ring-fuchsia-400/60 focus:border-fuchsia-400/60 p-3"
+                        value={formState.educationDetails[section.key as keyof typeof formState.educationDetails].programType}
+                        onChange={(e) => handleEducationChange(section.key as keyof typeof formState.educationDetails, 'programType', e.target.value)}
+                      >
+                        {programOptions.map((option) => (
+                          <option key={option} value={option}>
+                            {option}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="md:col-span-2 space-y-2">
+                      <label className="block text-xs uppercase tracking-[0.3em] text-indigo-200">Full address</label>
+                      <textarea
+                        className="rounded-2xl border border-white/10 bg-slate-900/40 text-white placeholder:text-slate-400 focus:ring-2 focus:ring-fuchsia-400/60 focus:border-fuchsia-400/60 p-3 resize-none min-h-[110px]"
+                        rows={3}
+                        placeholder="Full address (with postal code and country)"
+                        value={formState.educationDetails[section.key as keyof typeof formState.educationDetails].address}
+                        onChange={(e) => handleEducationChange(section.key as keyof typeof formState.educationDetails, 'address', e.target.value)}
+                      />
+                    </div>
+                    <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <label className="block text-xs uppercase tracking-[0.3em] text-indigo-200">Study period — from</label>
+                        <input
+                          type="date"
+                          className="rounded-2xl border border-white/10 bg-slate-900/40 text-white focus:ring-2 focus:ring-fuchsia-400/60 focus:border-fuchsia-400/60 p-3"
+                          value={formState.educationDetails[section.key as keyof typeof formState.educationDetails].studyPeriod.from}
+                          onChange={(e) =>
+                            handleEducationDateChange(section.key as keyof typeof formState.educationDetails, 'from', e.target.value)
+                          }
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="block text-xs uppercase tracking-[0.3em] text-indigo-200">Study period — to</label>
+                        <input
+                          type="date"
+                          className="rounded-2xl border border-white/10 bg-slate-900/40 text-white focus:ring-2 focus:ring-fuchsia-400/60 focus:border-fuchsia-400/60 p-3"
+                          value={formState.educationDetails[section.key as keyof typeof formState.educationDetails].studyPeriod.to}
+                          onChange={(e) =>
+                            handleEducationDateChange(section.key as keyof typeof formState.educationDetails, 'to', e.target.value)
+                          }
+                        />
+                      </div>
+                    </div>
                   </div>
                 </div>
               ))}
             </div>
+            <datalist id="institution-suggestions">
+              {institutionSuggestions.map((institution) => (
+                <option key={institution} value={institution} />
+              ))}
+            </datalist>
           </div>
 
   {/* Section 3 */}
@@ -388,22 +693,39 @@ export default function NclexRegistrationForm({ variant = 'inline' }: NclexRegis
               <h3 className="text-2xl font-semibold text-white">Section 3: Registration / License Details</h3>
             </div>
             <div className="mb-4">
-              <label className="block text-sm font-semibold text-slate-700 mb-2">
+              <label className="block text-sm font-semibold text-slate-700 mb-3">
                 Have you ever been suspended, dismissed, or faced disciplinary action by any nursing council?
               </label>
-              <select
-                className="rounded-2xl border border-white/10 bg-slate-900/40 text-white focus:ring-2 focus:ring-orange-400/60 focus:border-orange-400/60 p-3"
-                value={formState.registrationDetails.hasDisciplinaryAction}
-                onChange={(e) =>
-                  setFormState((prev) => ({
-                    ...prev,
-                    registrationDetails: { ...prev.registrationDetails, hasDisciplinaryAction: e.target.value as 'Yes' | 'No' },
-                  }))
-                }
-              >
-                <option value="No">No</option>
-                <option value="Yes">Yes</option>
-              </select>
+              <div className="flex flex-wrap gap-4">
+                {['No', 'Yes'].map((option) => (
+                  <label
+                    key={option}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-2xl border cursor-pointer ${
+                      formState.registrationDetails.hasDisciplinaryAction === option
+                        ? 'border-amber-400 bg-amber-500/20 text-white'
+                        : 'border-white/10 text-slate-200'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="disciplinary-action"
+                      value={option}
+                      className="text-amber-400 focus:ring-amber-500"
+                      checked={formState.registrationDetails.hasDisciplinaryAction === option}
+                      onChange={(e) =>
+                        setFormState((prev) => ({
+                          ...prev,
+                          registrationDetails: {
+                            ...prev.registrationDetails,
+                            hasDisciplinaryAction: e.target.value as 'Yes' | 'No',
+                          },
+                        }))
+                      }
+                    />
+                    <span>{option}</span>
+                  </label>
+                ))}
+              </div>
             </div>
             <div className="space-y-6">
               {formState.registrationDetails.entries.map((entry, index) => (
@@ -413,40 +735,64 @@ export default function NclexRegistrationForm({ variant = 'inline' }: NclexRegis
                     Nursing Registration {index + 1}
                   </h4>
                   <div className="grid md:grid-cols-2 gap-4">
-                    <input
-                      className="rounded-2xl border border-white/10 bg-slate-900/40 text-white placeholder:text-slate-400 focus:ring-2 focus:ring-orange-400/60 focus:border-orange-400/60 p-3"
-                      placeholder="Council or licensing body name"
-                      value={entry.councilName}
-                      onChange={(e) => handleRegistrationChange(index, 'councilName', e.target.value)}
-                    />
+                    <div className="space-y-2">
+                      <label className="block text-xs uppercase tracking-[0.3em] text-orange-200">Council / Licensing body</label>
+                      <input
+                        className="rounded-2xl border border-white/10 bg-slate-900/40 text-white placeholder:text-slate-400 focus:ring-2 focus:ring-orange-400/60 focus:border-orange-400/60 p-3"
+                        placeholder="Council or licensing body name"
+                        list="council-suggestions"
+                        value={entry.councilName}
+                        onChange={(e) => handleRegistrationChange(index, 'councilName', e.target.value)}
+                      />
+                    </div>
                     <input
                       className="rounded-2xl border border-white/10 bg-slate-900/40 text-white placeholder:text-slate-400 focus:ring-2 focus:ring-orange-400/60 focus:border-orange-400/60 p-3"
                       placeholder="Registration number"
                       value={entry.registrationNumber}
                       onChange={(e) => handleRegistrationChange(index, 'registrationNumber', e.target.value)}
                     />
-                    <input
-                      className="rounded-2xl border border-white/10 bg-slate-900/40 text-white placeholder:text-slate-400 focus:ring-2 focus:ring-orange-400/60 focus:border-orange-400/60 p-3"
-                      placeholder="Date issued"
-                      value={entry.issuedDate}
-                      onChange={(e) => handleRegistrationChange(index, 'issuedDate', e.target.value)}
-                    />
-                    <input
-                      className="rounded-2xl border border-white/10 bg-slate-900/40 text-white placeholder:text-slate-400 focus:ring-2 focus:ring-orange-400/60 focus:border-orange-400/60 p-3"
-                      placeholder="Expiry / renewal date"
-                      value={entry.expiryDate}
-                      onChange={(e) => handleRegistrationChange(index, 'expiryDate', e.target.value)}
-                    />
-                    <input
-                      className="rounded-2xl border border-white/10 bg-slate-900/40 text-white placeholder:text-slate-400 focus:ring-2 focus:ring-orange-400/60 focus:border-orange-400/60 p-3"
-                      placeholder="Current status (Active / Expired)"
-                      value={entry.status}
-                      onChange={(e) => handleRegistrationChange(index, 'status', e.target.value)}
-                    />
+                    <div className="space-y-2">
+                      <label className="block text-xs uppercase tracking-[0.3em] text-orange-200">Date issued</label>
+                      <input
+                        type="date"
+                        className="rounded-2xl border border-white/10 bg-slate-900/40 text-white focus:ring-2 focus:ring-orange-400/60 focus:border-orange-400/60 p-3"
+                        value={entry.issuedDate}
+                        onChange={(e) => handleRegistrationChange(index, 'issuedDate', e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="block text-xs uppercase tracking-[0.3em] text-orange-200">Expiry / renewal date</label>
+                      <input
+                        type="date"
+                        className="rounded-2xl border border-white/10 bg-slate-900/40 text-white focus:ring-2 focus:ring-orange-400/60 focus:border-orange-400/60 p-3"
+                        value={entry.expiryDate}
+                        onChange={(e) => handleRegistrationChange(index, 'expiryDate', e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="block text-xs uppercase tracking-[0.3em] text-orange-200">Current status</label>
+                      <select
+                        className="rounded-2xl border border-white/10 bg-slate-900/40 text-white focus:ring-2 focus:ring-orange-400/60 focus:border-orange-400/60 p-3"
+                        value={entry.status}
+                        onChange={(e) => handleRegistrationChange(index, 'status', e.target.value)}
+                      >
+                        <option value="">Select status</option>
+                        {registrationStatusOptions.map((status) => (
+                          <option key={status} value={status}>
+                            {status}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
                 </div>
               ))}
             </div>
+            <datalist id="council-suggestions">
+              {councilSuggestions.map((council) => (
+                <option key={council} value={council} />
+              ))}
+            </datalist>
           </div>
 
           {/* Section 4 */}
@@ -464,29 +810,59 @@ export default function NclexRegistrationForm({ variant = 'inline' }: NclexRegis
               {formState.employmentHistory.map((entry, index) => (
                 <div key={index} className="border border-white/10 rounded-2xl p-5 bg-gradient-to-br from-slate-900/60 to-emerald-900/20 backdrop-blur">
                   <h4 className="text-lg font-semibold text-white mb-4">Nursing Experience {index + 1}</h4>
-                  <div className="grid md:grid-cols-3 gap-4">
-                    <input
-                      className="rounded-2xl border border-white/10 bg-slate-900/40 text-white placeholder:text-slate-400 focus:ring-2 focus:ring-emerald-400/60 focus:border-emerald-400/60 p-3"
-                      placeholder="Employer / hospital name"
-                      value={entry.employer}
-                      onChange={(e) => handleEmploymentChange('employmentHistory', index, 'employer', e.target.value)}
-                    />
-                    <input
-                      className="rounded-2xl border border-white/10 bg-slate-900/40 text-white placeholder:text-slate-400 focus:ring-2 focus:ring-emerald-400/60 focus:border-emerald-400/60 p-3"
-                      placeholder="Job title / position"
-                      value={entry.position}
-                      onChange={(e) => handleEmploymentChange('employmentHistory', index, 'position', e.target.value)}
-                    />
-                    <input
-                      className="rounded-2xl border border-white/10 bg-slate-900/40 text-white placeholder:text-slate-400 focus:ring-2 focus:ring-emerald-400/60 focus:border-emerald-400/60 p-3"
-                      placeholder="Dates (Joined – Left)"
-                      value={entry.dates}
-                      onChange={(e) => handleEmploymentChange('employmentHistory', index, 'dates', e.target.value)}
-                    />
+                  <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div className="space-y-2 lg:col-span-2">
+                      <label className="block text-xs uppercase tracking-[0.3em] text-emerald-200">Employer / hospital</label>
+                      <input
+                        className="rounded-2xl border border-white/10 bg-slate-900/40 text-white placeholder:text-slate-400 focus:ring-2 focus:ring-emerald-400/60 focus:border-emerald-400/60 p-3"
+                        placeholder="Employer / hospital name"
+                        list="employer-suggestions"
+                        value={entry.employer}
+                        onChange={(e) => handleEmploymentChange('employmentHistory', index, 'employer', e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2 lg:col-span-2">
+                      <label className="block text-xs uppercase tracking-[0.3em] text-emerald-200">Job title / position</label>
+                      <input
+                        className="rounded-2xl border border-white/10 bg-slate-900/40 text-white placeholder:text-slate-400 focus:ring-2 focus:ring-emerald-400/60 focus:border-emerald-400/60 p-3"
+                        placeholder="Job title / position"
+                        list="job-role-suggestions"
+                        value={entry.position}
+                        onChange={(e) => handleEmploymentChange('employmentHistory', index, 'position', e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="block text-xs uppercase tracking-[0.3em] text-emerald-200">Start date</label>
+                      <input
+                        type="date"
+                        className="rounded-2xl border border-white/10 bg-slate-900/40 text-white focus:ring-2 focus:ring-emerald-400/60 focus:border-emerald-400/60 p-3"
+                        value={entry.dates.from}
+                        onChange={(e) => handleEmploymentDateChange('employmentHistory', index, 'from', e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="block text-xs uppercase tracking-[0.3em] text-emerald-200">End date</label>
+                      <input
+                        type="date"
+                        className="rounded-2xl border border-white/10 bg-slate-900/40 text-white focus:ring-2 focus:ring-emerald-400/60 focus:border-emerald-400/60 p-3"
+                        value={entry.dates.to}
+                        onChange={(e) => handleEmploymentDateChange('employmentHistory', index, 'to', e.target.value)}
+                      />
+                    </div>
                   </div>
                 </div>
               ))}
             </div>
+            <datalist id="employer-suggestions">
+              {employerSuggestions.map((employer) => (
+                <option key={employer} value={employer} />
+              ))}
+            </datalist>
+            <datalist id="job-role-suggestions">
+              {jobRoleSuggestions.map((role) => (
+                <option key={role} value={role} />
+              ))}
+            </datalist>
           </div>
 
           {/* Section 5 */}
@@ -504,37 +880,82 @@ export default function NclexRegistrationForm({ variant = 'inline' }: NclexRegis
               {formState.canadaEmploymentHistory.map((entry, index) => (
                 <div key={index} className="border border-white/10 rounded-2xl p-5 bg-gradient-to-br from-blue-900/40 to-violet-900/30 backdrop-blur">
                   <h4 className="text-lg font-semibold text-white mb-4">Canada Nursing Experience {index + 1}</h4>
-                  <div className="grid md:grid-cols-2 gap-4">
-                    <input
-                      className="rounded-2xl border border-white/10 bg-slate-900/40 text-white placeholder:text-slate-400 focus:ring-2 focus:ring-sky-400/60 focus:border-sky-400/60 p-3"
-                      placeholder="Employer / hospital name"
-                      value={entry.employer}
-                      onChange={(e) => handleEmploymentChange('canadaEmploymentHistory', index, 'employer', e.target.value)}
-                    />
-                    <input
-                      className="rounded-2xl border border-white/10 bg-slate-900/40 text-white placeholder:text-slate-400 focus:ring-2 focus:ring-sky-400/60 focus:border-sky-400/60 p-3"
-                      placeholder="Job title / position"
-                      value={entry.position}
-                      onChange={(e) => handleEmploymentChange('canadaEmploymentHistory', index, 'position', e.target.value)}
-                    />
-                    <input
-                      className="rounded-2xl border border-white/10 bg-slate-900/40 text-white placeholder:text-slate-400 focus:ring-2 focus:ring-sky-400/60 focus:border-sky-400/60 p-3"
-                      placeholder="Dates (Joined – Left)"
-                      value={entry.dates}
-                      onChange={(e) => handleEmploymentChange('canadaEmploymentHistory', index, 'dates', e.target.value)}
-                    />
-                    <input
-                      className="rounded-2xl border border-white/10 bg-slate-900/40 text-white placeholder:text-slate-400 focus:ring-2 focus:ring-sky-400/60 focus:border-sky-400/60 p-3"
-                      placeholder="Full-time or part-time"
-                      value={entry.employmentType}
-                      onChange={(e) => handleEmploymentChange('canadaEmploymentHistory', index, 'employmentType', e.target.value)}
-                    />
-                    <input
-                      className="rounded-2xl border border-white/10 bg-slate-900/40 text-white placeholder:text-slate-400 focus:ring-2 focus:ring-sky-400/60 focus:border-sky-400/60 p-3"
-                      placeholder="Approx. total hours per month"
-                      value={entry.hoursPerMonth}
-                      onChange={(e) => handleEmploymentChange('canadaEmploymentHistory', index, 'hoursPerMonth', e.target.value)}
-                    />
+                  <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div className="space-y-2 lg:col-span-2">
+                      <label className="block text-xs uppercase tracking-[0.3em] text-sky-200">Employer / hospital</label>
+                      <input
+                        className="rounded-2xl border border-white/10 bg-slate-900/40 text-white placeholder:text-slate-400 focus:ring-2 focus:ring-sky-400/60 focus:border-sky-400/60 p-3"
+                        placeholder="Employer / hospital name"
+                        list="employer-suggestions"
+                        value={entry.employer}
+                        onChange={(e) => handleEmploymentChange('canadaEmploymentHistory', index, 'employer', e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2 lg:col-span-2">
+                      <label className="block text-xs uppercase tracking-[0.3em] text-sky-200">Job title / position</label>
+                      <input
+                        className="rounded-2xl border border-white/10 bg-slate-900/40 text-white placeholder:text-slate-400 focus:ring-2 focus:ring-sky-400/60 focus:border-sky-400/60 p-3"
+                        placeholder="Job title / position"
+                        list="job-role-suggestions"
+                        value={entry.position}
+                        onChange={(e) => handleEmploymentChange('canadaEmploymentHistory', index, 'position', e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="block text-xs uppercase tracking-[0.3em] text-sky-200">Start date</label>
+                      <input
+                        type="date"
+                        className="rounded-2xl border border-white/10 bg-slate-900/40 text-white focus:ring-2 focus:ring-sky-400/60 focus:border-sky-400/60 p-3"
+                        value={entry.dates.from}
+                        onChange={(e) => handleEmploymentDateChange('canadaEmploymentHistory', index, 'from', e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="block text-xs uppercase tracking-[0.3em] text-sky-200">End date</label>
+                      <input
+                        type="date"
+                        className="rounded-2xl border border-white/10 bg-slate-900/40 text-white focus:ring-2 focus:ring-sky-400/60 focus:border-sky-400/60 p-3"
+                        value={entry.dates.to}
+                        onChange={(e) => handleEmploymentDateChange('canadaEmploymentHistory', index, 'to', e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2 md:col-span-2 lg:col-span-3">
+                      <label className="block text-xs uppercase tracking-[0.3em] text-sky-200">Employment type</label>
+                      <div className="flex flex-wrap gap-3">
+                        {employmentTypeOptions.map((option) => (
+                          <label
+                            key={option}
+                            className={`flex items-center gap-2 px-4 py-2 rounded-2xl border cursor-pointer ${
+                              entry.employmentType === option
+                                ? 'border-sky-400 bg-sky-500/20 text-white'
+                                : 'border-white/10 text-slate-200'
+                            }`}
+                          >
+                            <input
+                              type="radio"
+                              name={`employment-type-${index}`}
+                              value={option}
+                              className="text-sky-400 focus:ring-sky-500"
+                              checked={entry.employmentType === option}
+                              onChange={(e) => handleEmploymentChange('canadaEmploymentHistory', index, 'employmentType', e.target.value)}
+                            />
+                            <span>{option}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="block text-xs uppercase tracking-[0.3em] text-sky-200">Approx. hours per month</label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="10"
+                        className="rounded-2xl border border-white/10 bg-slate-900/40 text-white placeholder:text-slate-400 focus:ring-2 focus:ring-sky-400/60 focus:border-sky-400/60 p-3"
+                        placeholder="e.g. 160"
+                        value={entry.hoursPerMonth}
+                        onChange={(e) => handleEmploymentChange('canadaEmploymentHistory', index, 'hoursPerMonth', e.target.value)}
+                      />
+                    </div>
                   </div>
                 </div>
               ))}

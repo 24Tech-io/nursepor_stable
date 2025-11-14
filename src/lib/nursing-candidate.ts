@@ -1,4 +1,5 @@
 import type {
+  DateRange,
   NursingCandidateFormPayload,
   NursingCanadaExperienceEntry,
   NursingEducationEntry,
@@ -22,11 +23,64 @@ const defaultEducationEntry = (programType: string): NursingEducationEntry => ({
   institutionName: 'N/A',
   address: 'N/A',
   programType,
-  studyPeriod: 'N/A',
+  studyPeriod: { from: 'N/A', to: 'N/A' },
 });
 
 const cleanString = (value: unknown, fallback = 'N/A', maxLength = 1024) =>
   sanitizeString(typeof value === 'string' ? value : fallback, maxLength) || fallback;
+
+const cleanDatePart = (value: unknown) => cleanString(value, 'N/A', 64);
+
+const normalizeDateRange = (value: unknown): DateRange => {
+  if (value && typeof value === 'object') {
+    const rangeValue = value as Partial<DateRange>;
+    return {
+      from: cleanDatePart(rangeValue.from),
+      to: cleanDatePart(rangeValue.to),
+    };
+  }
+
+  if (typeof value === 'string') {
+    const delimiter =
+      value.includes(' to ')
+        ? ' to '
+        : value.includes(' - ')
+          ? ' - '
+          : value.includes(' – ')
+            ? ' – '
+            : value.includes(' — ')
+              ? ' — '
+              : null;
+    if (delimiter) {
+      const [fromPart, toPart] = value.split(delimiter).map((part) => part?.trim());
+      return {
+        from: cleanDatePart(fromPart || value),
+        to: cleanDatePart(toPart || 'N/A'),
+      };
+    }
+    return {
+      from: cleanDatePart(value),
+      to: 'N/A',
+    };
+  }
+
+  return { from: 'N/A', to: 'N/A' };
+};
+
+const formatDateRange = (range: DateRange) => {
+  const from = range?.from || 'N/A';
+  const to = range?.to || 'N/A';
+  if (from === 'N/A' && to === 'N/A') {
+    return 'N/A';
+  }
+  if (to === 'N/A') {
+    return from;
+  }
+  if (from === 'N/A') {
+    return to;
+  }
+  return `${from} to ${to}`;
+};
 
 const getYesNo = (value: unknown, fallback: 'Yes' | 'No' = 'No'): 'Yes' | 'No' =>
   value === 'Yes' || value === 'No' ? value : fallback;
@@ -72,7 +126,7 @@ export function normalizeNursingCandidatePayload(payload: any): NursingCandidate
       institutionName: cleanString(sectionPayload.institutionName),
       address: cleanString(sectionPayload.address),
       programType: cleanString(sectionPayload.programType || section.programType),
-      studyPeriod: cleanString(sectionPayload.studyPeriod),
+      studyPeriod: normalizeDateRange(sectionPayload.studyPeriod),
     };
     return acc;
   }, {} as NursingCandidateFormPayload['educationDetails']);
@@ -84,7 +138,7 @@ export function normalizeNursingCandidatePayload(payload: any): NursingCandidate
       registrationNumber: cleanString(entry?.registrationNumber),
       issuedDate: cleanString(entry?.issuedDate),
       expiryDate: cleanString(entry?.expiryDate),
-      status: cleanString(entry?.status),
+      status: cleanString(entry?.status) as NursingRegistrationEntry['status'],
     }));
   while (registrationEntries.length < 3) {
     registrationEntries.push({
@@ -92,14 +146,14 @@ export function normalizeNursingCandidatePayload(payload: any): NursingCandidate
       registrationNumber: 'N/A',
       issuedDate: 'N/A',
       expiryDate: 'N/A',
-      status: 'N/A',
+      status: 'Inactive',
     });
   }
 
   const buildExperience = (entry: any): NursingExperienceEntry => ({
     employer: cleanString(entry?.employer),
     position: cleanString(entry?.position),
-    dates: cleanString(entry?.dates),
+    dates: normalizeDateRange(entry?.dates),
   });
 
   const employmentHistory: NursingExperienceEntry[] = (payload.employmentHistory || payload.employmentDetails || [])
@@ -111,7 +165,7 @@ export function normalizeNursingCandidatePayload(payload: any): NursingCandidate
 
   const buildCanadaExperience = (entry: any): NursingCanadaExperienceEntry => ({
     ...buildExperience(entry),
-    employmentType: cleanString(entry?.employmentType),
+    employmentType: cleanString(entry?.employmentType) as NursingCanadaExperienceEntry['employmentType'],
     hoursPerMonth: cleanString(entry?.hoursPerMonth),
   });
 
@@ -167,7 +221,7 @@ export function formatNursingCandidateDocument(data: NursingCandidateFormPayload
     lines.push(`  • Institution name: ${entry.institutionName}`);
     lines.push(`  • Full address: ${entry.address}`);
     lines.push(`  • Program / degree type: ${entry.programType}`);
-    lines.push(`  • Dates studied: ${entry.studyPeriod}`);
+    lines.push(`  • Dates studied: ${formatDateRange(entry.studyPeriod)}`);
     lines.push('');
   });
 
@@ -190,7 +244,7 @@ export function formatNursingCandidateDocument(data: NursingCandidateFormPayload
     lines.push(`Nursing Experience ${index + 1}`);
     lines.push(`  • Employer / hospital name: ${entry.employer}`);
     lines.push(`  • Job title / position: ${entry.position}`);
-    lines.push(`  • Dates (Joined – Left): ${entry.dates}`);
+    lines.push(`  • Dates (Joined – Left): ${formatDateRange(entry.dates)}`);
     lines.push('');
   });
 
@@ -199,7 +253,7 @@ export function formatNursingCandidateDocument(data: NursingCandidateFormPayload
     lines.push(`Canada Nursing Experience ${index + 1}`);
     lines.push(`  • Employer / hospital name: ${entry.employer}`);
     lines.push(`  • Job title / position: ${entry.position}`);
-    lines.push(`  • Dates (Joined – Left): ${entry.dates}`);
+    lines.push(`  • Dates (Joined – Left): ${formatDateRange(entry.dates)}`);
     lines.push(`  • Full-time or part-time: ${entry.employmentType}`);
     lines.push(`  • Approx. hours per month: ${entry.hoursPerMonth}`);
     lines.push('');

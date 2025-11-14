@@ -1,3 +1,8 @@
+export interface DateRange {
+  from: string;
+  to: string;
+}
+
 export interface NursingPersonalDetails {
   firstName: string;
   lastName: string;
@@ -18,7 +23,7 @@ export interface NursingEducationEntry {
   institutionName: string;
   address: string;
   programType: string;
-  studyPeriod: string;
+  studyPeriod: DateRange;
 }
 
 export interface NursingRegistrationEntry {
@@ -26,17 +31,17 @@ export interface NursingRegistrationEntry {
   registrationNumber: string;
   issuedDate: string;
   expiryDate: string;
-  status: string;
+  status: 'Active' | 'Expired' | 'Inactive' | 'Pending' | 'Suspended' | string;
 }
 
 export interface NursingExperienceEntry {
   employer: string;
   position: string;
-  dates: string;
+  dates: DateRange;
 }
 
 export interface NursingCanadaExperienceEntry extends NursingExperienceEntry {
-  employmentType: string;
+  employmentType: 'Full-time' | 'Part-time' | 'Casual' | 'Contract' | string;
   hoursPerMonth: string;
 }
 
