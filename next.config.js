@@ -9,8 +9,9 @@ const nextConfig = {
   // Security: Compress responses
   compress: true,
   
-  // Enable standalone output for Docker
-  output: 'standalone',
+  // Note: output: 'standalone' is disabled for AWS Amplify deployment
+  // Uncomment if deploying to Docker/containers
+  // output: 'standalone',
   
   // Next.js 15 optimizations
   experimental: {
