@@ -63,7 +63,9 @@ export default function FaceLogin({
     } catch (err: any) {
       setError('Failed to initialize face recognition');
       setIsLoading(false);
-      if (onError) onError(err.message);
+      if (onError) {
+        onError(err.message);
+      }
     }
   };
 
@@ -110,7 +112,9 @@ export default function FaceLogin({
       
       setError(errorMsg);
       setIsLoading(false);
-      if (onError) onError(errorMsg);
+      if (onError) {
+        onError(errorMsg);
+      }
     }
   };
 
@@ -122,7 +126,9 @@ export default function FaceLogin({
   };
 
   const captureAndProcess = async () => {
-    if (!videoRef.current || !modelsReady) return;
+    if (!videoRef.current || !modelsReady) {
+      return;
+    }
 
     setIsProcessing(true);
     setStatus('Processing...');
@@ -134,7 +140,9 @@ export default function FaceLogin({
         if (descriptor && onEnroll) {
           await onEnroll(descriptor);
           setStatus('Face enrolled successfully!');
-          if (onComplete) onComplete();
+          if (onComplete) {
+            onComplete();
+          }
         }
       } else if (mode === 'verify') {
         // For verification, we need the stored descriptor
@@ -144,14 +152,18 @@ export default function FaceLogin({
     } catch (err: any) {
       const errorMsg = err.message || 'Face processing failed';
       setError(errorMsg);
-      if (onError) onError(errorMsg);
+      if (onError) {
+        onError(errorMsg);
+      }
     } finally {
       setIsProcessing(false);
     }
   };
 
   const verifyFaceWithDescriptor = async (storedDescriptor: Float32Array) => {
-    if (!videoRef.current || !modelsReady) return;
+    if (!videoRef.current || !modelsReady) {
+      return;
+    }
 
     setIsProcessing(true);
     setStatus('Verifying face...');
@@ -161,7 +173,9 @@ export default function FaceLogin({
       const result = await verifyFace(videoRef.current, storedDescriptor);
       if (result.match) {
         setStatus('Face verified successfully!');
-        if (onComplete) onComplete();
+        if (onComplete) {
+          onComplete();
+        }
         return true;
       } else {
         setError('Face does not match. Please try again.');
@@ -170,7 +184,9 @@ export default function FaceLogin({
     } catch (err: any) {
       const errorMsg = err.message || 'Face verification failed';
       setError(errorMsg);
-      if (onError) onError(errorMsg);
+      if (onError) {
+        onError(errorMsg);
+      }
       return false;
     } finally {
       setIsProcessing(false);

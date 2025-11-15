@@ -80,7 +80,9 @@ export default function RequestsPage() {
   }
 
   async function removeRequest(id: string) {
-    if (!confirm('Delete this request?')) return;
+    if (!confirm('Delete this request?')) {
+      return;
+    }
 
     setProcessing(id);
     try {

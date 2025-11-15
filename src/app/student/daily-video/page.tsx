@@ -8,7 +8,9 @@ export default function DailyVideoPage() {
   const today = daily.find(d => !d.isCompleted) || daily[0];
   const [completed, setCompleted] = useState(!!today?.isCompleted);
 
-  if (!today) return <div className="bg-white rounded-2xl p-8">No daily videos configured.</div>;
+  if (!today) {
+    return <div className="bg-white rounded-2xl p-8">No daily videos configured.</div>;
+  }
 
   return (
     <div className="space-y-6">

@@ -93,7 +93,9 @@ export default function SimpleFaceLogin({
 
       setError(errorMsg);
       setIsLoading(false);
-      if (onError) onError(errorMsg);
+      if (onError) {
+        onError(errorMsg);
+      }
     }
   };
 
@@ -124,7 +126,9 @@ export default function SimpleFaceLogin({
         if (!result.success) {
           setError(result.error || 'Enrollment failed');
           setIsProcessing(false);
-          if (onError) onError(result.error || 'Enrollment failed');
+          if (onError) {
+            onError(result.error || 'Enrollment failed');
+          }
           return;
         }
 
@@ -134,12 +138,16 @@ export default function SimpleFaceLogin({
           setStatus('Face enrolled successfully!');
           
           setTimeout(() => {
-            if (onComplete) onComplete();
+            if (onComplete) {
+              onComplete();
+            }
           }, 1500);
         }
       } catch (error: any) {
         setError(error.message || 'Enrollment failed');
-        if (onError) onError(error.message);
+        if (onError) {
+          onError(error.message);
+        }
       } finally {
         setIsProcessing(false);
       }
@@ -179,7 +187,9 @@ export default function SimpleFaceLogin({
           if (verified) {
             setStatus('✓ Face verified successfully!');
             setTimeout(() => {
-              if (onComplete) onComplete();
+              if (onComplete) {
+              onComplete();
+            }
             }, 1500);
           } else {
             setError('Face verification failed. Please try again.');
@@ -187,7 +197,9 @@ export default function SimpleFaceLogin({
         }
       } catch (error: any) {
         setError(error.message || 'Verification failed');
-        if (onError) onError(error.message);
+        if (onError) {
+          onError(error.message);
+        }
       } finally {
         setIsProcessing(false);
       }

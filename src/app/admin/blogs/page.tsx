@@ -123,7 +123,9 @@ export default function AdminBlogsPage() {
 
   const handleToggleStatus = async (id: string) => {
     const blog = blogs.find(b => b.id === id);
-    if (!blog) return;
+    if (!blog) {
+      return;
+    }
 
     const newStatus = blog.status === 'draft' ? 'published' : 'draft';
     try {

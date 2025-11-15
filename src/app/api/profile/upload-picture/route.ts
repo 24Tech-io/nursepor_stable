@@ -14,7 +14,9 @@ const ALLOWED_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'im
 export async function POST(request: NextRequest) {
   // Require authentication
   const authResult = await requireAuth(request);
-  if (authResult instanceof NextResponse) return authResult;
+  if (authResult instanceof NextResponse) {
+    return authResult;
+  }
   const user = authResult.user;
 
   // Get database instance

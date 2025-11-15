@@ -14,7 +14,7 @@ const CSRF_TOKEN_EXPIRY = 60 * 60 * 1000;
 // Clean up expired tokens every 10 minutes
 setInterval(() => {
   const now = Date.now();
-  for (const [sessionId, data] of csrfTokenStore.entries()) {
+  for (const [sessionId, data] of Array.from(csrfTokenStore.entries())) {
     if (now - data.createdAt > CSRF_TOKEN_EXPIRY) {
       csrfTokenStore.delete(sessionId);
     }

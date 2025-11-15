@@ -103,7 +103,9 @@ export default function StudentsPage() {
 
   async function toggleActive(id: string) {
     const student = students.find(s => s.id === id);
-    if (!student) return;
+    if (!student) {
+      return;
+    }
 
     try {
       // Note: This would require a PUT endpoint for updating student status
@@ -116,7 +118,9 @@ export default function StudentsPage() {
   }
 
   async function resetFace(id: string) {
-    if (!confirm('Reset Face ID enrollment for this student?')) return;
+    if (!confirm('Reset Face ID enrollment for this student?')) {
+      return;
+    }
 
     try {
       // Note: This would require an API endpoint to reset face ID
@@ -129,7 +133,9 @@ export default function StudentsPage() {
   }
 
   async function removeStudent(id: string) {
-    if (!confirm('Remove this student? This action cannot be undone.')) return;
+    if (!confirm('Remove this student? This action cannot be undone.')) {
+      return;
+    }
 
     try {
       // Note: This would require a DELETE endpoint

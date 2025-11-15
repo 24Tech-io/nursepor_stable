@@ -76,7 +76,7 @@ const RATE_LIMIT_MAX_REQUESTS = process.env.NODE_ENV === 'development'
 // Clean up old entries every 5 minutes
 setInterval(() => {
   const now = Date.now();
-  for (const [key, entry] of rateLimitStore.entries()) {
+  for (const [key, entry] of Array.from(rateLimitStore.entries())) {
     if (entry.resetTime < now) {
       rateLimitStore.delete(key);
     }
@@ -136,7 +136,7 @@ const getAllowedOrigins = (): string[] => {
   }
 
   // Filter out empty strings
-  return [...new Set(origins.filter(Boolean))];
+  return Array.from(new Set(origins.filter(Boolean)));
 };
 
 const ALLOWED_ORIGINS = getAllowedOrigins();

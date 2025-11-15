@@ -361,7 +361,7 @@ export default function ReportsPage() {
                         <div>
                           <h3 className="font-bold text-gray-900">{request.studentName}</h3>
                           <p className="text-sm text-gray-600 mb-2">Requested access to: <span className="font-semibold">{request.courseTitle}</span></p>
-                          <p className="text-gray-700 text-sm leading-relaxed">"{request.reason}"</p>
+                          <p className="text-gray-700 text-sm leading-relaxed">&quot;{request.reason}&quot;</p>
                         </div>
                       </div>
                       <span className={`px-3 py-1 rounded-full text-xs font-semibold ${

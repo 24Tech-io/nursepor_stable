@@ -374,7 +374,7 @@ export default function LoginPage() {
                   Admin
                 </button>
               </div>
-              <p className="mt-1 text-xs text-slate-400">Select your account type or leave as "Auto" to detect automatically</p>
+              <p className="mt-1 text-xs text-slate-400">Select your account type or leave as &quot;Auto&quot; to detect automatically</p>
             </div>
           </div>
 
@@ -471,7 +471,7 @@ export default function LoginPage() {
           {/* Register Link */}
           <div className="text-center">
             <p className="text-sm text-slate-300">
-              Don't have an account?{' '}
+              Don&apos;t have an account?{' '}
               <Link
                 href="/register"
                 className="font-medium text-indigo-300 hover:text-indigo-200"

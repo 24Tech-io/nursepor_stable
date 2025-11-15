@@ -82,8 +82,11 @@ export default function AdminSettingsPage() {
                   {courses.map(course => (
                     <label key={course.id} className="flex items-center space-x-3 p-2 hover:bg-gray-50 rounded-lg">
                       <input type="checkbox" checked={settings.dailyVideoSourceCourses.includes(course.id)} onChange={(e) => {
-                        if (e.target.checked) setSettings({ ...settings, dailyVideoSourceCourses: [...settings.dailyVideoSourceCourses, course.id] });
-                        else setSettings({ ...settings, dailyVideoSourceCourses: settings.dailyVideoSourceCourses.filter(id => id !== course.id) });
+                        if (e.target.checked) {
+                          setSettings({ ...settings, dailyVideoSourceCourses: [...settings.dailyVideoSourceCourses, course.id] });
+                        } else {
+                          setSettings({ ...settings, dailyVideoSourceCourses: settings.dailyVideoSourceCourses.filter(id => id !== course.id) });
+                        }
                       }} className="w-4 h-4 text-purple-600 rounded" />
                       <span className="text-gray-900">{course.title}</span>
                     </label>
@@ -96,7 +99,7 @@ export default function AdminSettingsPage() {
               <input type="checkbox" checked={settings.dailyVideoActiveStudentsOnly} onChange={(e) => setSettings({ ...settings, dailyVideoActiveStudentsOnly: e.target.checked })} className="w-5 h-5 text-purple-600 rounded mt-0.5" />
               <div>
                 <p className="font-semibold text-gray-900">Share Only to Active Students</p>
-                <p className="text-sm text-gray-600">Only students marked as "Active" will receive daily videos</p>
+                <p className="text-sm text-gray-600">Only students marked as &quot;Active&quot; will receive daily videos</p>
               </div>
             </label>
 

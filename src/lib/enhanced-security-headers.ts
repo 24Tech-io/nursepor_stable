@@ -53,7 +53,9 @@ export function getEnhancedCSP(nonce?: string): string {
 
   return Object.entries(cspDirectives)
     .map(([directive, sources]) => {
-      if (sources.length === 0) return directive;
+      if (sources.length === 0) {
+        return directive;
+      }
       return `${directive} ${sources.join(' ')}`;
     })
     .join('; ');
@@ -81,7 +83,9 @@ export function getPermissionsPolicy(): string {
 
   return Object.entries(permissions)
     .map(([feature, origins]) => {
-      if (origins.length === 0) return `${feature}=()`;
+      if (origins.length === 0) {
+        return `${feature}=()`;
+      }
       return `${feature}=(${origins.join(' ')})`;
     })
     .join(', ');
@@ -233,7 +237,9 @@ export const SecurityPresets = {
  * Check if request is from a trusted origin
  */
 export function isTrustedOrigin(origin: string | null): boolean {
-  if (!origin) return false;
+  if (!origin) {
+    return false;
+  }
 
   const trustedOrigins = [
     process.env.NEXT_PUBLIC_APP_URL,

@@ -5,7 +5,9 @@ import { AuthUser } from './auth';
 // Get authenticated user from request
 export async function getAuthenticatedUser(request: NextRequest): Promise<AuthUser | null> {
   const token = request.cookies.get('token')?.value;
-  if (!token) return null;
+  if (!token) {
+    return null;
+  }
 
   // Validate session in database
   const user = await validateSession(token);
@@ -67,7 +69,9 @@ export async function requireOwnershipOrAdmin(
   resourceUserId: number
 ): Promise<{ user: AuthUser } | NextResponse> {
   const authResult = await requireAuth(request);
-  if (authResult instanceof NextResponse) return authResult;
+  if (authResult instanceof NextResponse) {
+    return authResult;
+  }
 
   const user = authResult.user;
 

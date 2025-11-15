@@ -110,7 +110,9 @@ export default function CoursesPage() {
   }
 
   async function removeCourse(id: string) {
-    if (!confirm('Delete this course? This action cannot be undone.')) return;
+    if (!confirm('Delete this course? This action cannot be undone.')) {
+      return;
+    }
 
     try {
       const response = await fetch(`/api/admin/courses?id=${id}`, {
@@ -133,7 +135,9 @@ export default function CoursesPage() {
 
   async function toggleStatus(id: string) {
     const course = courses.find(c => c.id === id);
-    if (!course) return;
+    if (!course) {
+      return;
+    }
 
     const newStatus = course.status === 'published' ? 'draft' : 'published';
     

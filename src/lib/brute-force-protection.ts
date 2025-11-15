@@ -26,7 +26,7 @@ setInterval(() => {
   const now = Date.now();
   
   // Clean IP attempts
-  for (const [ip, attempt] of ipAttempts.entries()) {
+  for (const [ip, attempt] of Array.from(ipAttempts.entries())) {
     if (now - attempt.lastAttempt > ATTEMPT_WINDOW && (!attempt.blockedUntil || now > attempt.blockedUntil)) {
       ipAttempts.delete(ip);
       blockedIPs.delete(ip);
@@ -34,7 +34,7 @@ setInterval(() => {
   }
   
   // Clean username attempts
-  for (const [username, attempt] of usernameAttempts.entries()) {
+  for (const [username, attempt] of Array.from(usernameAttempts.entries())) {
     if (now - attempt.lastAttempt > ATTEMPT_WINDOW && (!attempt.blockedUntil || now > attempt.blockedUntil)) {
       usernameAttempts.delete(username);
     }

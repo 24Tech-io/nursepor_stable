@@ -37,7 +37,9 @@ export default function EnhancedVideoPlayer({
 
   useEffect(() => {
     const video = videoRef.current;
-    if (!video) return;
+    if (!video) {
+      return;
+    }
 
     // Set initial time
     if (initialTime > 0) {
@@ -90,7 +92,9 @@ export default function EnhancedVideoPlayer({
 
   const togglePlay = () => {
     const video = videoRef.current;
-    if (!video) return;
+    if (!video) {
+      return;
+    }
 
     if (isPlaying) {
       video.pause();
@@ -101,7 +105,9 @@ export default function EnhancedVideoPlayer({
 
   const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
     const video = videoRef.current;
-    if (!video) return;
+    if (!video) {
+      return;
+    }
 
     const time = parseFloat(e.target.value);
     video.currentTime = time;
@@ -110,7 +116,9 @@ export default function EnhancedVideoPlayer({
 
   const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const video = videoRef.current;
-    if (!video) return;
+    if (!video) {
+      return;
+    }
 
     const vol = parseFloat(e.target.value);
     video.volume = vol / 100;
@@ -119,7 +127,9 @@ export default function EnhancedVideoPlayer({
 
   const changeSpeed = (speed: number) => {
     const video = videoRef.current;
-    if (!video) return;
+    if (!video) {
+      return;
+    }
 
     video.playbackRate = speed;
     setPlaybackSpeed(speed);
@@ -136,7 +146,9 @@ export default function EnhancedVideoPlayer({
 
   const toggleFullscreen = () => {
     const video = videoRef.current;
-    if (!video) return;
+    if (!video) {
+      return;
+    }
 
     if (!document.fullscreenElement) {
       video.parentElement?.requestFullscreen();
@@ -149,7 +161,9 @@ export default function EnhancedVideoPlayer({
 
   const skip = (seconds: number) => {
     const video = videoRef.current;
-    if (!video) return;
+    if (!video) {
+      return;
+    }
 
     video.currentTime = Math.max(0, Math.min(video.duration, video.currentTime + seconds));
   };

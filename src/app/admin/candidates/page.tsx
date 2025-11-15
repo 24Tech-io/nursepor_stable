@@ -61,7 +61,7 @@ export default function NursingCandidatesPage() {
       <div className="bg-white rounded-3xl shadow-xl border border-white/10 p-8">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
-            <p className="text-sm uppercase tracking-wide text-indigo-500 font-semibold mb-2">Admin > Nursing Candidates</p>
+            <p className="text-sm uppercase tracking-wide text-indigo-500 font-semibold mb-2">Admin &gt; Nursing Candidates</p>
             <h1 className="text-3xl font-bold text-slate-900">NCLEX-RN Form Responses</h1>
             <p className="text-slate-500 mt-1">Review and manage submissions captured directly from the public homepage.</p>
           </div>

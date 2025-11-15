@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-    let { email, password } = data;
+    const { email, password } = data;
 
     if (!email || !password) {
       return NextResponse.json(
@@ -65,8 +65,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Sanitize and validate email
-    email = sanitizeString(email.toLowerCase(), 255);
-    if (!validateEmail(email)) {
+    const sanitizedEmail = sanitizeString(email.toLowerCase(), 255);
+    if (!validateEmail(sanitizedEmail)) {
       return NextResponse.json(
         { message: 'Invalid email format' },
         { status: 400 }
@@ -81,13 +81,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log('Attempting to authenticate user:', email);
+    console.log('Attempting to authenticate user:', sanitizedEmail);
     console.log('Received role from client:', data.role);
     console.log('Role type:', typeof data.role);
     
     // Check if user has multiple accounts (roles) with this email
     const { getUserAccounts } = await import('@/lib/auth');
-    const allAccounts = await getUserAccounts(email);
+    const allAccounts = await getUserAccounts(sanitizedEmail);
     console.log('All accounts found:', allAccounts.length);
     console.log('Accounts:', allAccounts.map(a => ({ role: a.role, name: a.name })));
     
@@ -114,8 +114,8 @@ export async function POST(request: NextRequest) {
     }
     
     // Check if username is blocked
-    if (isUsernameBlocked(email)) {
-      securityLogger.logSecurityEvent('Blocked username attempted login', { email, ip: clientIP });
+    if (isUsernameBlocked(sanitizedEmail)) {
+      securityLogger.logSecurityEvent('Blocked username attempted login', { email: sanitizedEmail, ip: clientIP });
       return NextResponse.json(
         { message: 'Too many failed login attempts for this account. Please try again later.' },
         { status: 429 }
@@ -125,15 +125,15 @@ export async function POST(request: NextRequest) {
     // Authenticate with specific role if provided, or first account if only one
     const targetRole = hasExplicitRole ? data.role : (allAccounts.length > 0 ? allAccounts[0].role : undefined);
     console.log('Target role for authentication:', targetRole);
-    const user = await authenticateUser(email, password, targetRole);
+    const user = await authenticateUser(sanitizedEmail, password, targetRole);
 
     if (!user) {
       console.log('Authentication failed: Invalid email or password');
       
       // Record failed attempt
-      const attemptResult = recordFailedAttempt(clientIP, email);
-      securityLogger.logFailedAuth(clientIP, email, 'Invalid credentials');
-      reportSecurityIncident(clientIP, 'Failed login attempt', { email }, 'low');
+      const attemptResult = recordFailedAttempt(clientIP, sanitizedEmail);
+      securityLogger.logFailedAuth(clientIP, sanitizedEmail, 'Invalid credentials');
+      reportSecurityIncident(clientIP, 'Failed login attempt', { email: sanitizedEmail }, 'low');
       
       // Add delay for failed attempt (progressive delay)
       if (attemptResult.delayMs > 0) {
@@ -166,8 +166,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Record successful login (clear failed attempts)
-    recordSuccessfulLogin(clientIP, email);
-    securityLogger.logSuccessfulAuth(clientIP, email);
+    recordSuccessfulLogin(clientIP, sanitizedEmail);
+    securityLogger.logSuccessfulAuth(clientIP, sanitizedEmail);
 
     // Create session with user data
     console.log('Creating session for user:', user.id);

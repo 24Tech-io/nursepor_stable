@@ -251,7 +251,7 @@ export function getBlockedIPs(): BlockedIP[] {
   const now = Date.now();
   const blocked: BlockedIP[] = [];
   
-  for (const [ip, info] of blockedIPs.entries()) {
+  for (const [ip, info] of Array.from(blockedIPs.entries())) {
     // Remove expired blocks
     if (!info.permanent && now > info.expiresAt) {
       blockedIPs.delete(ip);
@@ -363,7 +363,7 @@ setInterval(() => {
   const maxAge = 7 * 24 * 60 * 60 * 1000; // 7 days
   
   // Clean threat scores
-  for (const [ip, threat] of threatScores.entries()) {
+  for (const [ip, threat] of Array.from(threatScores.entries())) {
     if (now - threat.lastSeen > maxAge) {
       threatScores.delete(ip);
       suspiciousIPs.delete(ip);

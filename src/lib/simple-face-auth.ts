@@ -77,7 +77,9 @@ export async function detectFaceInImage(imageData: string): Promise<boolean> {
     canvas.width = img.width;
     canvas.height = img.height;
     const ctx = canvas.getContext('2d');
-    if (!ctx) return false;
+    if (!ctx) {
+      return false;
+    }
 
     ctx.drawImage(img, 0, 0);
 
@@ -93,9 +95,13 @@ export async function detectFaceInImage(imageData: string): Promise<boolean> {
     for (let i = 0; i < data.length; i += 4) {
       const brightness = (data[i] + data[i + 1] + data[i + 2]) / 3;
       
-      if (brightness < 85) darkPixels++;
-      else if (brightness > 170) lightPixels++;
-      else midPixels++;
+      if (brightness < 85) {
+        darkPixels++;
+      } else if (brightness > 170) {
+        lightPixels++;
+      } else {
+        midPixels++;
+      }
     }
 
     const totalPixels = data.length / 4;
@@ -131,7 +137,9 @@ export async function extractFaceFeatures(imageData: string): Promise<number[] |
     canvas.width = 128;
     canvas.height = 128;
     const ctx = canvas.getContext('2d');
-    if (!ctx) return null;
+    if (!ctx) {
+      return null;
+    }
 
     ctx.drawImage(img, 0, 0, 128, 128);
 

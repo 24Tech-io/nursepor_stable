@@ -9,7 +9,9 @@ export async function POST(request: NextRequest) {
   try {
     // Require authentication
     const authResult = await requireAuth(request);
-    if (authResult instanceof NextResponse) return authResult;
+    if (authResult instanceof NextResponse) {
+      return authResult;
+    }
     const currentUser = authResult.user;
 
     // Get database instance

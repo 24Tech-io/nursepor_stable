@@ -183,7 +183,9 @@ export default function StudentDashboard() {
 
   // Fetch stats and enrolled courses
   useEffect(() => {
-    if (!user) return;
+    if (!user) {
+      return;
+    }
 
     const fetchStats = async () => {
       try {
@@ -375,7 +377,7 @@ export default function StudentDashboard() {
             <div>
               <div className="flex items-center space-x-2 mb-2">
                 <span className="px-3 py-1 bg-white bg-opacity-20 rounded-full text-xs font-bold">
-                  TODAY'S VIDEO
+                  TODAY&apos;S VIDEO
                 </span>
                 <span className="text-sm opacity-90">Available for 24 hours</span>
               </div>
@@ -460,7 +462,7 @@ export default function StudentDashboard() {
           <div className="bg-white rounded-2xl max-w-md w-full p-8 shadow-2xl">
             <h2 className="text-2xl font-bold text-gray-900 mb-4">Request Course Access</h2>
             <p className="text-gray-600 mb-6">
-              Send a request to the admin to unlock this course. You'll be notified once it's approved.
+              Send a request to the admin to unlock this course. You&apos;ll be notified once it&apos;s approved.
             </p>
 
             <div className="mb-6">

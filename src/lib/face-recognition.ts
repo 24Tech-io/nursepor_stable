@@ -25,7 +25,9 @@ let modelsLoaded = false;
 let faceapiModule: any = null;
 
 export async function loadFaceModels(): Promise<boolean> {
-  if (modelsLoaded) return true;
+  if (modelsLoaded) {
+    return true;
+  }
 
   try {
     // Dynamic import to avoid SSR issues

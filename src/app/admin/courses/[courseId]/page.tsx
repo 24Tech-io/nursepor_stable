@@ -64,7 +64,9 @@ export default function CourseEditorPage() {
   }
 
   async function saveCourseDetails() {
-    if (!course) return;
+    if (!course) {
+      return;
+    }
     setSaving(true);
     try {
       const response = await fetch('/api/admin/courses', {
@@ -164,7 +166,9 @@ export default function CourseEditorPage() {
   }
 
   async function handleDeleteModule(moduleId: string) {
-    if (!confirm('Delete this module and all its chapters?')) return;
+    if (!confirm('Delete this module and all its chapters?')) {
+      return;
+    }
 
     try {
       const response = await fetch(`/api/admin/courses/${courseId}/modules?id=${moduleId}`, {
@@ -276,7 +280,9 @@ export default function CourseEditorPage() {
   }
 
   async function handleDeleteChapter(moduleId: string, chapterId: string) {
-    if (!confirm('Delete this chapter?')) return;
+    if (!confirm('Delete this chapter?')) {
+      return;
+    }
 
     try {
       const response = await fetch(`/api/admin/courses/${courseId}/modules/${moduleId}/chapters?id=${chapterId}`, {
@@ -472,7 +478,9 @@ export default function CourseEditorPage() {
             <div className="border-t border-gray-200 pt-6">
               <h3 className="font-semibold text-red-900 mb-4">Danger Zone</h3>
               <button onClick={async () => {
-                if (!confirm('Are you sure you want to delete this course? This action cannot be undone.')) return;
+                if (!confirm('Are you sure you want to delete this course? This action cannot be undone.')) {
+                  return;
+                }
                 try {
                   const response = await fetch(`/api/admin/courses?id=${course.id}`, {
                     method: 'DELETE',
