@@ -25,11 +25,11 @@ export async function POST(request: NextRequest) {
     // Get database instance
     const db = getDatabase();
 
-    // Get user from database
+    // Get user from database - force student role only
     const userResult = await db
       .select()
       .from(users)
-      .where(and(eq(users.email, email), eq(users.isActive, true)))
+      .where(and(eq(users.email, email), eq(users.role, 'student'), eq(users.isActive, true)))
       .limit(1);
 
     if (!userResult.length) {
@@ -72,6 +72,14 @@ export async function POST(request: NextRequest) {
 
     // Create session
     const sessionToken = await createSession(user.id);
+
+    // Only allow student role
+    if (user.role !== 'student') {
+      return NextResponse.json(
+        { message: 'This account is not a student account. Please use the admin portal to login.' },
+        { status: 403 }
+      );
+    }
 
     const response = NextResponse.json({
       message: 'Face login successful',

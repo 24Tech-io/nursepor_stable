@@ -82,17 +82,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate role - prevent self-admin registration
-    if (role && !['student', 'admin'].includes(role)) {
-      return NextResponse.json(
-        { message: 'Invalid role. Must be either "student" or "admin"' },
-        { status: 400 }
-      );
-    }
-
-    // Allow admin registration - user can have both student and admin accounts
-    // The composite unique constraint (email, role) will prevent duplicate roles
-    const finalRole = role || 'student';
+    // Force student role only - no admin registration on student portal
+    const finalRole = 'student';
 
     console.log('Attempting to create user:', { name, email, phone, role: finalRole });
     

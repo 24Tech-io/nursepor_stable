@@ -28,6 +28,8 @@ export const users = pgTable('users', {
   resetTokenExpiry: timestamp('reset_token_expiry'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  otpSecret: text('otp_secret'), // For email/SMS OTP
+  otpExpiry: timestamp('otp_expiry'),
 }, (table) => ({
   // Composite unique constraint: same email can have student AND admin accounts
   // But cannot have duplicate student or duplicate admin with same email
@@ -216,6 +218,7 @@ export const coursesRelations = relations(courses, ({ many }) => ({
   modules: many(modules),
   accessRequests: many(accessRequests),
   studentProgress: many(studentProgress),
+  // questionBanks relation defined after questionBanks table
 }));
 
 export const modulesRelations = relations(modules, ({ one, many }) => ({
@@ -598,3 +601,165 @@ export const nursingCandidateForms = pgTable('nursing_candidate_forms', {
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 });
+
+// Q-Bank Tables
+// Question Banks - links Q-Bank to courses
+export const questionBanks = pgTable('question_banks', {
+  id: serial('id').primaryKey(),
+  courseId: integer('course_id').notNull().references(() => courses.id, { onDelete: 'cascade' }),
+  name: text('name').notNull(),
+  description: text('description'),
+  isActive: boolean('is_active').notNull().default(true),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+// Q-Bank Questions
+export const qbankQuestions = pgTable('qbank_questions', {
+  id: serial('id').primaryKey(),
+  questionBankId: integer('question_bank_id').notNull().references(() => questionBanks.id, { onDelete: 'cascade' }),
+  question: text('question').notNull(),
+  questionType: text('question_type').notNull().default('multiple_choice'), // multiple_choice, sata, ngn_case_study, unfolding_ngn
+  options: text('options').notNull(), // JSON array of options
+  correctAnswer: text('correct_answer').notNull(), // JSON array for SATA, single value for MCQ
+  explanation: text('explanation'),
+  subject: text('subject'), // Adult Health, Child Health, etc.
+  lesson: text('lesson'), // Cardiovascular, Endocrine, etc.
+  clientNeedArea: text('client_need_area'), // Physiological Adaptation, etc.
+  subcategory: text('subcategory'), // Alterations in Body Systems, etc.
+  testType: text('test_type').notNull().default('mixed'), // classic, ngn, mixed
+  difficulty: text('difficulty').default('medium'), // easy, medium, hard
+  points: integer('points').notNull().default(1),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+// Q-Bank Tests
+export const qbankTests = pgTable('qbank_tests', {
+  id: serial('id').primaryKey(),
+  questionBankId: integer('question_bank_id').notNull().references(() => questionBanks.id, { onDelete: 'cascade' }),
+  userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  testId: text('test_id').notNull().unique(), // Unique test identifier
+  title: text('title'),
+  mode: text('mode').notNull().default('tutorial'), // cat, tutorial, timed, readiness_assessment
+  testType: text('test_type').notNull().default('mixed'), // classic, ngn, mixed
+  organization: text('organization').notNull().default('subject'), // subject, client_need
+  questionIds: text('question_ids').notNull(), // JSON array of question IDs
+  totalQuestions: integer('total_questions').notNull(),
+  timeLimit: integer('time_limit'), // in minutes, null for untimed
+  status: text('status').notNull().default('pending'), // pending, in_progress, completed, abandoned
+  score: integer('score'),
+  maxScore: integer('max_score'),
+  percentage: real('percentage'),
+  startedAt: timestamp('started_at'),
+  completedAt: timestamp('completed_at'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+// Q-Bank Test Attempts (individual question attempts within a test)
+export const qbankQuestionAttempts = pgTable('qbank_question_attempts', {
+  id: serial('id').primaryKey(),
+  testId: integer('test_id').notNull().references(() => qbankTests.id, { onDelete: 'cascade' }),
+  questionId: integer('question_id').notNull().references(() => qbankQuestions.id, { onDelete: 'cascade' }),
+  userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  userAnswer: text('user_answer').notNull(), // JSON array for SATA, single value for MCQ
+  isCorrect: boolean('is_correct').notNull(),
+  isOmitted: boolean('is_omitted').notNull().default(false),
+  isPartiallyCorrect: boolean('is_partially_correct').notNull().default(false),
+  pointsEarned: integer('points_earned').notNull().default(0),
+  timeSpent: integer('time_spent'), // in seconds
+  attemptedAt: timestamp('attempted_at').notNull().defaultNow(),
+});
+
+// Q-Bank Question Statistics (aggregated per user per question)
+export const qbankQuestionStatistics = pgTable('qbank_question_statistics', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  questionId: integer('question_id').notNull().references(() => qbankQuestions.id, { onDelete: 'cascade' }),
+  questionBankId: integer('question_bank_id').notNull().references(() => questionBanks.id, { onDelete: 'cascade' }),
+  timesAttempted: integer('times_attempted').notNull().default(0),
+  timesCorrect: integer('times_correct').notNull().default(0),
+  timesIncorrect: integer('times_incorrect').notNull().default(0),
+  timesOmitted: integer('times_omitted').notNull().default(0),
+  timesCorrectOnReattempt: integer('times_correct_on_reattempt').notNull().default(0),
+  confidenceLevel: text('confidence_level'), // pending_review, low_confidence, high_confidence, correct_on_reattempt
+  lastAttemptedAt: timestamp('last_attempted_at'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+}, (table) => ({
+  userQuestionUnique: unique('user_question_statistics_unique').on(table.userId, table.questionId),
+}));
+
+// Q-Bank Relations
+export const questionBanksRelations = relations(questionBanks, ({ one, many }) => ({
+  course: one(courses, {
+    fields: [questionBanks.courseId],
+    references: [courses.id],
+  }),
+  questions: many(qbankQuestions),
+  tests: many(qbankTests),
+}));
+
+export const qbankQuestionsRelations = relations(qbankQuestions, ({ one, many }) => ({
+  questionBank: one(questionBanks, {
+    fields: [qbankQuestions.questionBankId],
+    references: [questionBanks.id],
+  }),
+  attempts: many(qbankQuestionAttempts),
+  statistics: many(qbankQuestionStatistics),
+}));
+
+export const qbankTestsRelations = relations(qbankTests, ({ one, many }) => ({
+  questionBank: one(questionBanks, {
+    fields: [qbankTests.questionBankId],
+    references: [questionBanks.id],
+  }),
+  user: one(users, {
+    fields: [qbankTests.userId],
+    references: [users.id],
+  }),
+  questionAttempts: many(qbankQuestionAttempts),
+}));
+
+export const qbankQuestionAttemptsRelations = relations(qbankQuestionAttempts, ({ one }) => ({
+  test: one(qbankTests, {
+    fields: [qbankQuestionAttempts.testId],
+    references: [qbankTests.id],
+  }),
+  question: one(qbankQuestions, {
+    fields: [qbankQuestionAttempts.questionId],
+    references: [qbankQuestions.id],
+  }),
+  user: one(users, {
+    fields: [qbankQuestionAttempts.userId],
+    references: [users.id],
+  }),
+}));
+
+export const qbankQuestionStatisticsRelations = relations(qbankQuestionStatistics, ({ one }) => ({
+  user: one(users, {
+    fields: [qbankQuestionStatistics.userId],
+    references: [users.id],
+  }),
+  question: one(qbankQuestions, {
+    fields: [qbankQuestionStatistics.questionId],
+    references: [qbankQuestions.id],
+  }),
+  questionBank: one(questionBanks, {
+    fields: [qbankQuestionStatistics.questionBankId],
+    references: [questionBanks.id],
+  }),
+}));
+// Note: questionBanks relation to courses is handled via foreign key,
+// but if needed, it can be added to coursesRelations above
+
+// Daily Video Settings
+export const dailyVideoSettings = pgTable('daily_video_settings', {
+  id: serial('id').primaryKey(),
+  sourceType: text('source_type').notNull().default('manual'), // 'manual', 'course', 'auto_rotate'
+  sourceCourseId: integer('source_course_id').references(() => courses.id),
+  autoRotate: boolean('auto_rotate').notNull().default(false),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+

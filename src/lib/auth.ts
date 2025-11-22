@@ -240,7 +240,6 @@ export async function getUserAccounts(email: string): Promise<AuthUser[]> {
     joinedDate: user.joinedDate || null,
   }));
 }
-
 export async function createUser(userData: {
   name: string;
   email: string;
@@ -358,3 +357,4 @@ export async function resetPassword(email: string, token: string, newPassword: s
 
   return true;
 }
+

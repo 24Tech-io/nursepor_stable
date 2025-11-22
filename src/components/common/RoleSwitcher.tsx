@@ -87,8 +87,12 @@ export default function RoleSwitcher() {
       if (response.ok) {
         const data = await response.json();
         // Redirect to appropriate dashboard
-        const redirectUrl = data.user.role === 'admin' ? '/admin/students' : '/student/dashboard';
-        window.location.href = redirectUrl; // Use window.location for full page reload
+        // Admin routes are on separate port 3001
+        if (data.user.role === 'admin') {
+          window.location.href = 'http://localhost:3001/dashboard';
+        } else {
+          window.location.href = '/student/dashboard';
+        }
       } else {
         const errorData = await response.json();
         alert(errorData.message || 'Failed to switch role');

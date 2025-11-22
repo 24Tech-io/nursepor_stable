@@ -88,6 +88,7 @@ export default function CoursesPage() {
     fetchData();
   }, []);
 
+
   const filtered = useMemo(() => {
     const q = query.toLowerCase();
     return courses.filter(c => [c.title, c.description, c.instructor].some(v => v?.toLowerCase().includes(q)));
@@ -104,7 +105,7 @@ export default function CoursesPage() {
     if (!requestingId) return;
 
     try {
-      const response = await fetch('/api/admin/requests', {
+      const response = await fetch('/api/student/requests', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -115,7 +116,7 @@ export default function CoursesPage() {
       });
 
       if (response.ok) {
-        alert('Access request submitted successfully!');
+        alert('Access request submitted successfully! You will be notified when it is reviewed.');
         setRequestingId(null);
         setNote('');
       } else {

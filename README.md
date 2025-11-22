@@ -4,13 +4,13 @@ Premium Next.js Nursing Education Platform with Drizzle ORM (SQLite/Neon Postgre
 
 ## Quickstart
 
-1) Copy env example
+1) Copy env template
 
 ```bash
-cp .env.example .env.local
+cp env.local.example .env.local
 ```
 
-2) Fill SMTP and app URL values in `.env.local`.
+2) Fill the database, Stripe, and SMTP values in `.env.local`.
 
 3) Install and run
 
@@ -21,7 +21,7 @@ npm run dev
 
 ## Environment Variables
 
-Create `.env.local` in the project root with:
+Create `.env.local` in the project root by copying `env.local.example` and updating the values:
 
 ```bash
 # App
@@ -30,7 +30,7 @@ JWT_SECRET=change-me
 
 # Database (leave empty to use local SQLite lms.db)
 # For Neon (Postgres), e.g.: postgres://user:pass@host/db?sslmode=require
-DATABASE_URL=
+DATABASE_URL=""
 
 # SMTP (for password reset emails)
 SMTP_HOST=smtp.example.com
@@ -102,12 +102,12 @@ npm install
 
 3. Set up environment variables:
 ```bash
-cp .env.example .env.local
+cp env.local.example .env.local
 ```
 
 Edit `.env.local` with your configuration:
 ```env
-DATABASE_URL="postgresql://username:password@localhost:5432/lms_platform"
+DATABASE_URL="postgresql://username:password@host/dbname?sslmode=require"
 JWT_SECRET="your-super-secret-jwt-key"
 SMTP_HOST="smtp.gmail.com"
 SMTP_PORT="587"
@@ -116,12 +116,13 @@ SMTP_USER="your-email@gmail.com"
 SMTP_PASS="your-app-password"
 SMTP_FROM="noreply@nurseproacademy.com"
 NEXT_PUBLIC_APP_URL="http://localhost:3000"
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY="pk_test_xxx"
+STRIPE_SECRET_KEY="sk_test_xxx"
 ```
 
 4. Set up the database:
 ```bash
-npx drizzle-kit generate
-npx drizzle-kit migrate
+npx drizzle-kit push
 ```
 
 5. Seed the database (optional):
@@ -129,50 +130,68 @@ npx drizzle-kit migrate
 npm run seed
 ```
 
-6. Start the development server:
+6. Start the development servers:
 ```bash
-npm run dev
+# Start both student (port 3000) and admin (port 3001) apps
+npm run dev:all
+
+# Or start them separately:
+npm run dev          # Student app on port 3000
+npm run dev:admin    # Admin app on port 3001
 ```
 
-Open [http://localhost:3000](http://localhost:3000) in your browser.
+Open [http://localhost:3000](http://localhost:3000) for student portal and [http://localhost:3001](http://localhost:3001) for admin portal.
 
 ## Project Structure
 
 ```
-nurse-pro-academy/
-├── src/
-│   ├── app/                    # Next.js app router pages
-│   │   ├── admin/             # Admin dashboard pages
-│   │   ├── student/           # Student dashboard pages
-│   │   ├── api/               # API routes
-│   │   ├── login/             # Authentication pages
+lms-platform/
+├── src/                      # Student app (port 3000)
+│   ├── app/                  # Next.js app router pages
+│   │   ├── student/          # Student dashboard pages
+│   │   ├── api/              # API routes
+│   │   ├── login/            # Authentication pages
 │   │   └── page.tsx           # Home page
-│   ├── components/            # Reusable React components
-│   │   ├── admin/            # Admin-specific components
-│   │   └── student/          # Student-specific components
-│   ├── lib/                  # Utility functions and configurations
-│   │   ├── auth.ts           # Authentication utilities
-│   │   ├── db/               # Database schema and connection
-│   │   ├── email.ts          # Email utilities
-│   │   ├── types.ts          # TypeScript type definitions
-│   │   └── data.ts           # Mock data (for development)
-│   └── styles/               # Global styles
+│   ├── components/           # Reusable React components
+│   └── lib/                  # Utility functions
+├── admin-app/                # Admin app (port 3001)
+│   ├── src/
+│   │   ├── app/              # Admin pages and API routes
+│   │   ├── components/       # Admin components
+│   │   └── lib/             # Admin utilities
+│   └── package.json
 ├── drizzle/                  # Database migrations
 ├── public/                   # Static assets
-├── .env.example             # Environment variables template
+├── docs/                     # Documentation
+│   ├── archive/             # Archived docs
+│   ├── deployment/           # Deployment guides
+│   ├── development/          # Development guides
+│   └── security/            # Security documentation
+├── scripts/                  # Utility scripts
+├── env.local.example         # Environment variables template
+├── start-dev.js             # Start both apps script
 ├── tailwind.config.js       # Tailwind CSS configuration
-├── next.config.js          # Next.js configuration
-├── drizzle.config.ts       # Drizzle ORM configuration
-└── package.json            # Dependencies and scripts
+├── next.config.js           # Next.js configuration
+├── drizzle.config.ts        # Drizzle ORM configuration
+└── package.json             # Root dependencies and scripts
 ```
 
 ## Available Scripts
 
-- `npm run dev` - Start development server
-- `npm run build` - Build for production
-- `npm run start` - Start production server
+### Development
+- `npm run dev` - Start student app (port 3000)
+- `npm run dev:admin` - Start admin app (port 3001)
+- `npm run dev:all` - Start both apps simultaneously
+
+### Production
+- `npm run build` - Build student app for production
+- `npm run build:admin` - Build admin app for production
+- `npm run start` - Start student app in production mode
+- `npm run start:admin` - Start admin app in production mode
+
+### Utilities
 - `npm run lint` - Run ESLint
-- `npm run seed` - Seed database with sample data
+- `npm run seed:qbank` - Seed Q-Bank with demo data
 
 ## API Routes
 

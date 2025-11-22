@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { MCQQuestion } from '../../lib/types';
 
 interface QuizCardProps {
@@ -8,7 +8,8 @@ interface QuizCardProps {
   passMark: number;
   showAnswers: boolean;
   timeLimit?: number;
-  onComplete: (score: number) => void;
+  quizId?: string;
+  onComplete: (score: number, passed: boolean) => void;
 }
 
 export default function QuizCard({
@@ -16,6 +17,7 @@ export default function QuizCard({
   passMark,
   showAnswers,
   timeLimit,
+  quizId,
   onComplete,
 }: QuizCardProps) {
   const [currentQuestion, setCurrentQuestion] = useState(0);
@@ -27,8 +29,8 @@ export default function QuizCard({
   const totalQuestions = questions.length;
 
   // Timer
-  useState(() => {
-    if (timeRemaining !== null) {
+  useEffect(() => {
+    if (timeRemaining !== null && !isSubmitted) {
       const interval = setInterval(() => {
         setTimeRemaining((prev) => {
           if (prev === null || prev <= 1) {
@@ -41,7 +43,7 @@ export default function QuizCard({
       }, 1000);
       return () => clearInterval(interval);
     }
-  });
+  }, [timeRemaining, isSubmitted]);
 
   const handleSelectAnswer = (answer: string) => {
     if (!isSubmitted) {
@@ -61,16 +63,66 @@ export default function QuizCard({
     }
   };
 
-  const handleSubmit = () => {
-    let correct = 0;
+  const handleSubmit = async () => {
+    if (isSubmitted) return;
+    
+    setIsSubmitted(true);
+    
+    // Prepare answers for API: { questionId: answer }
+    const answers: Record<string, string> = {};
     questions.forEach((q, index) => {
-      if (selectedAnswers[index] === q.correctAnswer) {
-        correct++;
+      if (selectedAnswers[index]) {
+        answers[q.id.toString()] = selectedAnswers[index];
       }
     });
-    const score = (correct / totalQuestions) * 100;
-    setIsSubmitted(true);
-    onComplete(score);
+
+    // If quizId is provided, submit to API
+    if (quizId) {
+      try {
+        const response = await fetch(`/api/student/quizzes/${quizId}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ answers }),
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          onComplete(data.score, data.passed);
+        } else {
+          // Fallback to local calculation if API fails
+          let correct = 0;
+          questions.forEach((q, index) => {
+            if (selectedAnswers[index] === q.correctAnswer) {
+              correct++;
+            }
+          });
+          const score = (correct / totalQuestions) * 100;
+          onComplete(score, score >= passMark);
+        }
+      } catch (error) {
+        console.error('Error submitting quiz:', error);
+        // Fallback to local calculation
+        let correct = 0;
+        questions.forEach((q, index) => {
+          if (selectedAnswers[index] === q.correctAnswer) {
+            correct++;
+          }
+        });
+        const score = (correct / totalQuestions) * 100;
+        onComplete(score, score >= passMark);
+      }
+    } else {
+      // Local calculation if no quizId
+      let correct = 0;
+      questions.forEach((q, index) => {
+        if (selectedAnswers[index] === q.correctAnswer) {
+          correct++;
+        }
+      });
+      const score = (correct / totalQuestions) * 100;
+      onComplete(score, score >= passMark);
+    }
   };
 
   const getScore = () => {

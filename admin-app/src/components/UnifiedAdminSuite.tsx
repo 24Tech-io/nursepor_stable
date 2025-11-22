@@ -1,0 +1,2082 @@
+'use client';
+
+import React, { useState } from 'react';
+import {
+  Layout, Database, Users, Settings, Plus, Save, ArrowLeft, Layers,
+  Activity, FileText, Video, CheckCircle, Grid, Monitor, ChevronRight,
+  Trash2, Edit3, BarChart, BookOpen, Search, Flag, AlertTriangle, X,
+  Filter, Zap, Book, MoreHorizontal, Image as ImageIcon, List,
+  MousePointer, Highlighter, Type, Divide, GripVertical, CheckSquare, AlignLeft
+} from 'lucide-react';
+
+// --- DATA CONSTANTS ---
+const QUESTION_MODES = {
+  CLASSIC: {
+    id: 'classic',
+    label: 'Classic NCLEX',
+    color: 'blue',
+    types: [
+      { id: 'standard', label: 'Single Best Answer (Multiple Choice)' },
+      { id: 'sata_classic', label: 'Select All That Apply (Traditional)' },
+      { id: 'ordering', label: 'Ordered Response' },
+      { id: 'calculation', label: 'Dosage Calculation' }
+    ]
+  },
+  NGN: {
+    id: 'ngn',
+    label: 'Next Gen (NGN)',
+    color: 'purple',
+    types: [
+      { id: 'casestudy', label: 'Case Study (6-Step CJMM)' },
+      { id: 'bowtie', label: 'Bow-Tie' },
+      { id: 'matrix', label: 'Matrix / Grid' },
+      { id: 'trend', label: 'Trend (Clinical Data)' },
+      { id: 'drag_drop', label: 'Extended Drag & Drop' },
+      { id: 'highlight', label: 'Highlight Text' },
+      { id: 'cloze', label: 'Cloze (Drop-Down)' },
+    ]
+  }
+};
+
+const CJMM_STEPS = [
+  { step: 1, label: "Recognize Cues" },
+  { step: 2, label: "Analyze Cues" },
+  { step: 3, label: "Prioritize Hypotheses" },
+  { step: 4, label: "Generate Solutions" },
+  { step: 5, label: "Take Action" },
+  { step: 6, label: "Evaluate Outcomes" }
+];
+
+import StudentProfile from './admin/StudentProfile';
+
+// --- ROOT COMPONENT ---
+export default function NurseProAdminUltimate() {
+  const [currentModule, setCurrentModule] = useState('dashboard');
+  const [activeItem, setActiveItem] = useState(null);
+  const [activeStudentId, setActiveStudentId] = useState<number | null>(null);
+
+  const nav = (mod: string) => setCurrentModule(mod);
+
+  return (
+    <div className="flex h-screen bg-[#0b0d12] text-slate-200 font-sans selection:bg-purple-500 selection:text-white overflow-hidden">
+      {/* SIDEBAR */}
+      <aside className="w-72 bg-[#11131a] border-r border-slate-800/50 flex flex-col flex-shrink-0 z-30">
+        <div className="p-8">
+          <h1 className="text-2xl font-bold tracking-tight flex items-center gap-3 text-white">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-purple-600 to-pink-500 flex items-center justify-center text-white shadow-lg shadow-purple-500/20">
+              <Book size={20} />
+            </div>
+            NursePro
+          </h1>
+          <p className="text-[10px] text-slate-500 mt-2 font-bold uppercase tracking-widest ml-1">Academy Command v3.1</p>
+        </div>
+
+        <nav className="flex-1 px-4 space-y-8 overflow-y-auto custom-scrollbar">
+          <NavSection title="Overview">
+            <NavItem icon={<Layout size={18} />} label="Dashboard" active={currentModule === 'dashboard'} onClick={() => nav('dashboard')} badge={undefined} />
+            <NavItem icon={<BarChart size={18} />} label="Analytics" active={currentModule === 'analytics'} onClick={() => nav('analytics')} badge={undefined} />
+          </NavSection>
+
+          <NavSection title="User Management">
+            <NavItem icon={<Users size={18} />} label="Students" active={currentModule === 'students'} onClick={() => nav('students')} badge={undefined} />
+            <NavItem icon={<Flag size={18} />} label="Access Requests" active={currentModule === 'requests'} onClick={() => nav('requests')} badge={undefined} />
+          </NavSection>
+
+          <NavSection title="Content Engine">
+            <NavItem icon={<BookOpen size={18} />} label="Course Builder" active={currentModule.includes('course')} onClick={() => nav('courses')} badge={undefined} />
+            <NavItem icon={<Database size={18} />} label="Q-Bank Manager" active={currentModule.includes('qbank')} onClick={() => nav('qbank')} badge={undefined} />
+          </NavSection>
+        </nav>
+
+        <div className="p-4 border-t border-slate-800/50">
+          <button
+            onClick={async () => {
+              try {
+                await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+                sessionStorage.removeItem('adminUser');
+                // Force redirect
+                window.location.href = '/login';
+              } catch (error) {
+                console.error('Logout error:', error);
+                // Force redirect anyway
+                window.location.href = '/login';
+              }
+            }}
+            className="w-full flex items-center gap-3 px-4 py-3 bg-[#161922] rounded-xl border border-slate-800/50 hover:border-red-500/50 hover:bg-red-900/10 transition-all"
+          >
+            <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold text-white">AD</div>
+            <div className="text-left flex-1">
+              <p className="text-xs font-bold text-white">Admin User</p>
+              <p className="text-[10px] text-slate-500">Super Admin</p>
+            </div>
+            <div className="text-red-400 hover:text-red-300">Logout</div>
+          </button>
+        </div>
+      </aside>
+
+      {/* MAIN CANVAS */}
+      <main className="flex-1 flex flex-col relative overflow-hidden bg-gradient-to-br from-[#0b0d12] via-[#0f1117] to-[#0b0d12]">
+        {currentModule === 'dashboard' && <Dashboard nav={nav} />}
+        {currentModule === 'students' && <StudentsList nav={nav} onSelectStudent={(id) => { setActiveStudentId(id); nav('student_profile'); }} />}
+        {currentModule === 'student_profile' && activeStudentId && <StudentProfile studentId={activeStudentId} back={() => nav('students')} />}
+        {currentModule === 'requests' && <RequestsInbox nav={nav} />}
+        {currentModule === 'analytics' && <Analytics nav={nav} />}
+        {currentModule === 'daily_videos' && <DailyVideoManager nav={nav} />}
+        {currentModule === 'blogs' && <BlogManager nav={nav} />}
+        {currentModule === 'quizzes' && <QuizManager nav={nav} />}
+        {currentModule === 'courses' && <CourseList nav={nav} setActive={setActiveItem} />}
+        {currentModule === 'course_editor' && <CourseBuilder course={activeItem} back={() => nav('courses')} />}
+        {currentModule === 'qbank' && <QBankList nav={nav} setActive={setActiveItem} />}
+        {currentModule === 'qbank_editor' && <UniversalQuestionEditor question={activeItem} back={() => nav('qbank')} />}
+      </main>
+    </div>
+  );
+}
+
+// --- DASHBOARD MODULE ---
+const Dashboard = ({ nav }: { nav: (mod: string) => void }) => {
+  const [stats, setStats] = React.useState({ courses: 0, questions: 0, students: 0 });
+
+  React.useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        // Fetch real data from API endpoints
+        const coursesRes = await fetch('/api/courses', { credentials: 'include' });
+        const questionsRes = await fetch('/api/qbank', { credentials: 'include' });
+        const studentsRes = await fetch('/api/students', { credentials: 'include' });
+
+        const courses = coursesRes.ok ? await coursesRes.json() : { courses: [] };
+        const questions = questionsRes.ok ? await questionsRes.json() : { questions: [] };
+        const students = studentsRes.ok ? await studentsRes.json() : { students: [] };
+
+        setStats({
+          courses: courses.courses?.length || 0,
+          questions: questions.questions?.length || 0,
+          students: students.students?.length || 0,
+        });
+      } catch (error) {
+        console.error('Error fetching stats:', error);
+      }
+    };
+
+    fetchStats();
+  }, []);
+
+  return (
+    <div className="p-8 overflow-y-auto h-full">
+      <header className="mb-10 flex justify-between items-end">
+        <div>
+          <h2 className="text-3xl font-bold text-white tracking-tight">Command Center</h2>
+          <p className="text-slate-400 mt-2 text-sm">Welcome to NursePro Academy Admin Dashboard</p>
+        </div>
+        <button onClick={() => nav('course_editor')} className="bg-white text-slate-900 px-5 py-2.5 rounded-lg font-bold text-sm hover:bg-purple-50 transition-colors">
+          Create Course
+        </button>
+      </header>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+        <MetricCard title="Total Courses" value={stats.courses.toString()} trend="Active" color="blue" />
+        <MetricCard title="Total Questions" value={stats.questions.toString()} trend="In Q-Bank" color="green" />
+        <MetricCard title="Total Students" value={stats.students.toString()} trend="Registered" color="purple" />
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="lg:col-span-2 bg-[#161922] border border-slate-800/60 rounded-2xl p-6">
+          <h3 className="font-bold text-white mb-6">Quick Actions</h3>
+          <div className="space-y-4">
+            <button onClick={() => nav('courses')} className="w-full flex items-center justify-between p-4 bg-[#1a1d26] rounded-xl border border-slate-800/40 hover:border-purple-500/50 transition-colors">
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center text-slate-400"><BookOpen size={18} /></div>
+                <div>
+                  <p className="text-sm font-semibold text-white">Manage Courses</p>
+                  <p className="text-xs text-slate-500">Create, edit, or delete courses</p>
+                </div>
+              </div>
+              <ChevronRight size={18} className="text-slate-500" />
+            </button>
+            <button onClick={() => nav('qbank')} className="w-full flex items-center justify-between p-4 bg-[#1a1d26] rounded-xl border border-slate-800/40 hover:border-purple-500/50 transition-colors">
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center text-slate-400"><Database size={18} /></div>
+                <div>
+                  <p className="text-sm font-semibold text-white">Q-Bank Manager</p>
+                  <p className="text-xs text-slate-500">Add and manage questions</p>
+                </div>
+              </div>
+              <ChevronRight size={18} className="text-slate-500" />
+            </button>
+          </div>
+        </div>
+
+        <div className="bg-[#161922] border border-slate-800/60 rounded-2xl p-6">
+          <h3 className="font-bold text-white mb-6">System Status</h3>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <span className="text-slate-300">Database</span>
+              <span className="text-green-400 font-bold">Connected</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-slate-300">API Services</span>
+              <span className="text-green-400 font-bold">Online</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// --- REQUESTS INBOX MODULE ---
+const RequestsInbox = ({ nav }: { nav: (mod: string) => void }) => {
+  const [requests, setRequests] = React.useState<any[]>([]);
+  const [isLoading, setIsLoading] = React.useState(true);
+  const [processingId, setProcessingId] = React.useState<number | null>(null);
+
+  React.useEffect(() => {
+    fetchRequests();
+  }, []);
+
+  const fetchRequests = async () => {
+    try {
+      const response = await fetch('/api/requests', { credentials: 'include' });
+      if (response.ok) {
+        const data = await response.json();
+        setRequests(data.requests || []);
+      }
+    } catch (error) {
+      console.error('Error fetching requests:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleAction = async (requestId: number, action: 'approve' | 'deny') => {
+    setProcessingId(requestId);
+    try {
+      const response = await fetch(`/api/requests/${requestId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ action }),
+      });
+
+      if (response.ok) {
+        await fetchRequests(); // Refresh list
+        alert(`Request ${action}d successfully`);
+      } else {
+        const error = await response.json();
+        alert(error.message || `Failed to ${action} request`);
+      }
+    } catch (error) {
+      console.error(`Error ${action}ing request:`, error);
+      alert(`Failed to ${action} request`);
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  const pendingRequests = requests.filter(r => r.status === 'pending');
+  const reviewedRequests = requests.filter(r => r.status !== 'pending');
+
+  return (
+    <div className="p-8 overflow-y-auto h-full">
+      <header className="mb-10">
+        <h2 className="text-3xl font-bold text-white tracking-tight">Course Access Requests</h2>
+        <p className="text-slate-400 mt-2 text-sm">Review and manage student course access requests</p>
+      </header>
+
+      {isLoading ? (
+        <div className="flex items-center justify-center py-20">
+          <div className="animate-spin rounded-full h-12 w-12 border-4 border-purple-600 border-t-transparent"></div>
+        </div>
+      ) : (
+        <div className="space-y-6">
+          {/* Pending Requests */}
+          <div>
+            <h3 className="text-lg font-bold text-white mb-4">Pending ({pendingRequests.length})</h3>
+            {pendingRequests.length === 0 ? (
+              <div className="bg-[#161922] border border-slate-800/60 rounded-2xl p-8 text-center">
+                <p className="text-slate-400">No pending requests</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {pendingRequests.map(req => (
+                  <div key={req.id} className="bg-[#161922] border border-slate-800/60 rounded-2xl p-6">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-2">
+                          <div className="w-10 h-10 rounded-full bg-purple-600 text-white flex items-center justify-center font-bold">
+                            {req.studentName?.charAt(0).toUpperCase()}
+                          </div>
+                          <div>
+                            <h4 className="font-bold text-white">{req.studentName}</h4>
+                            <p className="text-xs text-slate-500">{req.studentEmail}</p>
+                          </div>
+                        </div>
+                        <div className="mt-3">
+                          <p className="text-sm text-slate-300">
+                            Requesting access to: <span className="font-semibold text-purple-400">{req.courseTitle}</span>
+                          </p>
+                          {req.reason && (
+                            <p className="text-sm text-slate-400 mt-2 italic">"{req.reason}"</p>
+                          )}
+                          <p className="text-xs text-slate-500 mt-2">
+                            Requested: {new Date(req.requestedAt).toLocaleDateString()}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex gap-2 ml-4">
+                        <button
+                          onClick={() => handleAction(req.id, 'approve')}
+                          disabled={processingId === req.id}
+                          className="px-4 py-2 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 disabled:opacity-50 transition-colors"
+                        >
+                          Approve
+                        </button>
+                        <button
+                          onClick={() => handleAction(req.id, 'deny')}
+                          disabled={processingId === req.id}
+                          className="px-4 py-2 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 disabled:opacity-50 transition-colors"
+                        >
+                          Deny
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Reviewed Requests */}
+          {reviewedRequests.length > 0 && (
+            <div>
+              <h3 className="text-lg font-bold text-white mb-4">Reviewed ({reviewedRequests.length})</h3>
+              <div className="space-y-3">
+                {reviewedRequests.slice(0, 10).map(req => (
+                  <div key={req.id} className="bg-[#161922] border border-slate-800/60 rounded-2xl p-4 opacity-60">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm text-white">{req.studentName} → {req.courseTitle}</p>
+                        <p className="text-xs text-slate-500">
+                          {req.status === 'approved' ? '✅ Approved' : '❌ Denied'} on {new Date(req.reviewedAt).toLocaleDateString()}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// --- STUDENTS LIST MODULE ---
+const StudentsList = ({ nav, onSelectStudent }: { nav: (mod: string) => void, onSelectStudent: (id: number) => void }) => {
+  const [students, setStudents] = React.useState<any[]>([]);
+  const [isLoading, setIsLoading] = React.useState(true);
+  const [searchTerm, setSearchTerm] = React.useState('');
+
+  React.useEffect(() => {
+    fetchStudents();
+  }, []);
+
+  const fetchStudents = async () => {
+    try {
+      const response = await fetch('/api/students', { credentials: 'include' });
+      if (response.ok) {
+        const data = await response.json();
+        setStudents(data.students || []);
+      }
+    } catch (error) {
+      console.error('Error fetching students:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const toggleActive = async (studentId: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      const response = await fetch(`/api/students/${studentId}/toggle-active`, {
+        method: 'PATCH',
+        credentials: 'include',
+      });
+
+      if (response.ok) {
+        await fetchStudents(); // Refresh list
+      } else {
+        alert('Failed to toggle student status');
+      }
+    } catch (error) {
+      console.error('Error toggling student status:', error);
+      alert('Failed to toggle student status');
+    }
+  };
+
+  const resetFaceId = async (studentId: number, studentName: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!confirm(`Reset Face ID for ${studentName}? They will need to re-enroll.`)) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/students/${studentId}/reset-face`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+
+      if (response.ok) {
+        await fetchStudents(); // Refresh list
+        alert('Face ID reset successfully');
+      } else {
+        alert('Failed to reset Face ID');
+      }
+    } catch (error) {
+      console.error('Error resetting Face ID:', error);
+      alert('Failed to reset Face ID');
+    }
+  };
+
+  const filteredStudents = students.filter(s =>
+    s.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    s.email?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  return (
+    <div className="p-8 overflow-y-auto h-full">
+      <header className="mb-10">
+        <h2 className="text-3xl font-bold text-white tracking-tight">Student Management</h2>
+        <p className="text-slate-400 mt-2 text-sm">Manage student accounts and access</p>
+      </header>
+
+      {/* Search */}
+      <div className="mb-6">
+        <div className="relative">
+          <input
+            type="text"
+            placeholder="Search students..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full px-4 py-3 pl-10 bg-[#161922] border border-slate-800/60 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-purple-500"
+          />
+          <Search size={18} className="absolute left-3 top-3.5 text-slate-500" />
+        </div>
+      </div>
+
+      {isLoading ? (
+        <div className="flex items-center justify-center py-20">
+          <div className="animate-spin rounded-full h-12 w-12 border-4 border-purple-600 border-t-transparent"></div>
+        </div>
+      ) : (
+        <div className="bg-[#161922] border border-slate-800/60 rounded-2xl overflow-hidden">
+          <table className="w-full text-left text-sm">
+            <thead className="bg-[#1a1d26] text-slate-400 text-xs uppercase font-bold">
+              <tr>
+                <th className="p-4">Student</th>
+                <th className="p-4">Contact</th>
+                <th className="p-4 text-center">Courses</th>
+                <th className="p-4 text-center">Face ID</th>
+                <th className="p-4 text-center">Status</th>
+                <th className="p-4 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-800/50">
+              {filteredStudents.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="p-8 text-center text-slate-400">
+                    No students found
+                  </td>
+                </tr>
+              ) : (
+                filteredStudents.map(student => (
+                  <tr
+                    key={student.id}
+                    className="hover:bg-[#1a1d26] transition-colors cursor-pointer"
+                    onClick={() => onSelectStudent(student.id)}
+                  >
+                    <td className="p-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center text-white font-bold">
+                          {student.name?.charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                          <p className="font-semibold text-white">{student.name}</p>
+                          <p className="text-xs text-slate-500">
+                            Joined {new Date(student.joinedDate).toLocaleDateString()}
+                          </p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="p-4">
+                      <p className="text-slate-300 text-sm">{student.email}</p>
+                      {student.phone && (
+                        <p className="text-slate-500 text-xs">{student.phone}</p>
+                      )}
+                    </td>
+                    <td className="p-4 text-center">
+                      <span className="text-white font-bold">{student.enrolledCourses || 0}</span>
+                    </td>
+                    <td className="p-4 text-center">
+                      {student.faceIdEnrolled ? (
+                        <span className="text-green-400 font-bold">✓ Enrolled</span>
+                      ) : (
+                        <span className="text-slate-500">Not enrolled</span>
+                      )}
+                    </td>
+                    <td className="p-4 text-center">
+                      <button
+                        onClick={(e) => toggleActive(student.id, e)}
+                        className={`px-3 py-1 rounded-full text-xs font-bold ${student.isActive
+                          ? 'bg-green-500/10 text-green-400'
+                          : 'bg-slate-700/30 text-slate-400'
+                          }`}
+                      >
+                        {student.isActive ? 'Active' : 'Inactive'}
+                      </button>
+                    </td>
+                    <td className="p-4 text-right">
+                      <div className="flex justify-end gap-2">
+                        {student.faceIdEnrolled && (
+                          <button
+                            onClick={(e) => resetFaceId(student.id, student.name, e)}
+                            className="text-orange-400 hover:text-orange-300 text-xs font-semibold"
+                          >
+                            Reset Face ID
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// --- ANALYTICS MODULE ---
+const Analytics = ({ nav }: { nav: (mod: string) => void }) => {
+  const [stats, setStats] = React.useState({
+    totalStudents: 0,
+    activeStudents: 0,
+    totalCourses: 0,
+    totalEnrollments: 0,
+  });
+  const [isLoading, setIsLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    fetchAnalytics();
+  }, []);
+
+  const fetchAnalytics = async () => {
+    try {
+      const studentsRes = await fetch('/api/students', { credentials: 'include' });
+
+      if (studentsRes.ok) {
+        const data = await studentsRes.json();
+        const students = data.students || [];
+        const totalEnrollments = students.reduce((sum: number, s: any) => sum + (s.enrolledCourses || 0), 0);
+
+        setStats({
+          totalStudents: students.length,
+          activeStudents: students.filter((s: any) => s.isActive).length,
+          totalCourses: 0, // Will be fetched separately
+          totalEnrollments,
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching analytics:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <div className="p-8 overflow-y-auto h-full">
+      <header className="mb-10">
+        <h2 className="text-3xl font-bold text-white tracking-tight">Analytics & Reports</h2>
+        <p className="text-slate-400 mt-2 text-sm">Platform insights and metrics</p>
+      </header>
+
+      {isLoading ? (
+        <div className="flex items-center justify-center py-20">
+          <div className="animate-spin rounded-full h-12 w-12 border-4 border-purple-600 border-t-transparent"></div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <MetricCard title="Total Students" value={stats.totalStudents.toString()} trend="Registered" color="blue" />
+          <MetricCard title="Active Students" value={stats.activeStudents.toString()} trend="Currently Active" color="green" />
+          <MetricCard title="Total Enrollments" value={stats.totalEnrollments.toString()} trend="All Time" color="purple" />
+          <MetricCard
+            title="Completion Rate"
+            value={(stats.totalEnrollments > 0 ? Math.round((stats.totalEnrollments / stats.totalStudents) * 100) : 0) + '%'}
+            trend="Average"
+            color="orange"
+          />
+        </div>
+      )}
+    </div>
+  );
+};
+
+// --- DAILY VIDEO MANAGER MODULE ---
+const DailyVideoManager = ({ nav }: { nav: (mod: string) => void }) => {
+  const [videos, setVideos] = React.useState<any[]>([]);
+  const [courses, setCourses] = React.useState<any[]>([]);
+  const [selectedCourse, setSelectedCourse] = React.useState<string>('');
+  const [selectedModule, setSelectedModule] = React.useState<string>('');
+  const [modules, setModules] = React.useState<any[]>([]);
+  const [selectedChapter, setSelectedChapter] = React.useState<string>('');
+  const [chapters, setChapters] = React.useState<any[]>([]);
+  const [day, setDay] = React.useState<number>(0);
+  const [title, setTitle] = React.useState<string>('');
+  const [description, setDescription] = React.useState<string>('');
+  const [isLoading, setIsLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    fetchData();
+  }, []);
+
+  React.useEffect(() => {
+    if (selectedCourse) {
+      fetchModules(selectedCourse);
+    }
+  }, [selectedCourse]);
+
+  React.useEffect(() => {
+    if (selectedModule) {
+      fetchChapters(selectedModule);
+    }
+  }, [selectedModule]);
+
+  const fetchData = async () => {
+    try {
+      const [videosRes, coursesRes] = await Promise.all([
+        fetch('/api/daily-videos', { credentials: 'include' }),
+        fetch('/api/courses', { credentials: 'include' })
+      ]);
+
+      if (videosRes.ok) {
+        const data = await videosRes.json();
+        setVideos(data.dailyVideos || []);
+      }
+
+      if (coursesRes.ok) {
+        const data = await coursesRes.json();
+        setCourses(data.courses || []);
+      }
+    } catch (error) {
+      console.error('Error fetching data:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const fetchModules = async (courseId: string) => {
+    try {
+      const response = await fetch(`/api/courses/${courseId}/modules`, { credentials: 'include' });
+      if (response.ok) {
+        const data = await response.json();
+        setModules(data.modules || []);
+      }
+    } catch (error) {
+      console.error('Error fetching modules:', error);
+    }
+  };
+
+  const fetchChapters = async (moduleId: string) => {
+    try {
+      const response = await fetch(`/api/modules/${moduleId}/chapters`, { credentials: 'include' });
+      if (response.ok) {
+        const data = await response.json();
+        // Filter for video chapters only
+        setChapters((data.chapters || []).filter((c: any) => c.type === 'video'));
+      }
+    } catch (error) {
+      console.error('Error fetching chapters:', error);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedChapter || !title) return;
+
+    try {
+      const response = await fetch('/api/daily-videos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          chapterId: selectedChapter,
+          title,
+          description,
+          day: parseInt(day.toString()),
+        }),
+      });
+
+      if (response.ok) {
+        alert('Daily video configured successfully');
+        setTitle('');
+        setDescription('');
+        fetchData(); // Refresh list
+      } else {
+        alert('Failed to configure daily video');
+      }
+    } catch (error) {
+      console.error('Error configuring daily video:', error);
+      alert('Failed to configure daily video');
+    }
+  };
+
+  return (
+    <div className="p-8 overflow-y-auto h-full">
+      <header className="mb-10">
+        <h2 className="text-3xl font-bold text-white tracking-tight">Daily Video Manager</h2>
+        <p className="text-slate-400 mt-2 text-sm">Configure daily video rotation for active students</p>
+      </header>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Configuration Form */}
+        <div className="lg:col-span-1 bg-[#161922] border border-slate-800/60 rounded-2xl p-6 h-fit">
+          <h3 className="font-bold text-white mb-6">Add New Daily Video</h3>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block text-xs font-bold text-slate-400 mb-1">Select Course</label>
+              <select
+                value={selectedCourse}
+                onChange={(e) => setSelectedCourse(e.target.value)}
+                className="w-full px-3 py-2 bg-[#1a1d26] border border-slate-800 rounded-lg text-white text-sm focus:outline-none focus:border-purple-500"
+                required
+              >
+                <option value="">Select a course...</option>
+                {courses.map(c => (
+                  <option key={c.id} value={c.id}>{c.title}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-400 mb-1">Select Module</label>
+              <select
+                value={selectedModule}
+                onChange={(e) => setSelectedModule(e.target.value)}
+                className="w-full px-3 py-2 bg-[#1a1d26] border border-slate-800 rounded-lg text-white text-sm focus:outline-none focus:border-purple-500"
+                disabled={!selectedCourse}
+                required
+              >
+                <option value="">Select a module...</option>
+                {modules.map(m => (
+                  <option key={m.id} value={m.id}>{m.title}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-400 mb-1">Select Video Chapter</label>
+              <select
+                value={selectedChapter}
+                onChange={(e) => setSelectedChapter(e.target.value)}
+                className="w-full px-3 py-2 bg-[#1a1d26] border border-slate-800 rounded-lg text-white text-sm focus:outline-none focus:border-purple-500"
+                disabled={!selectedModule}
+                required
+              >
+                <option value="">Select a video chapter...</option>
+                {chapters.map(c => (
+                  <option key={c.id} value={c.id}>{c.title}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-400 mb-1">Day Number (0-365)</label>
+              <input
+                type="number"
+                min="0"
+                max="365"
+                value={day}
+                onChange={(e) => setDay(parseInt(e.target.value))}
+                className="w-full px-3 py-2 bg-[#1a1d26] border border-slate-800 rounded-lg text-white text-sm focus:outline-none focus:border-purple-500"
+                required
+              />
+              <p className="text-[10px] text-slate-500 mt-1">Rotation based on day of year</p>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-400 mb-1">Display Title</label>
+              <input
+                type="text"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                className="w-full px-3 py-2 bg-[#1a1d26] border border-slate-800 rounded-lg text-white text-sm focus:outline-none focus:border-purple-500"
+                placeholder="e.g. Daily Tip: Cardiac Care"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-400 mb-1">Description</label>
+              <textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                className="w-full px-3 py-2 bg-[#1a1d26] border border-slate-800 rounded-lg text-white text-sm focus:outline-none focus:border-purple-500 h-20 resize-none"
+                placeholder="Brief description for the dashboard card..."
+              />
+            </div>
+
+            <button
+              type="submit"
+              className="w-full py-2.5 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-lg transition-colors"
+            >
+              Save Configuration
+            </button>
+          </form>
+        </div>
+
+        {/* List */}
+        <div className="lg:col-span-2 bg-[#161922] border border-slate-800/60 rounded-2xl overflow-hidden">
+          <div className="p-6 border-b border-slate-800/60">
+            <h3 className="font-bold text-white">Scheduled Videos</h3>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-[#1a1d26] text-slate-400 text-xs uppercase font-bold">
+                <tr>
+                  <th className="p-4">Day</th>
+                  <th className="p-4">Title</th>
+                  <th className="p-4">Source Chapter</th>
+                  <th className="p-4 text-center">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-800/50">
+                {videos.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="p-8 text-center text-slate-400">
+                      No daily videos configured
+                    </td>
+                  </tr>
+                ) : (
+                  videos.map((video) => (
+                    <tr key={video.id} className="hover:bg-[#1a1d26] transition-colors">
+                      <td className="p-4 font-mono text-purple-400">Day {video.day}</td>
+                      <td className="p-4 font-medium text-white">{video.title}</td>
+                      <td className="p-4 text-slate-400">{video.chapterTitle}</td>
+                      <td className="p-4 text-center">
+                        <span className={`px-2 py-1 rounded text-xs font-bold ${video.isActive ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'}`}>
+                          {video.isActive ? 'Active' : 'Inactive'}
+                        </span>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// --- COURSE BUILDER MODULE ---
+const CourseList = ({ nav, setActive }: { nav: (mod: string) => void; setActive: (item: any) => void }) => {
+  const [coursesList, setCoursesList] = React.useState<any[]>([]);
+  const [isLoading, setIsLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    fetchCourses();
+  }, []);
+
+  const fetchCourses = async () => {
+    try {
+      const response = await fetch('/api/courses', { credentials: 'include' });
+      if (response.ok) {
+        const data = await response.json();
+        const mappedCourses = (data.courses || []).map((c: any) => ({
+          ...c,
+          author: c.instructor,
+          status: c.status === 'published' ? 'Active' : 'Draft'
+        }));
+        setCoursesList(mappedCourses);
+      }
+    } catch (error) {
+      console.error('Error fetching courses:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleDelete = async (id: number) => {
+    if (!confirm('Are you sure you want to delete this course?')) return;
+    try {
+      const response = await fetch(`/api/courses/${id}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      if (response.ok) {
+        fetchCourses();
+      } else {
+        alert('Failed to delete course');
+      }
+    } catch (error) {
+      console.error('Error deleting course:', error);
+    }
+  };
+
+  return (
+    <div className="p-8 h-full flex flex-col">
+      <div className="flex justify-between items-center mb-8">
+        <div>
+          <h2 className="text-3xl font-bold text-white">Courses</h2>
+          <p className="text-slate-400 mt-1 text-sm">Manage curriculum and learning paths.</p>
+        </div>
+        <button onClick={() => { setActive(null); nav('course_editor'); }} className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-2.5 rounded-lg font-bold text-sm shadow-lg shadow-purple-500/20 hover:shadow-purple-500/40 transition-all flex items-center gap-2">
+          <Plus size={18} /> Create Course
+        </button>
+      </div>
+      <div className="bg-[#161922] border border-slate-800/60 rounded-2xl overflow-hidden flex-1">
+        {isLoading ? (
+          <div className="flex items-center justify-center h-full">
+            <div className="animate-spin rounded-full h-12 w-12 border-4 border-purple-600 border-t-transparent"></div>
+          </div>
+        ) : (
+          <table className="w-full text-left text-sm">
+            <thead className="bg-[#1a1d26] text-slate-400 text-xs uppercase font-bold">
+              <tr><th className="p-6">Course Name</th><th className="p-6">Instructor</th><th className="p-6">Status</th><th className="p-6 text-right">Actions</th></tr>
+            </thead>
+            <tbody className="divide-y divide-slate-800/50 text-slate-300">
+              {coursesList.map((c, i) => (
+                <tr key={i} className="hover:bg-[#1a1d26] transition-colors">
+                  <td className="p-6 font-medium text-white flex items-center gap-3">
+                    <div className="w-8 h-8 rounded bg-slate-800 flex items-center justify-center text-slate-500"><BookOpen size={16} /></div>
+                    {c.title}
+                  </td>
+                  <td className="p-6">{c.author}</td>
+                  <td className="p-6"><span className={`px-2 py-1 rounded text-xs font-bold ${c.status === 'Active' ? 'bg-green-500/10 text-green-400' : 'bg-slate-700/30 text-slate-400'}`}>{c.status}</span></td>
+                  <td className="p-6 text-right">
+                    <button onClick={() => { setActive(c); nav('course_editor'); }} className="text-purple-400 hover:text-purple-300 font-semibold mr-4">Edit</button>
+                    <button onClick={() => handleDelete(c.id)} className="text-red-400 hover:text-red-300 font-semibold">Delete</button>
+                  </td>
+                </tr>
+              ))}
+              {coursesList.length === 0 && (
+                <tr><td colSpan={4} className="p-8 text-center text-slate-500">No courses found</td></tr>
+              )}
+            </tbody>
+          </table>
+        )}
+      </div>
+    </div>
+  );
+};
+
+const CourseBuilder = ({ course, back }: { course: any; back: () => void }) => {
+  const [modules, setModules] = React.useState<any[]>([]);
+  const [title, setTitle] = React.useState(course?.title || '');
+  const [description, setDescription] = React.useState(course?.description || '');
+  const [instructor, setInstructor] = React.useState(course?.instructor || 'Nurse Pro Academy');
+  const [pricing, setPricing] = React.useState(course?.pricing || 0);
+  const [isPublished, setIsPublished] = React.useState(course?.status === 'published' || course?.status === 'Active');
+  const [isDefaultUnlocked, setIsDefaultUnlocked] = React.useState(course?.isDefaultUnlocked || false);
+  const [isRequestable, setIsRequestable] = React.useState(course?.isRequestable !== false);
+  const [courseId, setCourseId] = React.useState(course?.id || null);
+  const [isLoading, setIsLoading] = React.useState(!!course?.id);
+
+  React.useEffect(() => {
+    if (course?.id) {
+      fetchModules(course.id);
+    }
+  }, [course]);
+
+  const fetchModules = async (id: number) => {
+    try {
+      const response = await fetch(`/api/courses/${id}/modules`, { credentials: 'include' });
+      if (response.ok) {
+        const data = await response.json();
+        const modulesWithChapters = await Promise.all(data.modules.map(async (m: any) => {
+          const chapRes = await fetch(`/api/modules/${m.id}/chapters`, { credentials: 'include' });
+          const chapData = await chapRes.json();
+          return { ...m, items: chapData.chapters || [] };
+        }));
+        setModules(modulesWithChapters);
+      }
+    } catch (error) {
+      console.error('Error fetching modules:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSaveCourse = async () => {
+    try {
+      const method = courseId ? 'PATCH' : 'POST';
+      const url = courseId ? `/api/courses/${courseId}` : '/api/courses';
+
+      const response = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          title,
+          description,
+          instructor,
+          pricing: parseFloat(pricing.toString()),
+          status: isPublished ? 'published' : 'draft',
+          isDefaultUnlocked,
+          isRequestable,
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (!courseId) {
+          setCourseId(data.course.id);
+          alert('Course created! You can now add modules.');
+        } else {
+          alert('Course updated successfully');
+        }
+      } else {
+        alert('Failed to save course');
+      }
+    } catch (error) {
+      console.error('Error saving course:', error);
+      alert('Failed to save course');
+    }
+  };
+
+  const addModule = async () => {
+    if (!courseId) {
+      alert('Please save the course first');
+      return;
+    }
+
+    const title = prompt('Enter module title:');
+    if (!title) return;
+
+    try {
+      const response = await fetch(`/api/courses/${courseId}/modules`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          title,
+          order: modules.length,
+          duration: 0,
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setModules([...modules, { ...data.module, items: [] }]);
+      }
+    } catch (error) {
+      console.error('Error adding module:', error);
+    }
+  };
+
+  const addItem = async (modId: number, type: string) => {
+    const title = prompt(`Enter ${type} title:`);
+    if (!title) return;
+
+    let contentData: any = { title, type, order: 999 };
+
+    if (type === 'video') {
+      const url = prompt('Enter video URL (YouTube/Vimeo):');
+      if (!url) return;
+      contentData.videoUrl = url;
+      contentData.videoProvider = url.includes('vimeo') ? 'vimeo' : 'youtube';
+      contentData.videoDuration = 15;
+    } else if (type === 'textbook') {
+      contentData.textbookContent = '<p>Enter content here...</p>';
+      contentData.readingTime = 10;
+    } else if (type === 'mcq') {
+      contentData.mcqData = '[]';
+    }
+
+    try {
+      const response = await fetch(`/api/modules/${modId}/chapters`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(contentData),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setModules(modules.map((m: any) => m.id === modId ? {
+          ...m, items: [...m.items, data.chapter]
+        } : m));
+      }
+    } catch (error) {
+      console.error('Error adding chapter:', error);
+    }
+  };
+
+  const deleteChapter = async (chapterId: number, modId: number) => {
+    if (!confirm('Delete this chapter?')) return;
+    try {
+      await fetch(`/api/chapters/${chapterId}`, { method: 'DELETE', credentials: 'include' });
+      setModules(modules.map((m: any) => m.id === modId ? {
+        ...m, items: m.items.filter((i: any) => i.id !== chapterId)
+      } : m));
+    } catch (error) {
+      console.error('Error deleting chapter:', error);
+    }
+  };
+
+  return (
+    <div className="flex flex-col h-full">
+      <div className="h-16 bg-[#161922] border-b border-slate-800/60 flex items-center justify-between px-6">
+        <div className="flex items-center gap-4">
+          <button onClick={back} className="p-2 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white"><ArrowLeft size={20} /></button>
+          <h3 className="font-bold text-white">{title || "New Course"}</h3>
+        </div>
+        <button onClick={handleSaveCourse} className="bg-white text-slate-900 px-4 py-1.5 rounded-lg text-xs font-bold">Save Changes</button>
+      </div>
+
+      <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
+        <div className="max-w-4xl mx-auto space-y-6">
+          {/* Course Settings */}
+          <div className="bg-[#161922] border border-slate-800/60 rounded-xl p-6 space-y-4">
+            <h4 className="font-bold text-white mb-4">Course Settings</h4>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-400 mb-1">Title</label>
+                <input value={title} onChange={e => setTitle(e.target.value)} className="w-full px-3 py-2 bg-[#1a1d26] border border-slate-800 rounded-lg text-white text-sm" />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-400 mb-1">Instructor</label>
+                <input value={instructor} onChange={e => setInstructor(e.target.value)} className="w-full px-3 py-2 bg-[#1a1d26] border border-slate-800 rounded-lg text-white text-sm" />
+              </div>
+              <div className="col-span-2">
+                <label className="block text-xs font-bold text-slate-400 mb-1">Description</label>
+                <textarea value={description} onChange={e => setDescription(e.target.value)} className="w-full px-3 py-2 bg-[#1a1d26] border border-slate-800 rounded-lg text-white text-sm h-20" />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-400 mb-1">Pricing (0 for Free)</label>
+                <input type="number" value={pricing} onChange={e => setPricing(parseFloat(e.target.value))} className="w-full px-3 py-2 bg-[#1a1d26] border border-slate-800 rounded-lg text-white text-sm" />
+              </div>
+              <div className="flex items-center gap-4 mt-6 col-span-2">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" checked={isPublished} onChange={e => setIsPublished(e.target.checked)} className="rounded bg-slate-800 border-slate-600" />
+                  <span className="text-sm text-white">Published</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" checked={isDefaultUnlocked} onChange={e => setIsDefaultUnlocked(e.target.checked)} className="rounded bg-slate-800 border-slate-600" />
+                  <span className="text-sm text-white">Default Unlocked</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" checked={isRequestable} onChange={e => setIsRequestable(e.target.checked)} className="rounded bg-slate-800 border-slate-600" />
+                  <span className="text-sm text-white">Allow Requests</span>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          {/* Modules */}
+          {modules.map((mod: any, i: number) => (
+            <div key={mod.id} className="bg-[#161922] border border-slate-800/60 rounded-xl overflow-hidden">
+              <div className="p-4 bg-[#1a1d26] border-b border-slate-800/60 flex justify-between items-center group">
+                <div className="flex items-center gap-3">
+                  <GripVertical size={16} className="text-slate-600 cursor-grab" />
+                  <h4 className="font-bold text-white">Module {i + 1}: {mod.title}</h4>
+                </div>
+                <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button className="p-1.5 hover:bg-slate-700 rounded text-slate-400"><Edit3 size={14} /></button>
+                  <button className="p-1.5 hover:bg-slate-700 rounded text-red-400"><Trash2 size={14} /></button>
+                </div>
+              </div>
+              <div className="p-4 space-y-2">
+                {mod.items.length === 0 && <div className="text-center py-8 border-2 border-dashed border-slate-800 rounded-lg text-slate-500 text-sm">Drop content here</div>}
+                {mod.items.map((item: any) => (
+                  <div key={item.id} className="flex items-center p-3 bg-[#13151d] border border-slate-800/50 rounded-lg hover:border-purple-500/30 transition-colors">
+                    <div className={`mr-3 p-2 rounded-lg ${item.type === 'mcq' || item.type === 'qbank' ? 'bg-purple-500/10 text-purple-400' : 'bg-blue-500/10 text-blue-400'}`}>
+                      {item.type === 'video' ? <Video size={16} /> : item.type === 'mcq' || item.type === 'qbank' ? <Zap size={16} /> : <FileText size={16} />}
+                    </div>
+                    <span className="text-sm font-medium text-slate-300">{item.title}</span>
+                    <div className="ml-auto flex items-center gap-2">
+                      <button onClick={() => deleteChapter(item.id, mod.id)} className="p-1 text-slate-500 hover:text-red-400"><Trash2 size={14} /></button>
+                    </div>
+                  </div>
+                ))}
+                <div className="flex justify-center gap-3 pt-4 mt-2 border-t border-slate-800/50">
+                  <QuickAddBtn icon={<Video size={14} />} label="Video" onClick={() => addItem(mod.id, 'video')} active={false} />
+                  <QuickAddBtn icon={<FileText size={14} />} label="Reading" onClick={() => addItem(mod.id, 'textbook')} active={false} />
+                  <QuickAddBtn icon={<Zap size={14} />} label="Quiz" active={true} onClick={() => addItem(mod.id, 'mcq')} />
+                </div>
+              </div>
+            </div>
+          ))}
+
+          <button onClick={addModule} className="w-full py-4 border-2 border-dashed border-slate-800 rounded-xl text-slate-500 font-bold hover:text-white hover:border-slate-600 transition-all flex flex-col items-center gap-2">
+            <Plus size={24} /> Add Module
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// --- Q-BANK LIST (MAIN) ---
+const QBankList = ({ nav, setActive }: { nav: (mod: string) => void; setActive: (item: any) => void }) => {
+  const [questions, setQuestions] = React.useState<any[]>([]);
+  const [isLoading, setIsLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    fetchQuestions();
+  }, []);
+
+  const fetchQuestions = async () => {
+    try {
+      const response = await fetch('/api/qbank?limit=50', { credentials: 'include' });
+      if (response.ok) {
+        const data = await response.json();
+        setQuestions(data.questions || []);
+      }
+    } catch (error) {
+      console.error('Error fetching questions:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <div className="p-8 h-full flex flex-col">
+      <div className="flex justify-between items-center mb-8">
+        <div>
+          <h2 className="text-3xl font-bold text-white">Question Bank</h2>
+          <p className="text-slate-400 mt-1 text-sm">Manage Classic and Next Gen (NGN) Items.</p>
+        </div>
+        <div className="flex gap-3">
+          <input className="bg-[#161922] border border-slate-800 text-slate-300 px-4 py-2.5 rounded-lg text-sm focus:border-purple-500 outline-none w-64" placeholder="Search ID or Content..." />
+          <button onClick={() => { setActive({ id: null, category: 'classic', type: 'standard' }); nav('qbank_editor'); }} className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-6 py-2.5 rounded-lg font-bold text-sm flex items-center gap-2 hover:shadow-lg hover:shadow-purple-500/20 transition-all">
+            <Plus size={18} /> Add Item
+          </button>
+        </div>
+      </div>
+
+      <div className="bg-[#161922] border border-slate-800/60 rounded-2xl overflow-hidden flex-1 flex flex-col">
+        <div className="grid grid-cols-12 bg-[#1a1d26] p-4 text-xs font-bold text-slate-500 uppercase border-b border-slate-800/60">
+          <div className="col-span-1">ID</div>
+          <div className="col-span-5">Stem Preview</div>
+          <div className="col-span-2">Category</div>
+          <div className="col-span-2">Type</div>
+          <div className="col-span-2 text-right">Actions</div>
+        </div>
+        <div className="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-1">
+          {isLoading ? (
+            <div className="flex items-center justify-center py-20">
+              <div className="animate-spin rounded-full h-12 w-12 border-4 border-purple-600 border-t-transparent"></div>
+            </div>
+          ) : questions.length === 0 ? (
+            <div className="text-center py-20 text-slate-400">
+              <p>No questions found. Click "Add Item" to create your first question.</p>
+            </div>
+          ) : (
+            questions.map((q, i) => (
+              <div key={i} className="grid grid-cols-12 p-3 hover:bg-[#1f222e] rounded-lg items-center transition-colors group cursor-pointer border border-transparent hover:border-slate-800" onClick={() => { setActive(q); nav('qbank_editor'); }}>
+                <div className="col-span-1 text-slate-500 font-mono text-xs">{q.id}</div>
+                <div className="col-span-5 text-slate-300 font-medium truncate pr-4">{q.stem}</div>
+                <div className="col-span-2">
+                  <span className={`text-[10px] font-bold px-2 py-1 rounded uppercase ${q.category === 'ngn' ? 'bg-purple-500/10 text-purple-400' : 'bg-blue-500/10 text-blue-400'}`}>
+                    {q.category === 'ngn' ? 'NGN' : 'Classic'}
+                  </span>
+                </div>
+                <div className="col-span-2 text-xs text-slate-400">{q.label}</div>
+                <div className="col-span-2 text-right opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button className="text-xs font-bold text-white bg-slate-700 px-3 py-1 rounded hover:bg-purple-600">Edit</button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// --- BLOG MANAGER MODULE ---
+const BlogManager = ({ nav }: { nav: (mod: string) => void }) => {
+  const [blogs, setBlogs] = React.useState<any[]>([]);
+  const [isLoading, setIsLoading] = React.useState(true);
+  const [editingBlog, setEditingBlog] = React.useState<any | null>(null);
+  const [title, setTitle] = React.useState('');
+  const [slug, setSlug] = React.useState('');
+  const [content, setContent] = React.useState('');
+  const [author, setAuthor] = React.useState('');
+  const [tags, setTags] = React.useState('');
+  const [status, setStatus] = React.useState('draft');
+
+  React.useEffect(() => {
+    fetchBlogs();
+  }, []);
+
+  const fetchBlogs = async () => {
+    try {
+      // Since blog API is public in student app, we'll use that or create a new one in admin
+      // For now, we'll assume there's an admin endpoint or use direct DB access via new API
+      // Let's create the API endpoint first
+      const response = await fetch('/api/blogs', { credentials: 'include' });
+      if (response.ok) {
+        const data = await response.json();
+        setBlogs(data.blogs || []);
+      }
+    } catch (error) {
+      console.error('Error fetching blogs:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const method = editingBlog ? 'PATCH' : 'POST';
+      const url = editingBlog ? `/api/blogs/${editingBlog.id}` : '/api/blogs';
+
+      const response = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          title,
+          slug,
+          content,
+          author,
+          tags: tags.split(',').map(t => t.trim()),
+          status,
+        }),
+      });
+
+      if (response.ok) {
+        alert(`Blog post ${editingBlog ? 'updated' : 'created'} successfully`);
+        setEditingBlog(null);
+        resetForm();
+        fetchBlogs();
+      } else {
+        alert('Failed to save blog post');
+      }
+    } catch (error) {
+      console.error('Error saving blog:', error);
+      alert('Failed to save blog post');
+    }
+  };
+
+  const handleDelete = async (id: number) => {
+    if (!confirm('Are you sure you want to delete this post?')) return;
+
+    try {
+      const response = await fetch(`/api/blogs/${id}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+
+      if (response.ok) {
+        fetchBlogs();
+      } else {
+        alert('Failed to delete blog post');
+      }
+    } catch (error) {
+      console.error('Error deleting blog:', error);
+    }
+  };
+
+  const handleEdit = (blog: any) => {
+    setEditingBlog(blog);
+    setTitle(blog.title);
+    setSlug(blog.slug);
+    setContent(blog.content);
+    setAuthor(blog.author);
+    setTags(Array.isArray(blog.tags) ? blog.tags.join(', ') : JSON.parse(blog.tags).join(', '));
+    setStatus(blog.status);
+  };
+
+  const resetForm = () => {
+    setTitle('');
+    setSlug('');
+    setContent('');
+    setAuthor('');
+    setTags('');
+    setStatus('draft');
+    setEditingBlog(null);
+  };
+
+  return (
+    <div className="p-8 overflow-y-auto h-full">
+      <header className="mb-10 flex justify-between items-end">
+        <div>
+          <h2 className="text-3xl font-bold text-white tracking-tight">Blog Manager</h2>
+          <p className="text-slate-400 mt-2 text-sm">Create and manage blog posts</p>
+        </div>
+        {editingBlog && (
+          <button onClick={resetForm} className="text-slate-400 hover:text-white text-sm font-bold">
+            Cancel Edit
+          </button>
+        )}
+      </header>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Editor Form */}
+        <div className="lg:col-span-2 bg-[#161922] border border-slate-800/60 rounded-2xl p-6">
+          <h3 className="font-bold text-white mb-6">{editingBlog ? 'Edit Post' : 'New Post'}</h3>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-400 mb-1">Title</label>
+                <input
+                  type="text"
+                  value={title}
+                  onChange={(e) => {
+                    setTitle(e.target.value);
+                    if (!editingBlog) setSlug(e.target.value.toLowerCase().replace(/ /g, '-').replace(/[^\w-]+/g, ''));
+                  }}
+                  className="w-full px-3 py-2 bg-[#1a1d26] border border-slate-800 rounded-lg text-white text-sm focus:outline-none focus:border-purple-500"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-400 mb-1">Slug</label>
+                <input
+                  type="text"
+                  value={slug}
+                  onChange={(e) => setSlug(e.target.value)}
+                  className="w-full px-3 py-2 bg-[#1a1d26] border border-slate-800 rounded-lg text-white text-sm focus:outline-none focus:border-purple-500"
+                  required
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-400 mb-1">Content</label>
+              <textarea
+                value={content}
+                onChange={(e) => setContent(e.target.value)}
+                className="w-full px-3 py-2 bg-[#1a1d26] border border-slate-800 rounded-lg text-white text-sm focus:outline-none focus:border-purple-500 h-64 font-mono"
+                placeholder="# Markdown supported..."
+                required
+              />
+            </div>
+
+            <div className="grid grid-cols-3 gap-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-400 mb-1">Author</label>
+                <input
+                  type="text"
+                  value={author}
+                  onChange={(e) => setAuthor(e.target.value)}
+                  className="w-full px-3 py-2 bg-[#1a1d26] border border-slate-800 rounded-lg text-white text-sm focus:outline-none focus:border-purple-500"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-400 mb-1">Tags (comma sep)</label>
+                <input
+                  type="text"
+                  value={tags}
+                  onChange={(e) => setTags(e.target.value)}
+                  className="w-full px-3 py-2 bg-[#1a1d26] border border-slate-800 rounded-lg text-white text-sm focus:outline-none focus:border-purple-500"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-400 mb-1">Status</label>
+                <select
+                  value={status}
+                  onChange={(e) => setStatus(e.target.value)}
+                  className="w-full px-3 py-2 bg-[#1a1d26] border border-slate-800 rounded-lg text-white text-sm focus:outline-none focus:border-purple-500"
+                >
+                  <option value="draft">Draft</option>
+                  <option value="published">Published</option>
+                </select>
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              className="w-full py-2.5 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-lg transition-colors"
+            >
+              {editingBlog ? 'Update Post' : 'Create Post'}
+            </button>
+          </form>
+        </div>
+
+        {/* List */}
+        <div className="bg-[#161922] border border-slate-800/60 rounded-2xl overflow-hidden flex flex-col h-full">
+          <div className="p-4 border-b border-slate-800/60 bg-[#1a1d26]">
+            <h3 className="font-bold text-white">All Posts</h3>
+          </div>
+          <div className="flex-1 overflow-y-auto p-2 space-y-2">
+            {isLoading ? (
+              <p className="text-center text-slate-500 py-4">Loading...</p>
+            ) : blogs.length === 0 ? (
+              <p className="text-center text-slate-500 py-4">No posts found</p>
+            ) : (
+              blogs.map(blog => (
+                <div key={blog.id} className="p-3 bg-[#1a1d26] border border-slate-800/40 rounded-lg hover:border-purple-500/30 transition-all">
+                  <div className="flex justify-between items-start mb-2">
+                    <h4 className="font-bold text-white text-sm line-clamp-1">{blog.title}</h4>
+                    <span className={`text-[10px] px-2 py-0.5 rounded font-bold ${blog.status === 'published' ? 'bg-green-500/10 text-green-400' : 'bg-yellow-500/10 text-yellow-400'}`}>
+                      {blog.status}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center mt-2">
+                    <span className="text-xs text-slate-500">{new Date(blog.createdAt).toLocaleDateString()}</span>
+                    <div className="flex gap-2">
+                      <button onClick={() => handleEdit(blog)} className="text-blue-400 hover:text-blue-300 text-xs font-bold">Edit</button>
+                      <button onClick={() => handleDelete(blog.id)} className="text-red-400 hover:text-red-300 text-xs font-bold">Delete</button>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// --- QUIZ MANAGER MODULE ---
+const QuizManager = ({ nav }: { nav: (mod: string) => void }) => {
+  const [courses, setCourses] = React.useState<any[]>([]);
+  const [selectedCourse, setSelectedCourse] = React.useState<string>('');
+  const [modules, setModules] = React.useState<any[]>([]);
+  const [selectedModule, setSelectedModule] = React.useState<string>('');
+  const [chapters, setChapters] = React.useState<any[]>([]);
+  const [selectedChapter, setSelectedChapter] = React.useState<string>('');
+  const [quizzes, setQuizzes] = React.useState<any[]>([]);
+  const [title, setTitle] = React.useState('');
+  const [passMark, setPassMark] = React.useState(70);
+  const [timeLimit, setTimeLimit] = React.useState(30);
+  const [questions, setQuestions] = React.useState<any[]>([]);
+  const [newQuestion, setNewQuestion] = React.useState({
+    question: '',
+    options: { a: '', b: '', c: '', d: '' },
+    correctAnswer: 'a',
+    explanation: ''
+  });
+
+  React.useEffect(() => {
+    fetchCourses();
+  }, []);
+
+  React.useEffect(() => {
+    if (selectedCourse) fetchModules(selectedCourse);
+  }, [selectedCourse]);
+
+  React.useEffect(() => {
+    if (selectedModule) fetchChapters(selectedModule);
+  }, [selectedModule]);
+
+  React.useEffect(() => {
+    if (selectedChapter) fetchQuizzes(selectedChapter);
+  }, [selectedChapter]);
+
+  const fetchCourses = async () => {
+    try {
+      const response = await fetch('/api/courses', { credentials: 'include' });
+      if (response.ok) {
+        const data = await response.json();
+        setCourses(data.courses || []);
+      }
+    } catch (error) {
+      console.error('Error fetching courses:', error);
+    }
+  };
+
+  const fetchModules = async (courseId: string) => {
+    try {
+      const response = await fetch(`/api/courses/${courseId}/modules`, { credentials: 'include' });
+      if (response.ok) {
+        const data = await response.json();
+        setModules(data.modules || []);
+      }
+    } catch (error) {
+      console.error('Error fetching modules:', error);
+    }
+  };
+
+  const fetchChapters = async (moduleId: string) => {
+    try {
+      const response = await fetch(`/api/modules/${moduleId}/chapters`, { credentials: 'include' });
+      if (response.ok) {
+        const data = await response.json();
+        setChapters(data.chapters || []);
+      }
+    } catch (error) {
+      console.error('Error fetching chapters:', error);
+    }
+  };
+
+  const fetchQuizzes = async (chapterId: string) => {
+    try {
+      const response = await fetch(`/api/quizzes?chapterId=${chapterId}`, { credentials: 'include' });
+      if (response.ok) {
+        const data = await response.json();
+        setQuizzes(data.quizzes || []);
+      }
+    } catch (error) {
+      console.error('Error fetching quizzes:', error);
+    }
+  };
+
+  const addQuestion = () => {
+    if (!newQuestion.question || !newQuestion.options.a || !newQuestion.options.b) return;
+    setQuestions([...questions, { ...newQuestion }]);
+    setNewQuestion({
+      question: '',
+      options: { a: '', b: '', c: '', d: '' },
+      correctAnswer: 'a',
+      explanation: ''
+    });
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedChapter || questions.length === 0) return;
+
+    try {
+      const response = await fetch('/api/quizzes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          chapterId: selectedChapter,
+          title,
+          passMark,
+          timeLimit,
+          questions
+        }),
+      });
+
+      if (response.ok) {
+        alert('Quiz created successfully');
+        setTitle('');
+        setQuestions([]);
+        fetchQuizzes(selectedChapter);
+      } else {
+        alert('Failed to create quiz');
+      }
+    } catch (error) {
+      console.error('Error creating quiz:', error);
+      alert('Failed to create quiz');
+    }
+  };
+
+  return (
+    <div className="p-8 overflow-y-auto h-full">
+      <header className="mb-10">
+        <h2 className="text-3xl font-bold text-white tracking-tight">Quiz Manager</h2>
+        <p className="text-slate-400 mt-2 text-sm">Create assessments for your chapters</p>
+      </header>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Quiz Form */}
+        <div className="lg:col-span-2 bg-[#161922] border border-slate-800/60 rounded-2xl p-6">
+          <h3 className="font-bold text-white mb-6">Create New Quiz</h3>
+          <div className="grid grid-cols-3 gap-4 mb-6">
+            <select
+              value={selectedCourse}
+              onChange={(e) => setSelectedCourse(e.target.value)}
+              className="w-full px-3 py-2 bg-[#1a1d26] border border-slate-800 rounded-lg text-white text-sm"
+            >
+              <option value="">Select Course...</option>
+              {courses.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
+            </select>
+            <select
+              value={selectedModule}
+              onChange={(e) => setSelectedModule(e.target.value)}
+              disabled={!selectedCourse}
+              className="w-full px-3 py-2 bg-[#1a1d26] border border-slate-800 rounded-lg text-white text-sm"
+            >
+              <option value="">Select Module...</option>
+              {modules.map(m => <option key={m.id} value={m.id}>{m.title}</option>)}
+            </select>
+            <select
+              value={selectedChapter}
+              onChange={(e) => setSelectedChapter(e.target.value)}
+              disabled={!selectedModule}
+              className="w-full px-3 py-2 bg-[#1a1d26] border border-slate-800 rounded-lg text-white text-sm"
+            >
+              <option value="">Select Chapter...</option>
+              {chapters.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
+            </select>
+          </div>
+
+          {selectedChapter && (
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div className="grid grid-cols-3 gap-4">
+                <div className="col-span-3">
+                  <label className="block text-xs font-bold text-slate-400 mb-1">Quiz Title</label>
+                  <input
+                    type="text"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    className="w-full px-3 py-2 bg-[#1a1d26] border border-slate-800 rounded-lg text-white text-sm"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-400 mb-1">Pass Mark (%)</label>
+                  <input
+                    type="number"
+                    value={passMark}
+                    onChange={(e) => setPassMark(parseInt(e.target.value))}
+                    className="w-full px-3 py-2 bg-[#1a1d26] border border-slate-800 rounded-lg text-white text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-400 mb-1">Time Limit (min)</label>
+                  <input
+                    type="number"
+                    value={timeLimit}
+                    onChange={(e) => setTimeLimit(parseInt(e.target.value))}
+                    className="w-full px-3 py-2 bg-[#1a1d26] border border-slate-800 rounded-lg text-white text-sm"
+                  />
+                </div>
+              </div>
+
+              <div className="border-t border-slate-800/60 pt-6">
+                <h4 className="font-bold text-white mb-4">Add Questions ({questions.length})</h4>
+                <div className="space-y-4">
+                  <input
+                    type="text"
+                    placeholder="Question text"
+                    value={newQuestion.question}
+                    onChange={(e) => setNewQuestion({ ...newQuestion, question: e.target.value })}
+                    className="w-full px-3 py-2 bg-[#1a1d26] border border-slate-800 rounded-lg text-white text-sm"
+                  />
+                  <div className="grid grid-cols-2 gap-4">
+                    {['a', 'b', 'c', 'd'].map((opt) => (
+                      <input
+                        key={opt}
+                        type="text"
+                        placeholder={`Option ${opt.toUpperCase()}`}
+                        value={newQuestion.options[opt as keyof typeof newQuestion.options]}
+                        onChange={(e) => setNewQuestion({
+                          ...newQuestion,
+                          options: { ...newQuestion.options, [opt]: e.target.value }
+                        })}
+                        className="w-full px-3 py-2 bg-[#1a1d26] border border-slate-800 rounded-lg text-white text-sm"
+                      />
+                    ))}
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-400 mb-1">Correct Option</label>
+                      <select
+                        value={newQuestion.correctAnswer}
+                        onChange={(e) => setNewQuestion({ ...newQuestion, correctAnswer: e.target.value })}
+                        className="w-full px-3 py-2 bg-[#1a1d26] border border-slate-800 rounded-lg text-white text-sm"
+                      >
+                        {['a', 'b', 'c', 'd'].map(opt => <option key={opt} value={opt}>Option {opt.toUpperCase()}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-400 mb-1">Explanation</label>
+                      <input
+                        type="text"
+                        value={newQuestion.explanation}
+                        onChange={(e) => setNewQuestion({ ...newQuestion, explanation: e.target.value })}
+                        className="w-full px-3 py-2 bg-[#1a1d26] border border-slate-800 rounded-lg text-white text-sm"
+                      />
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={addQuestion}
+                    className="w-full py-2 border border-purple-500/50 text-purple-400 font-bold rounded-lg hover:bg-purple-500/10"
+                  >
+                    Add Question
+                  </button>
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                className="w-full py-2.5 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-lg transition-colors"
+              >
+                Save Quiz
+              </button>
+            </form>
+          )}
+        </div>
+
+        {/* Quiz List */}
+        <div className="bg-[#161922] border border-slate-800/60 rounded-2xl p-6">
+          <h3 className="font-bold text-white mb-6">Existing Quizzes</h3>
+          <div className="space-y-3">
+            {quizzes.map(quiz => (
+              <div key={quiz.id} className="p-3 bg-[#1a1d26] border border-slate-800/40 rounded-lg">
+                <h4 className="font-bold text-white text-sm">{quiz.title}</h4>
+                <div className="flex justify-between mt-2 text-xs text-slate-500">
+                  <span>Pass: {quiz.passMark}%</span>
+                  <span>{quiz.questions?.length || 0} questions</span>
+                </div>
+              </div>
+            ))}
+            {quizzes.length === 0 && <p className="text-slate-500 text-sm text-center">No quizzes found</p>}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// --- UNIVERSAL QUESTION EDITOR (THE CORE) ---
+const UniversalQuestionEditor = ({ question, back }: { question: any; back: () => void }) => {
+  const [category, setCategory] = useState(question?.category || 'classic');
+  const [type, setType] = useState(question?.type || 'standard');
+  const [activeStep, setActiveStep] = useState(1);
+  const [activeTab, setActiveTab] = useState('scenario');
+
+  // When category changes, reset type to first available in that category
+  const handleCategoryChange = (newCat: string) => {
+    setCategory(newCat);
+    const mode = QUESTION_MODES[newCat.toUpperCase() as keyof typeof QUESTION_MODES];
+    if (mode && mode.types.length > 0) {
+      setType(mode.types[0].id);
+    }
+  };
+
+  // Render specific editor based on type
+  const renderEditor = () => {
+    switch (type) {
+      case 'bowtie': return <BowTieEditor />;
+      case 'casestudy': return <CaseStudyEditor step={activeStep} setStep={setActiveStep} />;
+      case 'matrix': return <MatrixEditor />;
+      case 'trend': return <TrendEditor />;
+      case 'sata_classic': return <StandardEditor type="checkbox" />;
+      case 'standard': return <StandardEditor type="radio" />;
+      default: return <StandardEditor type="radio" />;
+    }
+  };
+
+  return (
+    <div className="flex flex-col h-full bg-[#0b0d12]">
+      {/* EDITOR HEADER */}
+      <div className="h-20 bg-[#161922] border-b border-slate-800/60 flex items-center justify-between px-6 z-20">
+        <div className="flex items-center gap-4">
+          <button onClick={back} className="p-2 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white"><ArrowLeft size={20} /></button>
+          <div>
+            <h2 className="font-bold text-white text-lg">Question Editor</h2>
+            <div className="flex items-center gap-3 mt-1.5">
+              {/* CATEGORY SWITCHER */}
+              <div className="flex bg-[#0b0d12] rounded-lg p-0.5 border border-slate-700/50">
+                <button
+                  onClick={() => handleCategoryChange('classic')}
+                  className={`px-3 py-0.5 text-xs font-bold rounded-md transition-all ${category === 'classic' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-500 hover:text-white'}`}
+                >
+                  CLASSIC
+                </button>
+                <button
+                  onClick={() => handleCategoryChange('ngn')}
+                  className={`px-3 py-0.5 text-xs font-bold rounded-md transition-all ${category === 'ngn' ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg' : 'text-slate-500 hover:text-white'}`}
+                >
+                  NGN MODE
+                </button>
+              </div>
+              <span className="text-slate-700">|</span>
+              {/* TYPE SELECTOR */}
+              <select
+                value={type}
+                onChange={(e) => setType(e.target.value)}
+                className="bg-[#0b0d12] border border-slate-700 text-slate-200 rounded px-2 py-1 text-xs font-medium outline-none focus:border-purple-500"
+              >
+                {(QUESTION_MODES[category.toUpperCase() as keyof typeof QUESTION_MODES]?.types || []).map((t: { id: string; label: string }) => <option key={t.id} value={t.id}>{t.label}</option>)}
+              </select>
+            </div>
+          </div>
+        </div>
+        <div className="flex gap-2">
+          <button className="text-slate-400 px-4 py-1.5 text-sm font-bold hover:text-white">Preview</button>
+          <button className="bg-white text-slate-900 px-6 py-2 rounded-lg text-sm font-bold hover:bg-slate-200 transition-colors">Save Item</button>
+        </div>
+      </div>
+
+      {/* EDITOR BODY */}
+      <div className="flex-1 overflow-hidden flex">
+        {/* LEFT: SCENARIO / STEM (Shared) */}
+        <div className="w-1/2 border-r border-slate-800/50 flex flex-col bg-[#11131a]">
+          {/* If NGN, show tabs. If Classic, just simple stem header */}
+          {category === 'ngn' ? (
+            <div className="p-3 border-b border-slate-800/50 bg-[#161922] flex gap-1">
+              {['Scenario', 'Vitals', 'Labs', 'Notes'].map(tab => (
+                <button key={tab} onClick={() => setActiveTab(tab.toLowerCase())} className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${activeTab === tab.toLowerCase() ? 'bg-slate-700 text-white' : 'text-slate-500 hover:text-slate-300'}`}>{tab}</button>
+              ))}
+            </div>
+          ) : (
+            <div className="p-4 border-b border-slate-800/50 bg-[#161922] text-xs font-bold text-blue-400 uppercase tracking-wider">
+              Question Stem
+            </div>
+          )}
+
+          <div className="flex-1 p-6 overflow-y-auto custom-scrollbar">
+            <textarea
+              className="w-full h-full bg-transparent border-none outline-none text-slate-300 text-sm resize-none leading-relaxed font-mono"
+              placeholder={category === 'ngn' ? `Enter patient ${activeTab} data here...` : "Enter the question text here..."}
+              defaultValue={category === 'ngn' ? "A 45-year-old male client is admitted..." : "Which of the following is the priority nursing intervention?"}
+            />
+          </div>
+        </div>
+
+        {/* RIGHT: INTERACTION AREA */}
+        <div className="w-1/2 flex flex-col bg-[#0b0d12]">
+          {type === 'casestudy' && (
+            <div className="p-4 border-b border-slate-800/50 bg-[#161922] flex justify-between items-center">
+              <div className="flex gap-1">
+                {CJMM_STEPS.map(s => (
+                  <button key={s.step} onClick={() => setActiveStep(s.step)} className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold transition-all ${activeStep === s.step ? 'bg-purple-600 text-white shadow-lg' : 'bg-slate-800 text-slate-500'}`}>{s.step}</button>
+                ))}
+              </div>
+              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">{CJMM_STEPS[activeStep - 1].label}</span>
+            </div>
+          )}
+
+          <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
+            {renderEditor()}
+          </div>
+
+          <div className="border-t border-slate-800/50 p-4 bg-[#11131a]">
+            <details className="group">
+              <summary className="flex items-center justify-between cursor-pointer list-none text-slate-400 text-xs font-bold uppercase tracking-wider">
+                <span>Rationale Engine</span>
+                <ChevronRight size={16} className="group-open:rotate-90 transition-transform" />
+              </summary>
+              <div className="mt-4 space-y-3 pl-2 border-l-2 border-slate-800">
+                <input className="w-full bg-[#0b0d12] border border-slate-800 rounded p-2 text-sm text-slate-300" placeholder="Correct Answer Explanation..." />
+                <input className="w-full bg-[#0b0d12] border border-slate-800 rounded p-2 text-sm text-slate-300" placeholder="Distractor Analysis..." />
+              </div>
+            </details>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// --- SUB-EDITORS ---
+
+const BowTieEditor = () => (
+  <div className="space-y-6">
+    <div className="text-center mb-6"><div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 text-blue-400 text-xs font-bold border border-blue-500/20"><Zap size={12} /> Bow-Tie Protocol</div></div>
+    <div className="grid grid-cols-3 gap-4">
+      <BowTieColumn title="Actions to Take" color="blue" count={2} center={false} />
+      <div className="relative">
+        <BowTieColumn title="Potential Condition" color="orange" count={1} center={true} />
+        <div className="absolute top-1/2 -left-3 w-6 h-6 bg-[#0b0d12] border border-slate-700 rounded-full flex items-center justify-center z-10 text-slate-500"><ChevronRight size={12} /></div>
+        <div className="absolute top-1/2 -right-3 w-6 h-6 bg-[#0b0d12] border border-slate-700 rounded-full flex items-center justify-center z-10 text-slate-500"><ChevronRight size={12} /></div>
+      </div>
+      <BowTieColumn title="Parameters to Monitor" color="green" count={2} center={false} />
+    </div>
+  </div>
+);
+
+const CaseStudyEditor = ({ step, setStep }: { step: number; setStep: (step: number) => void }) => (
+  <div className="space-y-6">
+    <div className="bg-[#161922] border border-slate-800 rounded-xl p-6 text-center border-dashed">
+      <p className="text-slate-400 text-sm mb-2">Question Type for Step {step}</p>
+      <div className="flex justify-center gap-2">
+        <button className="px-3 py-1 bg-slate-800 rounded text-xs font-bold text-white hover:bg-purple-600">Matrix</button>
+        <button className="px-3 py-1 bg-slate-800 rounded text-xs font-bold text-white hover:bg-purple-600">SATA</button>
+        <button className="px-3 py-1 bg-slate-800 rounded text-xs font-bold text-white hover:bg-purple-600">Drop-Down</button>
+      </div>
+    </div>
+    <div className="space-y-2">
+      <label className="text-xs font-bold text-slate-500 uppercase">Question Stem</label>
+      <textarea className="w-full bg-[#11131a] border border-slate-700 rounded-lg p-3 text-sm text-white h-24 resize-none" placeholder="Enter question text for this step..." />
+    </div>
+  </div>
+);
+
+const MatrixEditor = () => (
+  <div className="bg-[#161922] border border-slate-800 rounded-xl overflow-hidden">
+    <div className="grid grid-cols-4 bg-[#1a1d26] border-b border-slate-800 text-xs font-bold text-center py-3 text-slate-400">
+      <div className="text-left pl-4">Row Item</div><div>Indicated</div><div>Contraindicated</div><div>Non-Essential</div>
+    </div>
+    {[1, 2, 3, 4].map(r => (
+      <div key={r} className="grid grid-cols-4 border-b border-slate-800/50 py-2 items-center">
+        <input className="mx-2 bg-[#0b0d12] border border-slate-700 rounded px-2 py-1 text-sm text-slate-300" placeholder={`Row ${r} text...`} />
+        <div className="flex justify-center"><input type="radio" name={`r${r}`} className="accent-purple-500" /></div>
+        <div className="flex justify-center"><input type="radio" name={`r${r}`} className="accent-purple-500" /></div>
+        <div className="flex justify-center"><input type="radio" name={`r${r}`} className="accent-purple-500" /></div>
+      </div>
+    ))}
+    <button className="w-full py-2 text-xs font-bold text-purple-400 hover:bg-purple-500/10">+ Add Row</button>
+  </div>
+);
+
+const TrendEditor = () => (
+  <div className="space-y-4">
+    <p className="text-sm text-slate-400 text-center italic">"Review the data in the tabs to answer the question."</p>
+    <StandardEditor type="radio" />
+  </div>
+);
+
+const StandardEditor = ({ type }: { type: "radio" | "checkbox" }) => (
+  <div className="space-y-4">
+    <div className="space-y-2">
+      {[1, 2, 3, 4].map(i => (
+        <div key={i} className="flex items-center gap-3 p-3 border border-slate-800 rounded-lg bg-[#11131a]">
+          <div className="w-6 h-6 rounded border border-slate-600 flex items-center justify-center text-xs font-bold text-slate-500">{String.fromCharCode(64 + i)}</div>
+          <input className="flex-1 bg-transparent outline-none text-sm text-slate-300" placeholder={`Option ${i}`} />
+          <input type={type} name="opt" className="accent-blue-500 w-4 h-4" />
+        </div>
+      ))}
+    </div>
+    <button className="text-xs font-bold text-blue-400">+ Add Option</button>
+  </div>
+);
+
+// --- HELPERS ---
+const NavSection = ({ title, children }: { title: string; children: React.ReactNode }) => (
+  <div><p className="px-4 text-[10px] font-extrabold text-slate-500 uppercase tracking-widest mb-4">{title}</p><div className="space-y-1">{children}</div></div>
+);
+
+const NavItem = ({ icon, label, active, onClick, badge }: { icon: React.ReactNode; label: string; active: boolean; onClick: () => void; badge?: string | undefined }) => (
+  <button onClick={onClick} className={`w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all text-xs font-bold ${active ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg shadow-purple-500/20' : 'text-slate-400 hover:bg-[#1a1d26] hover:text-white'}`}>
+    <div className="flex items-center gap-3"><span>{icon}</span><span>{label}</span></div>
+    {badge && <span className={`px-1.5 py-0.5 rounded text-[9px] ${active ? 'bg-white/20 text-white' : 'bg-slate-800 text-slate-300'}`}>{badge}</span>}
+  </button>
+);
+
+const MetricCard = ({ title, value, trend, color }: { title: string; value: string; trend: string; color: string }) => (
+  <div className="bg-[#161922] border border-slate-800/60 rounded-2xl p-6 hover:border-slate-700 transition-colors">
+    <p className="text-slate-500 text-[10px] font-bold uppercase tracking-wider mb-1">{title}</p>
+    <div className="flex items-end justify-between"><h3 className="text-2xl font-bold text-white">{value}</h3><span className={`text-xs font-bold px-2 py-0.5 rounded ${color === 'green' ? 'text-green-400 bg-green-400/10' : color === 'blue' ? 'text-blue-400 bg-blue-400/10' : color === 'purple' ? 'text-purple-400 bg-purple-400/10' : 'text-orange-400 bg-orange-400/10'}`}>{trend}</span></div>
+  </div>
+);
+
+const ProgressBar = ({ label, percent, color }: { label: string; percent: number; color: string }) => (
+  <div><div className="flex justify-between text-xs font-bold mb-2 text-slate-400"><span>{label}</span><span>{percent}%</span></div><div className="h-2 bg-slate-800 rounded-full overflow-hidden"><div className={`h-full ${color}`} style={{ width: `${percent}%` }}></div></div></div>
+);
+
+const QuickAddBtn = ({ icon, label, onClick, active }: { icon: React.ReactNode; label: string; onClick: () => void; active?: boolean }) => (
+  <button onClick={onClick} className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${active ? 'bg-purple-500/10 text-purple-400 border border-purple-500/20' : 'bg-slate-800 text-slate-400 border border-slate-700 hover:text-white'}`}>{icon} {label}</button>
+);
+
+const BowTieColumn = ({ title, color, count, center }: { title: string; color: string; count: number; center?: boolean }) => {
+  const colors: Record<string, string> = {
+    blue: 'border-blue-500/30 bg-blue-500/5 text-blue-400',
+    orange: 'border-orange-500/30 bg-orange-500/5 text-orange-400',
+    green: 'border-green-500/30 bg-green-500/5 text-green-400'
+  };
+  const colorClass = colors[color] || colors.blue;
+  return (
+    <div className={`border rounded-xl p-4 flex flex-col ${colorClass} ${center ? 'ring-2 ring-orange-500/20' : ''}`}>
+      <h4 className="text-[10px] font-black text-center uppercase tracking-widest mb-4 opacity-80">{title}</h4>
+      <div className="flex-1 space-y-2 bg-[#11131a]/50 rounded p-2 min-h-[200px]">
+        {Array.from({ length: count + 2 }).map((_, i) => (
+          <div key={i} className="flex items-center gap-2 p-2 rounded border border-transparent hover:bg-[#161922] hover:border-slate-700 cursor-pointer transition-all group">
+            <div className="w-3 h-3 border border-slate-600 rounded-sm group-hover:border-white"></div>
+            <div className="h-1.5 w-16 bg-slate-800 rounded-full group-hover:bg-slate-600"></div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};

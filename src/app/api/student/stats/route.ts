@@ -108,8 +108,9 @@ export async function GET(request: NextRequest) {
     }
 
     // Calculate total points
-    // Points = (courses completed * 100) + (quizzes completed * 10) + (streak * 5)
-    const totalPoints = (coursesCompleted * 100) + (quizzesCompleted * 10) + (currentStreak * 5);
+    // Points = (courses completed * 100) + (quizzes completed * 10)
+    // Streak does not contribute to points to avoid initial points confusion
+    const totalPoints = (coursesCompleted * 100) + (quizzesCompleted * 10);
 
     return NextResponse.json({
       stats: {

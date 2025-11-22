@@ -1,0 +1,20 @@
+@import "tailwindcss";
+
+/* Custom scrollbar for admin suite */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: #0b0d12;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #1a1d26;
+  border-radius: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #2a2d36;
+}

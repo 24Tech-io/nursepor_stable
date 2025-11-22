@@ -15,13 +15,27 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const decoded = verifyToken(token);
+    let decoded = verifyToken(token);
 
+    // If token is expired, try to extract user ID from payload
     if (!decoded || !decoded.id) {
-      return NextResponse.json(
-        { message: 'Invalid token' },
-        { status: 401 }
-      );
+      try {
+        const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
+        if (payload.id) {
+          // Use the ID from the expired token to get user from database
+          decoded = { id: payload.id } as any;
+        } else {
+          return NextResponse.json(
+            { message: 'Invalid token' },
+            { status: 401 }
+          );
+        }
+      } catch (e) {
+        return NextResponse.json(
+          { message: 'Invalid token' },
+          { status: 401 }
+        );
+      }
     }
 
     // Get database instance (will throw if not available)

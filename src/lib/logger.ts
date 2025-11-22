@@ -1,120 +1,150 @@
-/**
- * Security Logging Configuration
- * Winston logger for tracking security events, failed auth attempts, and suspicious activity
- */
-
 import winston from 'winston';
 import path from 'path';
 
-// Define log levels
-const levels = {
-  error: 0,
-  warn: 1,
-  info: 2,
-  http: 3,
-  debug: 4,
+// Custom log levels
+const customLevels = {
+  levels: {
+    error: 0,
+    warn: 1,
+    info: 2,
+    http: 3,
+    debug: 4,
+  },
+  colors: {
+    error: 'red',
+    warn: 'yellow',
+    info: 'green',
+    http: 'magenta',
+    debug: 'blue',
+  },
 };
 
-// Define log colors
-const colors = {
-  error: 'red',
-  warn: 'yellow',
-  info: 'green',
-  http: 'magenta',
-  debug: 'white',
-};
+winston.addColors(customLevels.colors);
 
-winston.addColors(colors);
-
-// Custom format for log messages
-const format = winston.format.combine(
-  winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss:ms' }),
-  winston.format.colorize({ all: true }),
-  winston.format.printf(
-    (info) => `${info.timestamp} ${info.level}: ${info.message}`,
-  ),
+// Log format
+const logFormat = winston.format.combine(
+  winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
+  winston.format.errors({ stack: true }),
+  winston.format.splat(),
+  winston.format.json(),
+  winston.format.printf(({ timestamp, level, message, ...metadata }) => {
+    let msg = `${timestamp} [${level.toUpperCase()}]: ${message}`;
+    if (Object.keys(metadata).length > 0) {
+      msg += ` ${JSON.stringify(metadata)}`;
+    }
+    return msg;
+  })
 );
 
-// Define which transports to use
-const transports = [
-  // Console transport
-  new winston.transports.Console(),
-  // File transport for errors
-  new winston.transports.File({
-    filename: 'logs/error.log',
-    level: 'error',
-  }),
-  // File transport for all logs
-  new winston.transports.File({ 
-    filename: 'logs/combined.log',
-  }),
-  // Security-specific log file
-  new winston.transports.File({ 
-    filename: 'logs/security.log',
-    level: 'warn',
-  }),
-];
+// Create logs directory if it doesn't exist (Node.js only)
+const logsDir = process.env.LOGS_DIR || 'logs';
 
-// Create the logger
-const logger = winston.createLogger({
-  level: process.env.NODE_ENV === 'development' ? 'debug' : 'warn',
-  levels,
-  format,
-  transports,
+// Production logger
+export const logger = winston.createLogger({
+  levels: customLevels.levels,
+  level: process.env.LOG_LEVEL || 'info',
+  format: logFormat,
+  transports: [
+    // Console transport
+    new winston.transports.Console({
+      format: winston.format.combine(
+        winston.format.colorize(),
+        winston.format.simple()
+      ),
+    }),
+    // Error file transport
+    new winston.transports.File({
+      filename: path.join(logsDir, 'error.log'),
+      level: 'error',
+      maxsize: 5242880, // 5MB
+      maxFiles: 5,
+    }),
+    // Combined file transport
+    new winston.transports.File({
+      filename: path.join(logsDir, 'combined.log'),
+      maxsize: 5242880, // 5MB
+      maxFiles: 5,
+    }),
+  ],
+  exceptionHandlers: [
+    new winston.transports.File({
+      filename: path.join(logsDir, 'exceptions.log'),
+    }),
+  ],
+  rejectionHandlers: [
+    new winston.transports.File({
+      filename: path.join(logsDir, 'rejections.log'),
+    }),
+  ],
 });
 
-// Security-specific logging functions
-export const securityLogger = {
-  // Log failed authentication attempts
-  logFailedAuth: (ip: string, username: string, reason: string) => {
-    logger.warn(`Failed authentication attempt - IP: ${ip}, Username: ${username}, Reason: ${reason}`);
-  },
+// Security logger
+export const securityLogger = winston.createLogger({
+  levels: customLevels.levels,
+  level: 'info',
+  format: logFormat,
+  transports: [
+    new winston.transports.File({
+      filename: path.join(logsDir, 'security.log'),
+      maxsize: 5242880,
+      maxFiles: 10,
+    }),
+  ],
+});
 
-  // Log successful authentication
-  logSuccessfulAuth: (ip: string, username: string) => {
-    logger.info(`Successful authentication - IP: ${ip}, Username: ${username}`);
-  },
+// Audit logger for compliance
+export const auditLogger = winston.createLogger({
+  levels: customLevels.levels,
+  level: 'info',
+  format: logFormat,
+  transports: [
+    new winston.transports.File({
+      filename: path.join(logsDir, 'audit.log'),
+      maxsize: 10485760, // 10MB
+      maxFiles: 20,
+    }),
+  ],
+});
 
-  // Log potential SQL injection attempts
-  logSQLInjectionAttempt: (ip: string, payload: string) => {
-    logger.error(`Potential SQL injection attempt - IP: ${ip}, Payload: ${payload.substring(0, 100)}`);
-  },
+// Performance logger
+export const performanceLogger = winston.createLogger({
+  levels: customLevels.levels,
+  level: 'info',
+  format: logFormat,
+  transports: [
+    new winston.transports.File({
+      filename: path.join(logsDir, 'performance.log'),
+      maxsize: 5242880,
+      maxFiles: 5,
+    }),
+  ],
+});
 
-  // Log potential XSS attempts
-  logXSSAttempt: (ip: string, payload: string) => {
-    logger.error(`Potential XSS attempt - IP: ${ip}, Payload: ${payload.substring(0, 100)}`);
-  },
-
-  // Log rate limit violations
-  logRateLimitExceeded: (ip: string, endpoint: string) => {
-    logger.warn(`Rate limit exceeded - IP: ${ip}, Endpoint: ${endpoint}`);
-  },
-
-  // Log CSRF token validation failures
-  logCSRFFailure: (ip: string, endpoint: string) => {
-    logger.warn(`CSRF validation failed - IP: ${ip}, Endpoint: ${endpoint}`);
-  },
-
-  // Log suspicious file uploads
-  logSuspiciousUpload: (ip: string, filename: string, reason: string) => {
-    logger.warn(`Suspicious file upload - IP: ${ip}, Filename: ${filename}, Reason: ${reason}`);
-  },
-
-  // Log unauthorized access attempts
-  logUnauthorizedAccess: (ip: string, endpoint: string, userId?: string) => {
-    logger.warn(`Unauthorized access attempt - IP: ${ip}, Endpoint: ${endpoint}, User: ${userId || 'anonymous'}`);
-  },
-
-  // Log SSRF attempts
-  logSSRFAttempt: (ip: string, targetUrl: string) => {
-    logger.error(`Potential SSRF attempt - IP: ${ip}, Target URL: ${targetUrl}`);
-  },
-
-  // Generic security event
-  logSecurityEvent: (event: string, details: any) => {
-    logger.warn(`Security Event: ${event}`, details);
-  },
+// Helper functions
+export const logSecurityEvent = (event: string, details: any) => {
+  securityLogger.warn(event, {
+    ...details,
+    timestamp: new Date().toISOString(),
+  });
 };
 
-export default logger;
+export const logAuditEvent = (action: string, userId: number, details: any) => {
+  auditLogger.info(action, {
+    userId,
+    ...details,
+    timestamp: new Date().toISOString(),
+  });
+};
 
+export const logPerformance = (operation: string, duration: number, metadata?: any) => {
+  performanceLogger.info(operation, {
+    duration,
+    ...metadata,
+    timestamp: new Date().toISOString(),
+  });
+};
+
+// Legacy compatibility
+securityLogger.logSecurityEvent = logSecurityEvent;
+
+export default logger;

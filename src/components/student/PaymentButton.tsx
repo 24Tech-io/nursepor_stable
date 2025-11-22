@@ -11,7 +11,8 @@ interface PaymentButtonProps {
   onSuccess?: () => void;
 }
 
-const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || '');
+const publishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || '';
+const stripePromise = publishableKey ? loadStripe(publishableKey) : null;
 
 export default function PaymentButton({
   courseId,
@@ -27,6 +28,12 @@ export default function PaymentButton({
     setIsLoading(true);
     setError('');
 
+    if (!publishableKey) {
+      setError('Stripe configuration is missing. Please contact support.');
+      setIsLoading(false);
+      return;
+    }
+
     try {
       // Create checkout session
       const response = await fetch('/api/payments/create-checkout', {
@@ -34,6 +41,7 @@ export default function PaymentButton({
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include',
         body: JSON.stringify({
           courseId,
           userId,

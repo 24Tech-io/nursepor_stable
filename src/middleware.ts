@@ -1,205 +1,123 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { verifyToken } from './lib/auth';
-import {
-  applySecurityHeaders,
-  rateLimit,
-  checkCORS,
-  applyCORSHeaders,
-  requireHTTPS,
-  getClientIP
-} from './lib/security-middleware';
-import { securityLogger } from './lib/edge-logger';
-import { applyRequestSizeCheck } from './lib/request-size-middleware';
 
-export async function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl;
-  const clientIP = getClientIP(request);
+// Rate limiting store (in-memory, use Redis in production)
+const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
 
-  // HTTPS redirect (production only)
-  const httpsRedirect = requireHTTPS(request);
-  if (httpsRedirect) {
-    return httpsRedirect;
-  }
+// CORS configuration
+const ALLOWED_ORIGINS = [
+  'http://localhost:3000',
+  'http://localhost:3001',
+  process.env.NEXT_PUBLIC_APP_URL,
+  process.env.NEXT_PUBLIC_ADMIN_URL,
+].filter(Boolean);
 
-  // Handle CORS preflight
-  if (request.method === 'OPTIONS') {
-    const corsCheck = checkCORS(request);
-    const response = new NextResponse(null, { status: 204 });
-    applySecurityHeaders(response);
-    if (corsCheck.allowed && corsCheck.origin) {
-      applyCORSHeaders(response, corsCheck.origin);
-    }
-    return response;
-  }
+// Rate limiting configuration
+const RATE_LIMIT_WINDOW = 60 * 1000; // 1 minute
+const RATE_LIMIT_MAX = 100; // requests per window
 
-  // Apply rate limiting (except for webhooks)
-  if (!pathname.startsWith('/api/payments/webhook')) {
-    const rateLimitResult = rateLimit(request);
-    if (rateLimitResult.limited) {
-      securityLogger.logRateLimitExceeded(clientIP, pathname);
-      const response = NextResponse.json(
-        { error: 'Too many requests. Please try again later.' },
-        { status: 429 }
-      );
-      response.headers.set('Retry-After', '900'); // 15 minutes
-      applySecurityHeaders(response);
-      return response;
-    }
-  }
-
-  // Check CORS
-  const corsCheck = checkCORS(request);
-  if (!corsCheck.allowed) {
-    const response = NextResponse.json(
-      { error: 'CORS policy violation' },
-      { status: 403 }
-    );
-    applySecurityHeaders(response);
-    return response;
-  }
-
-  // Check request body size (for POST/PUT/PATCH)
-  const sizeCheckResult = applyRequestSizeCheck(request);
-  if (sizeCheckResult) {
-    applySecurityHeaders(sizeCheckResult);
-    return sizeCheckResult;
-  }
-
-  // Public routes that don't require authentication
-  const publicRoutes = ['/login', '/register', '/forgot-password', '/reset-password', '/', '/admin', '/student'];
-  const isPublicRoute = publicRoutes.some(route => pathname === route || pathname.startsWith(route + '/'));
-
-  // API routes that don't require authentication
-  const publicApiRoutes = [
-    '/api/auth/login',
-    '/api/auth/register',
-    '/api/auth/forgot-password',
-    '/api/auth/reset-password',
-    '/api/test-db',
-    '/api/payments/webhook', // Stripe webhook
-    '/api/auth/me', // Allow /api/auth/me to be called - it will check token internally
-    '/api/nursing-candidates', // Public NCLEX-RN registration form
-  ];
-  const isPublicApiRoute = publicApiRoutes.some(route => pathname.startsWith(route));
-
-  // If it's a public route or API route, allow access
-  if (isPublicRoute || isPublicApiRoute) {
-    const response = NextResponse.next();
-    applySecurityHeaders(response);
-    if (corsCheck.origin) {
-      applyCORSHeaders(response, corsCheck.origin);
-    }
-    return response;
-  }
-
-  // Check for authentication token cookie
-  const token = request.cookies.get('token')?.value;
-  
-  // Check if this is a redirect from login (check referer header)
-  const referer = request.headers.get('referer');
-  const isFromLogin = referer?.includes('/login');
-  const userAgent = request.headers.get('user-agent') || '';
-
-  if (!token) {
-    // Redirect to login for protected API routes only
-    if (pathname.startsWith('/api/')) {
-      // Allow public API routes through
-      if (isPublicApiRoute) {
-        const response = NextResponse.next();
-        applySecurityHeaders(response);
-        if (corsCheck.origin) {
-          applyCORSHeaders(response, corsCheck.origin);
-        }
-        return response;
-      }
-      // For protected API routes, return 401
-      securityLogger.logUnauthorizedAccess(clientIP, pathname);
-      const response = NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
-      applySecurityHeaders(response);
-      return response;
-    }
-    
-    // For page routes (including /student and /admin), always allow through
-    // The pages themselves will handle authentication and redirect if needed
-    // This prevents middleware from blocking access while cookies are being set
-    const response = NextResponse.next();
-    applySecurityHeaders(response);
-    return response;
-  }
-
-  // Validate token
-  let user;
-  try {
-    user = verifyToken(token);
-  } catch (error) {
-    console.error('Token verification error in middleware:', error);
-    securityLogger.logSecurityEvent('Token verification failed', {
-      ip: clientIP,
-      path: pathname,
-      error: error instanceof Error ? error.message : 'Unknown error'
-    });
-    user = null;
-  }
-  
-  if (!user) {
-    if (pathname.startsWith('/api/')) {
-      const response = NextResponse.json({ message: 'Invalid or expired token' }, { status: 401 });
-      applySecurityHeaders(response);
-      return response;
-    } else {
-      const response = NextResponse.redirect(new URL('/login', request.url));
-      response.cookies.delete('token');
-      applySecurityHeaders(response);
-      return response;
-    }
-  }
-
-  // Check admin routes
-  if (pathname.startsWith('/admin') && user.role !== 'admin') {
-    securityLogger.logUnauthorizedAccess(clientIP, pathname, user.id?.toString());
-    if (pathname.startsWith('/api/')) {
-      const response = NextResponse.json({ error: 'Admin access required' }, { status: 403 });
-      applySecurityHeaders(response);
-      return response;
-    } else {
-      const response = NextResponse.redirect(new URL('/student/dashboard', request.url));
-      applySecurityHeaders(response);
-      return response;
-    }
-  }
-
-  // Check student routes
-  if (pathname.startsWith('/student') && user.role !== 'student' && user.role !== 'admin') {
-    securityLogger.logUnauthorizedAccess(clientIP, pathname, user.id?.toString());
-    if (pathname.startsWith('/api/')) {
-      const response = NextResponse.json({ error: 'Student access required' }, { status: 403 });
-      applySecurityHeaders(response);
-      return response;
-    } else {
-      const response = NextResponse.redirect(new URL('/login', request.url));
-      applySecurityHeaders(response);
-      return response;
-    }
-  }
-
+export function middleware(request: NextRequest) {
   const response = NextResponse.next();
-  applySecurityHeaders(response);
-  if (corsCheck.origin) {
-    applyCORSHeaders(response, corsCheck.origin);
+
+  // CORS headers
+  const origin = request.headers.get('origin');
+  if (origin && ALLOWED_ORIGINS.includes(origin)) {
+    response.headers.set('Access-Control-Allow-Origin', origin);
+    response.headers.set('Access-Control-Allow-Credentials', 'true');
+    response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
+    response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   }
+
+  // Handle preflight requests
+  if (request.method === 'OPTIONS') {
+    return new NextResponse(null, { status: 200, headers: response.headers });
+  }
+
+  // Security headers
+  response.headers.set('X-Content-Type-Options', 'nosniff');
+  response.headers.set('X-Frame-Options', 'DENY');
+  response.headers.set('X-XSS-Protection', '1; mode=block');
+  response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+  response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+
+  // Content Security Policy
+  const csp = [
+    "default-src 'self'",
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' data: https:",
+    "font-src 'self' data:",
+    "connect-src 'self' https:",
+    "frame-ancestors 'none'",
+  ].join('; ');
+  response.headers.set('Content-Security-Policy', csp);
+
+  // Rate limiting for API routes
+  if (request.nextUrl.pathname.startsWith('/api')) {
+    const ip = request.ip || request.headers.get('x-forwarded-for') || 'unknown';
+    const key = `${ip}:${request.nextUrl.pathname}`;
+    const now = Date.now();
+
+    const rateLimit = rateLimitMap.get(key);
+
+    if (rateLimit) {
+      if (now < rateLimit.resetTime) {
+        if (rateLimit.count >= RATE_LIMIT_MAX) {
+          return new NextResponse(
+            JSON.stringify({
+              error: 'Too many requests',
+              message: 'Please try again later',
+              retryAfter: Math.ceil((rateLimit.resetTime - now) / 1000)
+            }),
+            {
+              status: 429,
+              headers: {
+                'Content-Type': 'application/json',
+                'Retry-After': String(Math.ceil((rateLimit.resetTime - now) / 1000)),
+                'X-RateLimit-Limit': String(RATE_LIMIT_MAX),
+                'X-RateLimit-Remaining': '0',
+                'X-RateLimit-Reset': String(rateLimit.resetTime),
+              },
+            }
+          );
+        }
+        rateLimit.count++;
+      } else {
+        rateLimit.count = 1;
+        rateLimit.resetTime = now + RATE_LIMIT_WINDOW;
+      }
+    } else {
+      rateLimitMap.set(key, {
+        count: 1,
+        resetTime: now + RATE_LIMIT_WINDOW,
+      });
+    }
+
+    // Add rate limit headers
+    const currentLimit = rateLimitMap.get(key);
+    if (currentLimit) {
+      response.headers.set('X-RateLimit-Limit', String(RATE_LIMIT_MAX));
+      response.headers.set('X-RateLimit-Remaining', String(Math.max(0, RATE_LIMIT_MAX - currentLimit.count)));
+      response.headers.set('X-RateLimit-Reset', String(currentLimit.resetTime));
+    }
+
+    // Clean up old entries periodically
+    if (Math.random() < 0.01) { // 1% chance
+      const cutoff = now - RATE_LIMIT_WINDOW;
+      for (const [key, value] of rateLimitMap.entries()) {
+        if (value.resetTime < cutoff) {
+          rateLimitMap.delete(key);
+        }
+      }
+    }
+  }
+
   return response;
 }
 
 export const config = {
   matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * - public folder
-     */
-    '/((?!_next/static|_next/image|favicon.ico|public/).*)',
+    '/api/:path*',
+    '/((?!_next/static|_next/image|favicon.ico).*)',
   ],
 };

@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import FaceLogin from '@/components/auth/FaceLogin';
 
 export default function RegisterPage() {
   const [formData, setFormData] = useState({
@@ -11,10 +12,11 @@ export default function RegisterPage() {
     phone: '',
     password: '',
     confirmPassword: '',
-    role: 'student' as 'student' | 'admin',
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [step, setStep] = useState<'details' | 'face'>('details');
+  const [faceDescriptor, setFaceDescriptor] = useState<Float32Array | null>(null);
   const router = useRouter();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -24,22 +26,32 @@ export default function RegisterPage() {
     });
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleDetailsSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
     setError('');
 
     if (formData.password !== formData.confirmPassword) {
       setError('Passwords do not match');
-      setIsLoading(false);
       return;
     }
 
     if (formData.password.length < 6) {
       setError('Password must be at least 6 characters long');
-      setIsLoading(false);
       return;
     }
+
+    setStep('face');
+  };
+
+  const handleFaceEnroll = async (descriptor: Float32Array) => {
+    setFaceDescriptor(descriptor);
+    // Auto-submit after enrollment
+    await submitRegistration(descriptor);
+  };
+
+  const submitRegistration = async (descriptor: Float32Array | null) => {
+    setIsLoading(true);
+    setError('');
 
     try {
       const response = await fetch('/api/auth/register', {
@@ -52,7 +64,8 @@ export default function RegisterPage() {
           email: formData.email,
           phone: formData.phone,
           password: formData.password,
-          role: formData.role,
+          role: 'student',
+          faceDescriptor: descriptor ? Array.from(descriptor) : null,
         }),
       });
 
@@ -62,10 +75,13 @@ export default function RegisterPage() {
         router.push('/login?message=Registration successful! Please sign in.');
       } else {
         setError(data.message || 'Registration failed');
+        setIsLoading(false);
+        if (step === 'face') {
+          // Stay on face step or go back? Stay for now.
+        }
       }
     } catch (error) {
       setError('Network error. Please try again.');
-    } finally {
       setIsLoading(false);
     }
   };
@@ -80,193 +96,183 @@ export default function RegisterPage() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
             </svg>
           </div>
-          <h2 className="mt-6 text-3xl font-bold text-gray-900">Create your account</h2>
+          <h2 className="mt-6 text-3xl font-bold text-gray-900">Create your student account</h2>
           <p className="mt-2 text-sm text-gray-600">
-            Join our learning community today
+            {step === 'details' ? 'Join our learning community today' : 'Setup Face ID for secure login'}
           </p>
         </div>
 
-        {/* Form */}
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-          <div className="space-y-4">
-            <div>
-              <label htmlFor="name" className="block text-sm font-medium text-gray-700">
-                Full Name
-              </label>
-              <input
-                id="name"
-                name="name"
-                type="text"
-                autoComplete="name"
-                required
-                value={formData.name}
-                onChange={handleChange}
-                className="mt-1 block w-full px-3 py-3 border border-gray-300 rounded-xl shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 bg-white"
-                placeholder="Enter your full name"
-              />
-            </div>
+        {/* Steps Indicator */}
+        <div className="flex justify-center space-x-2 mb-6">
+          <div className={`h-2 w-16 rounded-full ${step === 'details' ? 'bg-blue-600' : 'bg-green-500'}`} />
+          <div className={`h-2 w-16 rounded-full ${step === 'face' ? 'bg-blue-600' : 'bg-gray-200'}`} />
+        </div>
 
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-                Email address
-              </label>
-              <input
-                id="email"
-                name="email"
-                type="email"
-                autoComplete="email"
-                required
-                value={formData.email}
-                onChange={handleChange}
-                className="mt-1 block w-full px-3 py-3 border border-gray-300 rounded-xl shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 bg-white"
-                placeholder="Enter your email"
-              />
-            </div>
+        {step === 'details' ? (
+          <form className="mt-8 space-y-6" onSubmit={handleDetailsSubmit}>
+            <div className="space-y-4">
+              <div>
+                <label htmlFor="name" className="block text-sm font-medium text-gray-700">
+                  Full Name
+                </label>
+                <input
+                  id="name"
+                  name="name"
+                  type="text"
+                  autoComplete="name"
+                  required
+                  value={formData.name}
+                  onChange={handleChange}
+                  className="mt-1 block w-full px-3 py-3 border border-gray-300 rounded-xl shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 bg-white"
+                  placeholder="Enter your full name"
+                />
+              </div>
 
-            <div>
-              <label htmlFor="phone" className="block text-sm font-medium text-gray-700">
-                Phone Number
-              </label>
-              <input
-                id="phone"
-                name="phone"
-                type="tel"
-                autoComplete="tel"
-                required
-                value={formData.phone}
-                onChange={handleChange}
-                className="mt-1 block w-full px-3 py-3 border border-gray-300 rounded-xl shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 bg-white"
-                placeholder="Enter your phone number"
-              />
-            </div>
+              <div>
+                <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+                  Email address
+                </label>
+                <input
+                  id="email"
+                  name="email"
+                  type="email"
+                  autoComplete="email"
+                  required
+                  value={formData.email}
+                  onChange={handleChange}
+                  className="mt-1 block w-full px-3 py-3 border border-gray-300 rounded-xl shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 bg-white"
+                  placeholder="Enter your email"
+                />
+              </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Account Type
-              </label>
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  type="button"
-                  onClick={() => setFormData({ ...formData, role: 'student' })}
-                  className={`p-4 rounded-xl border-2 transition-all ${
-                    formData.role === 'student'
-                      ? 'border-blue-500 bg-blue-50 text-blue-700'
-                      : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
-                  }`}
-                >
-                  <div className="flex items-center justify-center space-x-2">
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                    </svg>
-                    <span className="font-semibold">Student</span>
-                  </div>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setFormData({ ...formData, role: 'admin' })}
-                  className={`p-4 rounded-xl border-2 transition-all ${
-                    formData.role === 'admin'
-                      ? 'border-purple-500 bg-purple-50 text-purple-700'
-                      : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
-                  }`}
-                >
-                  <div className="flex items-center justify-center space-x-2">
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                    </svg>
-                    <span className="font-semibold">Admin</span>
-                  </div>
-                </button>
+              <div>
+                <label htmlFor="phone" className="block text-sm font-medium text-gray-700">
+                  Phone Number
+                </label>
+                <input
+                  id="phone"
+                  name="phone"
+                  type="tel"
+                  autoComplete="tel"
+                  required
+                  value={formData.phone}
+                  onChange={handleChange}
+                  className="mt-1 block w-full px-3 py-3 border border-gray-300 rounded-xl shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 bg-white"
+                  placeholder="Enter your phone number"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+                  Password
+                </label>
+                <input
+                  id="password"
+                  name="password"
+                  type="password"
+                  autoComplete="new-password"
+                  required
+                  value={formData.password}
+                  onChange={handleChange}
+                  className="mt-1 block w-full px-3 py-3 border border-gray-300 rounded-xl shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 bg-white"
+                  placeholder="Create a password"
+                  minLength={6}
+                />
+              </div>
+
+              <div>
+                <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
+                  Confirm Password
+                </label>
+                <input
+                  id="confirmPassword"
+                  name="confirmPassword"
+                  type="password"
+                  autoComplete="new-password"
+                  required
+                  value={formData.confirmPassword}
+                  onChange={handleChange}
+                  className="mt-1 block w-full px-3 py-3 border border-gray-300 rounded-xl shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 bg-white"
+                  placeholder="Confirm your password"
+                  minLength={6}
+                />
               </div>
             </div>
 
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-                Password
-              </label>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                autoComplete="new-password"
-                required
-                value={formData.password}
-                onChange={handleChange}
-                className="mt-1 block w-full px-3 py-3 border border-gray-300 rounded-xl shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 bg-white"
-                placeholder="Create a password"
-                minLength={6}
-              />
-            </div>
-
-            <div>
-              <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
-                Confirm Password
-              </label>
-              <input
-                id="confirmPassword"
-                name="confirmPassword"
-                type="password"
-                autoComplete="new-password"
-                required
-                value={formData.confirmPassword}
-                onChange={handleChange}
-                className="mt-1 block w-full px-3 py-3 border border-gray-300 rounded-xl shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 bg-white"
-                placeholder="Confirm your password"
-                minLength={6}
-              />
-            </div>
-          </div>
-
-          {/* Error Message */}
-          {error && (
-            <div className="bg-red-50 border border-red-200 rounded-xl p-4">
-              <div className="flex">
-                <div className="flex-shrink-0">
-                  <svg className="h-5 w-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-                <div className="ml-3">
-                  <p className="text-sm text-red-800">{error}</p>
+            {error && (
+              <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+                <div className="flex">
+                  <div className="flex-shrink-0">
+                    <svg className="h-5 w-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <div className="ml-3">
+                    <p className="text-sm text-red-800">{error}</p>
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* Submit Button */}
-          <div>
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-xl text-white bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
-            >
-              {isLoading ? (
-                <div className="flex items-center">
-                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  Creating account...
-                </div>
-              ) : (
-                'Create Account'
-              )}
-            </button>
-          </div>
-
-          {/* Login Link */}
-          <div className="text-center">
-            <p className="text-sm text-gray-600">
-              Already have an account?{' '}
-              <Link
-                href="/login"
-                className="font-medium text-blue-600 hover:text-blue-500"
+            <div>
+              <button
+                type="submit"
+                className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-xl text-white bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200"
               >
-                Sign in
-              </Link>
-            </p>
+                Continue to Face Setup
+              </button>
+            </div>
+
+            <div className="text-center">
+              <p className="text-sm text-gray-600">
+                Already have an account?{' '}
+                <Link
+                  href="/login"
+                  className="font-medium text-blue-600 hover:text-blue-500"
+                >
+                  Sign in
+                </Link>
+              </p>
+            </div>
+          </form>
+        ) : (
+          <div className="mt-8 space-y-6">
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+              <h3 className="text-lg font-medium text-gray-900 mb-4 text-center">Setup Face ID</h3>
+              <p className="text-sm text-gray-500 mb-6 text-center">
+                Enable Face ID for faster, more secure login. This is optional but recommended.
+              </p>
+
+              <FaceLogin
+                mode="enroll"
+                onEnroll={handleFaceEnroll}
+                onError={(err) => setError(err)}
+              />
+            </div>
+
+            {error && (
+              <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+                <p className="text-sm text-red-800">{error}</p>
+              </div>
+            )}
+
+            <div className="flex space-x-4">
+              <button
+                onClick={() => setStep('details')}
+                className="flex-1 py-3 px-4 border border-gray-300 text-sm font-medium rounded-xl text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              >
+                Back
+              </button>
+              <button
+                onClick={() => submitRegistration(null)}
+                disabled={isLoading}
+                className="flex-1 py-3 px-4 border border-transparent text-sm font-medium rounded-xl text-blue-700 bg-blue-100 hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              >
+                Skip for now
+              </button>
+            </div>
           </div>
-        </form>
+        )}
       </div>
     </div>
   );
