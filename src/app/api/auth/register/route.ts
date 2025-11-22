@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-    let { name, email, phone, password, role } = data;
+    const { name, email, phone, password, role } = data;
 
     // Input validation
     if (!name || !email || !password) {
@@ -49,13 +49,13 @@ export async function POST(request: NextRequest) {
     }
 
     // Sanitize inputs
-    name = sanitizeString(name, 100);
-    email = sanitizeString(email.toLowerCase(), 255);
+    const sanitizedName = sanitizeString(name, 100);
+    const sanitizedEmail = sanitizeString(email.toLowerCase(), 255);
     // Handle phone: trim whitespace, if empty string set to null, otherwise sanitize
-    phone = phone && phone.trim() ? sanitizeString(phone.trim(), 20) : null;
+    const sanitizedPhone = phone && phone.trim() ? sanitizeString(phone.trim(), 20) : null;
 
     // Validate email
-    if (!validateEmail(email)) {
+    if (!validateEmail(sanitizedEmail)) {
       return NextResponse.json(
         { message: 'Invalid email format' },
         { status: 400 }
@@ -63,15 +63,15 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate phone if provided
-    if (phone && !validatePhone(phone)) {
-      console.log('Phone validation failed for:', phone);
+    if (sanitizedPhone && !validatePhone(sanitizedPhone)) {
+      console.log('Phone validation failed for:', sanitizedPhone);
       return NextResponse.json(
         { message: 'Invalid phone number format. Please use 10-20 digits with optional spaces, dashes, or parentheses.' },
         { status: 400 }
       );
     }
     
-    console.log('Phone number after processing:', phone);
+    console.log('Phone number after processing:', sanitizedPhone);
 
     // Validate password strength
     const passwordValidation = validatePassword(password);
@@ -85,11 +85,11 @@ export async function POST(request: NextRequest) {
     // Force student role only - no admin registration on student portal
     const finalRole = 'student';
 
-    console.log('Attempting to create user:', { name, email, phone, role: finalRole });
+    console.log('Attempting to create user:', { name: sanitizedName, email: sanitizedEmail, phone: sanitizedPhone, role: finalRole });
     
     // Check if account with this email+role already exists
     const { getUserAccounts } = await import('@/lib/auth');
-    const existingAccounts = await getUserAccounts(email);
+    const existingAccounts = await getUserAccounts(sanitizedEmail);
     const existingRole = existingAccounts.find(acc => acc.role === finalRole);
     
     if (existingRole) {
@@ -103,10 +103,10 @@ export async function POST(request: NextRequest) {
     let user;
     try {
       user = await createUser({
-        name,
-        email,
+        name: sanitizedName,
+        email: sanitizedEmail,
         password,
-        phone,
+        phone: sanitizedPhone || undefined,
         role: finalRole,
       });
       console.log('User created successfully:', { id: user.id, email: user.email, phone: user.phone, role: user.role });
@@ -124,7 +124,7 @@ export async function POST(request: NextRequest) {
 
     // Send welcome email (optional - remove if not needed)
     try {
-      await sendWelcomeEmail(email, name);
+      await sendWelcomeEmail(sanitizedEmail, sanitizedName);
     } catch (emailError) {
       console.error('Failed to send welcome email:', emailError);
       // Don't fail registration if email fails

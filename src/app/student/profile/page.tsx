@@ -147,7 +147,9 @@ export default function ProfilePage() {
 
   // Fetch stats when user is loaded
   useEffect(() => {
-    if (!user) return;
+    if (!user) {
+      return;
+    }
 
     const fetchStats = async () => {
       try {
@@ -180,7 +182,9 @@ export default function ProfilePage() {
   // Handle profile picture upload
   const handlePictureUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (!file) return;
+    if (!file) {
+      return;
+    }
 
     // Validate file type
     const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'];

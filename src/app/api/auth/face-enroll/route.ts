@@ -8,7 +8,9 @@ import { descriptorToBase64 } from '@/lib/face-recognition';
 export async function POST(request: NextRequest) {
   // Require authentication
   const authResult = await requireAuth(request);
-  if (authResult instanceof NextResponse) return authResult;
+  if (authResult instanceof NextResponse) {
+    return authResult;
+  }
   const user = authResult.user;
 
   // Get database instance

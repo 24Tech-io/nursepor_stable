@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-    let { email, password, role } = data;
+    const { email, password } = data;
 
     if (!email || !password) {
       return NextResponse.json(
@@ -65,8 +65,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Sanitize and validate email
-    email = sanitizeString(email.toLowerCase(), 255);
-    if (!validateEmail(email)) {
+    const sanitizedEmail = sanitizeString(email.toLowerCase(), 255);
+    if (!validateEmail(sanitizedEmail)) {
       return NextResponse.json(
         { message: 'Invalid email format' },
         { status: 400 }
@@ -81,19 +81,59 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log('Attempting to authenticate student:', email);
+    console.log('Attempting to authenticate user:', sanitizedEmail);
+    console.log('Received role from client:', data.role);
+    console.log('Role type:', typeof data.role);
     
-    // Force student role for student portal
-    const requiredRole = role || 'student';
-    const user = await authenticateUser(email, password, requiredRole);
+    // Check if user has multiple accounts (roles) with this email
+    const { getUserAccounts } = await import('@/lib/auth');
+    const allAccounts = await getUserAccounts(sanitizedEmail);
+    console.log('All accounts found:', allAccounts.length);
+    console.log('Accounts:', allAccounts.map(a => ({ role: a.role, name: a.name })));
+    
+    // Only show multiple accounts selector if role is 'auto', undefined, or not specified
+    // If user explicitly selected 'student' or 'admin', login directly with that role
+    const hasExplicitRole = data.role && data.role !== 'auto' && (data.role === 'student' || data.role === 'admin');
+    const isAutoRole = !hasExplicitRole; // If no explicit role, treat as 'auto'
+    
+    console.log('Has explicit role:', hasExplicitRole);
+    console.log('Is auto role:', isAutoRole);
+    
+    if (allAccounts.length > 1 && isAutoRole) {
+      // Multiple accounts and user selected 'auto' or didn't specify - show selector
+      console.log('Showing multiple accounts selector');
+      return NextResponse.json({
+        message: 'Multiple accounts found. Please select a role.',
+        hasMultipleRoles: true,
+        accounts: allAccounts.map(acc => ({
+          id: acc.id,
+          role: acc.role,
+          name: acc.name,
+        })),
+      }, { status: 200 }); // 200 because we want to show the role selector
+    }
+    
+    // Check if username is blocked
+    if (isUsernameBlocked(sanitizedEmail)) {
+      securityLogger.logSecurityEvent('Blocked username attempted login', { email: sanitizedEmail, ip: clientIP });
+      return NextResponse.json(
+        { message: 'Too many failed login attempts for this account. Please try again later.' },
+        { status: 429 }
+      );
+    }
+
+    // Authenticate with specific role if provided, or first account if only one
+    const targetRole = hasExplicitRole ? data.role : (allAccounts.length > 0 ? allAccounts[0].role : undefined);
+    console.log('Target role for authentication:', targetRole);
+    const user = await authenticateUser(sanitizedEmail, password, targetRole);
 
     if (!user) {
       console.log('Authentication failed: Invalid email or password');
       
       // Record failed attempt
-      const attemptResult = recordFailedAttempt(clientIP, email);
-      securityLogger.logFailedAuth(clientIP, email, 'Invalid credentials');
-      reportSecurityIncident(clientIP, 'Failed login attempt', { email }, 'low');
+      const attemptResult = recordFailedAttempt(clientIP, sanitizedEmail);
+      securityLogger.logFailedAuth(clientIP, sanitizedEmail, 'Invalid credentials');
+      reportSecurityIncident(clientIP, 'Failed login attempt', { email: sanitizedEmail }, 'low');
       
       // Add delay for failed attempt (progressive delay)
       if (attemptResult.delayMs > 0) {
@@ -117,14 +157,6 @@ export async function POST(request: NextRequest) {
 
     console.log('User authenticated:', { id: user.id, email: user.email, role: user.role });
 
-    // Only allow student role for student portal
-    if (user.role !== requiredRole) {
-      return NextResponse.json(
-        { message: `This account does not have the required '${requiredRole}' role.` },
-        { status: 403 }
-      );
-    }
-
     if (!user.isActive) {
       console.log('Account is deactivated:', user.email);
       return NextResponse.json(
@@ -134,18 +166,45 @@ export async function POST(request: NextRequest) {
     }
 
     // Record successful login (clear failed attempts)
-    recordSuccessfulLogin(clientIP, email);
-    securityLogger.logSuccessfulAuth(clientIP, email);
+    recordSuccessfulLogin(clientIP, sanitizedEmail);
+    securityLogger.logSuccessfulAuth(clientIP, sanitizedEmail);
 
     // Create session with user data
     console.log('Creating session for user:', user.id);
     const sessionToken = await createSession(user.id, undefined, user);
     console.log('Session created, token length:', sessionToken.length);
 
-    // Redirect based on role
-    const redirectUrl = user.role === 'admin' ? '/dashboard' : '/student';
+    const response = NextResponse.json({
+      message: 'Login successful',
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        isActive: user.isActive,
+      },
+    });
+
+    // Set HttpOnly cookie for token with secure settings
+    // Using 'lax' instead of 'strict' to allow redirects after login
+    // In development, we don't use secure flag to allow http://localhost
+    response.cookies.set('token', sessionToken, {
+      httpOnly: true,
+      sameSite: 'lax', // 'lax' allows redirects while still providing CSRF protection
+      secure: false, // Set to false for localhost development
+      path: '/',
+      maxAge: 7 * 24 * 60 * 60, // 7 days
+    });
+    
+    console.log('✓ Cookie set for user:', user.email);
+    console.log('✓ Response prepared with user data:', { id: user.id, role: user.role });
+    
+    // Determine redirect URL
+    const redirectUrl = user.role === 'admin' ? '/admin' : '/student';
     console.log('=== LOGIN API SUCCESS - Redirecting to:', redirectUrl);
 
+    // Return JSON response with redirect URL - let client handle redirect
+    // This is more reliable than server-side redirects with fetch
     const jsonResponse = NextResponse.json({
       message: 'Login successful',
       user: {
@@ -165,10 +224,9 @@ export async function POST(request: NextRequest) {
     });
     
     // Set cookie in JSON response
-    const cookieName = user.role === 'admin' ? 'adminToken' : 'token';
-    jsonResponse.cookies.set(cookieName, sessionToken, {
+    jsonResponse.cookies.set('token', sessionToken, {
       httpOnly: true,
-      sameSite: 'lax',
+      sameSite: 'lax', // 'lax' allows redirects while still providing CSRF protection
       secure: false, // Set to false for localhost development (http://)
       path: '/',
       maxAge: 7 * 24 * 60 * 60, // 7 days

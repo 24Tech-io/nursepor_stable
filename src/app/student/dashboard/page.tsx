@@ -3,9 +3,7 @@
 import { useState, useEffect } from 'react';
 import StatCard from '../../../components/student/StatCard';
 import CourseCard from '../../../components/student/CourseCard';
-import DailyVideoWidget from '../../../components/student/DailyVideoWidget';
-import ContinueLearningWidget from '../../../components/student/ContinueLearningWidget';
-// Removed getCourses import - only using real database courses
+import { getCourses } from '../../../lib/data';
 
 // Deterministic function to generate consistent values based on course ID
 function getDeterministicProgress(courseId: string): number {
@@ -35,48 +33,6 @@ export default function StudentDashboard() {
   });
   const [enrolledCourseIds, setEnrolledCourseIds] = useState<string[]>([]);
   const [isLoadingCourses, setIsLoadingCourses] = useState(true);
-  const [coursesError, setCoursesError] = useState<string | null>(null);
-
-  const refreshAuthToken = async () => {
-    try {
-      const response = await fetch('/api/auth/refresh', {
-        method: 'POST',
-        credentials: 'include',
-        cache: 'no-store',
-      });
-      if (response.ok) {
-        console.log('🔄 Token refreshed successfully');
-        return true;
-      }
-      console.warn('Refresh token request failed with status:', response.status);
-      return false;
-    } catch (error) {
-      console.error('Failed to refresh auth token:', error);
-      return false;
-    }
-  };
-
-  const fetchWithAuth = async (url: string, options: RequestInit = {}, retry = true) => {
-    const mergedOptions: RequestInit = {
-      credentials: 'include',
-      cache: 'no-store',
-      headers: {
-        'Cache-Control': 'no-cache',
-        ...(options.headers || {}),
-      },
-      ...options,
-    };
-
-    let response = await fetch(url, mergedOptions);
-    if (response.status === 401 && retry) {
-      console.warn('Received 401 from', url, '- attempting token refresh');
-      const refreshed = await refreshAuthToken();
-      if (refreshed) {
-        response = await fetch(url, mergedOptions);
-      }
-    }
-    return response;
-  };
 
   // Fetch real user data - CRITICAL: Must fetch before showing dashboard
   useEffect(() => {
@@ -95,22 +51,22 @@ export default function StudentDashboard() {
           console.error('Failed to parse stored user data:', e);
         }
       }
-
+      
       // Wait a bit for cookie to be available, then fetch from API
       await new Promise(resolve => setTimeout(resolve, 1000)); // Increased delay
-
+      
       try {
         console.log('🔍 Fetching user data from /api/auth/me...');
-        const response = await fetch('/api/auth/me', {
+        const response = await fetch('/api/auth/me', { 
           credentials: 'include',
           cache: 'no-store', // Ensure fresh data
           headers: {
             'Content-Type': 'application/json',
           }
         });
-
+        
         console.log('📡 Response status:', response.status);
-
+        
         if (response.ok) {
           const data = await response.json();
           console.log('✅ User data received from API:', data.user);
@@ -142,7 +98,7 @@ export default function StudentDashboard() {
             setTimeout(async () => {
               try {
                 console.log('🔄 Retrying /api/auth/me...');
-                const retryResponse = await fetch('/api/auth/me', {
+                const retryResponse = await fetch('/api/auth/me', { 
                   credentials: 'include',
                   cache: 'no-store'
                 });
@@ -199,66 +155,24 @@ export default function StudentDashboard() {
     const fetchCourses = async () => {
       if (!user || user.role !== 'student') {
         setIsLoadingCourses(false);
-        setCourses([]); // Fallback to empty array
+        setCourses(getCourses()); // Fallback to demo data
         return;
       }
 
       try {
         setIsLoadingCourses(true);
-
-        // First, ensure Nurse Pro course exists (this will create it if it doesn't)
-        try {
-          const ensureResponse = await fetch('/api/qbank/ensure-course', {
-            method: 'POST',
-            credentials: 'include'
-          });
-          if (!ensureResponse.ok) {
-            // Try the fix endpoint as fallback
-            await fetch('/api/fix/nurse-pro-course', {
-              method: 'POST',
-              credentials: 'include'
-            });
-          }
-        } catch (e) {
-          // Silently fail - course might already exist or user might not be admin
-          console.log('Note: Could not auto-create Nurse Pro course, trying fix endpoint...');
-          try {
-            await fetch('/api/fix/nurse-pro-course', {
-              method: 'POST',
-              credentials: 'include'
-            });
-          } catch (e2) {
-            console.log('Note: Could not fix Nurse Pro course (this is normal for non-admin users)');
-          }
-        }
-
-        const response = await fetchWithAuth('/api/student/courses');
-
+        const response = await fetch('/api/student/courses', { credentials: 'include' });
+        
         if (response.ok) {
           const data = await response.json();
-          console.log('📚 Courses fetched:', data.courses?.length || 0, 'courses');
-          console.log('📚 Course titles:', data.courses?.map((c: any) => c.title) || []);
           setCourses(data.courses || []);
-          setCoursesError(null);
         } else {
-          const errorData = await response.json().catch(() => ({}));
-          console.error('Failed to fetch courses:', response.status, errorData);
-
-          // If 401, try to refresh token or redirect to login
-          if (response.status === 401) {
-            console.error('❌ Authentication failed. Token may be expired.');
-            setCourses([]);
-            setCoursesError('Your session expired. Please log in again.');
-          } else {
-            // Only show real database courses, no fallback to demo data
-            setCourses([]);
-            setCoursesError('Unable to reach the course API. Please try again later.');
-          }
+          // Fallback to demo data if API fails
+          setCourses(getCourses());
         }
       } catch (error) {
         console.error('Error fetching courses:', error);
-        setCourses([]); // Only show real database courses
-        setCoursesError('Unable to reach the course API. Please try again later.');
+        setCourses(getCourses()); // Fallback to demo data
       } finally {
         setIsLoadingCourses(false);
       }
@@ -269,23 +183,27 @@ export default function StudentDashboard() {
 
   // Fetch stats and enrolled courses
   useEffect(() => {
-    if (!user) return;
+    if (!user) {
+      return;
+    }
 
     const fetchStats = async () => {
       try {
         const [statsResponse, coursesResponse] = await Promise.all([
-          fetchWithAuth('/api/student/stats'),
-          fetchWithAuth('/api/student/enrolled-courses'),
+          fetch('/api/student/stats', {
+            credentials: 'include',
+            cache: 'no-store',
+          }),
+          fetch('/api/student/enrolled-courses', {
+            credentials: 'include',
+            cache: 'no-store',
+          }),
         ]);
 
         if (statsResponse.ok) {
           const statsData = await statsResponse.json();
           setStats(statsData.stats);
           console.log('✅ Stats fetched:', statsData.stats);
-        } else if (statsResponse.status === 401) {
-          console.warn('Stats API returned 401 after refresh attempt');
-        } else {
-          console.warn('Stats API responded with status:', statsResponse.status);
         }
 
         if (coursesResponse.ok) {
@@ -293,10 +211,6 @@ export default function StudentDashboard() {
           const courseIds = coursesData.enrolledCourses.map((ec: any) => ec.courseId);
           setEnrolledCourseIds(courseIds);
           console.log('✅ Enrolled courses fetched:', courseIds);
-        } else if (coursesResponse.status === 401) {
-          console.warn('Enrolled courses API returned 401 after refresh attempt');
-        } else {
-          console.warn('Enrolled courses API responded with status:', coursesResponse.status);
         }
       } catch (error) {
         console.error('Error fetching stats/courses:', error);
@@ -330,60 +244,20 @@ export default function StudentDashboard() {
     setShowRequestModal(true);
   };
 
-  const submitAccessRequest = async () => {
-    if (!selectedCourse) return;
-
-    try {
-      const response = await fetch('/api/student/requests', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          courseId: selectedCourse,
-          reason: requestNote || 'Requesting access to this course',
-        }),
-      });
-
-      if (response.ok) {
-        alert('Access request submitted successfully! You will be notified when it is reviewed.');
-      } else {
-        const error = await response.json();
-        alert(error.message || 'Failed to submit request');
-      }
-    } catch (error) {
-      console.error('Error submitting request:', error);
-      alert('Failed to submit request. Please try again.');
-    }
-
+  const submitAccessRequest = () => {
+    alert(`Access request submitted for course: ${selectedCourse}\nNote: ${requestNote}`);
     setShowRequestModal(false);
     setRequestNote('');
     setSelectedCourse(null);
   };
 
-  // Convert enrolled course IDs to strings for comparison
-  const enrolledCourseIdsStr = studentData.enrolledCourses.map(id => id.toString());
-
   const enrolledCourses = courses.filter(c =>
-    enrolledCourseIdsStr.includes(c.id.toString()) && c.status === 'published'
+    studentData.enrolledCourses.includes(c.id) && c.status === 'published'
   );
 
   const lockedCourses = courses.filter(c =>
-    !enrolledCourseIdsStr.includes(c.id.toString()) && c.status === 'published'
+    !studentData.enrolledCourses.includes(c.id) && c.status === 'published' && c.isRequestable
   );
-
-  // Debug logging
-  console.log('🔍 Dashboard Debug:', {
-    totalCourses: courses.length,
-    courseTitles: courses.map(c => c.title),
-    courseIds: courses.map(c => c.id),
-    enrolledCourseIds: studentData.enrolledCourses,
-    enrolledCourseIdsStr: enrolledCourseIdsStr,
-    enrolledCoursesCount: enrolledCourses.length,
-    enrolledCourseTitles: enrolledCourses.map(c => c.title),
-    lockedCoursesCount: lockedCourses.length,
-    lockedCourseTitles: lockedCourses.map(c => c.title),
-    lockedCourseIds: lockedCourses.map(c => c.id),
-  });
 
   return (
     <div className="space-y-8">
@@ -393,7 +267,7 @@ export default function StudentDashboard() {
         <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-white/10 to-transparent rounded-full blur-3xl -mr-48 -mt-48 animate-pulse" />
         <div className="absolute bottom-0 left-0 w-80 h-80 bg-gradient-to-tr from-purple-400/20 to-transparent rounded-full blur-3xl -ml-40 -mb-40" />
         <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-blue-500/10 rounded-full blur-2xl" />
-
+        
         {/* Content */}
         <div className="relative z-10">
           <div className="flex items-start justify-between mb-8">
@@ -421,8 +295,8 @@ export default function StudentDashboard() {
             </div>
           </div>
 
-          {/* Quick Stats */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {/* Quick Stats */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/20 shadow-lg">
               <div className="text-3xl font-bold text-white drop-shadow-lg">{stats.currentStreak}</div>
               <div className="text-sm text-white font-semibold drop-shadow-md mt-1">Day Streak 🔥</div>
@@ -498,11 +372,34 @@ export default function StudentDashboard() {
 
       {/* Daily Video Section (if active) */}
       {studentData.activeStatus && (
-        <DailyVideoWidget />
+        <div className="bg-gradient-to-r from-pink-500 to-rose-500 rounded-2xl shadow-xl p-8 text-white">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="flex items-center space-x-2 mb-2">
+                <span className="px-3 py-1 bg-white bg-opacity-20 rounded-full text-xs font-bold">
+                  TODAY&apos;S VIDEO
+                </span>
+                <span className="text-sm opacity-90">Available for 24 hours</span>
+              </div>
+              <h2 className="text-2xl font-bold mb-2">Introduction to React Hooks</h2>
+              <p className="text-pink-100 mb-4">Learn the fundamentals of useState and useEffect</p>
+              <button className="bg-white text-pink-600 px-6 py-3 rounded-xl font-semibold hover:bg-pink-50 transition shadow-lg flex items-center space-x-2">
+                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" />
+                </svg>
+                <span>Watch Now</span>
+              </button>
+            </div>
+            <div className="hidden md:block">
+              <div className="w-32 h-32 bg-white bg-opacity-10 rounded-2xl flex items-center justify-center backdrop-blur-sm">
+                <svg className="w-16 h-16" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" />
+                </svg>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
-
-      {/* Continue Learning Widget */}
-      <ContinueLearningWidget />
 
       {/* Continue Learning */}
       <div>
@@ -523,7 +420,7 @@ export default function StudentDashboard() {
                 key={course.id}
                 course={course}
                 isLocked={false}
-                userId={user.id}
+                userId={1} // TODO: Get from auth context
                 progress={getDeterministicProgress(course.id)} // Deterministic progress
               />
             ))}
@@ -541,12 +438,6 @@ export default function StudentDashboard() {
         )}
       </div>
 
-      {coursesError && (
-        <div className="bg-red-50 border border-red-200 rounded-2xl p-4 text-red-700">
-          {coursesError}
-        </div>
-      )}
-
       {/* Explore More Courses */}
       {lockedCourses.length > 0 && (
         <div>
@@ -557,16 +448,8 @@ export default function StudentDashboard() {
                 key={course.id}
                 course={course}
                 isLocked={true}
-                userId={user?.id}
-                onRequestAccess={() => {
-                  // For free courses, enrollment happens automatically via FreeEnrollButton
-                  // For paid courses, show request access modal
-                  if (!course.pricing || course.pricing === 0) {
-                    // Free course - enrollment handled by FreeEnrollButton
-                    return;
-                  }
-                  handleRequestAccess(course.id);
-                }}
+                userId={1} // TODO: Get from auth context
+                onRequestAccess={() => handleRequestAccess(course.id)}
               />
             ))}
           </div>
@@ -579,7 +462,7 @@ export default function StudentDashboard() {
           <div className="bg-white rounded-2xl max-w-md w-full p-8 shadow-2xl">
             <h2 className="text-2xl font-bold text-gray-900 mb-4">Request Course Access</h2>
             <p className="text-gray-600 mb-6">
-              Send a request to the admin to unlock this course. You'll be notified once it's approved.
+              Send a request to the admin to unlock this course. You&apos;ll be notified once it&apos;s approved.
             </p>
 
             <div className="mb-6">

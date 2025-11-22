@@ -16,7 +16,9 @@ export async function POST(request: NextRequest) {
 
   // Require authentication
   const authResult = await requireAuth(request);
-  if (authResult instanceof NextResponse) return authResult;
+  if (authResult instanceof NextResponse) {
+    return authResult;
+  }
   const user = authResult.user;
 
   // Get database instance
@@ -41,7 +43,7 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-    let { courseId, userId } = data;
+    const { courseId, userId } = data;
 
     // Validate inputs
     if (!courseId || !userId) {
@@ -60,8 +62,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Sanitize courseId
-    courseId = sanitizeString(String(courseId), 20);
-    const courseIdNum = parseInt(courseId);
+    const sanitizedCourseId = sanitizeString(String(courseId), 20);
+    const courseIdNum = parseInt(sanitizedCourseId);
     if (isNaN(courseIdNum) || courseIdNum <= 0) {
       return NextResponse.json(
         { error: 'Invalid course ID' },

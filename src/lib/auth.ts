@@ -133,7 +133,9 @@ export async function createSession(userId: number, deviceInfo?: any, userData?:
 
 export async function validateSession(sessionToken: string): Promise<AuthUser | null> {
   const user = verifyToken(sessionToken);
-  if (!user) return null;
+  if (!user) {
+    return null;
+  }
 
   // Get database instance
   const db = getDatabase();
@@ -183,10 +185,14 @@ export async function authenticateUser(email: string, password: string, role?: s
     .where(whereConditions)
     .limit(1);
 
-  if (!user.length) return null;
+  if (!user.length) {
+    return null;
+  }
 
   const isValidPassword = await verifyPassword(password, user[0].password);
-  if (!isValidPassword) return null;
+  if (!isValidPassword) {
+    return null;
+  }
 
   // Update last login
   await db
@@ -306,7 +312,9 @@ export async function generateResetToken(email: string): Promise<string | null> 
     .where(eq(users.email, email))
     .limit(1);
 
-  if (!user.length) return null;
+  if (!user.length) {
+    return null;
+  }
 
   // Use cryptographically secure random token
   const resetToken = generateSecureToken(32);
@@ -334,14 +342,18 @@ export async function verifyResetToken(email: string, token: string): Promise<bo
     ))
     .limit(1);
 
-  if (!user.length || !user[0].resetTokenExpiry) return false;
+  if (!user.length || !user[0].resetTokenExpiry) {
+    return false;
+  }
 
   return user[0].resetTokenExpiry > new Date();
 }
 
 export async function resetPassword(email: string, token: string, newPassword: string): Promise<boolean> {
   const isValid = await verifyResetToken(email, token);
-  if (!isValid) return false;
+  if (!isValid) {
+    return false;
+  }
 
   const db = getDatabase();
   const hashedPassword = await hashPassword(newPassword);

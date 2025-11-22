@@ -36,7 +36,7 @@ export async function GET(
 
     // Calculate average rating
     const avgRating = reviews.length > 0
-      ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length
+      ? reviews.reduce((sum: number, r: { rating: number }) => sum + r.rating, 0) / reviews.length
       : 0;
 
     return NextResponse.json({
@@ -45,11 +45,11 @@ export async function GET(
         totalReviews: reviews.length,
         averageRating: avgRating.toFixed(1),
         ratingDistribution: {
-          5: reviews.filter(r => r.rating === 5).length,
-          4: reviews.filter(r => r.rating === 4).length,
-          3: reviews.filter(r => r.rating === 3).length,
-          2: reviews.filter(r => r.rating === 2).length,
-          1: reviews.filter(r => r.rating === 1).length,
+          5: reviews.filter((r: { rating: number }) => r.rating === 5).length,
+          4: reviews.filter((r: { rating: number }) => r.rating === 4).length,
+          3: reviews.filter((r: { rating: number }) => r.rating === 3).length,
+          2: reviews.filter((r: { rating: number }) => r.rating === 2).length,
+          1: reviews.filter((r: { rating: number }) => r.rating === 1).length,
         },
       },
     });

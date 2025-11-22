@@ -65,7 +65,7 @@ const rateLimitStore = new Map<string, RateLimitEntry>();
 
 // Rate limiting configuration
 // More lenient in development, strict in production
-const RATE_LIMIT_WINDOW = process.env.NODE_ENV === 'development'
+const RATE_LIMIT_WINDOW = process.env.NODE_ENV === 'development' 
   ? 5 * 60 * 1000  // 5 minutes in dev
   : 15 * 60 * 1000; // 15 minutes in production
 
@@ -76,11 +76,11 @@ const RATE_LIMIT_MAX_REQUESTS = process.env.NODE_ENV === 'development'
 // Clean up old entries every 5 minutes
 setInterval(() => {
   const now = Date.now();
-  Array.from(rateLimitStore.entries()).forEach(([key, entry]) => {
+  for (const [key, entry] of Array.from(rateLimitStore.entries())) {
     if (entry.resetTime < now) {
       rateLimitStore.delete(key);
     }
-  });
+  }
 }, 5 * 60 * 1000);
 
 // Rate limiting middleware
@@ -144,14 +144,14 @@ const ALLOWED_ORIGINS = getAllowedOrigins();
 // CORS middleware
 export function checkCORS(req: NextRequest): { allowed: boolean; origin: string | null } {
   const origin = req.headers.get('origin');
-
+  
   // Allow requests without origin (same-origin, server-to-server)
   if (!origin) {
     return { allowed: true, origin: null };
   }
 
   // Check if origin is in allowed list
-  const allowed = ALLOWED_ORIGINS.some(allowedOrigin =>
+  const allowed = ALLOWED_ORIGINS.some(allowedOrigin => 
     origin === allowedOrigin || allowedOrigin === '*'
   );
 

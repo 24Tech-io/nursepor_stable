@@ -59,7 +59,7 @@ export default function ForgotPasswordPage() {
             </svg>
           </div>
           <h2 className="mt-6 text-3xl font-bold bg-gradient-to-r from-white to-slate-200 bg-clip-text text-transparent">Forgot your password?</h2>
-          <p className="mt-2 text-sm text-slate-300">Enter your email address and we'll send you a link to reset your password.</p>
+          <p className="mt-2 text-sm text-slate-300">Enter your email address and we&apos;ll send you a link to reset your password.</p>
         </div>
 
         {/* Form */}

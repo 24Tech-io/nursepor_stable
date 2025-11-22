@@ -102,7 +102,9 @@ export default function CoursesPage() {
   }
 
   async function submitRequest() {
-    if (!requestingId) return;
+    if (!requestingId) {
+      return;
+    }
 
     try {
       const response = await fetch('/api/student/requests', {

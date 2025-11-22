@@ -8,7 +8,9 @@ import { eq } from 'drizzle-orm';
 // Get authenticated user from request
 export async function getAuthenticatedUser(request: NextRequest): Promise<AuthUser | null> {
   const token = request.cookies.get('token')?.value;
-  if (!token) return null;
+  if (!token) {
+    return null;
+  }
 
   try {
     // First try to verify token directly (faster, works even if session expired)
@@ -216,7 +218,9 @@ export async function requireOwnershipOrAdmin(
   resourceUserId: number
 ): Promise<{ user: AuthUser } | NextResponse> {
   const authResult = await requireAuth(request);
-  if (authResult instanceof NextResponse) return authResult;
+  if (authResult instanceof NextResponse) {
+    return authResult;
+  }
 
   const user = authResult.user;
 

@@ -63,7 +63,9 @@ export function buildCSP(nonce: string): string {
 
   return Object.entries(cspDirectives)
     .map(([directive, sources]) => {
-      if (sources.length === 0) return directive;
+      if (sources.length === 0) {
+        return directive;
+      }
       return `${directive} ${sources.join(' ')}`;
     })
     .join('; ');

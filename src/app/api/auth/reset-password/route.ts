@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-    let { email, token, password } = data;
+    const { email, token, password } = data;
 
     if (!email || !token || !password) {
       return NextResponse.json(
@@ -47,10 +47,10 @@ export async function POST(request: NextRequest) {
     }
 
     // Sanitize and validate
-    email = sanitizeString(email.toLowerCase(), 255);
-    token = sanitizeString(token, 64);
+    const sanitizedEmail = sanitizeString(email.toLowerCase(), 255);
+    const sanitizedToken = sanitizeString(token, 64);
     
-    if (!validateEmail(email)) {
+    if (!validateEmail(sanitizedEmail)) {
       return NextResponse.json(
         { message: 'Invalid email format' },
         { status: 400 }
@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const success = await resetPassword(email, token, password);
+    const success = await resetPassword(sanitizedEmail, sanitizedToken, password);
 
     if (!success) {
       return NextResponse.json(

@@ -167,7 +167,9 @@ export default function StudentLayout({
 
   // Helper function to get user initials
   const getUserInitials = (name: string) => {
-    if (!name) return 'U';
+    if (!name) {
+      return 'U';
+    }
     const parts = name.trim().split(' ');
     if (parts.length >= 2) {
       return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();

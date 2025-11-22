@@ -6,7 +6,9 @@ const rateLimitStore = new Map<string, { count: number; resetTime: number }>();
 
 // Input validation and sanitization
 export function sanitizeString(input: string, maxLength: number = 255): string {
-  if (typeof input !== 'string') return '';
+  if (typeof input !== 'string') {
+    return '';
+  }
   return input
     .trim()
     .slice(0, maxLength)

@@ -33,7 +33,9 @@ export function isCacheConnected(): boolean {
 export async function getFromCache<T>(key: string): Promise<T | null> {
   try {
     const item = cache.get(key);
-    if (!item) return null;
+    if (!item) {
+      return null;
+    }
     
     // Check if expired
     if (item.expiry && Date.now() > item.expiry) {
@@ -90,7 +92,9 @@ export async function deleteFromCache(key: string): Promise<boolean> {
 export async function existsInCache(key: string): Promise<boolean> {
   try {
     const item = cache.get(key);
-    if (!item) return false;
+    if (!item) {
+      return false;
+    }
     
     // Check if expired
     if (item.expiry && Date.now() > item.expiry) {
@@ -137,7 +141,9 @@ export async function incrementCounter(
 export async function getTTL(key: string): Promise<number> {
   try {
     const item = cache.get(key);
-    if (!item || !item.expiry) return -1;
+    if (!item || !item.expiry) {
+      return -1;
+    }
     
     const ttl = Math.ceil((item.expiry - Date.now()) / 1000);
     return ttl > 0 ? ttl : -2;
@@ -153,7 +159,9 @@ export async function getTTL(key: string): Promise<number> {
 export async function setExpiry(key: string, seconds: number): Promise<boolean> {
   try {
     const item = cache.get(key);
-    if (!item) return false;
+    if (!item) {
+      return false;
+    }
     
     item.expiry = Date.now() + (seconds * 1000);
     cache.set(key, item);
@@ -171,7 +179,9 @@ export async function getMultipleFromCache<T>(keys: string[]): Promise<(T | null
   try {
     return keys.map(key => {
       const item = cache.get(key);
-      if (!item) return null;
+      if (!item) {
+        return null;
+      }
       if (item.expiry && Date.now() > item.expiry) {
         cache.delete(key);
         return null;
@@ -235,10 +245,14 @@ export async function getHashField<T>(
 ): Promise<T | null> {
   try {
     const hash = hashes.get(key);
-    if (!hash) return null;
+    if (!hash) {
+      return null;
+    }
     
     const value = hash.get(field);
-    if (!value) return null;
+    if (!value) {
+      return null;
+    }
     
     return JSON.parse(value) as T;
   } catch (error) {
@@ -250,7 +264,9 @@ export async function getHashField<T>(
 export async function getAllHashFields<T>(key: string): Promise<Record<string, T>> {
   try {
     const hash = hashes.get(key);
-    if (!hash) return {};
+    if (!hash) {
+      return {};
+    }
     
     const result: Record<string, T> = {};
     const entries = Array.from(hash.entries());
@@ -271,7 +287,9 @@ export async function getAllHashFields<T>(key: string): Promise<Record<string, T
 export async function deleteHashField(key: string, field: string): Promise<boolean> {
   try {
     const hash = hashes.get(key);
-    if (!hash) return false;
+    if (!hash) {
+      return false;
+    }
     
     hash.delete(field);
     if (hash.size === 0) {
@@ -313,7 +331,9 @@ export async function sismember(key: string, member: string): Promise<number> {
 export async function srem(key: string, member: string): Promise<boolean> {
   try {
     const set = sets.get(key);
-    if (!set) return false;
+    if (!set) {
+      return false;
+    }
     set.delete(member);
     return true;
   } catch (error) {
@@ -390,7 +410,9 @@ export async function setex(key: string, seconds: number, value: string): Promis
 export async function get(key: string): Promise<string | null> {
   try {
     const item = cache.get(key);
-    if (!item) return null;
+    if (!item) {
+      return null;
+    }
     
     if (item.expiry && Date.now() > item.expiry) {
       cache.delete(key);

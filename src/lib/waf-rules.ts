@@ -244,16 +244,20 @@ export async function applyWAFRules(request: NextRequest): Promise<NextResponse 
       'unknown';
     
     // Report security incident (async, don't wait)
-    reportSecurityIncident(
-      clientIP,
-      `WAF: ${result.reason}`,
-      {
-        path: request.nextUrl.pathname,
-        method: request.method,
-        userAgent: request.headers.get('user-agent'),
-      },
-      result.severity
-    ).catch(err => console.error('Failed to report incident:', err));
+    try {
+      reportSecurityIncident(
+        clientIP,
+        `WAF: ${result.reason}`,
+        {
+          path: request.nextUrl.pathname,
+          method: request.method,
+          userAgent: request.headers.get('user-agent'),
+        },
+        result.severity
+      );
+    } catch (err) {
+      console.error('Failed to report incident:', err);
+    }
     
     // Return 403 Forbidden
     return new NextResponse(

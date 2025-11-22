@@ -74,7 +74,9 @@ export default function BiometricEnrollment({ type, onComplete, onError, onCance
   };
 
   const handleFaceEnrollment = async () => {
-    if (!videoRef.current || !modelsReady) return;
+    if (!videoRef.current || !modelsReady) {
+      return;
+    }
 
     setIsProcessing(true);
     setStatus('Get ready...');
@@ -126,7 +128,7 @@ export default function BiometricEnrollment({ type, onComplete, onError, onCance
       setEnrollmentProgress(100);
       
       if (streamRef.current) {
-        stopCamera(streamRef.current);
+        stopCamera();
       }
       
       setTimeout(() => {
@@ -306,7 +308,7 @@ export default function BiometricEnrollment({ type, onComplete, onError, onCance
               </div>
               <h4 className="text-lg font-semibold text-gray-900 mb-2">Fingerprint Authentication</h4>
               <p className="text-sm text-gray-600">
-                Use your device's fingerprint sensor for quick and secure login
+                Use your device&apos;s fingerprint sensor for quick and secure login
               </p>
             </div>
 

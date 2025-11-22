@@ -10,7 +10,9 @@ export default function CustomCursor() {
   useEffect(() => {
     setMounted(true);
     
-    if (typeof window === 'undefined') return;
+    if (typeof window === 'undefined') {
+      return;
+    }
 
     let animationFrameId: number;
     let targetX = 0;
@@ -83,7 +85,9 @@ export default function CustomCursor() {
     };
   }, []);
 
-  if (!mounted) return null;
+  if (!mounted) {
+    return null;
+  }
 
   return (
     <>
