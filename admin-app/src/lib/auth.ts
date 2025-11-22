@@ -75,10 +75,10 @@ export function verifyToken(token: string): AdminUser | null {
 export async function authenticateAdmin(email: string, password: string): Promise<AdminUser | null> {
   try {
     const db = getDatabase();
-    
+
     const normalizedEmail = email.toLowerCase().trim();
     console.log('🔍 Searching for admin user with email:', normalizedEmail);
-    
+
     const userResult = await db
       .select()
       .from(users)

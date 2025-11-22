@@ -763,3 +763,53 @@ export const dailyVideoSettings = pgTable('daily_video_settings', {
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 });
 
+// Enrollments table
+export const enrollments = pgTable('enrollments', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  courseId: integer('course_id').notNull().references(() => courses.id, { onDelete: 'cascade' }),
+  status: text('status').notNull().default('active'), // active, completed, cancelled
+  progress: integer('progress').notNull().default(0), // percentage
+  enrolledAt: timestamp('enrolled_at').notNull().defaultNow(),
+  completedAt: timestamp('completed_at'),
+}, (table) => ({
+  userCourseUnique: unique('user_course_enrollment_unique').on(table.userId, table.courseId),
+}));
+
+export const enrollmentsRelations = relations(enrollments, ({ one }) => ({
+  user: one(users, {
+    fields: [enrollments.userId],
+    references: [users.id],
+  }),
+  course: one(courses, {
+    fields: [enrollments.courseId],
+    references: [courses.id],
+  }),
+}));
+
+// Quiz Attempts table (for Course Quizzes)
+export const quizAttempts = pgTable('quiz_attempts', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  chapterId: integer('chapter_id').notNull().references(() => chapters.id, { onDelete: 'cascade' }),
+  score: integer('score').notNull(),
+  totalQuestions: integer('total_questions').notNull(),
+  correctAnswers: integer('correct_answers').notNull(),
+  answers: text('answers').notNull(), // JSON string of answers
+  timeTaken: integer('time_taken').notNull(), // seconds
+  passed: boolean('passed').notNull().default(false),
+  attemptedAt: timestamp('attempted_at').notNull().defaultNow(),
+});
+
+export const quizAttemptsRelations = relations(quizAttempts, ({ one }) => ({
+  user: one(users, {
+    fields: [quizAttempts.userId],
+    references: [users.id],
+  }),
+  chapter: one(chapters, {
+    fields: [quizAttempts.chapterId],
+    references: [chapters.id],
+  }),
+}));
+
+

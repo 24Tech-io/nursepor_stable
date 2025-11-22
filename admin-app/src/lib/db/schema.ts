@@ -199,6 +199,19 @@ export const sessions = pgTable('sessions', {
   createdAt: timestamp('created_at').notNull().defaultNow(),
 });
 
+// Activity Logs table
+export const activityLogs = pgTable('activity_logs', {
+  id: serial('id').primaryKey(),
+  adminId: integer('admin_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  adminName: text('admin_name').notNull(),
+  action: text('action').notNull(), // 'created', 'updated', 'deleted', 'activated', 'deactivated'
+  entityType: text('entity_type').notNull(), // 'course', 'student', 'question', 'module', etc.
+  entityId: integer('entity_id'),
+  entityName: text('entity_name'), // Name/title of the entity for display
+  details: text('details'), // Additional details in JSON format
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+});
+
 // Define relations
 export const coursesRelations = relations(courses, ({ many }) => ({
   modules: many(modules),

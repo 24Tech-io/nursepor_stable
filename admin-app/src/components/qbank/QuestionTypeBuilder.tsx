@@ -70,23 +70,48 @@ function MultipleChoice({ question, onChange }: { question: any; onChange: (q: a
   return (
     <div className="space-y-4">
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">Options</label>
+        <label className="block text-sm font-medium text-slate-300 mb-2">Options</label>
         {options.map((opt: string, idx: number) => (
-          <input
-            key={idx}
-            value={opt}
-            onChange={(e) => {
-              const newOptions = [...options];
-              newOptions[idx] = e.target.value;
-              updateOptions(newOptions);
-            }}
-            placeholder={`Option ${idx + 1}`}
-            className="w-full mb-2 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
-          />
+          <div key={idx} className="flex items-center gap-2 mb-2">
+            <input
+              value={opt}
+              onChange={(e) => {
+                const newOptions = [...options];
+                newOptions[idx] = e.target.value;
+                updateOptions(newOptions);
+              }}
+              placeholder={`Option ${idx + 1}`}
+              className="flex-1 px-4 py-2 bg-[#11131a] border border-slate-700 rounded-lg text-slate-200 placeholder-slate-500 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+            />
+            {options.length > 2 && (
+              <button
+                onClick={() => {
+                  const newOptions = options.filter((_: string, i: number) => i !== idx);
+                  const newCorrect = idx === correctAnswer ? 0 : (idx < correctAnswer ? correctAnswer - 1 : correctAnswer);
+                  setCorrectAnswer(newCorrect);
+                  setOptions(newOptions);
+                  onChange({ ...question, options: newOptions, correctAnswer: newCorrect });
+                }}
+                className="px-3 py-2 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition-colors"
+              >
+                Remove
+              </button>
+            )}
+          </div>
         ))}
+        <button
+          onClick={() => {
+            const newOptions = [...options, ''];
+            setOptions(newOptions);
+            updateOptions(newOptions);
+          }}
+          className="mt-2 text-sm text-purple-400 hover:text-purple-300 font-medium"
+        >
+          + Add Option
+        </button>
       </div>
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">Correct Answer</label>
+        <label className="block text-sm font-medium text-slate-300 mb-2">Correct Answer</label>
         <select
           value={correctAnswer}
           onChange={(e) => {
@@ -94,10 +119,10 @@ function MultipleChoice({ question, onChange }: { question: any; onChange: (q: a
             setCorrectAnswer(newCorrect);
             onChange({ ...question, options, correctAnswer: newCorrect });
           }}
-          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+          className="w-full px-4 py-2 bg-[#11131a] border border-slate-700 rounded-lg text-slate-200 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
         >
           {options.map((opt: string, idx: number) => (
-            <option key={idx} value={idx}>
+            <option key={idx} value={idx} className="bg-[#11131a] text-slate-200">
               Option {idx + 1}: {opt || '(empty)'}
             </option>
           ))}

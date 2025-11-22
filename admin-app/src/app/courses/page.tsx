@@ -46,21 +46,53 @@ export default function CoursesPage() {
       return;
     }
 
+    console.log('🗑️ Attempting to delete course with ID:', courseId);
     setDeletingId(courseId);
+    
     try {
-      const response = await fetch(`/api/courses/${courseId}`, {
+      const url = `/api/courses/${courseId}`;
+      console.log('📡 Making DELETE request to:', url);
+      
+      const response = await fetch(url, {
         method: 'DELETE',
         credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        }
       });
 
-      if (response.ok) {
-        setCourses(courses.filter(c => c.id !== courseId));
-      } else {
-        alert('Failed to delete course. Please try again.');
+      console.log('📥 Response status:', response.status, response.statusText);
+
+      let data;
+      try {
+        data = await response.json();
+        console.log('📦 Response data:', data);
+      } catch (parseError) {
+        console.error('❌ Failed to parse response as JSON:', parseError);
+        const text = await response.text();
+        console.error('📄 Response text:', text);
+        alert(`Failed to delete course: Invalid response from server (Status: ${response.status})`);
+        setDeletingId(null);
+        return;
       }
-    } catch (error) {
-      console.error('Error deleting course:', error);
-      alert('Error deleting course. Please try again.');
+
+      if (response.ok) {
+        // Remove the course from the list
+        console.log('✅ Course deleted successfully, updating UI...');
+        setCourses(prevCourses => {
+          const filtered = prevCourses.filter(c => c.id !== courseId);
+          console.log(`📊 Updated courses list: ${prevCourses.length} -> ${filtered.length}`);
+          return filtered;
+        });
+      } else {
+        // Show the actual error message from the server
+        const errorMsg = data.message || data.error || `Server returned status ${response.status}`;
+        console.error('❌ Delete failed:', { status: response.status, statusText: response.statusText, data });
+        alert(`Failed to delete course: ${errorMsg}\n\nCheck the browser console for more details.`);
+      }
+    } catch (error: any) {
+      console.error('❌ Network error deleting course:', error);
+      alert(`Error deleting course: ${error.message || 'Network error. Please check your connection and try again.'}\n\nCheck the browser console for more details.`);
     } finally {
       setDeletingId(null);
     }

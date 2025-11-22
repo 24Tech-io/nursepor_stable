@@ -18,16 +18,16 @@ export default function BowTie({ question, onChange }: { question: any; onChange
 
   return (
     <div className="space-y-4">
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <p className="text-sm text-blue-800">
+      <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4">
+        <p className="text-sm text-blue-300">
           <strong>Bow-Tie Item:</strong> 3 central areas - Left: Assessment findings (2 choices), Center: Single most likely condition (1 choice), Right: 2 nursing actions (priority interventions).
         </p>
       </div>
 
       <div className="grid grid-cols-3 gap-4">
         {/* Left: Assessment Findings */}
-        <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
-          <label className="block text-sm font-medium text-gray-700 mb-2">Assessment Findings (2 choices)</label>
+        <div className="bg-blue-500/10 rounded-lg p-4 border border-blue-500/30">
+          <label className="block text-sm font-medium text-slate-300 mb-2">Assessment Findings (2 choices)</label>
           {assessmentFindings.map((finding: string, idx: number) => (
             <input
               key={idx}
@@ -39,14 +39,14 @@ export default function BowTie({ question, onChange }: { question: any; onChange
                 updateBowTie(newFindings, condition, nursingActions);
               }}
               placeholder={`Finding ${idx + 1}`}
-              className="w-full mb-2 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              className="w-full mb-2 px-3 py-2 bg-[#11131a] border border-slate-700 rounded-lg text-slate-200 placeholder-slate-500 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
           ))}
         </div>
 
         {/* Center: Condition */}
-        <div className="bg-purple-50 rounded-lg p-4 border border-purple-200">
-          <label className="block text-sm font-medium text-gray-700 mb-2">Most Likely Condition (1 choice)</label>
+        <div className="bg-purple-500/10 rounded-lg p-4 border border-purple-500/30">
+          <label className="block text-sm font-medium text-slate-300 mb-2">Most Likely Condition (1 choice)</label>
           <input
             value={condition}
             onChange={(e) => {
@@ -54,13 +54,13 @@ export default function BowTie({ question, onChange }: { question: any; onChange
               updateBowTie(assessmentFindings, e.target.value, nursingActions);
             }}
             placeholder="Condition"
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+            className="w-full px-3 py-2 bg-[#11131a] border border-slate-700 rounded-lg text-slate-200 placeholder-slate-500 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
           />
         </div>
 
         {/* Right: Nursing Actions */}
-        <div className="bg-green-50 rounded-lg p-4 border border-green-200">
-          <label className="block text-sm font-medium text-gray-700 mb-2">Nursing Actions (2 priority interventions)</label>
+        <div className="bg-green-500/10 rounded-lg p-4 border border-green-500/30">
+          <label className="block text-sm font-medium text-slate-300 mb-2">Nursing Actions (2 priority interventions)</label>
           {nursingActions.map((action: string, idx: number) => (
             <input
               key={idx}
@@ -72,7 +72,7 @@ export default function BowTie({ question, onChange }: { question: any; onChange
                 updateBowTie(assessmentFindings, condition, newActions);
               }}
               placeholder={`Action ${idx + 1}`}
-              className="w-full mb-2 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+              className="w-full mb-2 px-3 py-2 bg-[#11131a] border border-slate-700 rounded-lg text-slate-200 placeholder-slate-500 focus:ring-2 focus:ring-green-500 focus:border-green-500"
             />
           ))}
         </div>

@@ -3,6 +3,7 @@ import { verifyToken } from '@/lib/auth';
 import { getDatabase } from '@/lib/db';
 import { users } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
+import { logActivity } from '@/lib/activity-log';
 
 // PATCH - Toggle student active/inactive status
 export async function PATCH(
@@ -43,6 +44,16 @@ export async function PATCH(
       .where(eq(users.id, studentId));
 
     console.log(`✅ Student ${studentId} active status changed to: ${newStatus}`);
+
+    // Log activity
+    await logActivity({
+      adminId: decoded.id,
+      adminName: decoded.name || 'Admin',
+      action: newStatus ? 'activated' : 'deactivated',
+      entityType: 'student',
+      entityId: studentId,
+      entityName: student[0].name,
+    });
 
     return NextResponse.json({
       message: `Student ${newStatus ? 'activated' : 'deactivated'} successfully`,

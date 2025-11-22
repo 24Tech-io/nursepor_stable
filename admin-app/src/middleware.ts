@@ -1,17 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyToken } from '@/lib/auth';
+import { verifyToken } from '@/lib/jwt';
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
 
   // Public routes - allow access regardless of auth status
   if (
-    pathname === '/' || 
-    pathname === '/login' || 
+    pathname === '/' ||
+    pathname === '/login' ||
     pathname === '/register' ||
     pathname.startsWith('/api/auth/login') ||
     pathname.startsWith('/api/auth/register') ||
-    pathname.startsWith('/api/auth/me') // Allow auth check endpoint - it has its own validation
+    pathname.startsWith('/api/auth/me') ||
+    pathname.startsWith('/api/setup-test-users')
   ) {
     console.log(`✅ [Middleware] Public route allowed: ${pathname}`);
     return NextResponse.next();
@@ -26,7 +27,7 @@ export function middleware(request: NextRequest) {
 
   // Check authentication for API routes
   const token = request.cookies.get('adminToken')?.value;
-  
+
   console.log(`🔍 [Middleware] Checking API route: ${pathname}, Token exists: ${!!token}`);
 
   if (!token) {
@@ -35,7 +36,7 @@ export function middleware(request: NextRequest) {
   }
 
   try {
-    const user = verifyToken(token);
+    const user = await verifyToken(token);
     if (!user || user.role !== 'admin') {
       console.log(`❌ [Middleware] Invalid token or not admin for API route: ${pathname}`);
       return NextResponse.json({ message: 'Admin access required' }, { status: 403 });

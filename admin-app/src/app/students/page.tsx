@@ -22,35 +22,29 @@ export default function StudentsPage() {
 
     const fetchStudents = async () => {
         try {
-            const token = document.cookie
-                .split('; ')
-                .find(row => row.startsWith('token='))
-                ?.split('=')[1];
+            const response = await fetch('/api/students', {
+                credentials: 'include',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            });
 
-            if (!token) {
-                setError('Not authenticated');
+            if (!response.ok) {
+                if (response.status === 401) {
+                    setError('Not authenticated. Please log in.');
+                } else {
+                    throw new Error(`Failed to fetch students: ${response.statusText}`);
+                }
                 setLoading(false);
                 return;
             }
 
-            const response = await fetch('http://localhost:3001/api/students', {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Cookie': `token=${token}`
-                },
-                credentials: 'include'
-            });
-
-            if (!response.ok) {
-                throw new Error(`Failed to fetch students: ${response.statusText}`);
-            }
-
             const data = await response.json();
-            setStudents(data.students || data.data || data);
+            setStudents(data.students || data.data || []);
             setLoading(false);
         } catch (err: any) {
             console.error('Error fetching students:', err);
-            setError(err.message);
+            setError(err.message || 'Failed to fetch students');
             setLoading(false);
         }
     };
@@ -142,14 +136,43 @@ export default function StudentsPage() {
                                                 {new Date(student.createdAt).toLocaleDateString()}
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm">
-                                                <button className="text-blue-400 hover:text-blue-300 mr-4">
-                                                    View
-                                                </button>
-                                                <button className="text-yellow-400 hover:text-yellow-300 mr-4">
-                                                    Edit
-                                                </button>
-                                                <button className="text-red-400 hover:text-red-300">
+                                                <button 
+                                                    onClick={async () => {
+                                                        try {
+                                                            const response = await fetch(`/api/students/${student.id}/toggle-active`, {
+                                                                method: 'PATCH',
+                                                                credentials: 'include',
+                                                                headers: {
+                                                                    'Content-Type': 'application/json',
+                                                                }
+                                                            });
+                                                            
+                                                            if (response.ok) {
+                                                                const data = await response.json();
+                                                                setStudents(students.map(s => 
+                                                                    s.id === student.id ? { ...s, isActive: data.isActive } : s
+                                                                ));
+                                                            } else {
+                                                                const error = await response.json();
+                                                                alert(`Failed to toggle student status: ${error.message || 'Unknown error'}`);
+                                                            }
+                                                        } catch (error: any) {
+                                                            console.error('Error toggling student status:', error);
+                                                            alert(`Failed to toggle student status: ${error.message || 'Network error'}`);
+                                                        }
+                                                    }}
+                                                    className="text-blue-400 hover:text-blue-300 mr-4 px-3 py-1.5 rounded-lg hover:bg-blue-500/10 transition-colors font-medium"
+                                                >
                                                     {student.isActive ? 'Deactivate' : 'Activate'}
+                                                </button>
+                                                <button 
+                                                    onClick={() => {
+                                                        // View student details - can be implemented later
+                                                        alert(`View student ${student.name} details`);
+                                                    }}
+                                                    className="text-yellow-400 hover:text-yellow-300 mr-4 px-3 py-1.5 rounded-lg hover:bg-yellow-500/10 transition-colors font-medium"
+                                                >
+                                                    View
                                                 </button>
                                             </td>
                                         </tr>

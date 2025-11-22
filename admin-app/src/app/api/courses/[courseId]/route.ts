@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { verifyToken } from '@/lib/auth';
 import { getDatabase } from '@/lib/db';
 import { courses } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
+import { logActivity } from '@/lib/activity-log';
 
 export async function GET(
   request: NextRequest,
@@ -87,6 +89,28 @@ export async function PUT(
       .where(eq(courses.id, courseId))
       .returning();
 
+    // Log activity
+    const token = request.cookies.get('adminToken')?.value;
+    if (token) {
+      const decoded = verifyToken(token);
+      if (decoded) {
+        await logActivity({
+          adminId: decoded.id,
+          adminName: decoded.name,
+          action: 'updated',
+          entityType: 'course',
+          entityId: courseId,
+          entityName: updatedCourse.title,
+          details: {
+            changes: {
+              title: title !== existingCourse.title ? { from: existingCourse.title, to: title } : undefined,
+              status: status !== existingCourse.status ? { from: existingCourse.status, to: status } : undefined,
+            }
+          }
+        });
+      }
+    }
+
     return NextResponse.json({
       course: {
         id: updatedCourse.id.toString(),
@@ -115,8 +139,31 @@ export async function DELETE(
   { params }: { params: { courseId: string } }
 ) {
   try {
+    const token = request.cookies.get('adminToken')?.value;
+
+    if (!token) {
+      console.error('Delete course: No token found');
+      return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });
+    }
+
+    const decoded = verifyToken(token);
+    if (!decoded || decoded.role !== 'admin') {
+      console.error('Delete course: Invalid token or not admin', { decoded });
+      return NextResponse.json({ message: 'Admin access required' }, { status: 403 });
+    }
+
     const db = getDatabase();
     const courseId = parseInt(params.courseId);
+
+    if (isNaN(courseId)) {
+      console.error('Delete course: Invalid course ID', params.courseId);
+      return NextResponse.json(
+        { message: 'Invalid course ID' },
+        { status: 400 }
+      );
+    }
+
+    console.log(`Attempting to delete course with ID: ${courseId}`);
 
     // Check if course exists
     const [existingCourse] = await db
@@ -126,24 +173,49 @@ export async function DELETE(
       .limit(1);
 
     if (!existingCourse) {
+      console.error('Delete course: Course not found', courseId);
       return NextResponse.json(
         { message: 'Course not found' },
         { status: 404 }
       );
     }
 
+    console.log(`Deleting course: ${existingCourse.title} (ID: ${courseId})`);
+
     // Delete course (any admin can delete any course)
     await db
       .delete(courses)
       .where(eq(courses.id, courseId));
 
+    console.log(`Successfully deleted course with ID: ${courseId}`);
+
+    // Log activity
+    await logActivity({
+      adminId: decoded.id,
+      adminName: decoded.name,
+      action: 'deleted',
+      entityType: 'course',
+      entityId: courseId,
+      entityName: existingCourse.title,
+    });
+
     return NextResponse.json({
       message: 'Course deleted successfully',
+      deletedId: courseId,
     });
   } catch (error: any) {
     console.error('Delete course error:', error);
+    console.error('Error details:', {
+      message: error.message,
+      stack: error.stack,
+      name: error.name,
+    });
     return NextResponse.json(
-      { message: 'Failed to delete course', error: process.env.NODE_ENV === 'development' ? error.message : undefined },
+      { 
+        message: 'Failed to delete course', 
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+        details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      },
       { status: 500 }
     );
   }

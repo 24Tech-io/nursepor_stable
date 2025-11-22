@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { verifyToken } from '@/lib/auth';
 import { getDatabase } from '@/lib/db';
 import { courses } from '@/lib/db/schema';
 import { desc } from 'drizzle-orm';
+import { logActivity } from '@/lib/activity-log';
 
 export async function GET(request: NextRequest) {
   try {
@@ -36,6 +38,17 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const token = request.cookies.get('adminToken')?.value;
+
+    if (!token) {
+      return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });
+    }
+
+    const decoded = verifyToken(token);
+    if (!decoded || decoded.role !== 'admin') {
+      return NextResponse.json({ message: 'Admin access required' }, { status: 403 });
+    }
+
     const body = await request.json();
     const { title, description, instructor, thumbnail, pricing, status, isRequestable } = body;
 
@@ -59,6 +72,16 @@ export async function POST(request: NextRequest) {
         isRequestable: isRequestable !== undefined ? isRequestable : true,
       })
       .returning();
+
+    // Log activity
+    await logActivity({
+      adminId: decoded.id,
+      adminName: decoded.name,
+      action: 'created',
+      entityType: 'course',
+      entityId: newCourse.id,
+      entityName: newCourse.title,
+    });
 
     return NextResponse.json({
       course: {

@@ -31,27 +31,27 @@ export default function CaseStudy({ question, onChange }: { question: any; onCha
 
   return (
     <div className="space-y-4">
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <p className="text-sm text-blue-800">
+      <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4">
+        <p className="text-sm text-blue-300">
           <strong>Case Study (6-step CJMM):</strong> Each case has 6 sequential questions based on the Clinical Judgment Measurement Model (CJMM).
         </p>
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">Case Study Title</label>
+        <label className="block text-sm font-medium text-slate-300 mb-2">Case Study Title</label>
         <input
           value={caseTitle}
           onChange={(e) => {
             setCaseTitle(e.target.value);
             updateCaseStudy(e.target.value, caseDescription, caseData, stepQuestions);
           }}
-          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+          className="w-full px-4 py-2 bg-[#11131a] border border-slate-700 rounded-lg text-slate-200 placeholder-slate-500 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
           placeholder="Case Study Title"
         />
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">Case Description / Patient Scenario</label>
+        <label className="block text-sm font-medium text-slate-300 mb-2">Case Description / Patient Scenario</label>
         <textarea
           value={caseDescription}
           onChange={(e) => {
@@ -59,22 +59,22 @@ export default function CaseStudy({ question, onChange }: { question: any; onCha
             updateCaseStudy(caseTitle, e.target.value, caseData, stepQuestions);
           }}
           rows={6}
-          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+          className="w-full px-4 py-2 bg-[#11131a] border border-slate-700 rounded-lg text-slate-200 placeholder-slate-500 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
           placeholder="Enter patient scenario, background information, etc."
         />
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">CJMM Steps</label>
+        <label className="block text-sm font-medium text-slate-300 mb-2">CJMM Steps</label>
         <div className="grid grid-cols-3 gap-2 mb-4">
           {CJMM_STEPS.map((step) => (
             <button
               key={step.step}
               onClick={() => setCurrentStep(step.step)}
-              className={`px-4 py-2 rounded-lg text-sm font-semibold ${
+              className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
                 currentStep === step.step
                   ? 'bg-purple-600 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
               }`}
             >
               Step {step.step}
@@ -82,15 +82,15 @@ export default function CaseStudy({ question, onChange }: { question: any; onCha
           ))}
         </div>
 
-        <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 mb-4">
-          <h4 className="font-semibold text-gray-900 mb-1">
+        <div className="bg-purple-500/10 border border-purple-500/30 rounded-lg p-4 mb-4">
+          <h4 className="font-semibold text-slate-200 mb-1">
             Step {currentStep}: {CJMM_STEPS[currentStep - 1].name}
           </h4>
-          <p className="text-sm text-gray-600">{CJMM_STEPS[currentStep - 1].description}</p>
+          <p className="text-sm text-slate-400">{CJMM_STEPS[currentStep - 1].description}</p>
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Question for Step {currentStep}</label>
+          <label className="block text-sm font-medium text-slate-300 mb-2">Question for Step {currentStep}</label>
           <textarea
             value={stepQuestions[currentStep]?.question || ''}
             onChange={(e) => {
@@ -100,13 +100,13 @@ export default function CaseStudy({ question, onChange }: { question: any; onCha
               updateCaseStudy(caseTitle, caseDescription, caseData, newSteps);
             }}
             rows={3}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+            className="w-full px-4 py-2 bg-[#11131a] border border-slate-700 rounded-lg text-slate-200 placeholder-slate-500 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
             placeholder={`Enter question for ${CJMM_STEPS[currentStep - 1].name}`}
           />
         </div>
 
         <div className="mt-4">
-          <label className="block text-sm font-medium text-gray-700 mb-2">Options</label>
+          <label className="block text-sm font-medium text-slate-300 mb-2">Options</label>
           {(stepQuestions[currentStep]?.options || ['', '', '', '']).map((opt: string, idx: number) => (
             <input
               key={idx}
@@ -121,13 +121,13 @@ export default function CaseStudy({ question, onChange }: { question: any; onCha
                 updateCaseStudy(caseTitle, caseDescription, caseData, newSteps);
               }}
               placeholder={`Option ${idx + 1}`}
-              className="w-full mb-2 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+              className="w-full mb-2 px-4 py-2 bg-[#11131a] border border-slate-700 rounded-lg text-slate-200 placeholder-slate-500 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
             />
           ))}
         </div>
 
         <div className="mt-4">
-          <label className="block text-sm font-medium text-gray-700 mb-2">Correct Answer</label>
+          <label className="block text-sm font-medium text-slate-300 mb-2">Correct Answer</label>
           <select
             value={stepQuestions[currentStep]?.correctAnswer || 0}
             onChange={(e) => {
@@ -137,10 +137,10 @@ export default function CaseStudy({ question, onChange }: { question: any; onCha
               setStepQuestions(newSteps);
               updateCaseStudy(caseTitle, caseDescription, caseData, newSteps);
             }}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+            className="w-full px-4 py-2 bg-[#11131a] border border-slate-700 rounded-lg text-slate-200 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
           >
             {(stepQuestions[currentStep]?.options || ['', '', '', '']).map((opt: string, idx: number) => (
-              <option key={idx} value={idx}>
+              <option key={idx} value={idx} className="bg-[#11131a] text-slate-200">
                 Option {idx + 1}: {opt || '(empty)'}
               </option>
             ))}
@@ -148,8 +148,8 @@ export default function CaseStudy({ question, onChange }: { question: any; onCha
         </div>
       </div>
 
-      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-        <p className="text-sm text-yellow-800">
+      <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-3">
+        <p className="text-sm text-yellow-300">
           Progress: {Object.keys(stepQuestions).length} of 6 steps completed
         </p>
       </div>

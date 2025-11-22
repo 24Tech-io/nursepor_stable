@@ -4,10 +4,21 @@
  * Run with: npx tsx scripts/create-test-data.ts
  */
 
-import { db } from '../src/lib/db';
 import { courses, modules, chapters, users, enrollments, quizAttempts, videoProgress } from '../src/lib/db/schema';
 import { hash } from 'bcryptjs';
 import { eq } from 'drizzle-orm';
+import dotenv from 'dotenv';
+
+// Load environment variables from .env.local
+dotenv.config({ path: '.env.local' });
+
+if (!process.env.DATABASE_URL) {
+    console.error('❌ DATABASE_URL is not set in .env.local');
+    process.exit(1);
+}
+
+// Dynamic import to ensure env var is set before db init
+const { db } = await import('../src/lib/db');
 
 async function createTestData() {
     console.log('🚀 Starting test data creation...\n');
@@ -105,7 +116,8 @@ async function createTestData() {
                     courseId: course.id,
                     title: `Module ${modIndex}: ${modIndex === 1 ? 'Introduction' : 'Advanced Concepts'}`,
                     description: `Learning module ${modIndex} for ${course.title}`,
-                    orderIndex: modIndex - 1,
+                    order: modIndex - 1,
+                    duration: 0,
                 }).returning();
 
                 console.log(`  ✅ Created module: ${module.title}`);
@@ -121,7 +133,7 @@ async function createTestData() {
                         content: chapterType === 'text' ? 'Comprehensive learning content for this chapter' : null,
                         videoUrl: chapterType === 'video' ? 'https://www.youtube.com/embed/dQw4w9WgXcQ' : null,
                         duration: chapterType === 'video' ? 600 : null, // 10 minutes
-                        orderIndex: chapIndex - 1,
+                        order: chapIndex - 1,
                     });
                 }
                 console.log(`    Added 3 chapters (video, text, quiz)`);
@@ -163,13 +175,14 @@ async function createTestData() {
             const firstModuleChapters = await db.select().from(chapters)
                 .where(eq(chapters.moduleId, firstCourseModules[0].id));
 
-            const videoChapter = firstModuleChapters.find(ch => ch.type === 'video');
+            const videoChapter = firstModuleChapters.find((ch: any) => ch.type === 'video');
             if (videoChapter) {
                 await db.insert(videoProgress).values({
                     userId: studentId,
                     chapterId: videoChapter.id,
                     progress: 45,
                     lastPosition: 270, // 4:30 out of 10:00
+                    duration: 600, // 10 minutes
                     completed: false,
                 });
                 console.log(`✅ Created progress for video chapter (45% watched)`);
@@ -185,7 +198,7 @@ async function createTestData() {
             const firstModuleChapters = await db.select().from(chapters)
                 .where(eq(chapters.moduleId, firstCourseModules[0].id));
 
-            const quizChapter = firstModuleChapters.find(ch => ch.type === 'quiz');
+            const quizChapter = firstModuleChapters.find((ch: any) => ch.type === 'quiz');
             if (quizChapter) {
                 await db.insert(quizAttempts).values({
                     userId: studentId,

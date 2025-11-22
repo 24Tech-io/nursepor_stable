@@ -48,6 +48,7 @@ const CJMM_STEPS = [
 ];
 
 import StudentProfile from './admin/StudentProfile';
+import QuestionTypeBuilder from './qbank/QuestionTypeBuilder';
 
 // --- ROOT COMPONENT ---
 export default function NurseProAdminUltimate() {
@@ -136,6 +137,7 @@ export default function NurseProAdminUltimate() {
 // --- DASHBOARD MODULE ---
 const Dashboard = ({ nav }: { nav: (mod: string) => void }) => {
   const [stats, setStats] = React.useState({ courses: 0, questions: 0, students: 0 });
+  const [activityLogs, setActivityLogs] = React.useState<any[]>([]);
 
   React.useEffect(() => {
     const fetchStats = async () => {
@@ -159,7 +161,24 @@ const Dashboard = ({ nav }: { nav: (mod: string) => void }) => {
       }
     };
 
+    const fetchActivityLogs = async () => {
+      try {
+        const response = await fetch('/api/activity-logs?limit=10', { credentials: 'include' });
+        if (response.ok) {
+          const data = await response.json();
+          setActivityLogs(data.logs || []);
+        }
+      } catch (error) {
+        console.error('Error fetching activity logs:', error);
+      }
+    };
+
     fetchStats();
+    fetchActivityLogs();
+    
+    // Refresh activity logs every 30 seconds
+    const interval = setInterval(fetchActivityLogs, 30000);
+    return () => clearInterval(interval);
   }, []);
 
   return (
@@ -208,16 +227,93 @@ const Dashboard = ({ nav }: { nav: (mod: string) => void }) => {
         </div>
 
         <div className="bg-[#161922] border border-slate-800/60 rounded-2xl p-6">
-          <h3 className="font-bold text-white mb-6">System Status</h3>
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <span className="text-slate-300">Database</span>
-              <span className="text-green-400 font-bold">Connected</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-slate-300">API Services</span>
-              <span className="text-green-400 font-bold">Online</span>
-            </div>
+          <h3 className="font-bold text-white mb-6">Recent Activity</h3>
+          <div className="space-y-3 max-h-[500px] overflow-y-auto custom-scrollbar">
+            {activityLogs.length === 0 ? (
+              <p className="text-slate-500 text-sm text-center py-4">No recent activity</p>
+            ) : (
+              activityLogs.map((log) => {
+                const getActionIcon = () => {
+                  switch (log.action) {
+                    case 'created': return <Plus size={14} className="text-green-400" />;
+                    case 'updated': return <Edit3 size={14} className="text-blue-400" />;
+                    case 'deleted': return <Trash2 size={14} className="text-red-400" />;
+                    case 'activated': return <CheckCircle size={14} className="text-green-400" />;
+                    case 'deactivated': return <X size={14} className="text-red-400" />;
+                    default: return <Activity size={14} className="text-purple-400" />;
+                  }
+                };
+
+                const getActionColor = () => {
+                  switch (log.action) {
+                    case 'created': return 'text-green-400';
+                    case 'updated': return 'text-blue-400';
+                    case 'deleted': return 'text-red-400';
+                    case 'activated': return 'text-green-400';
+                    case 'deactivated': return 'text-red-400';
+                    default: return 'text-purple-400';
+                  }
+                };
+
+                const formatTime = (dateString: string) => {
+                  const date = new Date(dateString);
+                  const now = new Date();
+                  const diffMs = now.getTime() - date.getTime();
+                  const diffMins = Math.floor(diffMs / 60000);
+                  const diffHours = Math.floor(diffMs / 3600000);
+                  const diffDays = Math.floor(diffMs / 86400000);
+
+                  if (diffMins < 1) return 'Just now';
+                  if (diffMins < 60) return `${diffMins}m ago`;
+                  if (diffHours < 24) return `${diffHours}h ago`;
+                  if (diffDays < 7) return `${diffDays}d ago`;
+                  return date.toLocaleDateString();
+                };
+
+                const getActionText = () => {
+                  const actionMap: Record<string, string> = {
+                    created: 'created',
+                    updated: 'updated',
+                    deleted: 'deleted',
+                    activated: 'activated',
+                    deactivated: 'deactivated',
+                    approved: 'approved',
+                    rejected: 'rejected',
+                  };
+                  return actionMap[log.action] || log.action;
+                };
+
+                const getEntityDisplay = () => {
+                  const entityMap: Record<string, string> = {
+                    course: 'course',
+                    student: 'student',
+                    question: 'question',
+                    module: 'module',
+                    chapter: 'chapter',
+                    access_request: 'access request',
+                    blog: 'blog post',
+                  };
+                  return entityMap[log.entityType] || log.entityType;
+                };
+
+                return (
+                  <div key={log.id} className="flex items-start gap-3 p-3 bg-[#1a1d26] rounded-lg border border-slate-800/40 hover:border-slate-700 transition-colors">
+                    <div className="mt-0.5">{getActionIcon()}</div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs text-slate-300 leading-relaxed">
+                        <span className="font-semibold text-white">{log.adminName}</span>{' '}
+                        <span className={getActionColor()}>{getActionText()}</span>{' '}
+                        <span className="text-slate-400">{getEntityDisplay()}</span>
+                        {log.entityName && (
+                          <span className="text-slate-200 font-medium"> "{log.entityName}"</span>
+                        )}
+                      </p>
+                      <p className="text-[10px] text-slate-500 mt-1">{formatTime(log.createdAt)}</p>
+                    </div>
+                  </div>
+                );
+              })
+            )}
           </div>
         </div>
       </div>
@@ -1833,6 +1929,11 @@ const UniversalQuestionEditor = ({ question, back }: { question: any; back: () =
   const [type, setType] = useState(question?.type || 'standard');
   const [activeStep, setActiveStep] = useState(1);
   const [activeTab, setActiveTab] = useState('scenario');
+  const [questionData, setQuestionData] = useState(question || {
+    options: ['', '', '', ''],
+    correctAnswer: 0,
+    format: 'multiple_choice'
+  });
 
   // When category changes, reset type to first available in that category
   const handleCategoryChange = (newCat: string) => {
@@ -1843,17 +1944,40 @@ const UniversalQuestionEditor = ({ question, back }: { question: any; back: () =
     }
   };
 
+  // Map question types to QuestionTypeBuilder formats
+  const getQuestionFormat = (questionType: string): any => {
+    const formatMap: Record<string, string> = {
+      'standard': 'multiple_choice',
+      'sata_classic': 'sata',
+      'matrix': 'matrix_multiple_response',
+      'drag_drop': 'extended_drag_drop',
+      'cloze': 'cloze_dropdown',
+      'bowtie': 'bowtie',
+      'trend': 'trend_item',
+      'ordering': 'ranking',
+      'casestudy': 'case_study'
+    };
+    return formatMap[questionType] || 'multiple_choice';
+  };
+
+  // Handle question data changes
+  const handleQuestionChange = (updatedQuestion: any) => {
+    setQuestionData(updatedQuestion);
+  };
+
   // Render specific editor based on type
   const renderEditor = () => {
-    switch (type) {
-      case 'bowtie': return <BowTieEditor />;
-      case 'casestudy': return <CaseStudyEditor step={activeStep} setStep={setActiveStep} />;
-      case 'matrix': return <MatrixEditor />;
-      case 'trend': return <TrendEditor />;
-      case 'sata_classic': return <StandardEditor type="checkbox" />;
-      case 'standard': return <StandardEditor type="radio" />;
-      default: return <StandardEditor type="radio" />;
-    }
+    // Use QuestionTypeBuilder for all question types
+    const format = getQuestionFormat(type);
+    return (
+      <div className="bg-white rounded-lg p-6 shadow-lg">
+        <QuestionTypeBuilder
+          format={format}
+          question={questionData}
+          onChange={handleQuestionChange}
+        />
+      </div>
+    );
   };
 
   return (

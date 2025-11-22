@@ -4,9 +4,14 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
+type LoginTab = 'email' | 'otp' | 'face';
+
 export default function AdminLoginPage() {
+  const [activeTab, setActiveTab] = useState<LoginTab>('email');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [otp, setOtp] = useState('');
+  const [otpSent, setOtpSent] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [checkingAuth, setCheckingAuth] = useState(true);
@@ -16,9 +21,8 @@ export default function AdminLoginPage() {
   useEffect(() => {
     async function checkAuth() {
       try {
-        // Add a small delay to ensure cookies are available
         await new Promise(resolve => setTimeout(resolve, 100));
-        
+
         const response = await fetch('/api/auth/me', {
           credentials: 'include',
           cache: 'no-store',
@@ -27,13 +31,11 @@ export default function AdminLoginPage() {
         if (response.ok) {
           const data = await response.json();
           if (data.user && data.user.role === 'admin') {
-            // Already logged in, redirect to dashboard
             router.replace('/dashboard');
             return;
           }
         }
       } catch (error) {
-        // Not authenticated, show login form
         console.log('Not authenticated, showing login form');
       } finally {
         setCheckingAuth(false);
@@ -43,7 +45,7 @@ export default function AdminLoginPage() {
     checkAuth();
   }, [router]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError('');
@@ -51,11 +53,9 @@ export default function AdminLoginPage() {
     try {
       const response = await fetch('/api/auth/login', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ 
-          email: email.trim().toLowerCase(), 
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: email.trim().toLowerCase(),
           password,
           role: 'admin',
         }),
@@ -68,56 +68,37 @@ export default function AdminLoginPage() {
         return;
       }
 
-      // Check if response is ok (200-299)
       if (response.ok) {
         let data: any = null;
-        
+
         try {
-          // Use response.json() directly instead of text() then parse
           data = await response.json();
         } catch (parseError) {
-          // If JSON parsing fails, still try to redirect (cookie might be set)
-          console.warn('Failed to parse response, but cookie may be set:', parseError);
           window.location.replace('/dashboard');
           return;
         }
-        
+
         if (!data || !data.user) {
           setError('Login successful but user data missing');
           setIsLoading(false);
           return;
         }
 
-        // Only allow admin role
         if (data.user.role !== 'admin') {
           setError('This account is not an admin account. Please use the student portal to login.');
           setIsLoading(false);
           return;
         }
 
-        const redirectUrl = '/dashboard';
-        
-        setError('');
-        setIsLoading(false);
-        
-        // Store user data
         sessionStorage.setItem('adminUser', JSON.stringify(data.user));
         sessionStorage.setItem('shouldRedirect', 'true');
-        
-        // Debug: Check if cookie is set
-        console.log('🍪 [Login] Cookies after login:', document.cookie);
-        console.log('📦 [Login] User data stored:', data.user);
-        console.log('🔄 [Login] Redirecting to:', redirectUrl);
-        console.log('⏱️ [Login] Will redirect after 500ms to allow cookie to be set');
-        
-        // Wait a bit for cookie to be set, then redirect
+
         setTimeout(() => {
-          console.log('🔄 [Login] Performing redirect to:', redirectUrl);
-          window.location.href = redirectUrl;
+          window.location.href = '/dashboard';
         }, 500);
-        
+
         return;
-        
+
       } else {
         let errorData: any = null;
         try {
@@ -128,20 +109,82 @@ export default function AdminLoginPage() {
         } catch (e) {
           // Ignore parse errors
         }
-        
+
         setError(errorData?.message || `Login failed (Status: ${response.status})`);
         setIsLoading(false);
       }
     } catch (error: any) {
       setError(error?.message || 'Network error. Please try again.');
       setIsLoading(false);
-    } finally {
-      if (window.location.pathname === '/login') {
-        setIsLoading(false);
-      }
     }
   };
 
+  const handleSendOTP = async () => {
+    if (!email) {
+      setError('Please enter your email');
+      return;
+    }
+
+    setIsLoading(true);
+    setError('');
+
+    try {
+      const response = await fetch('/api/auth/send-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setOtpSent(true);
+        setError('');
+      } else {
+        setError(data.message || 'Failed to send OTP');
+      }
+    } catch (error: any) {
+      setError(error.message || 'Network error. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleOTPLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setError('');
+
+    try {
+      const response = await fetch('/api/auth/verify-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, otp, role: 'admin' }),
+        credentials: 'include',
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.user) {
+        if (data.user.role !== 'admin') {
+          setError('This account is not an admin account.');
+          setIsLoading(false);
+          return;
+        }
+
+        sessionStorage.setItem('adminUser', JSON.stringify(data.user));
+        setTimeout(() => {
+          window.location.href = '/dashboard';
+        }, 500);
+      } else {
+        setError(data.message || 'Invalid OTP');
+      }
+    } catch (error: any) {
+      setError(error.message || 'Network error. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   // Show loading while checking auth
   if (checkingAuth) {
@@ -173,51 +216,39 @@ export default function AdminLoginPage() {
           <p className="mt-2 text-sm text-slate-300">Sign in to your Admin Portal account</p>
         </div>
 
-        {/* Form */}
-        <form
-          className="mt-8 space-y-6"
-          onSubmit={handleSubmit}
-          name="login-form"
-          id="login-form"
-          action="/api/auth/login"
-          method="POST"
-        >
-          <div className="space-y-4 bg-white/10 backdrop-blur-xl border border-white/10 rounded-2xl p-6 shadow-2xl shadow-teal-900/20">
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-slate-200">
-                Email address
-              </label>
-              <input
-                id="email"
-                name="email"
-                type="email"
-                autoComplete="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="mt-1 block w-full px-3 py-3 bg-white/5 text-slate-100 placeholder-slate-400 border border-white/10 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-                placeholder="Enter your email"
-              />
-            </div>
+        {/* Tabs */}
+        <div className="flex gap-2 bg-white/5 p-1 rounded-xl backdrop-blur-xl border border-white/10">
+          <button
+            onClick={() => setActiveTab('email')}
+            className={`flex-1 py-2.5 px-4 rounded-lg font-medium text-sm transition-all ${activeTab === 'email'
+                ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-500/50'
+                : 'text-slate-300 hover:text-white'
+              }`}
+          >
+            Email
+          </button>
+          <button
+            onClick={() => setActiveTab('otp')}
+            className={`flex-1 py-2.5 px-4 rounded-lg font-medium text-sm transition-all ${activeTab === 'otp'
+                ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-500/50'
+                : 'text-slate-300 hover:text-white'
+              }`}
+          >
+            OTP
+          </button>
+          <button
+            onClick={() => setActiveTab('face')}
+            className={`flex-1 py-2.5 px-4 rounded-lg font-medium text-sm transition-all ${activeTab === 'face'
+                ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-500/50'
+                : 'text-slate-300 hover:text-white'
+              }`}
+          >
+            Face ID
+          </button>
+        </div>
 
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-slate-200">
-                Password
-              </label>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                autoComplete="current-password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="mt-1 block w-full px-3 py-3 bg-white/5 text-slate-100 placeholder-slate-400 border border-white/10 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-                placeholder="Enter your password"
-              />
-            </div>
-          </div>
-
+        {/* Form Container */}
+        <div className="space-y-6 bg-white/10 backdrop-blur-xl border border-white/10 rounded-2xl p-6 shadow-2xl shadow-teal-900/20">
           {/* Error Message */}
           {error && (
             <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4">
@@ -234,40 +265,173 @@ export default function AdminLoginPage() {
             </div>
           )}
 
-          {/* Submit Button */}
-          <div>
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="group relative w-full flex justify-center py-3 px-4 border border-white/10 text-sm font-medium rounded-xl text-white bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/60 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-[0_10px_40px_-12px_rgba(16,185,129,0.6)]"
-            >
-              {isLoading ? (
-                <div className="flex items-center">
-                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  Signing in...
-                </div>
-              ) : (
-                'Sign in'
-              )}
-            </button>
-          </div>
+          {/* Email Login Tab */}
+          {activeTab === 'email' && (
+            <form onSubmit={handleEmailLogin} className="space-y-4">
+              <div>
+                <label htmlFor="email" className="block text-sm font-medium text-slate-200">
+                  Email address
+                </label>
+                <input
+                  id="email"
+                  name="email"
+                  type="email"
+                  autoComplete="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="mt-1 block w-full px-3 py-3 bg-white/5 text-slate-100 placeholder-slate-400 border border-white/10 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                  placeholder="Enter your email"
+                />
+              </div>
 
-          {/* Register Link */}
-          <div className="text-center">
-            <p className="text-sm text-slate-300">
-              Don't have an account?{' '}
-              <Link
-                href="/register"
-                className="font-medium text-emerald-300 hover:text-emerald-200"
+              <div>
+                <label htmlFor="password" className="block text-sm font-medium text-slate-200">
+                  Password
+                </label>
+                <input
+                  id="password"
+                  name="password"
+                  type="password"
+                  autoComplete="current-password"
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="mt-1 block w-full px-3 py-3 bg-white/5 text-slate-100 placeholder-slate-400 border border-white/10 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                  placeholder="Enter your password"
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="w-full flex justify-center py-3 px-4 border border-white/10 text-sm font-medium rounded-xl text-white bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/60 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-[0_10px_40px_-12px_rgba(16,185,129,0.6)]"
               >
-                Sign up
-              </Link>
-            </p>
-          </div>
-        </form>
+                {isLoading ? 'Signing in...' : 'Sign in'}
+              </button>
+            </form>
+          )}
+
+          {/* OTP Login Tab */}
+          {activeTab === 'otp' && (
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-200 mb-2">
+                  Email address
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="flex-1 px-3 py-3 bg-white/5 text-slate-100 placeholder-slate-400 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                    placeholder="Enter your email"
+                    disabled={otpSent}
+                    required
+                  />
+                  {!otpSent && (
+                    <button
+                      type="button"
+                      onClick={handleSendOTP}
+                      disabled={isLoading}
+                      className="px-6 py-3 bg-emerald-600 text-white font-medium rounded-xl hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all whitespace-nowrap"
+                    >
+                      {isLoading ? 'Sending...' : 'Send OTP'}
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {otpSent && (
+                <form onSubmit={handleOTPLogin} className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-200 mb-2">
+                      Enter OTP
+                    </label>
+                    <input
+                      type="text"
+                      value={otp}
+                      onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                      className="w-full px-3 py-3 bg-white/5 text-slate-100 placeholder-slate-400 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-center text-2xl tracking-widest"
+                      placeholder="000000"
+                      maxLength={6}
+                      required
+                    />
+                    <p className="mt-2 text-sm text-slate-300">
+                      OTP sent to {email}.{' '}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setOtpSent(false);
+                          setOtp('');
+                        }}
+                        className="text-emerald-300 hover:text-emerald-200 font-medium"
+                      >
+                        Change email
+                      </button>
+                    </p>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={isLoading || otp.length !== 6}
+                    className="w-full py-3 px-4 bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-medium rounded-xl hover:from-emerald-500 hover:to-teal-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/60 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-[0_10px_40px_-12px_rgba(16,185,129,0.6)]"
+                  >
+                    {isLoading ? 'Verifying...' : 'Verify OTP'}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleSendOTP}
+                    disabled={isLoading}
+                    className="w-full text-sm text-emerald-300 hover:text-emerald-200 font-medium"
+                  >
+                    Resend OTP
+                  </button>
+                </form>
+              )}
+            </div>
+          )}
+
+          {/* Face ID Login Tab */}
+          {activeTab === 'face' && (
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-200 mb-2">
+                  Email address
+                </label>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full px-3 py-3 bg-white/5 text-slate-100 placeholder-slate-400 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                  placeholder="Enter your email"
+                  required
+                />
+              </div>
+
+              <div className="text-center py-8">
+                <svg className="mx-auto h-16 w-16 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <p className="mt-4 text-slate-300">Face ID authentication coming soon</p>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Register Link */}
+        <div className="text-center">
+          <p className="text-sm text-slate-300">
+            Don't have an account?{' '}
+            <Link
+              href="/register"
+              className="font-medium text-emerald-300 hover:text-emerald-200"
+            >
+              Sign up
+            </Link>
+          </p>
+        </div>
       </div>
     </div>
   );

@@ -9,14 +9,15 @@ export async function POST(request: NextRequest) {
       { status: 200 }
     );
 
-    // Clear the token cookie (matches what auth/login sets)
-    response.cookies.set('token', '', {
+    // Clear the adminToken cookie (matches what auth/login sets)
+    response.cookies.set('adminToken', '', {
       httpOnly: true,
       sameSite: 'lax',
       secure: process.env.NODE_ENV === 'production',
       path: '/',
       maxAge: 0, // Immediately expire the cookie
     });
+
 
     console.log('✅ [/api/auth/logout] Cookie cleared');
 

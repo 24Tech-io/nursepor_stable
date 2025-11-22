@@ -16,14 +16,14 @@ export default function SATA({ question, onChange }: { question: any; onChange: 
 
   return (
     <div className="space-y-4">
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <p className="text-sm text-blue-800">
+      <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4">
+        <p className="text-sm text-blue-300">
           <strong>Select All That Apply (SATA):</strong> Traditional SATA format. Students select all correct options. No predetermined number of correct answers.
         </p>
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">Options</label>
+        <label className="block text-sm font-medium text-slate-300 mb-2">Options</label>
         {options.map((opt: string, idx: number) => (
           <div key={idx} className="flex items-center gap-2 mb-2">
             <input
@@ -39,7 +39,7 @@ export default function SATA({ question, onChange }: { question: any; onChange: 
                 setCorrectAnswers(newCorrect);
                 updateQuestion(options, newCorrect);
               }}
-              className="w-5 h-5 text-purple-600 rounded"
+              className="w-5 h-5 text-purple-500 rounded accent-purple-500"
             />
             <input
               value={opt}
@@ -50,7 +50,7 @@ export default function SATA({ question, onChange }: { question: any; onChange: 
                 updateQuestion(newOptions, correctAnswers);
               }}
               placeholder={`Option ${idx + 1}`}
-              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+              className="flex-1 px-4 py-2 bg-[#11131a] border border-slate-700 rounded-lg text-slate-200 placeholder-slate-500 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
             />
           </div>
         ))}
@@ -60,14 +60,14 @@ export default function SATA({ question, onChange }: { question: any; onChange: 
             setOptions(newOptions);
             updateQuestion(newOptions, correctAnswers);
           }}
-          className="mt-2 text-sm text-purple-600 hover:text-purple-700"
+          className="mt-2 text-sm text-purple-400 hover:text-purple-300"
         >
           + Add Option
         </button>
       </div>
 
-      <div className="bg-green-50 border border-green-200 rounded-lg p-3">
-        <p className="text-sm text-green-800">
+      <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-3">
+        <p className="text-sm text-green-300">
           Correct answers selected: {correctAnswers.length} option(s)
         </p>
       </div>

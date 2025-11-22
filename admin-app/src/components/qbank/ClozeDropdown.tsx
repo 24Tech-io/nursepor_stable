@@ -19,14 +19,14 @@ export default function ClozeDropdown({ question, onChange }: { question: any; o
 
   return (
     <div className="space-y-4">
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <p className="text-sm text-blue-800">
+      <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4">
+        <p className="text-sm text-blue-300">
           <strong>Cloze / Drop-Down:</strong> Text with embedded drop-downs. Each drop-down has 3-5 answer choices. Used for medication calculation, nursing judgment, or lab interpretation.
         </p>
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">Question Text</label>
+        <label className="block text-sm font-medium text-slate-300 mb-2">Question Text</label>
         <textarea
           value={text}
           onChange={(e) => {
@@ -34,25 +34,25 @@ export default function ClozeDropdown({ question, onChange }: { question: any; o
             updateCloze(e.target.value, dropdowns);
           }}
           rows={6}
-          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+          className="w-full px-4 py-2 bg-[#11131a] border border-slate-700 rounded-lg text-slate-200 placeholder-slate-500 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
           placeholder="Enter text. Use [DROPDOWN] to mark where drop-downs should appear."
         />
-        <p className="mt-1 text-xs text-gray-500">Use [DROPDOWN] in your text to mark drop-down positions</p>
+        <p className="mt-1 text-xs text-slate-400">Use [DROPDOWN] in your text to mark drop-down positions</p>
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">Drop-Downs</label>
+        <label className="block text-sm font-medium text-slate-300 mb-2">Drop-Downs</label>
         {dropdowns.map((dropdown: any, idx: number) => (
-          <div key={idx} className="mb-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+          <div key={idx} className="mb-4 p-4 bg-slate-800 rounded-lg border border-slate-700">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium text-gray-700">Drop-Down {idx + 1}</span>
+              <span className="text-sm font-medium text-slate-300">Drop-Down {idx + 1}</span>
               <button
                 onClick={() => {
                   const newDropdowns = dropdowns.filter((_: any, i: number) => i !== idx);
                   setDropdowns(newDropdowns);
                   updateCloze(text, newDropdowns);
                 }}
-                className="text-sm text-red-600 hover:text-red-700"
+                className="text-sm text-red-400 hover:text-red-300"
               >
                 Remove
               </button>
@@ -70,7 +70,7 @@ export default function ClozeDropdown({ question, onChange }: { question: any; o
                       setDropdowns(newDropdowns);
                       updateCloze(text, newDropdowns);
                     }}
-                    className="w-4 h-4 text-purple-600"
+                    className="w-4 h-4 text-purple-500 accent-purple-500"
                   />
                   <input
                     value={opt}
@@ -81,7 +81,7 @@ export default function ClozeDropdown({ question, onChange }: { question: any; o
                       updateCloze(text, newDropdowns);
                     }}
                     placeholder={`Option ${optIdx + 1}`}
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                    className="flex-1 px-3 py-2 bg-[#11131a] border border-slate-700 rounded-lg text-slate-200 placeholder-slate-500 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                   />
                 </div>
               ))}
@@ -92,7 +92,7 @@ export default function ClozeDropdown({ question, onChange }: { question: any; o
                   setDropdowns(newDropdowns);
                   updateCloze(text, newDropdowns);
                 }}
-                className="text-sm text-purple-600 hover:text-purple-700"
+                className="text-sm text-purple-400 hover:text-purple-300"
               >
                 + Add Option
               </button>
@@ -101,7 +101,7 @@ export default function ClozeDropdown({ question, onChange }: { question: any; o
         ))}
         <button
           onClick={() => addDropdown(text.length)}
-          className="px-4 py-2 bg-purple-100 text-purple-700 rounded-lg text-sm font-semibold hover:bg-purple-200"
+          className="px-4 py-2 bg-purple-500/20 text-purple-300 rounded-lg text-sm font-semibold hover:bg-purple-500/30 border border-purple-500/30"
         >
           + Add Drop-Down
         </button>
