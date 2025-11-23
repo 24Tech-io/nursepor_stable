@@ -272,7 +272,6 @@ export default function NurseProAdminUltimate({
         {currentModule === 'students' && <StudentsList 
           nav={nav} 
           onSelectStudent={(id) => { 
-            console.log('Student selected with ID:', id, 'Type:', typeof id);
             setActiveStudentId(id); 
             nav('student_profile', id); 
           }}
@@ -499,7 +498,6 @@ const RequestsInbox = ({ nav }: { nav: (mod: string) => void }) => {
   const fetchRequests = async () => {
     setIsLoading(true);
     try {
-      console.log('🔄 Fetching access requests (no cache)...');
       const timestamp = Date.now(); // Add timestamp to bust cache
       const response = await fetch(`/api/requests?t=${timestamp}`, { 
         credentials: 'include',
@@ -511,28 +509,14 @@ const RequestsInbox = ({ nav }: { nav: (mod: string) => void }) => {
       });
       if (response.ok) {
         const data = await response.json();
-        console.log('✅ Requests fetched:', data.requests?.length || 0);
-        console.log('📋 Request details:', data.requests?.map((r: any) => ({
-          id: r.id,
-          student: r.studentName,
-          course: r.courseTitle,
-          status: r.status,
-          reviewedAt: r.reviewedAt
-        })) || []);
-        
-        // Log each request's status for debugging
-        data.requests?.forEach((r: any) => {
-          console.log(`📌 Request ${r.id}: status="${r.status}", reviewedAt="${r.reviewedAt}"`);
-        });
-        
         setRequests(data.requests || []);
       } else {
-        console.error('❌ Failed to fetch requests:', response.status);
+        console.error('Failed to fetch requests:', response.status);
         const errorData = await response.json().catch(() => ({}));
-        console.error('❌ Error details:', errorData);
+        console.error('Error details:', errorData);
       }
     } catch (error) {
-      console.error('❌ Error fetching requests:', error);
+      console.error('Error fetching requests:', error);
     } finally {
       setIsLoading(false);
     }
@@ -541,8 +525,6 @@ const RequestsInbox = ({ nav }: { nav: (mod: string) => void }) => {
   const handleAction = async (requestId: number, action: 'approve' | 'deny') => {
     setProcessingId(requestId);
     try {
-      console.log(`🔄 Attempting to ${action} request ${requestId}...`);
-      
       const response = await fetch(`/api/requests/${requestId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -550,11 +532,8 @@ const RequestsInbox = ({ nav }: { nav: (mod: string) => void }) => {
         body: JSON.stringify({ action }),
       });
 
-      console.log(`📡 Response status: ${response.status}`);
-
       if (response.ok) {
         const data = await response.json();
-        console.log(`✅ Request ${action}d successfully:`, data);
         
         // Force refresh requests list with a delay to ensure DB is updated
         // The delay helps ensure the database transaction is committed
@@ -573,7 +552,6 @@ const RequestsInbox = ({ nav }: { nav: (mod: string) => void }) => {
         
         // If approved, the enrollment sync utility will handle enrollment automatically
         if (action === 'approve') {
-          console.log(`✅ Student ${data.studentId} should now be enrolled in course ${data.courseId}`);
         }
       } else {
         // Try to get error message from response
@@ -581,16 +559,16 @@ const RequestsInbox = ({ nav }: { nav: (mod: string) => void }) => {
         try {
           const errorData = await response.json();
           errorMessage = errorData.message || errorData.error || errorMessage;
-          console.error(`❌ Error response:`, errorData);
+          console.error('Error response:', errorData);
         } catch (e) {
-          console.error(`❌ Failed to parse error response. Status: ${response.status}`);
+          console.error('Failed to parse error response. Status:', response.status);
           errorMessage = `Failed to ${action} request (Status: ${response.status})`;
         }
         
         notification.showError(`Failed to ${action} request`, errorMessage);
       }
     } catch (error: any) {
-      console.error(`❌ Error ${action}ing request:`, error);
+      console.error(`Error ${action}ing request:`, error);
       const errorMessage = error.message || `Network error: Failed to ${action} request`;
       notification.showError(`Failed to ${action} request`, errorMessage);
     } finally {
@@ -602,28 +580,15 @@ const RequestsInbox = ({ nav }: { nav: (mod: string) => void }) => {
   const pendingRequests = requests.filter(r => r.status === 'pending');
   const reviewedRequests = requests.filter(r => r.status !== 'pending' && r.status !== null && r.status !== undefined);
   
-  // Debug logging with more details
+  // Validate request data consistency
   React.useEffect(() => {
-    console.log('📊 Requests state updated:', {
-      total: requests.length,
-      pending: pendingRequests.length,
-      reviewed: reviewedRequests.length,
-      statuses: requests.map((r: any) => ({ 
-        id: r.id, 
-        status: r.status,
-        reviewedAt: r.reviewedAt,
-        student: r.studentName,
-        course: r.courseTitle
-      }))
-    });
-    
     // Log any requests that should be reviewed but aren't
     requests.forEach((r: any) => {
       if (r.reviewedAt && r.status === 'pending') {
-        console.warn(`⚠️ Request ${r.id} has reviewedAt but status is still 'pending'!`, r);
+        console.warn(`Request ${r.id} has reviewedAt but status is still 'pending'!`, r);
       }
     });
-  }, [requests, pendingRequests, reviewedRequests]);
+  }, [requests]);
 
   return (
     <div className="p-8 overflow-y-auto h-full">
@@ -749,14 +714,12 @@ const StudentsList = ({ nav, onSelectStudent, refreshTrigger }: { nav: (mod: str
   // Refresh when trigger changes
   React.useEffect(() => {
     if (refreshTrigger !== undefined) {
-      console.log('🔄 Refresh trigger activated, fetching fresh student data...');
       fetchStudents();
     }
   }, [refreshTrigger]);
 
   const fetchStudents = async () => {
     try {
-      console.log('🔄 Fetching students with REAL data (no cache)...');
       const response = await fetch('/api/students', { 
         credentials: 'include',
         cache: 'no-store',
@@ -767,18 +730,12 @@ const StudentsList = ({ nav, onSelectStudent, refreshTrigger }: { nav: (mod: str
       });
       if (response.ok) {
         const data = await response.json();
-        console.log('✅ Students fetched:', data.students?.length || 0);
-        console.log('📊 Enrollment status (REAL DATA):', data.students?.map((s: any) => ({ 
-          name: s.name, 
-          enrolled: s.enrolledCourses,
-          requested: s.pendingRequests || 0
-        })) || []);
         setStudents(data.students || []);
       } else {
-        console.error('❌ Failed to fetch students:', response.status);
+        console.error('Failed to fetch students:', response.status);
       }
     } catch (error) {
-      console.error('❌ Error fetching students:', error);
+      console.error('Error fetching students:', error);
     } finally {
       setIsLoading(false);
     }
@@ -887,11 +844,10 @@ const StudentsList = ({ nav, onSelectStudent, refreshTrigger }: { nav: (mod: str
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
-                      console.log('🖱️ Clicked on student:', student.id, student.name);
                       if (student.id) {
                         onSelectStudent(student.id);
                       } else {
-                        console.error('❌ Student ID is missing!', student);
+                        console.error('Student ID is missing!', student);
                         alert('Error: Student ID is missing');
                       }
                     }}
