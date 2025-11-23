@@ -119,13 +119,6 @@ export async function syncEnrollmentAfterApproval(
       throw new Error(`Invalid parameters: studentId=${studentId}, courseId=${courseId}`);
     }
 
-    // Check if course exists
-    const courseExists = await db
-      .select({ id: studentProgress.courseId })
-      .from(studentProgress)
-      .where(eq(studentProgress.courseId, courseId))
-      .limit(1);
-
     let created = false;
 
     // 1. Check/Create studentProgress (Legacy but required for progress tracking)
@@ -147,6 +140,9 @@ export async function syncEnrollmentAfterApproval(
         await db.insert(studentProgress).values({
           studentId,
           courseId,
+          completedChapters: '[]',
+          watchedVideos: '[]',
+          quizAttempts: '[]',
           totalProgress: 0,
         });
         console.log(`✅ Synced: Created studentProgress for student ${studentId}, course ${courseId}`);
