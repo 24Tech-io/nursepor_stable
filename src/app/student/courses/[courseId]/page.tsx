@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import LoadingSpinner from '@/components/student/LoadingSpinner';
 import { canAccessChapter } from '@/lib/prerequisites';
 
 interface Module {
@@ -44,13 +45,29 @@ export default function CourseDetailPage({ params }: { params: { courseId: strin
 
   const fetchProgress = async () => {
     try {
-      const response = await fetch('/api/student/progress', { credentials: 'include' });
+      const response = await fetch('/api/student/progress', { 
+        credentials: 'include',
+        cache: 'no-store',
+      });
       if (response.ok) {
         const data = await response.json();
-        setCompletedChapters(new Set(data.completedChapters));
+        // Convert array of chapter IDs to Set of numbers
+        const chapterIds = Array.isArray(data.completedChapters) 
+          ? data.completedChapters.map((id: any) => Number(id))
+          : [];
+        
+        // Merge with existing state to avoid overwriting recent updates
+        setCompletedChapters(prev => {
+          const newSet = new Set(prev);
+          chapterIds.forEach((id: number) => newSet.add(id));
+          console.log('✅ Progress fetched and merged, completed chapters:', Array.from(newSet));
+          return newSet;
+        });
+      } else {
+        console.error('❌ Failed to fetch progress:', response.status);
       }
     } catch (error) {
-      console.error('Error fetching progress:', error);
+      console.error('❌ Error fetching progress:', error);
     }
   };
 
@@ -133,14 +150,7 @@ export default function CourseDetailPage({ params }: { params: { courseId: strin
   };
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading course content...</p>
-        </div>
-      </div>
-    );
+    return <LoadingSpinner message="Loading course content..." fullScreen />;
   }
 
   return (
@@ -232,49 +242,83 @@ export default function CourseDetailPage({ params }: { params: { courseId: strin
                   {module.chapters.length === 0 ? (
                     <p className="text-center text-gray-500 py-8">No chapters in this module yet</p>
                   ) : (
-                    module.chapters.map((chapter, chapterIndex) => (
-                      <button
-                        key={chapter.id}
-                        onClick={async () => {
-                          // Check prerequisites before opening
-                          if (chapter.prerequisiteChapterId) {
-                            // Check if prerequisite is completed
-                            const isCompleted = completedChapters.has(chapter.prerequisiteChapterId);
+                    module.chapters.map((chapter, chapterIndex) => {
+                      // Ensure we compare numbers with numbers
+                      const chapterIdNum = Number(chapter.id);
+                      const isCompleted = completedChapters.has(chapterIdNum);
+                      
+                      // Debug logging
+                      if (chapterIndex === 0) {
+                        console.log('🔍 Chapter check:', {
+                          chapterId: chapter.id,
+                          chapterIdNum,
+                          completedChapters: Array.from(completedChapters),
+                          isCompleted
+                        });
+                      }
+                      
+                      return (
+                        <button
+                          key={chapter.id}
+                          onClick={async () => {
+                            // Check prerequisites before opening
+                            if (chapter.prerequisiteChapterId) {
+                              // Check if prerequisite is completed (ensure number comparison)
+                              const prereqIdNum = Number(chapter.prerequisiteChapterId);
+                              const isPrereqCompleted = completedChapters.has(prereqIdNum);
 
-                            if (!isCompleted) {
-                              alert('Please complete the previous chapter first');
-                              return;
+                              if (!isPrereqCompleted) {
+                                alert('Please complete the previous chapter first');
+                                return;
+                              }
                             }
-                          }
-                          setSelectedChapter(chapter);
-                        }}
-                        className="w-full flex items-center gap-4 p-4 bg-white rounded-xl hover:shadow-md transition-shadow border border-gray-200 hover:border-purple-300"
-                      >
-                        <div className="w-8 h-8 flex items-center justify-center text-purple-600">
-                          {getChapterIcon(chapter.type)}
-                        </div>
-                        <div className="flex-1 text-left">
-                          <h4 className="font-semibold text-gray-900">{chapter.title}</h4>
-                          {chapter.description && (
-                            <p className="text-sm text-gray-600">{chapter.description}</p>
-                          )}
-                          <div className="flex items-center gap-3 mt-1">
-                            <span className="text-xs px-2 py-1 bg-purple-100 text-purple-700 rounded-full font-medium capitalize">
-                              {chapter.type}
-                            </span>
-                            {chapter.videoDuration && (
-                              <span className="text-xs text-gray-500">{chapter.videoDuration} min</span>
-                            )}
-                            {chapter.readingTime && (
-                              <span className="text-xs text-gray-500">{chapter.readingTime} min read</span>
+                            setSelectedChapter(chapter);
+                          }}
+                          className="w-full flex items-center gap-4 p-4 bg-white rounded-xl hover:shadow-md transition-shadow border border-gray-200 hover:border-purple-300"
+                        >
+                          <div className="w-8 h-8 flex items-center justify-center text-purple-600 relative">
+                            {getChapterIcon(chapter.type)}
+                            {isCompleted && (
+                              <div className="absolute -top-1 -right-1 w-5 h-5 bg-green-500 rounded-full flex items-center justify-center border-2 border-white shadow-lg">
+                                <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                </svg>
+                              </div>
                             )}
                           </div>
-                        </div>
-                        <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                        </svg>
-                      </button>
-                    ))
+                          <div className="flex-1 text-left">
+                            <div className="flex items-center gap-2">
+                              <h4 className="font-semibold text-gray-900">{chapter.title}</h4>
+                              {isCompleted && (
+                                <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs font-semibold rounded-full flex items-center gap-1">
+                                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                  </svg>
+                                  Completed
+                                </span>
+                              )}
+                            </div>
+                            {chapter.description && (
+                              <p className="text-sm text-gray-600">{chapter.description}</p>
+                            )}
+                            <div className="flex items-center gap-3 mt-1">
+                              <span className="text-xs px-2 py-1 bg-purple-100 text-purple-700 rounded-full font-medium capitalize">
+                                {chapter.type}
+                              </span>
+                              {chapter.videoDuration && (
+                                <span className="text-xs text-gray-500">{chapter.videoDuration} min</span>
+                              )}
+                              {chapter.readingTime && (
+                                <span className="text-xs text-gray-500">{chapter.readingTime} min read</span>
+                              )}
+                            </div>
+                          </div>
+                          <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                          </svg>
+                        </button>
+                      );
+                    })
                   )}
                 </div>
               )}
@@ -368,9 +412,60 @@ export default function CourseDetailPage({ params }: { params: { courseId: strin
               )}
 
               <button
-                onClick={() => setSelectedChapter(null)}
-                className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white py-3 rounded-xl font-semibold hover:from-purple-700 hover:to-blue-700 transition-all"
+                onClick={async () => {
+                  if (!selectedChapter || !course) return;
+                  
+                  try {
+                    const response = await fetch('/api/student/chapters/complete', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      credentials: 'include',
+                      body: JSON.stringify({
+                        chapterId: selectedChapter.id,
+                        courseId: course.id,
+                      }),
+                    });
+
+                    if (response.ok) {
+                      const result = await response.json();
+                      console.log('✅ Chapter marked complete:', result);
+                      
+                      // Update local state to show checkmark immediately
+                      const chapterIdNum = Number(selectedChapter.id);
+                      console.log('📝 Adding chapter ID to completed set:', chapterIdNum);
+                      
+                      setCompletedChapters(prev => {
+                        const newSet = new Set(prev);
+                        newSet.add(chapterIdNum);
+                        console.log('✅ Updated completed chapters set:', Array.from(newSet));
+                        return newSet;
+                      });
+                      
+                      // Close modal first so UI updates are visible
+                      setSelectedChapter(null);
+                      
+                      // Show success feedback
+                      alert('Chapter marked as complete! ✓');
+                      
+                      // Refresh progress data after a short delay to ensure sync
+                      setTimeout(async () => {
+                        console.log('🔄 Refreshing progress data...');
+                        await fetchProgress();
+                      }, 300);
+                    } else {
+                      const errorData = await response.json().catch(() => ({}));
+                      alert(errorData.message || 'Failed to mark chapter as complete');
+                    }
+                  } catch (error) {
+                    console.error('Error marking chapter complete:', error);
+                    alert('Failed to mark chapter as complete. Please try again.');
+                  }
+                }}
+                className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white py-3 rounded-xl font-semibold hover:from-purple-700 hover:to-blue-700 transition-all flex items-center justify-center gap-2"
               >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
                 Mark as Complete & Continue
               </button>
             </div>

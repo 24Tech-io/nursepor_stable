@@ -12,19 +12,45 @@ import { securityLogger } from '@/lib/edge-logger';
 
 export async function POST(request: NextRequest) {
   try {
-    // Rate limiting - stricter for login
-    const clientIP = getClientIP(request);
+    // Rate limiting - stricter for login (with error handling)
+    let clientIP: string;
+    try {
+      clientIP = getClientIP(request);
+    } catch (ipError: any) {
+      console.error('❌ Error getting client IP:', ipError);
+      clientIP = 'unknown';
+    }
     
-    // Check brute force protection
-    if (isIPBlocked(clientIP)) {
-      securityLogger.logSecurityEvent('Blocked IP attempted login', { ip: clientIP });
+    // Check brute force protection (with error handling)
+    let isBlocked = false;
+    try {
+      isBlocked = isIPBlocked(clientIP);
+    } catch (blockError: any) {
+      console.error('❌ Error checking IP block:', blockError);
+      // Continue with login if block check fails
+    }
+    
+    if (isBlocked) {
+      try {
+        securityLogger.logSecurityEvent('Blocked IP attempted login', { ip: clientIP });
+      } catch (logError) {
+        console.error('❌ Error logging security event:', logError);
+      }
       return NextResponse.json(
         { message: 'Too many failed login attempts. Please try again later.' },
         { status: 429 }
       );
     }
     
-    const rateLimitResult = rateLimit(`login:${clientIP}`, 5, 15 * 60 * 1000); // 5 attempts per 15 minutes
+    // Rate limiting (with error handling)
+    let rateLimitResult: any = { allowed: true };
+    try {
+      rateLimitResult = rateLimit(`login:${clientIP}`, 5, 15 * 60 * 1000); // 5 attempts per 15 minutes
+    } catch (rateError: any) {
+      console.error('❌ Error in rate limiting:', rateError);
+      // Continue with login if rate limiting fails
+    }
+    
     if (!rateLimitResult.allowed) {
       return NextResponse.json(
         { message: 'Too many login attempts. Please try again later.' },
@@ -37,9 +63,27 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate request body size
-    const body = await request.text();
-    if (!validateBodySize(body, 512)) { // 512 bytes max
+    // Validate request body size (with error handling)
+    let body: string;
+    try {
+      body = await request.text();
+    } catch (bodyError: any) {
+      console.error('❌ Error reading request body:', bodyError);
+      return NextResponse.json(
+        { message: 'Failed to read request body' },
+        { status: 400 }
+      );
+    }
+    
+    let bodySizeValid = true;
+    try {
+      bodySizeValid = validateBodySize(body, 512); // 512 bytes max
+    } catch (sizeError: any) {
+      console.error('❌ Error validating body size:', sizeError);
+      // Continue if validation fails
+    }
+    
+    if (!bodySizeValid) {
       return NextResponse.json(
         { message: 'Request body too large' },
         { status: 413 }
@@ -64,9 +108,25 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Sanitize and validate email
-    const sanitizedEmail = sanitizeString(email.toLowerCase(), 255);
-    if (!validateEmail(sanitizedEmail)) {
+    // Sanitize and validate email (with error handling)
+    let sanitizedEmail: string;
+    try {
+      sanitizedEmail = sanitizeString(email.toLowerCase(), 255);
+    } catch (sanitizeError: any) {
+      console.error('❌ Error sanitizing email:', sanitizeError);
+      sanitizedEmail = email.toLowerCase().trim();
+    }
+    
+    let emailValid = true;
+    try {
+      emailValid = validateEmail(sanitizedEmail);
+    } catch (validateError: any) {
+      console.error('❌ Error validating email:', validateError);
+      // Basic email validation fallback
+      emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(sanitizedEmail);
+    }
+    
+    if (!emailValid) {
       return NextResponse.json(
         { message: 'Invalid email format' },
         { status: 400 }
@@ -85,9 +145,17 @@ export async function POST(request: NextRequest) {
     console.log('Received role from client:', data.role);
     console.log('Role type:', typeof data.role);
     
-    // Check if user has multiple accounts (roles) with this email
-    const { getUserAccounts } = await import('@/lib/auth');
-    const allAccounts = await getUserAccounts(sanitizedEmail);
+    // Check if user has multiple accounts (roles) with this email (with error handling)
+    let allAccounts: any[] = [];
+    try {
+      const { getUserAccounts } = await import('@/lib/auth');
+      allAccounts = await getUserAccounts(sanitizedEmail);
+    } catch (accountsError: any) {
+      console.error('❌ Error getting user accounts:', accountsError);
+      // If getUserAccounts fails, try to authenticate directly
+      // This is a fallback for when the function fails
+      console.log('⚠️ Falling back to direct authentication');
+    }
     console.log('All accounts found:', allAccounts.length);
     console.log('Accounts:', allAccounts.map(a => ({ role: a.role, name: a.name })));
     
@@ -99,6 +167,18 @@ export async function POST(request: NextRequest) {
     console.log('Has explicit role:', hasExplicitRole);
     console.log('Is auto role:', isAutoRole);
     
+    // If explicit role is provided, filter accounts to only that role
+    // This ensures student login only checks student accounts, admin login only checks admin accounts
+    const relevantAccounts = hasExplicitRole 
+      ? allAccounts.filter(acc => acc.role === data.role)
+      : allAccounts;
+    
+    console.log('Relevant accounts (filtered by role):', relevantAccounts.length);
+    console.log('Relevant accounts:', relevantAccounts.map(a => ({ role: a.role, name: a.name })));
+    
+    // Only show multiple accounts selector if:
+    // 1. No explicit role was provided (auto mode)
+    // 2. AND there are multiple accounts of different roles
     if (allAccounts.length > 1 && isAutoRole) {
       // Multiple accounts and user selected 'auto' or didn't specify - show selector
       console.log('Showing multiple accounts selector');
@@ -113,9 +193,29 @@ export async function POST(request: NextRequest) {
       }, { status: 200 }); // 200 because we want to show the role selector
     }
     
-    // Check if username is blocked
-    if (isUsernameBlocked(sanitizedEmail)) {
-      securityLogger.logSecurityEvent('Blocked username attempted login', { email: sanitizedEmail, ip: clientIP });
+    // If explicit role is provided but no account exists for that role, return error
+    if (hasExplicitRole && relevantAccounts.length === 0) {
+      console.log('No account found for explicit role:', data.role);
+      return NextResponse.json({
+        message: `No ${data.role} account found with this email. Please check your credentials or register a ${data.role} account.`,
+      }, { status: 404 });
+    }
+    
+    // Check if username is blocked (with error handling)
+    let usernameBlocked = false;
+    try {
+      usernameBlocked = isUsernameBlocked(sanitizedEmail);
+    } catch (blockError: any) {
+      console.error('❌ Error checking username block:', blockError);
+      // Continue if check fails
+    }
+    
+    if (usernameBlocked) {
+      try {
+        securityLogger.logSecurityEvent('Blocked username attempted login', { email: sanitizedEmail, ip: clientIP });
+      } catch (logError) {
+        console.error('❌ Error logging security event:', logError);
+      }
       return NextResponse.json(
         { message: 'Too many failed login attempts for this account. Please try again later.' },
         { status: 429 }
@@ -123,17 +223,52 @@ export async function POST(request: NextRequest) {
     }
 
     // Authenticate with specific role if provided, or first account if only one
-    const targetRole = hasExplicitRole ? data.role : (allAccounts.length > 0 ? allAccounts[0].role : undefined);
+    // When explicit role is provided, use it directly (authenticateUser will filter by role)
+    // When auto mode, use the first account from relevant accounts
+    const targetRole = hasExplicitRole ? data.role : (relevantAccounts.length > 0 ? relevantAccounts[0].role : undefined);
     console.log('Target role for authentication:', targetRole);
-    const user = await authenticateUser(sanitizedEmail, password, targetRole);
+    
+    let user;
+    try {
+      user = await authenticateUser(sanitizedEmail, password, targetRole);
+    } catch (authError: any) {
+      console.error('❌ Error in authenticateUser:', authError);
+      console.error('Auth error details:', {
+        message: authError.message,
+        stack: authError.stack,
+      });
+      // Return a more specific error
+      return NextResponse.json(
+        { 
+          message: 'Authentication failed',
+          error: process.env.NODE_ENV === 'development' ? authError.message : undefined
+        },
+        { status: 500 }
+      );
+    }
 
     if (!user) {
       console.log('Authentication failed: Invalid email or password');
       
-      // Record failed attempt
-      const attemptResult = recordFailedAttempt(clientIP, sanitizedEmail);
-      securityLogger.logFailedAuth(clientIP, sanitizedEmail, 'Invalid credentials');
-      reportSecurityIncident(clientIP, 'Failed login attempt', { email: sanitizedEmail }, 'low');
+      // Record failed attempt (with error handling)
+      let attemptResult: any = { remainingAttempts: 5, delayMs: 0, blocked: false };
+      try {
+        attemptResult = recordFailedAttempt(clientIP, sanitizedEmail);
+      } catch (recordError: any) {
+        console.error('❌ Error recording failed attempt:', recordError);
+      }
+      
+      try {
+        securityLogger.logFailedAuth(clientIP, sanitizedEmail, 'Invalid credentials');
+      } catch (logError) {
+        console.error('❌ Error logging failed auth:', logError);
+      }
+      
+      try {
+        reportSecurityIncident(clientIP, 'Failed login attempt', { email: sanitizedEmail }, 'low');
+      } catch (reportError) {
+        console.error('❌ Error reporting security incident:', reportError);
+      }
       
       // Add delay for failed attempt (progressive delay)
       if (attemptResult.delayMs > 0) {
@@ -165,14 +300,47 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Record successful login (clear failed attempts)
-    recordSuccessfulLogin(clientIP, sanitizedEmail);
-    securityLogger.logSuccessfulAuth(clientIP, sanitizedEmail);
+    // Record successful login (clear failed attempts) (with error handling)
+    try {
+      recordSuccessfulLogin(clientIP, sanitizedEmail);
+    } catch (recordError: any) {
+      console.error('❌ Error recording successful login:', recordError);
+    }
+    
+    try {
+      securityLogger.logSuccessfulAuth(clientIP, sanitizedEmail);
+    } catch (logError) {
+      console.error('❌ Error logging successful auth:', logError);
+    }
 
-    // Create session with user data
+    // Create session with user data (with error handling)
     console.log('Creating session for user:', user.id);
-    const sessionToken = await createSession(user.id, undefined, user);
-    console.log('Session created, token length:', sessionToken.length);
+    let sessionToken: string;
+    try {
+      sessionToken = await createSession(user.id, undefined, user);
+      console.log('Session created, token length:', sessionToken.length);
+    } catch (sessionError: any) {
+      console.error('❌ Error creating session:', sessionError);
+      console.error('Session error details:', {
+        message: sessionError.message,
+        stack: sessionError.stack,
+      });
+      // Fallback to JWT token if session creation fails
+      try {
+        const { generateToken } = await import('@/lib/auth');
+        sessionToken = generateToken(user);
+        console.log('⚠️ Using JWT token as fallback');
+      } catch (tokenError: any) {
+        console.error('❌ Error generating fallback token:', tokenError);
+        return NextResponse.json(
+          { 
+            message: 'Failed to create session',
+            error: process.env.NODE_ENV === 'development' ? sessionError.message : undefined
+          },
+          { status: 500 }
+        );
+      }
+    }
 
     const response = NextResponse.json({
       message: 'Login successful',

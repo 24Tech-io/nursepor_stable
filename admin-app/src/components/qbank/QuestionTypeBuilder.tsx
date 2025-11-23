@@ -68,50 +68,62 @@ function MultipleChoice({ question, onChange }: { question: any; onChange: (q: a
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <div>
-        <label className="block text-sm font-medium text-slate-300 mb-2">Options</label>
-        {options.map((opt: string, idx: number) => (
-          <div key={idx} className="flex items-center gap-2 mb-2">
-            <input
-              value={opt}
-              onChange={(e) => {
-                const newOptions = [...options];
-                newOptions[idx] = e.target.value;
-                updateOptions(newOptions);
-              }}
-              placeholder={`Option ${idx + 1}`}
-              className="flex-1 px-4 py-2 bg-[#11131a] border border-slate-700 rounded-lg text-slate-200 placeholder-slate-500 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-            />
-            {options.length > 2 && (
-              <button
-                onClick={() => {
-                  const newOptions = options.filter((_: string, i: number) => i !== idx);
-                  const newCorrect = idx === correctAnswer ? 0 : (idx < correctAnswer ? correctAnswer - 1 : correctAnswer);
-                  setCorrectAnswer(newCorrect);
-                  setOptions(newOptions);
-                  onChange({ ...question, options: newOptions, correctAnswer: newCorrect });
+        <label className="block text-sm font-semibold text-slate-200 mb-3 flex items-center gap-2">
+          <span className="w-1.5 h-1.5 bg-purple-500 rounded-full"></span>
+          Options
+        </label>
+        <div className="space-y-3">
+          {options.map((opt: string, idx: number) => (
+            <div key={idx} className="flex items-center gap-3 p-3 bg-[#11131a] border border-slate-800/50 rounded-lg hover:border-slate-700 transition-colors">
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-600/20 to-pink-600/20 border border-purple-500/30 flex items-center justify-center text-xs font-bold text-purple-300">
+                {String.fromCharCode(65 + idx)}
+              </div>
+              <input
+                value={opt}
+                onChange={(e) => {
+                  const newOptions = [...options];
+                  newOptions[idx] = e.target.value;
+                  updateOptions(newOptions);
                 }}
-                className="px-3 py-2 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition-colors"
-              >
-                Remove
-              </button>
-            )}
-          </div>
-        ))}
+                placeholder={`Option ${idx + 1}`}
+                className="flex-1 px-4 py-2.5 bg-[#0b0d12] border border-slate-800 rounded-lg text-slate-200 placeholder-slate-600 focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500 transition-all"
+              />
+              {options.length > 2 && (
+                <button
+                  onClick={() => {
+                    const newOptions = options.filter((_: string, i: number) => i !== idx);
+                    const newCorrect = idx === correctAnswer ? 0 : (idx < correctAnswer ? correctAnswer - 1 : correctAnswer);
+                    setCorrectAnswer(newCorrect);
+                    setOptions(newOptions);
+                    onChange({ ...question, options: newOptions, correctAnswer: newCorrect });
+                  }}
+                  className="px-3 py-2 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition-colors font-medium text-sm"
+                >
+                  Remove
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
         <button
           onClick={() => {
             const newOptions = [...options, ''];
             setOptions(newOptions);
             updateOptions(newOptions);
           }}
-          className="mt-2 text-sm text-purple-400 hover:text-purple-300 font-medium"
+          className="mt-4 flex items-center gap-2 px-4 py-2 text-sm text-purple-400 hover:text-purple-300 font-semibold hover:bg-purple-500/10 rounded-lg transition-all border border-purple-500/20 hover:border-purple-500/40"
         >
-          + Add Option
+          <span className="text-lg">+</span>
+          Add Option
         </button>
       </div>
-      <div>
-        <label className="block text-sm font-medium text-slate-300 mb-2">Correct Answer</label>
+      <div className="pt-4 border-t border-slate-800/50">
+        <label className="block text-sm font-semibold text-slate-200 mb-3 flex items-center gap-2">
+          <span className="w-1.5 h-1.5 bg-green-500 rounded-full"></span>
+          Correct Answer
+        </label>
         <select
           value={correctAnswer}
           onChange={(e) => {
@@ -119,7 +131,7 @@ function MultipleChoice({ question, onChange }: { question: any; onChange: (q: a
             setCorrectAnswer(newCorrect);
             onChange({ ...question, options, correctAnswer: newCorrect });
           }}
-          className="w-full px-4 py-2 bg-[#11131a] border border-slate-700 rounded-lg text-slate-200 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+          className="w-full px-4 py-3 bg-[#11131a] border border-slate-800 rounded-lg text-slate-200 focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500 transition-all font-medium"
         >
           {options.map((opt: string, idx: number) => (
             <option key={idx} value={idx} className="bg-[#11131a] text-slate-200">

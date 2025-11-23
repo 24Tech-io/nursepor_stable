@@ -5,6 +5,7 @@
 import { useState, useEffect } from 'react';
 import { getAchievements, getNotifications } from '../../../lib/data';
 import BiometricEnrollment from '@/components/auth/BiometricEnrollment';
+import LoadingSpinner from '@/components/student/LoadingSpinner';
 
 export default function ProfilePage() {
   const [activeTab, setActiveTab] = useState<'profile' | 'achievements' | 'notifications' | 'settings'>('profile');
@@ -237,11 +238,7 @@ export default function ProfilePage() {
   };
 
   if (isLoading || !user) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
-      </div>
-    );
+    return <LoadingSpinner message="Loading your profile..." fullScreen />;
   }
 
   const tabs = [

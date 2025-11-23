@@ -7,24 +7,46 @@ import { generateSecureToken } from './security';
 
 // JWT_SECRET must be set - no fallback for security
 function getJWTSecret(): string {
-  if (!process.env.JWT_SECRET || process.env.JWT_SECRET === 'your-secret-key') {
-    if (process.env.NODE_ENV === 'production') {
-      throw new Error(
-        'JWT_SECRET must be set in environment variables and must be at least 32 characters long. ' +
-        'Please set a strong random secret in .env.local'
-      );
+  try {
+    if (!process.env.JWT_SECRET || process.env.JWT_SECRET === 'your-secret-key') {
+      if (process.env.NODE_ENV === 'production') {
+        throw new Error(
+          'JWT_SECRET must be set in environment variables and must be at least 32 characters long. ' +
+          'Please set a strong random secret in .env.local'
+        );
+      }
+      // Use a default secret in development only (for hot reload)
+      console.warn('⚠️ Using default JWT_SECRET in development. Set JWT_SECRET in .env.local for production.');
+      return 'dev-secret-key-change-this-in-production-at-least-32-chars-long';
     }
-    // Use a default secret in development only (for hot reload)
-    console.warn('⚠️ Using default JWT_SECRET in development. Set JWT_SECRET in .env.local for production.');
-    return 'dev-secret-key-change-this-in-production-at-least-32-chars-long';
+    if (process.env.JWT_SECRET.length < 32) {
+      console.warn('⚠️ JWT_SECRET is less than 32 characters. Using default in development.');
+      if (process.env.NODE_ENV === 'production') {
+        throw new Error('JWT_SECRET must be at least 32 characters long');
+      }
+      return 'dev-secret-key-change-this-in-production-at-least-32-chars-long';
+    }
+    return process.env.JWT_SECRET;
+  } catch (error: any) {
+    console.error('❌ Error getting JWT_SECRET:', error.message);
+    // In development, use a default to prevent crashes
+    if (process.env.NODE_ENV !== 'production') {
+      console.warn('⚠️ Falling back to default JWT_SECRET in development');
+      return 'dev-secret-key-change-this-in-production-at-least-32-chars-long';
+    }
+    throw error;
   }
-  if (process.env.JWT_SECRET.length < 32) {
-    throw new Error('JWT_SECRET must be at least 32 characters long');
-  }
-  return process.env.JWT_SECRET;
 }
 
-const JWT_SECRET = getJWTSecret();
+// Lazy load JWT_SECRET to avoid module-level errors
+let JWT_SECRET: string | null = null;
+function getJWTSecretLazy(): string {
+  if (!JWT_SECRET) {
+    JWT_SECRET = getJWTSecret();
+  }
+  return JWT_SECRET;
+}
+
 const JWT_EXPIRES_IN = '7d';
 
 export interface AuthUser {
@@ -50,22 +72,29 @@ export async function verifyPassword(password: string, hashedPassword: string): 
 }
 
 export function generateToken(user: AuthUser): string {
-  return jwt.sign(
-    {
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-      isActive: user.isActive,
-    },
-    JWT_SECRET,
-    { expiresIn: JWT_EXPIRES_IN }
-  );
+  try {
+    const secret = getJWTSecretLazy();
+    return jwt.sign(
+      {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        isActive: user.isActive,
+      },
+      secret,
+      { expiresIn: JWT_EXPIRES_IN }
+    );
+  } catch (error: any) {
+    console.error('❌ Error generating token:', error);
+    throw new Error(`Failed to generate authentication token: ${error.message || 'Unknown error'}`);
+  }
 }
 
 export function verifyToken(token: string): AuthUser | null {
   try {
-    const decoded = jwt.verify(token, JWT_SECRET) as any;
+    const secret = getJWTSecretLazy();
+    const decoded = jwt.verify(token, secret) as any;
     return {
       id: decoded.id,
       name: decoded.name,
@@ -85,8 +114,19 @@ export function verifyToken(token: string): AuthUser | null {
 }
 
 export async function createSession(userId: number, deviceInfo?: any, userData?: AuthUser): Promise<string> {
-  // Get database instance
-  const db = getDatabase();
+  try {
+    // Get database instance
+    let db;
+    try {
+      db = getDatabase();
+    } catch (dbError: any) {
+      console.error('❌ Database connection failed in createSession:', dbError);
+      throw new Error(`Database connection failed: ${dbError.message || 'Unknown error'}`);
+    }
+    
+    if (!db) {
+      throw new Error('Database is not available');
+    }
 
   // Get user data if not provided
   let user: AuthUser;
@@ -118,17 +158,28 @@ export async function createSession(userId: number, deviceInfo?: any, userData?:
     };
   }
 
-  const sessionToken = generateToken(user);
-  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+    const sessionToken = generateToken(user);
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
 
-  await db.insert(sessions).values({
-    userId,
-    sessionToken,
-    deviceInfo: deviceInfo ? JSON.stringify(deviceInfo) : null,
-    expiresAt,
-  });
+    try {
+      await db.insert(sessions).values({
+        userId,
+        sessionToken,
+        deviceInfo: deviceInfo ? JSON.stringify(deviceInfo) : null,
+        expiresAt,
+      });
+    } catch (insertError: any) {
+      console.error('❌ Error inserting session:', insertError);
+      // If session insert fails, we can still return the token
+      // The token itself is valid, just the session record failed
+      console.warn('⚠️ Session record insert failed, but returning token anyway');
+    }
 
-  return sessionToken;
+    return sessionToken;
+  } catch (error: any) {
+    console.error('❌ Error in createSession:', error);
+    throw error;
+  }
 }
 
 export async function validateSession(sessionToken: string): Promise<AuthUser | null> {

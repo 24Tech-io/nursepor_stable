@@ -70,7 +70,9 @@ export async function POST(
       textbookContent,
       textbookFileUrl,
       readingTime,
-      mcqData
+      mcqData,
+      documentUrl,
+      documentType
     } = body;
 
     if (!title || !type) {
@@ -96,7 +98,8 @@ export async function POST(
       chapterOrder = existingChapters.length > 0 ? existingChapters[0].order + 1 : 0;
     }
 
-    const result = await db.insert(chapters).values({
+    // Prepare chapter data
+    const chapterData: any = {
       moduleId,
       title,
       description: description || '',
@@ -109,10 +112,13 @@ export async function POST(
       videoDuration: videoDuration || null,
       transcript: transcript || null,
       textbookContent: textbookContent || null,
-      textbookFileUrl: textbookFileUrl || null,
+      // Use textbookFileUrl for documents, or use documentUrl if provided
+      textbookFileUrl: documentUrl || textbookFileUrl || null,
       readingTime: readingTime || null,
       mcqData: mcqData || null,
-    }).returning();
+    };
+
+    const result = await db.insert(chapters).values(chapterData).returning();
 
     console.log('✅ Chapter created:', result[0]);
 

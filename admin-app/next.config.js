@@ -4,14 +4,8 @@ const nextConfig = {
   env: {
     PORT: '3001',
   },
-  async rewrites() {
-    return [
-      {
-        source: '/api/:path*',
-        destination: 'http://localhost:3000/api/:path*',
-      },
-    ];
-  },
+  // Removed rewrite rule that was blocking local API routes
+  // All API routes are now handled locally in this app
 }
 
 export default nextConfig

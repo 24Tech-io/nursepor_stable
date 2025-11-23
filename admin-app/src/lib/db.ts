@@ -14,6 +14,7 @@ function initializeDatabase() {
   }
 
   try {
+    // Reuse the same neon instance for better performance (connection reuse)
     const sql = neon(process.env.DATABASE_URL);
     db = drizzle(sql, { schema });
     console.log('✅ Admin Database connection initialized');
@@ -33,9 +34,13 @@ if (typeof window === 'undefined') {
 export function getDatabase() {
   if (!db) {
     // Try to reinitialize if it failed before
+    console.log('🔄 Attempting to reinitialize database connection...');
+    console.log('🔍 DATABASE_URL check:', process.env.DATABASE_URL ? `Set (length: ${process.env.DATABASE_URL.length})` : 'NOT SET');
     db = initializeDatabase();
     if (!db) {
-      throw new Error('Database is not available. Please check your DATABASE_URL in .env.local (root) or admin-app/.env.local');
+      const errorMsg = 'Database is not available. Please check your DATABASE_URL in .env.local (root) or admin-app/.env.local';
+      console.error('❌', errorMsg);
+      throw new Error(errorMsg);
     }
   }
   return db;

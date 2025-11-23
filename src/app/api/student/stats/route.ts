@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/auth';
 import { getDatabase } from '@/lib/db';
-import { studentProgress, courses, users } from '@/lib/db/schema';
-import { eq, and, sql } from 'drizzle-orm';
+import { studentProgress, courses, users, accessRequests } from '@/lib/db/schema';
+import { eq, and, or, sql } from 'drizzle-orm';
 
 export async function GET(request: NextRequest) {
   try {
@@ -29,23 +29,52 @@ export async function GET(request: NextRequest) {
 
     const userId = decoded.id;
 
-    // Get enrolled courses count
-    const enrolledCoursesResult = await db
-      .select({ count: sql<number>`count(*)` })
+    // IMPORTANT: Get pending request course IDs to exclude from enrolled count
+    const pendingRequests = await db
+      .select({
+        courseId: accessRequests.courseId,
+      })
+      .from(accessRequests)
+      .where(
+        and(
+          eq(accessRequests.studentId, userId),
+          eq(accessRequests.status, 'pending')
+        )
+      );
+
+    const pendingRequestCourseIds = pendingRequests.map((r: any) => r.courseId);
+
+    // Get all enrolled courses
+    const allEnrolledProgress = await db
+      .select({
+        courseId: studentProgress.courseId,
+      })
       .from(studentProgress)
       .innerJoin(courses, eq(studentProgress.courseId, courses.id))
       .where(
         and(
           eq(studentProgress.studentId, userId),
-          eq(courses.status, 'published')
+          or(
+            eq(courses.status, 'published'),
+            eq(courses.status, 'active')
+          )
         )
       );
 
-    const coursesEnrolled = Number(enrolledCoursesResult[0]?.count || 0);
+    // Filter out courses with pending requests
+    // A course with a pending request should NOT be counted as enrolled
+    const actualEnrolledProgress = allEnrolledProgress.filter((p: any) => 
+      !pendingRequestCourseIds.includes(p.courseId)
+    );
 
-    // Get completed courses (progress >= 100)
-    const completedCoursesResult = await db
-      .select({ count: sql<number>`count(*)` })
+    const coursesEnrolled = actualEnrolledProgress.length;
+
+    // Get completed courses (progress >= 100) - exclude courses with pending requests
+    const allCompletedProgress = await db
+      .select({
+        courseId: studentProgress.courseId,
+        totalProgress: studentProgress.totalProgress,
+      })
       .from(studentProgress)
       .innerJoin(courses, eq(studentProgress.courseId, courses.id))
       .where(
@@ -56,7 +85,12 @@ export async function GET(request: NextRequest) {
         )
       );
 
-    const coursesCompleted = Number(completedCoursesResult[0]?.count || 0);
+    // Filter out courses with pending requests
+    const actualCompletedProgress = allCompletedProgress.filter((p: any) => 
+      !pendingRequestCourseIds.includes(p.courseId)
+    );
+
+    const coursesCompleted = actualCompletedProgress.length;
 
     // Calculate total hours learned (sum of video durations watched)
     // For now, we'll estimate based on progress and course duration

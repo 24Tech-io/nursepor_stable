@@ -20,6 +20,10 @@ export interface Course {
   pricing?: number
   status: 'draft' | 'published'
   isRequestable: boolean
+  isPublic?: boolean
+  isEnrolled?: boolean
+  hasPendingRequest?: boolean
+  hasApprovedRequest?: boolean
   createdAt?: Date
   updatedAt?: Date
 }

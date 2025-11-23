@@ -12,6 +12,7 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/api/auth/login') ||
     pathname.startsWith('/api/auth/register') ||
     pathname.startsWith('/api/auth/me') ||
+    pathname.startsWith('/api/auth/logout') ||
     pathname.startsWith('/api/setup-test-users')
   ) {
     console.log(`✅ [Middleware] Public route allowed: ${pathname}`);

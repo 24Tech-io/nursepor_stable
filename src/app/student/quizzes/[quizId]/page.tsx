@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import QuizCard from '@/components/student/QuizCard';
+import LoadingSpinner from '@/components/student/LoadingSpinner';
 
 export default function QuizPage() {
   const params = useParams();
@@ -45,14 +46,7 @@ export default function QuizPage() {
   };
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading quiz...</p>
-        </div>
-      </div>
-    );
+    return <LoadingSpinner message="Loading quiz..." fullScreen />;
   }
 
   if (error || !quiz) {

@@ -34,7 +34,32 @@ export async function GET(request: NextRequest) {
       .innerJoin(chapters, eq(dailyVideos.chapterId, chapters.id))
       .orderBy(dailyVideos.day);
 
-    return NextResponse.json({ dailyVideos: videos });
+    // Parse metadata from description
+    const videosWithMetadata = videos.map((video: any) => {
+      let parsedDesc = video.description;
+      let metadataObj = {};
+      
+      try {
+        parsedDesc = JSON.parse(video.description || '{}');
+        metadataObj = parsedDesc.metadata || {};
+      } catch (e) {
+        // If not JSON, use as plain description
+        parsedDesc = { description: video.description || '' };
+      }
+
+      return {
+        ...video,
+        description: parsedDesc.description || video.description || '',
+        videoUrl: metadataObj.videoUrl || null,
+        videoProvider: metadataObj.videoProvider || 'youtube',
+        videoDuration: metadataObj.videoDuration || null,
+        thumbnail: metadataObj.thumbnail || null,
+        scheduledDate: metadataObj.scheduledDate || null,
+        priority: metadataObj.priority || 0,
+      };
+    });
+
+    return NextResponse.json({ dailyVideos: videosWithMetadata });
   } catch (error: any) {
     console.error('Get daily videos error:', error);
     return NextResponse.json(
@@ -57,7 +82,19 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: 'Admin access required' }, { status: 403 });
     }
 
-    const { chapterId, title, description, day } = await request.json();
+    const { 
+      chapterId, 
+      title, 
+      description, 
+      day,
+      videoUrl,
+      videoProvider,
+      videoDuration,
+      thumbnail,
+      scheduledDate,
+      priority,
+      isActive
+    } = await request.json();
 
     if (!chapterId || !title || day === undefined) {
       return NextResponse.json(
@@ -68,17 +105,48 @@ export async function POST(request: NextRequest) {
 
     const db = getDatabase();
 
+    // Store additional metadata in description (we'll enhance schema later)
+    const metadata = {
+      videoUrl: videoUrl || null,
+      videoProvider: videoProvider || 'youtube',
+      videoDuration: videoDuration || null,
+      thumbnail: thumbnail || null,
+      scheduledDate: scheduledDate || null,
+      priority: priority || 0,
+    };
+
+    // Combine description with metadata
+    const enhancedDescription = description ? {
+      description: description,
+      metadata: metadata,
+    } : { metadata: metadata };
+
     const result = await db.insert(dailyVideos).values({
       chapterId: parseInt(chapterId),
       title,
-      description: description || '',
+      description: JSON.stringify(enhancedDescription),
       day: parseInt(day),
-      isActive: true,
+      isActive: isActive !== undefined ? isActive : true,
     }).returning();
 
     console.log('✅ Daily video created:', result[0]);
 
-    return NextResponse.json({ dailyVideo: result[0] });
+    // Parse and return with metadata
+    const parsedDesc = JSON.parse(result[0].description || '{}');
+    const metadataObj = parsedDesc.metadata || {};
+
+    return NextResponse.json({ 
+      dailyVideo: {
+        ...result[0],
+        description: parsedDesc.description || result[0].description || '',
+        videoUrl: metadataObj.videoUrl || null,
+        videoProvider: metadataObj.videoProvider || 'youtube',
+        videoDuration: metadataObj.videoDuration || null,
+        thumbnail: metadataObj.thumbnail || null,
+        scheduledDate: metadataObj.scheduledDate || null,
+        priority: metadataObj.priority || 0,
+      }
+    });
   } catch (error: any) {
     console.error('Create daily video error:', error);
     return NextResponse.json(

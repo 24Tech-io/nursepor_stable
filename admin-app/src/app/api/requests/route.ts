@@ -20,7 +20,18 @@ export async function GET(request: NextRequest) {
 
     const db = getDatabase();
 
+    console.log('🔍 Fetching all access requests...');
+
+    // First, get ALL requests (including orphaned ones for debugging)
+    const allRequestsRaw = await db
+      .select()
+      .from(accessRequests)
+      .orderBy(desc(accessRequests.requestedAt));
+
+    console.log(`📊 Found ${allRequestsRaw.length} total requests in database`);
+
     // Fetch all requests with student and course details
+    // Return ALL requests (pending, approved, rejected) - let frontend filter
     const requests = await db
       .select({
         id: accessRequests.id,
@@ -35,9 +46,17 @@ export async function GET(request: NextRequest) {
         reviewedAt: accessRequests.reviewedAt,
       })
       .from(accessRequests)
-      .innerJoin(users, eq(accessRequests.studentId, users.id))
-      .innerJoin(courses, eq(accessRequests.courseId, courses.id))
+      .leftJoin(users, eq(accessRequests.studentId, users.id))
+      .leftJoin(courses, eq(accessRequests.courseId, courses.id))
       .orderBy(desc(accessRequests.requestedAt));
+
+    console.log(`✅ Returning ${requests.length} requests with details`);
+    console.log('📋 Request statuses:', requests.map((r: any) => ({
+      id: r.id,
+      student: r.studentName || 'DELETED',
+      course: r.courseTitle || 'DELETED',
+      status: r.status
+    })));
 
     return NextResponse.json({ requests });
   } catch (error: any) {

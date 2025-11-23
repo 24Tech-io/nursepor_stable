@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Laptop, Smartphone, Tablet, Trash2 } from 'lucide-react';
+import LoadingSpinner from '@/components/student/LoadingSpinner';
 
 interface Session {
     id: number;
@@ -66,11 +67,7 @@ export default function SessionManagementPage() {
     };
 
     if (isLoading) {
-        return (
-            <div className="flex items-center justify-center min-h-screen">
-                <div className="animate-spin rounded-full h-12 w-12 border-4 border-purple-600 border-t-transparent"></div>
-            </div>
-        );
+        return <LoadingSpinner message="Loading active sessions..." fullScreen />;
     }
 
     return (

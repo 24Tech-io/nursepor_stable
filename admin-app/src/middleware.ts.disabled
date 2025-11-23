@@ -1,0 +1,21 @@
+// Temporarily disabled middleware to debug 500 error
+// Uncomment to re-enable
+
+/*
+import { NextRequest, NextResponse } from 'next/server';
+
+export async function middleware(request: NextRequest) {
+  try {
+    const pathname = request.nextUrl.pathname;
+    console.log(`✅ [Middleware] Allowing route: ${pathname}`);
+    return NextResponse.next();
+  } catch (error: any) {
+    console.error('❌ [Middleware] Unexpected error:', error);
+    return NextResponse.next();
+  }
+}
+
+export const config = {
+  matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
+};
+*/

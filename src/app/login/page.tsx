@@ -26,7 +26,7 @@ export default function LoginPage() {
       const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password, role: 'student' }),
         credentials: 'include',
       });
 
@@ -59,7 +59,7 @@ export default function LoginPage() {
       const response = await fetch('/api/auth/send-otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email, role: 'student' }),
       });
 
       const data = await response.json();
@@ -86,7 +86,7 @@ export default function LoginPage() {
       const response = await fetch('/api/auth/verify-otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, otp }),
+        body: JSON.stringify({ email, otp, role: 'student' }),
         credentials: 'include',
       });
 
@@ -114,6 +114,7 @@ export default function LoginPage() {
         body: JSON.stringify({
           email,
           descriptor: Array.from(descriptor),
+          role: 'student',
         }),
       });
 

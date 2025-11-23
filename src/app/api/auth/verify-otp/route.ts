@@ -82,14 +82,24 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // Find user
+        // Find user - filter by role if specified
+        const whereConditions = role
+            ? and(eq(users.email, normalizedEmail), eq(users.role, role), eq(users.isActive, true))
+            : and(eq(users.email, normalizedEmail), eq(users.isActive, true));
+        
         const userResult = await db
             .select()
             .from(users)
-            .where(eq(users.email, normalizedEmail))
+            .where(whereConditions)
             .limit(1);
 
         if (!userResult.length) {
+            if (role) {
+                return NextResponse.json(
+                    { message: `No ${role} account found with this email. Please check your credentials or register a ${role} account.` },
+                    { status: 404 }
+                );
+            }
             return NextResponse.json(
                 { message: 'User not found' },
                 { status: 404 }
@@ -97,14 +107,6 @@ export async function POST(request: NextRequest) {
         }
 
         const user = userResult[0];
-
-        // Check role if specified
-        if (role && user.role !== role) {
-            return NextResponse.json(
-                { message: `This account is not a ${role} account` },
-                { status: 403 }
-            );
-        }
 
         // Mark OTP as used
         await db

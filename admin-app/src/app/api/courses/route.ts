@@ -7,7 +7,21 @@ import { logActivity } from '@/lib/activity-log';
 
 export async function GET(request: NextRequest) {
   try {
-    const db = getDatabase();
+    let db;
+    try {
+      db = getDatabase();
+    } catch (dbError: any) {
+      console.error('❌ Database initialization error:', dbError);
+      return NextResponse.json(
+        { 
+          message: 'Database connection failed',
+          error: dbError.message || 'Database is not available',
+          hint: 'Please check your DATABASE_URL in .env.local',
+          courses: []
+        },
+        { status: 500 }
+      );
+    }
     const allCourses = await db
       .select()
       .from(courses)
@@ -23,14 +37,38 @@ export async function GET(request: NextRequest) {
         pricing: course.pricing || 0,
         status: course.status,
         isRequestable: course.isRequestable,
+        isPublic: course.isPublic,
         createdAt: course.createdAt?.toISOString(),
         updatedAt: course.updatedAt?.toISOString(),
       })),
     });
   } catch (error: any) {
-    console.error('Get courses error:', error);
+    console.error('❌ Get courses error:', error);
+    console.error('Error details:', {
+      message: error.message,
+      stack: error.stack,
+      name: error.name,
+    });
+    
+    // Check if it's a database connection error
+    if (error.message?.includes('Database is not available') || 
+        error.message?.includes('DATABASE_URL')) {
+      return NextResponse.json(
+        { 
+          message: 'Database connection failed', 
+          error: 'Database is not available. Please check your DATABASE_URL in .env.local',
+          courses: [] // Return empty array instead of failing
+        },
+        { status: 500 }
+      );
+    }
+    
     return NextResponse.json(
-      { message: 'Failed to get courses', error: process.env.NODE_ENV === 'development' ? error.message : undefined },
+      { 
+        message: 'Failed to get courses', 
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+        courses: [] // Return empty array instead of failing
+      },
       { status: 500 }
     );
   }
@@ -50,7 +88,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { title, description, instructor, thumbnail, pricing, status, isRequestable } = body;
+    const { title, description, instructor, thumbnail, pricing, status, isRequestable, isPublic } = body;
 
     if (!title || !description || !instructor) {
       return NextResponse.json(
@@ -60,6 +98,18 @@ export async function POST(request: NextRequest) {
     }
 
     const db = getDatabase();
+    
+    // Default to 'published' so courses are immediately visible to students
+    // Admin can change to 'draft' if they want to work on it before publishing
+    // Normalize status: "Active" or "active" -> "published" for consistency
+    let courseStatus = status || 'published';
+    if (courseStatus === 'Active' || courseStatus === 'active' || courseStatus === 'ACTIVE') {
+      courseStatus = 'published';
+      console.log(`🔄 Normalizing status: "${status}" → "published"`);
+    }
+    
+    console.log(`📝 Creating course: ${title} with status: ${courseStatus}`);
+    
     const [newCourse] = await db
       .insert(courses)
       .values({
@@ -68,10 +118,13 @@ export async function POST(request: NextRequest) {
         instructor,
         thumbnail: thumbnail || null,
         pricing: pricing ? parseFloat(pricing) : null,
-        status: status || 'draft',
+        status: courseStatus,
         isRequestable: isRequestable !== undefined ? isRequestable : true,
+        isPublic: isPublic !== undefined ? isPublic : false,
       })
       .returning();
+    
+    console.log(`✅ Course created successfully: ${newCourse.title} (ID: ${newCourse.id}, Status: ${newCourse.status})`);
 
     // Log activity
     await logActivity({
@@ -82,6 +135,17 @@ export async function POST(request: NextRequest) {
       entityId: newCourse.id,
       entityName: newCourse.title,
     });
+
+    // Notify all students if course is published
+    if (courseStatus === 'published') {
+      try {
+        const { notifyNewCoursePublished } = await import('@/lib/sync-service');
+        await notifyNewCoursePublished(newCourse.id, newCourse.title);
+      } catch (notifError) {
+        console.error('Failed to notify students about new course:', notifError);
+        // Don't fail course creation if notification fails
+      }
+    }
 
     return NextResponse.json({
       course: {

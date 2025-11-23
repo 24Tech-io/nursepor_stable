@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/auth';
 import { getDatabase } from '@/lib/db';
-import { accessRequests, courses } from '@/lib/db/schema';
+import { accessRequests, courses, enrollments, studentProgress } from '@/lib/db/schema';
 import { eq, and, desc } from 'drizzle-orm';
 
 // GET - Fetch student's own access requests
@@ -66,26 +66,87 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: 'Course ID is required' }, { status: 400 });
     }
 
+    const courseIdNum = parseInt(courseId);
+    if (isNaN(courseIdNum)) {
+      return NextResponse.json({ message: 'Invalid course ID' }, { status: 400 });
+    }
+
     const db = getDatabase();
 
-    // Check if request already exists and is pending
+    // Check if already enrolled (any source)
+    const [existingEnrollment, existingProgress] = await Promise.all([
+      db.select().from(enrollments)
+        .where(and(
+          eq(enrollments.userId, decoded.id),
+          eq(enrollments.courseId, courseIdNum),
+          eq(enrollments.status, 'active')
+        )),
+      db.select().from(studentProgress)
+        .where(and(
+          eq(studentProgress.studentId, decoded.id),
+          eq(studentProgress.courseId, courseIdNum)
+        ))
+    ]);
+
+    if (existingEnrollment.length > 0 || existingProgress.length > 0) {
+      return NextResponse.json(
+        { message: 'You are already enrolled in this course' },
+        { status: 400 }
+      );
+    }
+
+    // Check if request already exists (any status)
     const existing = await db
       .select()
       .from(accessRequests)
       .where(
         and(
           eq(accessRequests.studentId, decoded.id),
-          eq(accessRequests.courseId, parseInt(courseId)),
-          eq(accessRequests.status, 'pending')
+          eq(accessRequests.courseId, courseIdNum)
         )
       );
 
     if (existing.length > 0) {
+      const status = existing[0].status;
+      if (status === 'pending') {
+        return NextResponse.json(
+          { message: 'You already have a pending request for this course' },
+          { status: 400 }
+        );
+      } else if (status === 'approved') {
+        return NextResponse.json(
+          { message: 'Your request for this course has already been approved' },
+          { status: 400 }
+        );
+      } else if (status === 'rejected') {
+        // Allow re-request for rejected courses after deleting old request
+        await db.delete(accessRequests).where(eq(accessRequests.id, existing[0].id));
+        console.log(`🗑️ Deleted old rejected request #${existing[0].id}`);
+      }
+    }
+
+    // Verify course exists
+    const [course] = await db
+      .select()
+      .from(courses)
+      .where(eq(courses.id, parseInt(courseId)))
+      .limit(1);
+
+    if (!course) {
+      console.error('❌ Course not found:', courseId);
       return NextResponse.json(
-        { message: 'You already have a pending request for this course' },
-        { status: 400 }
+        { message: 'Course not found' },
+        { status: 404 }
       );
     }
+
+    console.log('📝 Creating access request:', {
+      studentId: decoded.id,
+      studentEmail: decoded.email,
+      courseId: parseInt(courseId),
+      courseTitle: course.title,
+      reason: reason || 'Requesting access to this course'
+    });
 
     // Create new request
     const result = await db.insert(accessRequests).values({
@@ -95,7 +156,13 @@ export async function POST(request: NextRequest) {
       status: 'pending',
     }).returning();
 
-    console.log('✅ Access request created:', result[0]);
+    console.log('✅ Access request created successfully:', {
+      id: result[0].id,
+      studentId: result[0].studentId,
+      courseId: result[0].courseId,
+      status: result[0].status,
+      requestedAt: result[0].requestedAt
+    });
 
     return NextResponse.json({
       message: 'Request submitted successfully',

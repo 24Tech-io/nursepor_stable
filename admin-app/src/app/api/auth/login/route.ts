@@ -3,7 +3,17 @@ import { authenticateAdmin, generateToken } from '@/lib/auth';
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
+    let body;
+    try {
+      body = await request.json();
+    } catch (parseError: any) {
+      console.error('❌ Failed to parse request body:', parseError);
+      return NextResponse.json(
+        { message: 'Invalid request body. Please check your input.' },
+        { status: 400 }
+      );
+    }
+    
     const { email, password, role } = body;
     
     // Ensure we're authenticating as admin
@@ -36,33 +46,65 @@ export async function POST(request: NextRequest) {
 
       console.log('✅ Admin login successful:', { id: user.id, email: user.email, role: user.role });
 
-      const token = generateToken(user);
+      // Generate token with error handling
+      let token;
+      try {
+        token = generateToken(user);
+        console.log('✅ Token generated successfully');
+      } catch (tokenError: any) {
+        console.error('❌ Error generating token:', tokenError);
+        return NextResponse.json(
+          { 
+            message: 'Failed to generate authentication token',
+            error: process.env.NODE_ENV === 'development' ? tokenError.message : undefined,
+            hint: 'Please check JWT_SECRET configuration'
+          },
+          { status: 500 }
+        );
+      }
 
-      const response = NextResponse.json({
-        message: 'Login successful',
-        user: {
-          id: user.id,
-          name: user.name,
-          email: user.email,
-          role: user.role,
-        },
-        redirectUrl: '/dashboard', // Add this line
-      });
+      // Create response
+      let response;
+      try {
+        response = NextResponse.json({
+          message: 'Login successful',
+          user: {
+            id: user.id,
+            name: user.name,
+            email: user.email,
+            role: user.role,
+          },
+          redirectUrl: '/dashboard',
+        });
 
-      response.cookies.set('adminToken', token, {
-        httpOnly: true,
-        sameSite: 'lax',
-        secure: process.env.NODE_ENV === 'production',
-        path: '/',
-        maxAge: 7 * 24 * 60 * 60, // 7 days
-        // Explicitly set domain to undefined for localhost
-        domain: undefined,
-      });
+        // Set cookie with error handling
+        try {
+          response.cookies.set('adminToken', token, {
+            httpOnly: true,
+            sameSite: 'lax',
+            secure: process.env.NODE_ENV === 'production',
+            path: '/',
+            maxAge: 7 * 24 * 60 * 60, // 7 days
+            domain: undefined, // Explicitly set domain to undefined for localhost
+          });
+          console.log('🍪 Cookie set in response. Token length:', token.length);
+        } catch (cookieError: any) {
+          console.error('❌ Error setting cookie:', cookieError);
+          // Don't fail the login if cookie setting fails, but log it
+        }
 
-      console.log('🍪 Cookie set in response. Token length:', token.length);
-      console.log('📤 Sending login response with cookie');
-
-      return response;
+        console.log('📤 Sending login response with cookie');
+        return response;
+      } catch (responseError: any) {
+        console.error('❌ Error creating response:', responseError);
+        return NextResponse.json(
+          { 
+            message: 'Failed to create login response',
+            error: process.env.NODE_ENV === 'development' ? responseError.message : undefined
+          },
+          { status: 500 }
+        );
+      }
     } catch (dbError: any) {
       console.error('❌ Database error during login:', dbError);
       console.error('Error details:', {
@@ -80,11 +122,27 @@ export async function POST(request: NextRequest) {
       );
     }
   } catch (error: any) {
-    console.error('Admin login error:', error);
+    console.error('❌ Admin login error:', error);
+    console.error('Error stack:', error.stack);
+    console.error('Error details:', {
+      message: error.message,
+      name: error.name,
+      hasDatabaseUrl: !!process.env.DATABASE_URL,
+    });
+    
+    // Provide more helpful error messages
+    let errorMessage = 'Internal server error';
+    if (error.message?.includes('DATABASE_URL') || error.message?.includes('Database')) {
+      errorMessage = 'Database connection error. Please check your DATABASE_URL configuration.';
+    } else if (error.message) {
+      errorMessage = error.message;
+    }
+    
     return NextResponse.json(
       { 
-        message: 'Internal server error', 
-        error: process.env.NODE_ENV === 'development' ? error.message : undefined 
+        message: errorMessage,
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+        hint: process.env.NODE_ENV === 'development' ? 'Check server logs for details' : undefined
       },
       { status: 500 }
     );

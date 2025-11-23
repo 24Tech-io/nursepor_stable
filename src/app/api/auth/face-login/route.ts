@@ -13,7 +13,7 @@ import { verifyFace } from '@/lib/face-recognition';
 
 export async function POST(request: NextRequest) {
   try {
-    const { email, descriptor } = await request.json();
+    const { email, descriptor, role } = await request.json();
 
     if (!email || !descriptor) {
       return NextResponse.json(
@@ -25,16 +25,17 @@ export async function POST(request: NextRequest) {
     // Get database instance
     const db = getDatabase();
 
-    // Get user from database - force student role only
+    // Get user from database - filter by role if specified, default to student for student login page
+    const targetRole = role || 'student';
     const userResult = await db
       .select()
       .from(users)
-      .where(and(eq(users.email, email), eq(users.role, 'student'), eq(users.isActive, true)))
+      .where(and(eq(users.email, email.toLowerCase().trim()), eq(users.role, targetRole), eq(users.isActive, true)))
       .limit(1);
 
     if (!userResult.length) {
       return NextResponse.json(
-        { message: 'User not found' },
+        { message: `No ${targetRole} account found with this email. Please check your credentials or register a ${targetRole} account.` },
         { status: 404 }
       );
     }
@@ -72,14 +73,6 @@ export async function POST(request: NextRequest) {
 
     // Create session
     const sessionToken = await createSession(user.id);
-
-    // Only allow student role
-    if (user.role !== 'student') {
-      return NextResponse.json(
-        { message: 'This account is not a student account. Please use the admin portal to login.' },
-        { status: 403 }
-      );
-    }
 
     const response = NextResponse.json({
       message: 'Face login successful',

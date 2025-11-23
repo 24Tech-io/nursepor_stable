@@ -4,9 +4,10 @@ import { ArrowLeft, Save, CheckCircle, X, BookOpen, Shield, User } from 'lucide-
 interface StudentProfileProps {
     studentId: number;
     back: () => void;
+    onEnrollmentChange?: () => void;
 }
 
-export default function StudentProfile({ studentId, back }: StudentProfileProps) {
+export default function StudentProfile({ studentId, back, onEnrollmentChange }: StudentProfileProps) {
     const [student, setStudent] = useState<any>(null);
     const [courses, setCourses] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -17,51 +18,185 @@ export default function StudentProfile({ studentId, back }: StudentProfileProps)
     }, [studentId]);
 
     const fetchData = async () => {
+        setIsLoading(true);
+        setStudent(null);
         try {
-            const [studentRes, coursesRes] = await Promise.all([
-                fetch(`/api/students/${studentId}`, { credentials: 'include' }),
-                fetch('/api/courses', { credentials: 'include' })
-            ]);
+            console.log('🔍 Fetching student data for ID:', studentId, 'Type:', typeof studentId);
+            
+            // Add timeout to prevent infinite loading
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
 
-            if (studentRes.ok) {
-                const data = await studentRes.json();
-                setStudent(data.student);
+            try {
+                // Fetch student basic info
+                const url = `/api/students/${studentId}`;
+                console.log('🌐 Fetching from URL:', url);
+                const studentRes = await fetch(url, { 
+                    method: 'GET',
+                    credentials: 'include',
+                    cache: 'no-store',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Cache-Control': 'no-cache, no-store, must-revalidate',
+                        'Pragma': 'no-cache',
+                    },
+                    signal: controller.signal
+                });
+
+                clearTimeout(timeoutId);
+                console.log('📡 Student response status:', studentRes.status);
+
+                if (studentRes.ok) {
+                    const data = await studentRes.json();
+                    console.log('✅ Student data received:', data);
+                    if (data.student) {
+                        const studentData = data.student;
+                        
+                        // Fetch enrollment status using new unified API
+                        try {
+                            const enrollmentRes = await fetch(`/api/enrollment?studentId=${studentId}`, { 
+                                credentials: 'include',
+                                cache: 'no-store',
+                                headers: {
+                                    'Cache-Control': 'no-cache, no-store, must-revalidate',
+                                },
+                            });
+                            
+                            if (enrollmentRes.ok) {
+                                const enrollmentData = await enrollmentRes.json();
+                                console.log('✅ Enrollment data received:', enrollmentData);
+                                
+                                // Merge enrollment data with student data
+                                setStudent({
+                                    ...studentData,
+                                    enrollmentData: enrollmentData.enrollments,
+                                    enrollmentSummary: enrollmentData.summary,
+                                });
+                            } else {
+                                // Set student without enrollment data if fetch fails
+                                setStudent(studentData);
+                            }
+                        } catch (enrollmentError) {
+                            console.error('Error fetching enrollment data:', enrollmentError);
+                            // Set student without enrollment data if fetch fails
+                            setStudent(studentData);
+                        }
+                    } else {
+                        console.error('❌ No student data in response:', data);
+                        setStudent(null);
+                    }
+                } else {
+                    let errorData;
+                    try {
+                        const text = await studentRes.text();
+                        console.error('❌ Error response text:', text);
+                        errorData = JSON.parse(text);
+                    } catch (e) {
+                        errorData = { 
+                            message: `HTTP ${studentRes.status}: ${studentRes.statusText}`,
+                            status: studentRes.status,
+                            statusText: studentRes.statusText
+                        };
+                    }
+                    console.error('❌ Error fetching student:', errorData);
+                    const errorMessage = errorData.message || errorData.error || `HTTP ${studentRes.status} Error`;
+                    alert(`Failed to load student: ${errorMessage}`);
+                    setStudent(null);
+                }
+            } catch (fetchError: any) {
+                clearTimeout(timeoutId);
+                if (fetchError.name === 'AbortError') {
+                    console.error('⏱️ Request timeout');
+                    alert('Request timed out. Please try again.');
+                } else {
+                    throw fetchError;
+                }
             }
 
-            if (coursesRes.ok) {
-                const data = await coursesRes.json();
-                setCourses(data.courses || []);
+            // Fetch courses separately
+            try {
+                const coursesRes = await fetch('/api/courses', { 
+                    credentials: 'include',
+                    cache: 'no-store',
+                    headers: {
+                        'Cache-Control': 'no-cache, no-store, must-revalidate',
+                    },
+                });
+                if (coursesRes.ok) {
+                    const data = await coursesRes.json();
+                    setCourses(data.courses || []);
+                }
+            } catch (courseError) {
+                console.error('Error fetching courses:', courseError);
+                // Don't fail the whole request if courses fail
             }
-        } catch (error) {
-            console.error('Error fetching student data:', error);
+        } catch (error: any) {
+            console.error('❌ Error fetching student data:', error);
+            alert(`Error loading student: ${error.message || 'Unknown error'}`);
+            setStudent(null);
         } finally {
             setIsLoading(false);
         }
     };
 
     const handleToggleCourse = async (courseId: number, isEnrolled: boolean) => {
-        try {
-            const method = isEnrolled ? 'DELETE' : 'POST';
-            const response = await fetch(`/api/students/${studentId}/courses`, {
-                method,
-                headers: { 'Content-Type': 'application/json' },
-                credentials: 'include',
-                body: JSON.stringify({ courseId }),
-            });
+        if (isEnrolled) {
+            if (!confirm('Are you sure you want to unenroll this student from the course? This action cannot be undone.')) {
+                return;
+            }
+        }
 
-            if (response.ok) {
-                // Refresh student data
-                const studentRes = await fetch(`/api/students/${studentId}`, { credentials: 'include' });
-                if (studentRes.ok) {
-                    const data = await studentRes.json();
-                    setStudent(data.student);
+        setIsSaving(true);
+        try {
+            if (isEnrolled) {
+                // Unenroll - DELETE using unified API
+                const response = await fetch(`/api/admin/enrollment?studentId=${studentId}&courseId=${courseId}`, {
+                    method: 'DELETE',
+                    credentials: 'include',
+                });
+
+                if (response.ok) {
+                    console.log('✅ Student unenrolled successfully, refreshing data...');
+                    // Notify parent immediately to refresh student list
+                    if (onEnrollmentChange) {
+                        onEnrollmentChange();
+                    }
+                    // Force a full refresh to ensure data consistency
+                    await fetchData();
+                } else {
+                    const data = await response.json();
+                    alert(data.message || 'Failed to unenroll student from course');
+                    await fetchData();
                 }
             } else {
-                alert('Failed to update course enrollment');
+                // Enroll - POST using unified API
+                const response = await fetch('/api/enrollment', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ studentId, courseId }),
+                });
+
+                if (response.ok) {
+                    console.log('✅ Student enrolled successfully, refreshing data...');
+                    // Notify parent immediately to refresh student list
+                    if (onEnrollmentChange) {
+                        onEnrollmentChange();
+                    }
+                    // Force a full refresh to ensure data consistency
+                    await fetchData();
+                } else {
+                    const data = await response.json();
+                    alert(data.message || 'Failed to enroll student in course');
+                    await fetchData();
+                }
             }
         } catch (error) {
             console.error('Error updating enrollment:', error);
             alert('Failed to update course enrollment');
+            await fetchData();
+        } finally {
+            setIsSaving(false);
         }
     };
 
@@ -104,8 +239,10 @@ export default function StudentProfile({ studentId, back }: StudentProfileProps)
 
     if (isLoading) {
         return (
-            <div className="flex items-center justify-center h-full">
+            <div className="flex flex-col items-center justify-center h-full gap-4">
                 <div className="animate-spin rounded-full h-12 w-12 border-4 border-purple-600 border-t-transparent"></div>
+                <p className="text-slate-400 text-sm">Loading student profile...</p>
+                <p className="text-slate-500 text-xs">ID: {studentId}</p>
             </div>
         );
     }
@@ -113,8 +250,16 @@ export default function StudentProfile({ studentId, back }: StudentProfileProps)
     if (!student) {
         return (
             <div className="p-8 text-center">
-                <p className="text-slate-400">Student not found</p>
-                <button onClick={back} className="mt-4 text-purple-400 hover:text-purple-300">Go Back</button>
+                <div className="mb-4">
+                    <p className="text-slate-400 text-lg mb-2">Student not found</p>
+                    <p className="text-slate-500 text-sm">Student ID: {studentId}</p>
+                </div>
+                <button 
+                    onClick={back} 
+                    className="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-lg font-medium transition-colors"
+                >
+                    Go Back to Students
+                </button>
             </div>
         );
     }
@@ -184,34 +329,140 @@ export default function StudentProfile({ studentId, back }: StudentProfileProps)
                 </div>
 
                 {/* Course Enrollment */}
-                <div className="lg:col-span-2">
+                <div className="lg:col-span-2 space-y-6">
+                    {/* Enrolled Courses */}
                     <div className="bg-[#161922] border border-slate-800/60 rounded-2xl p-6">
                         <h3 className="font-bold text-white mb-4 flex items-center gap-2">
                             <BookOpen size={18} className="text-blue-400" />
-                            Course Enrollments
+                            Enrolled Courses ({student.enrolledCourses || student.enrollments?.length || 0})
+                        </h3>
+
+                        {student.enrollments && student.enrollments.length > 0 ? (
+                            <div className="space-y-3">
+                                {student.enrollments.map((enrollment: any) => (
+                                    <div key={enrollment.courseId} className="p-4 bg-[#1a1d26] rounded-xl border border-slate-800/40">
+                                        <div className="flex items-start justify-between mb-3">
+                                            <div className="flex-1">
+                                                <h4 className="font-bold text-white mb-1">{enrollment.course.title}</h4>
+                                                <p className="text-xs text-slate-500 mb-2">{enrollment.course.description?.substring(0, 80)}...</p>
+                                                <div className="flex items-center gap-4 mt-2">
+                                                    <div>
+                                                        <span className="text-xs text-slate-500">Progress: </span>
+                                                        <span className="text-xs font-bold text-purple-400">{enrollment.progress || 0}%</span>
+                                                    </div>
+                                                    <div>
+                                                        <span className="text-xs text-slate-500">Last Accessed: </span>
+                                                        <span className="text-xs text-slate-400">
+                                                            {enrollment.lastAccessed ? new Date(enrollment.lastAccessed).toLocaleDateString() : 'Never'}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <button
+                                                onClick={() => handleToggleCourse(enrollment.courseId, true)}
+                                                className="ml-4 px-4 py-2 bg-red-500/10 text-red-400 hover:bg-red-500/20 rounded-lg font-bold text-xs transition-colors border border-red-500/30"
+                                            >
+                                                Unenroll
+                                            </button>
+                                        </div>
+                                        {enrollment.progress > 0 && (
+                                            <div className="mt-2 w-full bg-slate-800 rounded-full h-2 overflow-hidden">
+                                                <div
+                                                    className="bg-gradient-to-r from-purple-600 to-pink-600 h-full transition-all"
+                                                    style={{ width: `${enrollment.progress}%` }}
+                                                ></div>
+                                            </div>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <p className="text-slate-400 text-center py-8">No enrolled courses</p>
+                        )}
+                    </div>
+
+                    {/* Available Courses */}
+                    <div className="bg-[#161922] border border-slate-800/60 rounded-2xl p-6">
+                        <h3 className="font-bold text-white mb-4 flex items-center gap-2">
+                            <BookOpen size={18} className="text-emerald-400" />
+                            Available Courses
                         </h3>
 
                         <div className="space-y-3">
-                            {courses.map(course => {
-                                const isEnrolled = student.enrollments?.some((e: any) => e.courseId === course.id);
-                                return (
-                                    <div key={course.id} className="flex items-center justify-between p-4 bg-[#1a1d26] rounded-xl border border-slate-800/40">
-                                        <div>
-                                            <h4 className="font-bold text-white">{course.title}</h4>
-                                            <p className="text-xs text-slate-500">{course.description?.substring(0, 60)}...</p>
-                                        </div>
-                                        <button
-                                            onClick={() => handleToggleCourse(course.id, isEnrolled)}
-                                            className={`px-4 py-2 rounded-lg font-bold text-xs transition-colors ${isEnrolled
-                                                    ? 'bg-red-500/10 text-red-400 hover:bg-red-500/20'
-                                                    : 'bg-green-500/10 text-green-400 hover:bg-green-500/20'
-                                                }`}
-                                        >
-                                            {isEnrolled ? 'Revoke Access' : 'Grant Access'}
-                                        </button>
-                                    </div>
-                                );
-                            })}
+                            {(() => {
+                                // Use enrollment data from unified API if available, otherwise fall back to old method
+                                const enrollmentData = student.enrollmentData || [];
+                                
+                                return courses
+                                    .filter(course => {
+                                        const courseId = Number(course.id);
+                                        // Exclude enrolled courses
+                                        if (enrollmentData.length > 0) {
+                                            const enrollment = enrollmentData.find((e: any) => Number(e.courseId) === Number(course.id));
+                                            return enrollment?.enrollmentStatus !== 'enrolled';
+                                        }
+                                        // Fallback to old method
+                                        return !student.enrollments?.some((e: any) => {
+                                            const enrolledCourseId = Number(e.courseId);
+                                            return enrolledCourseId === courseId;
+                                        });
+                                    })
+                                    .map(course => {
+                                        const courseId = Number(course.id);
+                                        
+                                        // Get enrollment status from unified API
+                                        let enrollmentStatus = 'available';
+                                        let hasPendingRequest = false;
+                                        
+                                        if (enrollmentData.length > 0) {
+                                            const enrollment = enrollmentData.find((e: any) => Number(e.courseId) === Number(course.id));
+                                            enrollmentStatus = enrollment?.enrollmentStatus || 'available';
+                                            hasPendingRequest = enrollmentStatus === 'requested';
+                                        } else {
+                                            // Fallback to old method
+                                            hasPendingRequest = student.pendingRequests?.some((pr: any) => {
+                                                const requestCourseId = Number(pr.courseId);
+                                                return requestCourseId === courseId;
+                                            }) || false;
+                                        }
+
+                                        return (
+                                            <div key={course.id} className="flex items-center justify-between p-4 bg-[#1a1d26] rounded-xl border border-slate-800/40">
+                                                <div className="flex-1">
+                                                    <h4 className="font-bold text-white">{course.title}</h4>
+                                                    <p className="text-xs text-slate-500 mt-1">{course.description?.substring(0, 80)}...</p>
+                                                </div>
+                                                {hasPendingRequest ? (
+                                                    <button
+                                                        disabled
+                                                        className="ml-4 px-4 py-2 bg-yellow-500/10 text-yellow-400 rounded-lg font-bold text-xs border border-yellow-500/30 cursor-not-allowed"
+                                                    >
+                                                        Requested
+                                                    </button>
+                                                ) : (
+                                                    <button
+                                                        onClick={() => handleToggleCourse(courseId, false)}
+                                                        disabled={isSaving}
+                                                        className="ml-4 px-4 py-2 bg-green-500/10 text-green-400 hover:bg-green-500/20 rounded-lg font-bold text-xs transition-colors border border-green-500/30 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                    >
+                                                        {isSaving ? 'Processing...' : 'Enroll'}
+                                                    </button>
+                                                )}
+                                            </div>
+                                        );
+                                    });
+                            })()}
+                            {courses.filter(course => {
+                                const courseId = Number(course.id);
+                                const enrollmentData = student.enrollmentData || [];
+                                if (enrollmentData.length > 0) {
+                                    const enrollment = enrollmentData.find((e: any) => Number(e.courseId) === Number(course.id));
+                                    return enrollment?.enrollmentStatus === 'enrolled';
+                                }
+                                return !student.enrollments?.some((e: any) => Number(e.courseId) === courseId);
+                            }).length === courses.length && (
+                                <p className="text-slate-400 text-center py-4">All available courses are enrolled</p>
+                            )}
                         </div>
                     </div>
                 </div>

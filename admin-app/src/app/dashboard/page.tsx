@@ -1,13 +1,27 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import React from 'react';
 import { useRouter } from 'next/navigation';
 import NurseProAdminUltimate from '@/components/UnifiedAdminSuite';
+import { NotificationProvider } from '@/components/NotificationProvider';
 
 export default function AdminDashboard() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [module, setModule] = useState<string>('dashboard');
   const router = useRouter();
+
+  // Get module from URL query parameter - must be called before any conditional returns
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const moduleParam = params.get('module');
+      if (moduleParam) {
+        setModule(moduleParam);
+      }
+    }
+  }, []);
 
   // Check authentication first
   useEffect(() => {
@@ -43,7 +57,19 @@ export default function AdminDashboard() {
             setIsAuthenticated(true);
             setIsLoading(false);
             return;
+          } else {
+            // User exists but not admin - redirect to login
+            console.log('❌ [Dashboard] User is not an admin, redirecting to login');
+            sessionStorage.clear();
+            window.location.replace('/login');
+            return;
           }
+        } else if (response.status === 401 || response.status === 403) {
+          // Not authenticated or unauthorized - redirect immediately
+          console.log('❌ [Dashboard] Not authenticated (401/403), redirecting to login');
+          sessionStorage.clear();
+          window.location.replace('/login');
+          return;
         }
 
         // Not authenticated - retry if we just logged in
@@ -82,12 +108,14 @@ export default function AdminDashboard() {
           }
         }
 
-        // Not authenticated
+        // Not authenticated - clear any stale session data
+        sessionStorage.clear();
         console.log('❌ [Dashboard] Not authenticated after all attempts, redirecting to login');
-        router.push('/login');
+        window.location.replace('/login');
       } catch (error) {
         console.error('Auth check error:', error);
-        router.push('/login');
+        sessionStorage.clear();
+        window.location.replace('/login');
       } finally {
         setIsLoading(false);
       }
@@ -111,5 +139,9 @@ export default function AdminDashboard() {
     return null;
   }
 
-  return <NurseProAdminUltimate />;
+  return (
+    <NotificationProvider>
+      <NurseProAdminUltimate initialModule={module} />
+    </NotificationProvider>
+  );
 }

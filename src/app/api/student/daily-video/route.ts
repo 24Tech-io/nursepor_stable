@@ -33,9 +33,9 @@ export async function GET(request: NextRequest) {
         day: dailyVideos.day,
         chapterId: dailyVideos.chapterId,
         chapterTitle: chapters.title,
-        videoUrl: chapters.videoUrl,
-        videoProvider: chapters.videoProvider,
-        videoDuration: chapters.videoDuration
+        chapterVideoUrl: chapters.videoUrl,
+        chapterVideoProvider: chapters.videoProvider,
+        chapterVideoDuration: chapters.videoDuration
       })
       .from(dailyVideos)
       .innerJoin(chapters, eq(dailyVideos.chapterId, chapters.id))
@@ -54,7 +54,35 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    const video = todayVideo[0];
+    const videoData = todayVideo[0];
+    
+    // Parse metadata from description (stored as JSON)
+    let videoUrl = videoData.chapterVideoUrl;
+    let videoProvider = videoData.chapterVideoProvider || 'youtube';
+    let videoDuration = videoData.chapterVideoDuration;
+    let description = videoData.description || '';
+    
+    try {
+      const parsedDesc = JSON.parse(videoData.description || '{}');
+      if (parsedDesc.metadata) {
+        videoUrl = parsedDesc.metadata.videoUrl || videoUrl;
+        videoProvider = parsedDesc.metadata.videoProvider || videoProvider;
+        videoDuration = parsedDesc.metadata.videoDuration || videoDuration;
+      }
+      if (parsedDesc.description) {
+        description = parsedDesc.description;
+      }
+    } catch (e) {
+      // If not JSON, use description as-is
+    }
+
+    const video = {
+      ...videoData,
+      videoUrl,
+      videoProvider,
+      videoDuration,
+      description
+    };
 
     // Check if user has watched it
     const progress = await db

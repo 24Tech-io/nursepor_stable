@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
@@ -395,28 +395,13 @@ export default function AdminLoginPage() {
 
           {/* Face ID Login Tab */}
           {activeTab === 'face' && (
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-200 mb-2">
-                  Email address
-                </label>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full px-3 py-3 bg-white/5 text-slate-100 placeholder-slate-400 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-                  placeholder="Enter your email"
-                  required
-                />
-              </div>
-
-              <div className="text-center py-8">
-                <svg className="mx-auto h-16 w-16 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <p className="mt-4 text-slate-300">Face ID authentication coming soon</p>
-              </div>
-            </div>
+            <FaceLoginTab 
+              email={email}
+              setEmail={setEmail}
+              setIsLoading={setIsLoading}
+              setError={setError}
+              router={router}
+            />
           )}
         </div>
 
@@ -433,6 +418,171 @@ export default function AdminLoginPage() {
           </p>
         </div>
       </div>
+    </div>
+  );
+}
+
+// Face Login Component
+function FaceLoginTab({ 
+  email, 
+  setEmail, 
+  setIsLoading, 
+  setError, 
+  router 
+}: { 
+  email: string; 
+  setEmail: (email: string) => void; 
+  setIsLoading: (loading: boolean) => void; 
+  setError: (error: string) => void;
+  router: any;
+}) {
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [status, setStatus] = useState<string>('');
+  const [cameraReady, setCameraReady] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+      }
+    };
+  }, []);
+
+  const initializeCamera = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user' },
+      });
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        setCameraReady(true);
+        setStatus('Camera ready. Position your face in the frame.');
+      }
+    } catch (err: any) {
+      setError(err.message || 'Failed to access camera');
+    }
+  };
+
+  const handleFaceLogin = async () => {
+    if (!email.trim()) {
+      setError('Please enter your email address');
+      return;
+    }
+
+    if (!videoRef.current || !cameraReady) {
+      setError('Camera not ready');
+      return;
+    }
+
+    setIsVerifying(true);
+    setError('');
+    setStatus('Verifying face...');
+
+    try {
+      const { enrollFace } = await import('@/lib/simple-face-auth');
+      
+      const result = await enrollFace(videoRef.current);
+
+      if (!result.success || !result.features) {
+        throw new Error(result.error || 'Face capture failed');
+      }
+
+      // Convert features to base64
+      const faceTemplate = btoa(JSON.stringify(result.features));
+
+      const response = await fetch('/api/auth/face-login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ email: email.trim().toLowerCase(), faceTemplate }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.message || 'Face verification failed');
+      }
+
+      const data = await response.json();
+      
+      if (data.user && data.user.role === 'admin') {
+        sessionStorage.setItem('adminUser', JSON.stringify(data.user));
+        sessionStorage.setItem('shouldRedirect', 'true');
+        
+        if (streamRef.current) {
+          streamRef.current.getTracks().forEach(track => track.stop());
+        }
+
+        setTimeout(() => {
+          window.location.href = '/dashboard';
+        }, 500);
+      } else {
+        throw new Error('Invalid admin account');
+      }
+    } catch (err: any) {
+      setError(err.message || 'Face login failed');
+      setIsVerifying(false);
+      setStatus('');
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <label className="block text-sm font-medium text-slate-200 mb-2">
+          Email address
+        </label>
+        <input
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          className="w-full px-3 py-3 bg-white/5 text-slate-100 placeholder-slate-400 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+          placeholder="Enter your email"
+          required
+          disabled={isVerifying}
+        />
+      </div>
+
+      {!cameraReady ? (
+        <button
+          onClick={initializeCamera}
+          className="w-full px-4 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-xl font-bold hover:from-emerald-500 hover:to-teal-500 transition-all"
+        >
+          Enable Camera
+        </button>
+      ) : (
+        <>
+          <div className="relative bg-black/20 rounded-xl overflow-hidden border border-white/10">
+            <video
+              ref={videoRef}
+              autoPlay
+              playsInline
+              muted
+              className="w-full h-64 object-cover"
+            />
+            {isVerifying && (
+              <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                <div className="text-center">
+                  <div className="animate-spin rounded-full h-12 w-12 border-4 border-emerald-600 border-t-transparent mx-auto mb-4"></div>
+                  <p className="text-white font-medium">{status}</p>
+                </div>
+              </div>
+            )}
+          </div>
+          {status && !isVerifying && (
+            <p className="text-slate-400 text-sm text-center">{status}</p>
+          )}
+          <button
+            onClick={handleFaceLogin}
+            disabled={isVerifying || !email.trim()}
+            className="w-full px-4 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-xl font-bold hover:from-emerald-500 hover:to-teal-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isVerifying ? 'Verifying...' : 'Login with Face ID'}
+          </button>
+        </>
+      )}
     </div>
   );
 }

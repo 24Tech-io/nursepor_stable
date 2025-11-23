@@ -1,13 +1,22 @@
 'use client';
 
 import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useNotification } from './NotificationProvider';
 import {
   Layout, Database, Users, Settings, Plus, Save, ArrowLeft, Layers,
   Activity, FileText, Video, CheckCircle, Grid, Monitor, ChevronRight,
   Trash2, Edit3, BarChart, BookOpen, Search, Flag, AlertTriangle, X,
   Filter, Zap, Book, MoreHorizontal, Image as ImageIcon, List,
-  MousePointer, Highlighter, Type, Divide, GripVertical, CheckSquare, AlignLeft
+  MousePointer, Highlighter, Type, Divide, GripVertical, CheckSquare, AlignLeft,
+  User, Shield, Download, Calendar, TrendingUp, TrendingDown, Clock, Award, Target, FileDown,
+  Eye, UserX
 } from 'lucide-react';
+import FileUpload from './FileUpload';
+import VideoUploadModal from './VideoUploadModal';
+import DocumentUploadModal from './DocumentUploadModal';
+import StudentActivityModal from './StudentActivityModal';
+import { Upload, Link as LinkIcon } from 'lucide-react';
 
 // --- DATA CONSTANTS ---
 const QUESTION_MODES = {
@@ -51,12 +60,140 @@ import StudentProfile from './admin/StudentProfile';
 import QuestionTypeBuilder from './qbank/QuestionTypeBuilder';
 
 // --- ROOT COMPONENT ---
-export default function NurseProAdminUltimate() {
-  const [currentModule, setCurrentModule] = useState('dashboard');
-  const [activeItem, setActiveItem] = useState(null);
-  const [activeStudentId, setActiveStudentId] = useState<number | null>(null);
+export default function NurseProAdminUltimate({ 
+  initialModule = 'dashboard',
+  initialStudentId,
+  initialCourse,
+}: { 
+  initialModule?: string;
+  initialStudentId?: number;
+  initialCourse?: any;
+}) {
+  const [currentModule, setCurrentModule] = useState(initialModule);
+  const [activeItem, setActiveItem] = useState(initialCourse || null);
+  const [activeStudentId, setActiveStudentId] = useState<number | null>(initialStudentId || null);
+  const [refreshCounter, setRefreshCounter] = useState(0);
+  const [adminUser, setAdminUser] = useState<any>(null);
+  const router = useRouter();
 
-  const nav = (mod: string) => setCurrentModule(mod);
+  // Sync module with URL on mount and when URL changes
+  React.useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const path = window.location.pathname;
+      
+      // Map paths to modules
+      const pathToModule: Record<string, string> = {
+        '/dashboard': 'dashboard',
+        '/dashboard/analytics': 'analytics',
+        '/dashboard/students': 'students',
+        '/dashboard/requests': 'requests',
+        '/dashboard/courses': 'courses',
+        '/dashboard/qbank': 'qbank',
+        '/dashboard/profile': 'admin_profile',
+        '/dashboard/daily-videos': 'daily_videos',
+        '/dashboard/blogs': 'blogs',
+        '/dashboard/quizzes': 'quizzes',
+      };
+      
+      // Check if it's a student profile route
+      const studentProfileMatch = path.match(/^\/dashboard\/students\/(\d+)$/);
+      if (studentProfileMatch) {
+        const studentId = parseInt(studentProfileMatch[1]);
+        if (studentId !== activeStudentId) {
+          setActiveStudentId(studentId);
+        }
+        if (currentModule !== 'student_profile') {
+          setCurrentModule('student_profile');
+        }
+        return;
+      }
+      
+      // Check if it's a course editor route
+      const courseEditorMatch = path.match(/^\/dashboard\/courses\/(\d+)$/);
+      if (courseEditorMatch) {
+        const courseId = parseInt(courseEditorMatch[1]);
+        // Fetch course data and set as activeItem
+        fetch(`/api/courses/${courseId}`, { credentials: 'include' })
+          .then(res => res.json())
+          .then(data => {
+            if (data.course) {
+              setActiveItem(data.course);
+              setCurrentModule('course_editor');
+            }
+          })
+          .catch(() => setCurrentModule('courses'));
+        return;
+      }
+      
+      // Check if it's a qbank editor route
+      const qbankEditorMatch = path.match(/^\/dashboard\/qbank\/(\d+)$/);
+      if (qbankEditorMatch) {
+        const questionId = parseInt(qbankEditorMatch[1]);
+        // Fetch question data and set as activeItem
+        fetch(`/api/qbank/${questionId}`, { credentials: 'include' })
+          .then(res => res.json())
+          .then(data => {
+            if (data.question) {
+              setActiveItem(data.question);
+              setCurrentModule('qbank_editor');
+            }
+          })
+          .catch(() => setCurrentModule('qbank'));
+        return;
+      }
+      
+      // Default path mapping
+      const module = pathToModule[path] || initialModule;
+      if (module !== currentModule) {
+        setCurrentModule(module);
+      }
+    }
+  }, [router, initialModule]); // Run when router or initialModule changes
+
+  const nav = (mod: string, id?: number) => {
+    // Update state immediately for instant UI response
+    setCurrentModule(mod);
+    
+    // Update URL with proper routing
+    if (typeof window !== 'undefined') {
+      const routeMap: Record<string, string> = {
+        'dashboard': '/dashboard',
+        'analytics': '/dashboard/analytics',
+        'students': '/dashboard/students',
+        'student_profile': id ? `/dashboard/students/${id}` : '/dashboard/students',
+        'requests': '/dashboard/requests',
+        'courses': '/dashboard/courses',
+        'course_editor': id ? `/dashboard/courses/${id}` : '/dashboard/courses',
+        'qbank': '/dashboard/qbank',
+        'qbank_editor': id ? `/dashboard/qbank/${id}` : '/dashboard/qbank',
+        'admin_profile': '/dashboard/profile',
+        'daily_videos': '/dashboard/daily-videos',
+        'blogs': '/dashboard/blogs',
+        'quizzes': '/dashboard/quizzes',
+      };
+      const newUrl = routeMap[mod] || '/dashboard';
+      // Use pushState to update URL and allow browser back/forward
+      router.push(newUrl);
+    }
+  };
+
+  // Fetch admin user data
+  React.useEffect(() => {
+    const fetchAdminUser = async () => {
+      try {
+        const response = await fetch('/api/auth/me', {
+          credentials: 'include',
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setAdminUser(data.user);
+        }
+      } catch (error) {
+        console.error('Error fetching admin user:', error);
+      }
+    };
+    fetchAdminUser();
+  }, []);
 
   return (
     <div className="flex h-screen bg-[#0b0d12] text-slate-200 font-sans selection:bg-purple-500 selection:text-white overflow-hidden">
@@ -86,31 +223,45 @@ export default function NurseProAdminUltimate() {
           <NavSection title="Content Engine">
             <NavItem icon={<BookOpen size={18} />} label="Course Builder" active={currentModule.includes('course')} onClick={() => nav('courses')} badge={undefined} />
             <NavItem icon={<Database size={18} />} label="Q-Bank Manager" active={currentModule.includes('qbank')} onClick={() => nav('qbank')} badge={undefined} />
+            <NavItem icon={<FileText size={18} />} label="Blog Manager" active={currentModule === 'blogs'} onClick={() => nav('blogs')} badge={undefined} />
+            <NavItem icon={<Video size={18} />} label="Daily Videos" active={currentModule === 'daily_videos'} onClick={() => nav('daily_videos')} badge={undefined} />
           </NavSection>
         </nav>
 
-        <div className="p-4 border-t border-slate-800/50">
+        <div className="p-4 border-t border-slate-800/50 space-y-2">
+          <button
+            onClick={() => nav('admin_profile')}
+            className="w-full flex items-center gap-3 px-4 py-3 bg-[#161922] rounded-xl border border-slate-800/50 hover:border-purple-500/50 hover:bg-purple-900/10 transition-all group"
+          >
+            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-600 to-pink-500 flex items-center justify-center text-sm font-bold text-white shadow-lg shadow-purple-500/20 flex-shrink-0">
+              {adminUser?.name ? adminUser.name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2) : 'AD'}
+            </div>
+            <div className="text-left flex-1 min-w-0">
+              <p className="text-sm font-bold text-white group-hover:text-purple-300 transition-colors truncate">
+                {adminUser?.name || 'Admin User'}
+              </p>
+              <p className="text-[10px] text-slate-500 truncate">{adminUser?.email || 'Loading...'}</p>
+            </div>
+            <ChevronRight size={16} className="text-slate-500 group-hover:text-purple-400 transition-colors flex-shrink-0" />
+          </button>
           <button
             onClick={async () => {
               try {
                 await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
-                sessionStorage.removeItem('adminUser');
-                // Force redirect
-                window.location.href = '/login';
+                // Clear all session storage
+                sessionStorage.clear();
+                // Force redirect using replace to prevent back button from going to dashboard
+                window.location.replace('/login');
               } catch (error) {
                 console.error('Logout error:', error);
-                // Force redirect anyway
-                window.location.href = '/login';
+                // Clear session storage and force redirect anyway
+                sessionStorage.clear();
+                window.location.replace('/login');
               }
             }}
-            className="w-full flex items-center gap-3 px-4 py-3 bg-[#161922] rounded-xl border border-slate-800/50 hover:border-red-500/50 hover:bg-red-900/10 transition-all"
+            className="w-full flex items-center gap-3 px-4 py-2.5 bg-[#161922] rounded-xl border border-slate-800/50 hover:border-red-500/50 hover:bg-red-900/10 transition-all"
           >
-            <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold text-white">AD</div>
-            <div className="text-left flex-1">
-              <p className="text-xs font-bold text-white">Admin User</p>
-              <p className="text-[10px] text-slate-500">Super Admin</p>
-            </div>
-            <div className="text-red-400 hover:text-red-300">Logout</div>
+            <div className="text-red-400 hover:text-red-300 text-sm font-medium">Logout</div>
           </button>
         </div>
       </aside>
@@ -118,8 +269,30 @@ export default function NurseProAdminUltimate() {
       {/* MAIN CANVAS */}
       <main className="flex-1 flex flex-col relative overflow-hidden bg-gradient-to-br from-[#0b0d12] via-[#0f1117] to-[#0b0d12]">
         {currentModule === 'dashboard' && <Dashboard nav={nav} />}
-        {currentModule === 'students' && <StudentsList nav={nav} onSelectStudent={(id) => { setActiveStudentId(id); nav('student_profile'); }} />}
-        {currentModule === 'student_profile' && activeStudentId && <StudentProfile studentId={activeStudentId} back={() => nav('students')} />}
+        {currentModule === 'students' && <StudentsList 
+          nav={nav} 
+          onSelectStudent={(id) => { 
+            console.log('Student selected with ID:', id, 'Type:', typeof id);
+            setActiveStudentId(id); 
+            nav('student_profile', id); 
+          }}
+          refreshTrigger={refreshCounter}
+        />}
+        {currentModule === 'student_profile' && activeStudentId && (
+          <StudentProfile 
+            studentId={activeStudentId} 
+            back={() => {
+              setActiveStudentId(null);
+              nav('students');
+              // Refresh student list when going back
+              setRefreshCounter(prev => prev + 1);
+            }}
+            onEnrollmentChange={() => {
+              // Trigger refresh of student list
+              setRefreshCounter(prev => prev + 1);
+            }}
+          />
+        )}
         {currentModule === 'requests' && <RequestsInbox nav={nav} />}
         {currentModule === 'analytics' && <Analytics nav={nav} />}
         {currentModule === 'daily_videos' && <DailyVideoManager nav={nav} />}
@@ -129,6 +302,7 @@ export default function NurseProAdminUltimate() {
         {currentModule === 'course_editor' && <CourseBuilder course={activeItem} back={() => nav('courses')} />}
         {currentModule === 'qbank' && <QBankList nav={nav} setActive={setActiveItem} />}
         {currentModule === 'qbank_editor' && <UniversalQuestionEditor question={activeItem} back={() => nav('qbank')} />}
+        {currentModule === 'admin_profile' && <AdminProfile nav={nav} adminUser={adminUser} />}
       </main>
     </div>
   );
@@ -142,18 +316,22 @@ const Dashboard = ({ nav }: { nav: (mod: string) => void }) => {
   React.useEffect(() => {
     const fetchStats = async () => {
       try {
-        // Fetch real data from API endpoints
-        const coursesRes = await fetch('/api/courses', { credentials: 'include' });
-        const questionsRes = await fetch('/api/qbank', { credentials: 'include' });
-        const studentsRes = await fetch('/api/students', { credentials: 'include' });
+        // Optimized: Fetch all stats in parallel, use count-only for questions
+        const [coursesRes, questionsRes, studentsRes] = await Promise.all([
+          fetch('/api/courses', { credentials: 'include' }),
+          fetch('/api/qbank?countOnly=true', { credentials: 'include' }),
+          fetch('/api/students', { credentials: 'include' })
+        ]);
 
-        const courses = coursesRes.ok ? await coursesRes.json() : { courses: [] };
-        const questions = questionsRes.ok ? await questionsRes.json() : { questions: [] };
-        const students = studentsRes.ok ? await studentsRes.json() : { students: [] };
+        const [courses, questions, students] = await Promise.all([
+          coursesRes.ok ? coursesRes.json() : Promise.resolve({ courses: [] }),
+          questionsRes.ok ? questionsRes.json() : Promise.resolve({ totalCount: 0 }),
+          studentsRes.ok ? studentsRes.json() : Promise.resolve({ students: [] })
+        ]);
 
         setStats({
           courses: courses.courses?.length || 0,
-          questions: questions.questions?.length || 0,
+          questions: questions.totalCount || 0,
           students: students.students?.length || 0,
         });
       } catch (error) {
@@ -323,6 +501,7 @@ const Dashboard = ({ nav }: { nav: (mod: string) => void }) => {
 
 // --- REQUESTS INBOX MODULE ---
 const RequestsInbox = ({ nav }: { nav: (mod: string) => void }) => {
+  const notification = useNotification();
   const [requests, setRequests] = React.useState<any[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [processingId, setProcessingId] = React.useState<number | null>(null);
@@ -332,14 +511,42 @@ const RequestsInbox = ({ nav }: { nav: (mod: string) => void }) => {
   }, []);
 
   const fetchRequests = async () => {
+    setIsLoading(true);
     try {
-      const response = await fetch('/api/requests', { credentials: 'include' });
+      console.log('🔄 Fetching access requests (no cache)...');
+      const timestamp = Date.now(); // Add timestamp to bust cache
+      const response = await fetch(`/api/requests?t=${timestamp}`, { 
+        credentials: 'include',
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+        }
+      });
       if (response.ok) {
         const data = await response.json();
+        console.log('✅ Requests fetched:', data.requests?.length || 0);
+        console.log('📋 Request details:', data.requests?.map((r: any) => ({
+          id: r.id,
+          student: r.studentName,
+          course: r.courseTitle,
+          status: r.status,
+          reviewedAt: r.reviewedAt
+        })) || []);
+        
+        // Log each request's status for debugging
+        data.requests?.forEach((r: any) => {
+          console.log(`📌 Request ${r.id}: status="${r.status}", reviewedAt="${r.reviewedAt}"`);
+        });
+        
         setRequests(data.requests || []);
+      } else {
+        console.error('❌ Failed to fetch requests:', response.status);
+        const errorData = await response.json().catch(() => ({}));
+        console.error('❌ Error details:', errorData);
       }
     } catch (error) {
-      console.error('Error fetching requests:', error);
+      console.error('❌ Error fetching requests:', error);
     } finally {
       setIsLoading(false);
     }
@@ -348,6 +555,8 @@ const RequestsInbox = ({ nav }: { nav: (mod: string) => void }) => {
   const handleAction = async (requestId: number, action: 'approve' | 'deny') => {
     setProcessingId(requestId);
     try {
+      console.log(`🔄 Attempting to ${action} request ${requestId}...`);
+      
       const response = await fetch(`/api/requests/${requestId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -355,29 +564,98 @@ const RequestsInbox = ({ nav }: { nav: (mod: string) => void }) => {
         body: JSON.stringify({ action }),
       });
 
+      console.log(`📡 Response status: ${response.status}`);
+
       if (response.ok) {
-        await fetchRequests(); // Refresh list
-        alert(`Request ${action}d successfully`);
+        const data = await response.json();
+        console.log(`✅ Request ${action}d successfully:`, data);
+        
+        // Force refresh requests list with a delay to ensure DB is updated
+        // The delay helps ensure the database transaction is committed
+        setTimeout(async () => {
+          await fetchRequests();
+        }, 1000);
+        
+        // Also refresh immediately (in case it's already updated)
+        await fetchRequests();
+        
+        // Show success message
+        const message = data.alreadyApproved || data.alreadyDenied 
+          ? data.message 
+          : (data.message || `Request ${action}d successfully`);
+        notification.showSuccess(message);
+        
+        // If approved, the enrollment sync utility will handle enrollment automatically
+        if (action === 'approve') {
+          console.log(`✅ Student ${data.studentId} should now be enrolled in course ${data.courseId}`);
+        }
       } else {
-        const error = await response.json();
-        alert(error.message || `Failed to ${action} request`);
+        // Try to get error message from response
+        let errorMessage = `Failed to ${action} request`;
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.message || errorData.error || errorMessage;
+          console.error(`❌ Error response:`, errorData);
+        } catch (e) {
+          console.error(`❌ Failed to parse error response. Status: ${response.status}`);
+          errorMessage = `Failed to ${action} request (Status: ${response.status})`;
+        }
+        
+        notification.showError(`Failed to ${action} request`, errorMessage);
       }
-    } catch (error) {
-      console.error(`Error ${action}ing request:`, error);
-      alert(`Failed to ${action} request`);
+    } catch (error: any) {
+      console.error(`❌ Error ${action}ing request:`, error);
+      const errorMessage = error.message || `Network error: Failed to ${action} request`;
+      notification.showError(`Failed to ${action} request`, errorMessage);
     } finally {
       setProcessingId(null);
     }
   };
 
+  // Filter requests - only show truly pending requests
   const pendingRequests = requests.filter(r => r.status === 'pending');
-  const reviewedRequests = requests.filter(r => r.status !== 'pending');
+  const reviewedRequests = requests.filter(r => r.status !== 'pending' && r.status !== null && r.status !== undefined);
+  
+  // Debug logging with more details
+  React.useEffect(() => {
+    console.log('📊 Requests state updated:', {
+      total: requests.length,
+      pending: pendingRequests.length,
+      reviewed: reviewedRequests.length,
+      statuses: requests.map((r: any) => ({ 
+        id: r.id, 
+        status: r.status,
+        reviewedAt: r.reviewedAt,
+        student: r.studentName,
+        course: r.courseTitle
+      }))
+    });
+    
+    // Log any requests that should be reviewed but aren't
+    requests.forEach((r: any) => {
+      if (r.reviewedAt && r.status === 'pending') {
+        console.warn(`⚠️ Request ${r.id} has reviewedAt but status is still 'pending'!`, r);
+      }
+    });
+  }, [requests, pendingRequests, reviewedRequests]);
 
   return (
     <div className="p-8 overflow-y-auto h-full">
-      <header className="mb-10">
-        <h2 className="text-3xl font-bold text-white tracking-tight">Course Access Requests</h2>
-        <p className="text-slate-400 mt-2 text-sm">Review and manage student course access requests</p>
+      <header className="mb-10 flex items-center justify-between">
+        <div>
+          <h2 className="text-3xl font-bold text-white tracking-tight">Course Access Requests</h2>
+          <p className="text-slate-400 mt-2 text-sm">Review and manage student course access requests</p>
+        </div>
+        <button
+          onClick={fetchRequests}
+          disabled={isLoading}
+          className="px-4 py-2 bg-purple-600 text-white rounded-lg font-semibold hover:bg-purple-700 disabled:opacity-50 transition-colors flex items-center gap-2"
+        >
+          <svg className={`w-5 h-5 ${isLoading ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+          Refresh
+        </button>
       </header>
 
       {isLoading ? (
@@ -470,24 +748,51 @@ const RequestsInbox = ({ nav }: { nav: (mod: string) => void }) => {
 };
 
 // --- STUDENTS LIST MODULE ---
-const StudentsList = ({ nav, onSelectStudent }: { nav: (mod: string) => void, onSelectStudent: (id: number) => void }) => {
+const StudentsList = ({ nav, onSelectStudent, refreshTrigger }: { nav: (mod: string) => void, onSelectStudent: (id: number) => void, refreshTrigger?: number }) => {
+  const notification = useNotification();
   const [students, setStudents] = React.useState<any[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [searchTerm, setSearchTerm] = React.useState('');
+  const [showActivityModal, setShowActivityModal] = React.useState(false);
+  const [activityStudentId, setActivityStudentId] = React.useState<number | null>(null);
 
   React.useEffect(() => {
     fetchStudents();
   }, []);
 
+  // Refresh when trigger changes
+  React.useEffect(() => {
+    if (refreshTrigger !== undefined) {
+      console.log('🔄 Refresh trigger activated, fetching fresh student data...');
+      fetchStudents();
+    }
+  }, [refreshTrigger]);
+
   const fetchStudents = async () => {
     try {
-      const response = await fetch('/api/students', { credentials: 'include' });
+      console.log('🔄 Fetching students with REAL data (no cache)...');
+      const response = await fetch('/api/students', { 
+        credentials: 'include',
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+        }
+      });
       if (response.ok) {
         const data = await response.json();
+        console.log('✅ Students fetched:', data.students?.length || 0);
+        console.log('📊 Enrollment status (REAL DATA):', data.students?.map((s: any) => ({ 
+          name: s.name, 
+          enrolled: s.enrolledCourses,
+          requested: s.pendingRequests || 0
+        })) || []);
         setStudents(data.students || []);
+      } else {
+        console.error('❌ Failed to fetch students:', response.status);
       }
     } catch (error) {
-      console.error('Error fetching students:', error);
+      console.error('❌ Error fetching students:', error);
     } finally {
       setIsLoading(false);
     }
@@ -504,36 +809,38 @@ const StudentsList = ({ nav, onSelectStudent }: { nav: (mod: string) => void, on
       if (response.ok) {
         await fetchStudents(); // Refresh list
       } else {
-        alert('Failed to toggle student status');
+        notification.showError('Failed to toggle student status');
       }
     } catch (error) {
       console.error('Error toggling student status:', error);
-      alert('Failed to toggle student status');
+      notification.showError('Failed to toggle student status');
     }
   };
 
   const resetFaceId = async (studentId: number, studentName: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!confirm(`Reset Face ID for ${studentName}? They will need to re-enroll.`)) {
-      return;
-    }
+    notification.showConfirm(
+      'Reset Face ID',
+      `Reset Face ID for ${studentName}? They will need to re-enroll.`,
+      async () => {
+        try {
+          const response = await fetch(`/api/students/${studentId}/reset-face`, {
+            method: 'POST',
+            credentials: 'include',
+          });
 
-    try {
-      const response = await fetch(`/api/students/${studentId}/reset-face`, {
-        method: 'POST',
-        credentials: 'include',
-      });
-
-      if (response.ok) {
-        await fetchStudents(); // Refresh list
-        alert('Face ID reset successfully');
-      } else {
-        alert('Failed to reset Face ID');
+          if (response.ok) {
+            await fetchStudents(); // Refresh list
+            notification.showSuccess('Face ID reset successfully');
+          } else {
+            notification.showError('Failed to reset Face ID');
+          }
+        } catch (error) {
+          console.error('Error resetting Face ID:', error);
+          notification.showError('Failed to reset Face ID');
+        }
       }
-    } catch (error) {
-      console.error('Error resetting Face ID:', error);
-      alert('Failed to reset Face ID');
-    }
+    );
   };
 
   const filteredStudents = students.filter(s =>
@@ -573,10 +880,10 @@ const StudentsList = ({ nav, onSelectStudent }: { nav: (mod: string) => void, on
               <tr>
                 <th className="p-4">Student</th>
                 <th className="p-4">Contact</th>
-                <th className="p-4 text-center">Courses</th>
+                <th className="p-4 text-center">Enrollment Status</th>
                 <th className="p-4 text-center">Face ID</th>
                 <th className="p-4 text-center">Status</th>
-                <th className="p-4 text-right">Actions</th>
+                <th className="p-4 text-right">Activity</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/50">
@@ -591,7 +898,17 @@ const StudentsList = ({ nav, onSelectStudent }: { nav: (mod: string) => void, on
                   <tr
                     key={student.id}
                     className="hover:bg-[#1a1d26] transition-colors cursor-pointer"
-                    onClick={() => onSelectStudent(student.id)}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      console.log('🖱️ Clicked on student:', student.id, student.name);
+                      if (student.id) {
+                        onSelectStudent(student.id);
+                      } else {
+                        console.error('❌ Student ID is missing!', student);
+                        alert('Error: Student ID is missing');
+                      }
+                    }}
                   >
                     <td className="p-4">
                       <div className="flex items-center gap-3">
@@ -613,7 +930,22 @@ const StudentsList = ({ nav, onSelectStudent }: { nav: (mod: string) => void, on
                       )}
                     </td>
                     <td className="p-4 text-center">
-                      <span className="text-white font-bold">{student.enrolledCourses || 0}</span>
+                      <div className="flex flex-col items-center gap-1">
+                        {student.enrolledCourses > 0 && (
+                          <span className="px-2 py-1 bg-green-500/20 text-green-400 text-xs font-bold rounded-full">
+                            {student.enrolledCourses} Enrolled
+                          </span>
+                        )}
+                        {student.pendingRequests > 0 && (
+                          <span className="px-2 py-1 bg-yellow-500/20 text-yellow-400 text-xs font-bold rounded-full">
+                            {student.pendingRequests} Requested
+                          </span>
+                        )}
+                        {(!student.enrolledCourses || student.enrolledCourses === 0) && 
+                         (!student.pendingRequests || student.pendingRequests === 0) && (
+                          <span className="text-slate-500 text-xs">No activity</span>
+                        )}
+                      </div>
                     </td>
                     <td className="p-4 text-center">
                       {student.faceIdEnrolled ? (
@@ -634,12 +966,28 @@ const StudentsList = ({ nav, onSelectStudent }: { nav: (mod: string) => void, on
                       </button>
                     </td>
                     <td className="p-4 text-right">
-                      <div className="flex justify-end gap-2">
+                      <div className="flex justify-end gap-2 items-center">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (student.id) {
+                              setActivityStudentId(student.id);
+                              setShowActivityModal(true);
+                            }
+                          }}
+                          className="px-3 py-1.5 bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 rounded-lg text-xs font-semibold transition-colors flex items-center gap-1.5"
+                          title="View Activity Log"
+                        >
+                          <Activity size={14} />
+                          Activity
+                        </button>
                         {student.faceIdEnrolled && (
                           <button
                             onClick={(e) => resetFaceId(student.id, student.name, e)}
-                            className="text-orange-400 hover:text-orange-300 text-xs font-semibold"
+                            className="px-3 py-1.5 bg-orange-600/20 hover:bg-orange-600/30 text-orange-400 rounded-lg text-xs font-semibold transition-colors flex items-center gap-1.5"
+                            title="Reset Face ID"
                           >
+                            <UserX size={14} />
                             Reset Face ID
                           </button>
                         )}
@@ -652,6 +1000,18 @@ const StudentsList = ({ nav, onSelectStudent }: { nav: (mod: string) => void, on
           </table>
         </div>
       )}
+
+      {/* Activity Modal */}
+      {showActivityModal && activityStudentId && (
+        <StudentActivityModal
+          studentId={activityStudentId}
+          studentName={students.find(s => s.id === activityStudentId)?.name || 'Student'}
+          onClose={() => {
+            setShowActivityModal(false);
+            setActivityStudentId(null);
+          }}
+        />
+      )}
     </div>
   );
 };
@@ -663,28 +1023,134 @@ const Analytics = ({ nav }: { nav: (mod: string) => void }) => {
     activeStudents: 0,
     totalCourses: 0,
     totalEnrollments: 0,
+    totalQuestions: 0,
+    averageProgress: 0,
+    completionRate: 0,
+    newStudentsThisMonth: 0,
+    activeEnrollments: 0,
   });
+  const [courseStats, setCourseStats] = React.useState<any[]>([]);
+  const [studentEngagement, setStudentEngagement] = React.useState<any[]>([]);
+  const [dateRange, setDateRange] = React.useState<'7d' | '30d' | '90d' | 'all'>('30d');
+  const [reportType, setReportType] = React.useState<'summary' | 'detailed' | 'courses' | 'students'>('summary');
   const [isLoading, setIsLoading] = React.useState(true);
+  const [isGeneratingReport, setIsGeneratingReport] = React.useState(false);
 
   React.useEffect(() => {
     fetchAnalytics();
-  }, []);
+  }, [dateRange]);
 
   const fetchAnalytics = async () => {
     try {
-      const studentsRes = await fetch('/api/students', { credentials: 'include' });
+      setIsLoading(true);
+      
+      // Fetch basic stats in parallel (fast)
+      const [studentsRes, coursesRes, questionsRes] = await Promise.all([
+        fetch('/api/students', { credentials: 'include' }),
+        fetch('/api/courses', { credentials: 'include' }),
+        fetch('/api/qbank?countOnly=true', { credentials: 'include' })
+      ]);
 
-      if (studentsRes.ok) {
-        const data = await studentsRes.json();
-        const students = data.students || [];
-        const totalEnrollments = students.reduce((sum: number, s: any) => sum + (s.enrolledCourses || 0), 0);
+      // Parse responses
+      const studentsData = studentsRes.ok ? await studentsRes.json() : { students: [] };
+      const coursesData = coursesRes.ok ? await coursesRes.json() : { courses: [] };
+      const questionsData = questionsRes.ok ? await questionsRes.json() : { totalCount: 0 };
 
-        setStats({
-          totalStudents: students.length,
-          activeStudents: students.filter((s: any) => s.isActive).length,
-          totalCourses: 0, // Will be fetched separately
-          totalEnrollments,
+      const students = studentsData.students || [];
+      const courses = coursesData.courses || [];
+      const totalEnrollments = students.reduce((sum: number, s: any) => sum + (s.enrolledCourses || 0), 0);
+      
+      // Calculate date-based metrics
+      const now = new Date();
+      const daysAgo = dateRange === '7d' ? 7 : dateRange === '30d' ? 30 : dateRange === '90d' ? 90 : Infinity;
+      const cutoffDate = new Date(now.getTime() - daysAgo * 24 * 60 * 60 * 1000);
+      
+      const newStudentsThisMonth = students.filter((s: any) => {
+        const joinedDate = new Date(s.joinedDate);
+        return joinedDate >= cutoffDate;
+      }).length;
+
+      // Set basic stats immediately (fast)
+      setStats({
+        totalStudents: students.length,
+        activeStudents: students.filter((s: any) => s.isActive).length,
+        totalCourses: courses.length,
+        totalEnrollments,
+        totalQuestions: questionsData.totalCount || 0,
+        averageProgress: 0, // Will be calculated below
+        completionRate: 0, // Will be calculated below
+        newStudentsThisMonth,
+        activeEnrollments: 0, // Will be calculated below
+      });
+
+      // Set basic course stats immediately
+      setCourseStats(courses.map((course: any) => ({
+        ...course,
+        enrollments: 0,
+        averageProgress: 0,
+      })));
+
+      // Fetch detailed enrollment data in parallel (only for students with enrollments)
+      const studentsWithEnrollments = students.filter((s: any) => s.enrolledCourses > 0);
+      
+      if (studentsWithEnrollments.length > 0) {
+        // Fetch all student details in parallel (much faster than sequential)
+        const studentDetailPromises = studentsWithEnrollments.map((student: any) =>
+          fetch(`/api/students/${student.id}`, { credentials: 'include' })
+            .then(res => res.ok ? res.json() : null)
+            .catch(() => null)
+        );
+
+        const studentDetails = await Promise.all(studentDetailPromises);
+        
+        let totalProgress = 0;
+        let enrollmentCount = 0;
+        const engagementData: any[] = [];
+        
+        studentDetails.forEach((detailData, index) => {
+          if (detailData?.student) {
+            const student = studentsWithEnrollments[index];
+            const enrollments = detailData.student.enrollments || [];
+            enrollments.forEach((e: any) => {
+              totalProgress += e.progress || 0;
+              enrollmentCount++;
+              engagementData.push({
+                studentName: student.name,
+                courseTitle: e.course?.title || 'Unknown',
+                progress: e.progress || 0,
+                lastAccessed: e.lastAccessed,
+              });
+            });
+          }
         });
+
+        const averageProgress = enrollmentCount > 0 ? Math.round(totalProgress / enrollmentCount) : 0;
+        const completedCount = engagementData.filter((e: any) => (e.progress || 0) >= 100).length;
+        const completionRate = enrollmentCount > 0 ? Math.round((completedCount / enrollmentCount) * 100) : 0;
+
+        // Update stats with calculated values
+        setStats(prev => ({
+          ...prev,
+          averageProgress,
+          completionRate,
+          activeEnrollments: enrollmentCount,
+        }));
+
+        // Update course stats with enrollment data
+        const courseStatsData = courses.map((course: any) => {
+          const courseEnrollments = engagementData.filter(e => e.courseTitle === course.title);
+          const enrollments = courseEnrollments.length;
+          const totalProgress = courseEnrollments.reduce((sum: number, e: any) => sum + e.progress, 0);
+          return {
+            ...course,
+            enrollments,
+            averageProgress: enrollments > 0 ? Math.round(totalProgress / enrollments) : 0,
+          };
+        });
+        setCourseStats(courseStatsData);
+        setStudentEngagement(engagementData);
+      } else {
+        setStudentEngagement([]);
       }
     } catch (error) {
       console.error('Error fetching analytics:', error);
@@ -693,30 +1159,315 @@ const Analytics = ({ nav }: { nav: (mod: string) => void }) => {
     }
   };
 
+  const generateReport = async (format: 'csv' | 'json') => {
+    setIsGeneratingReport(true);
+    try {
+      const reportData = {
+        generatedAt: new Date().toISOString(),
+        dateRange,
+        reportType,
+        stats,
+        courseStats,
+        studentEngagement: studentEngagement.slice(0, 100), // Limit for performance
+      };
+
+      if (format === 'csv') {
+        // Generate CSV
+        let csv = 'Report Type,Value\n';
+        csv += `Generated At,${reportData.generatedAt}\n`;
+        csv += `Date Range,${dateRange}\n`;
+        csv += `Total Students,${stats.totalStudents}\n`;
+        csv += `Active Students,${stats.activeStudents}\n`;
+        csv += `Total Courses,${stats.totalCourses}\n`;
+        csv += `Total Enrollments,${stats.totalEnrollments}\n`;
+        csv += `Total Questions,${stats.totalQuestions}\n`;
+        csv += `Average Progress,${stats.averageProgress}%\n`;
+        csv += `Completion Rate,${stats.completionRate}%\n`;
+        csv += `New Students (Period),${stats.newStudentsThisMonth}\n\n`;
+        
+        csv += 'Course Performance\n';
+        csv += 'Course Title,Enrollments,Average Progress\n';
+        courseStats.forEach(course => {
+          csv += `"${course.title}",${course.enrollments},${course.averageProgress}%\n`;
+        });
+
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `analytics-report-${new Date().toISOString().split('T')[0]}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+      } else {
+        // Generate JSON
+        const json = JSON.stringify(reportData, null, 2);
+        const blob = new Blob([json], { type: 'application/json' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `analytics-report-${new Date().toISOString().split('T')[0]}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+      }
+    } catch (error) {
+      console.error('Error generating report:', error);
+      alert('Failed to generate report. Please try again.');
+    } finally {
+      setIsGeneratingReport(false);
+    }
+  };
+
   return (
     <div className="p-8 overflow-y-auto h-full">
-      <header className="mb-10">
-        <h2 className="text-3xl font-bold text-white tracking-tight">Analytics & Reports</h2>
-        <p className="text-slate-400 mt-2 text-sm">Platform insights and metrics</p>
+      <header className="mb-8 flex items-center justify-between">
+        <div>
+          <h2 className="text-3xl font-bold text-white tracking-tight">Analytics & Reports</h2>
+          <p className="text-slate-400 mt-2 text-sm">Platform insights and metrics</p>
+        </div>
+        <div className="flex items-center gap-3">
+          <select
+            value={dateRange}
+            onChange={(e) => setDateRange(e.target.value as any)}
+            className="px-4 py-2 bg-[#161922] border border-slate-800/60 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+          >
+            <option value="7d">Last 7 Days</option>
+            <option value="30d">Last 30 Days</option>
+            <option value="90d">Last 90 Days</option>
+            <option value="all">All Time</option>
+          </select>
+          <button
+            onClick={() => generateReport('csv')}
+            disabled={isGeneratingReport}
+            className="px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg font-bold text-sm hover:from-purple-500 hover:to-pink-500 transition-all flex items-center gap-2 disabled:opacity-50"
+          >
+            <Download size={16} />
+            {isGeneratingReport ? 'Generating...' : 'Export CSV'}
+          </button>
+          <button
+            onClick={() => generateReport('json')}
+            disabled={isGeneratingReport}
+            className="px-4 py-2 bg-slate-700 text-white rounded-lg font-bold text-sm hover:bg-slate-600 transition-colors flex items-center gap-2 disabled:opacity-50"
+          >
+            <FileDown size={16} />
+            Export JSON
+          </button>
+        </div>
       </header>
 
-      {isLoading ? (
-        <div className="flex items-center justify-center py-20">
-          <div className="animate-spin rounded-full h-12 w-12 border-4 border-purple-600 border-t-transparent"></div>
+      {/* Always show UI structure, load data progressively */}
+      <>
+        {/* Key Metrics - Show immediately with loading state */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          {isLoading ? (
+            <>
+              {[1, 2, 3, 4].map(i => (
+                <div key={i} className="bg-[#161922] border border-slate-800/60 rounded-2xl p-6 animate-pulse">
+                  <div className="h-3 bg-slate-700 rounded w-24 mb-4"></div>
+                  <div className="h-8 bg-slate-700 rounded w-16"></div>
+                </div>
+              ))}
+            </>
+          ) : (
+            <>
+              <MetricCard title="Total Students" value={stats.totalStudents.toString()} trend="Registered" color="blue" icon={<Users size={20} />} />
+              <MetricCard title="Active Students" value={stats.activeStudents.toString()} trend="Currently Active" color="green" icon={<Activity size={20} />} />
+              <MetricCard title="Total Courses" value={stats.totalCourses.toString()} trend="Available" color="purple" icon={<BookOpen size={20} />} />
+              <MetricCard title="Total Enrollments" value={stats.totalEnrollments.toString()} trend="All Time" color="pink" icon={<Target size={20} />} />
+            </>
+          )}
         </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <MetricCard title="Total Students" value={stats.totalStudents.toString()} trend="Registered" color="blue" />
-          <MetricCard title="Active Students" value={stats.activeStudents.toString()} trend="Currently Active" color="green" />
-          <MetricCard title="Total Enrollments" value={stats.totalEnrollments.toString()} trend="All Time" color="purple" />
-          <MetricCard
-            title="Completion Rate"
-            value={(stats.totalEnrollments > 0 ? Math.round((stats.totalEnrollments / stats.totalStudents) * 100) : 0) + '%'}
-            trend="Average"
-            color="orange"
-          />
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          {isLoading ? (
+            <>
+              {[1, 2, 3, 4].map(i => (
+                <div key={i} className="bg-[#161922] border border-slate-800/60 rounded-2xl p-6 animate-pulse">
+                  <div className="h-3 bg-slate-700 rounded w-24 mb-4"></div>
+                  <div className="h-8 bg-slate-700 rounded w-16"></div>
+                </div>
+              ))}
+            </>
+          ) : (
+            <>
+              <MetricCard title="Total Questions" value={stats.totalQuestions.toString()} trend="In Q-Bank" color="blue" icon={<Database size={20} />} />
+              <MetricCard title="Average Progress" value={stats.averageProgress + '%'} trend="Across All" color="orange" icon={<TrendingUp size={20} />} />
+              <MetricCard title="Completion Rate" value={stats.completionRate + '%'} trend="Finished" color="green" icon={<Award size={20} />} />
+              <MetricCard title="New Students" value={stats.newStudentsThisMonth.toString()} trend={`Last ${dateRange === 'all' ? 'Period' : dateRange}`} color="purple" icon={<TrendingUp size={20} />} />
+            </>
+          )}
         </div>
-      )}
+
+          {/* Course Performance */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+            <div className="bg-[#161922] border border-slate-800/60 rounded-2xl p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                  <BarChart size={20} className="text-purple-400" />
+                  Course Performance
+                </h3>
+              </div>
+              <div className="space-y-4 max-h-96 overflow-y-auto">
+                {isLoading ? (
+                  <div className="space-y-3">
+                    {[1, 2, 3].map(i => (
+                      <div key={i} className="p-4 bg-[#1a1d26] rounded-xl border border-slate-800/40 animate-pulse">
+                        <div className="h-4 bg-slate-700 rounded w-3/4 mb-2"></div>
+                        <div className="h-2 bg-slate-700 rounded"></div>
+                      </div>
+                    ))}
+                  </div>
+                ) : courseStats.length > 0 ? (
+                  courseStats.map((course, idx) => (
+                    <div key={idx} className="p-4 bg-[#1a1d26] rounded-xl border border-slate-800/40">
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className="font-bold text-white text-sm">{course.title}</h4>
+                        <span className="text-xs text-slate-400">{course.enrollments} enrolled</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="flex-1 h-2 bg-slate-800 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-gradient-to-r from-purple-600 to-pink-600 transition-all"
+                            style={{ width: `${course.averageProgress}%` }}
+                          />
+                        </div>
+                        <span className="text-xs font-bold text-purple-400">{course.averageProgress}%</span>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-slate-400 text-center py-8">No course data available</p>
+                )}
+              </div>
+            </div>
+
+            {/* Student Engagement */}
+            <div className="bg-[#161922] border border-slate-800/60 rounded-2xl p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                  <Activity size={20} className="text-green-400" />
+                  Top Student Engagement
+                </h3>
+              </div>
+              <div className="space-y-3 max-h-96 overflow-y-auto">
+                {isLoading ? (
+                  <div className="space-y-3">
+                    {[1, 2, 3, 4, 5].map(i => (
+                      <div key={i} className="p-3 bg-[#1a1d26] rounded-xl border border-slate-800/40 animate-pulse">
+                        <div className="h-4 bg-slate-700 rounded w-2/3 mb-2"></div>
+                        <div className="h-2 bg-slate-700 rounded"></div>
+                      </div>
+                    ))}
+                  </div>
+                ) : studentEngagement.length > 0 ? (
+                  studentEngagement
+                    .sort((a, b) => b.progress - a.progress)
+                    .slice(0, 10)
+                    .map((engagement, idx) => (
+                      <div key={idx} className="p-3 bg-[#1a1d26] rounded-xl border border-slate-800/40">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-sm font-semibold text-white">{engagement.studentName}</span>
+                          <span className="text-xs text-slate-400">{engagement.progress}%</span>
+                        </div>
+                        <p className="text-xs text-slate-500 mb-2">{engagement.courseTitle}</p>
+                        <div className="h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-gradient-to-r from-green-600 to-emerald-600"
+                            style={{ width: `${engagement.progress}%` }}
+                          />
+                        </div>
+                      </div>
+                    ))
+                ) : (
+                  <p className="text-slate-400 text-center py-8">No engagement data available</p>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Additional Statistics */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="bg-[#161922] border border-slate-800/60 rounded-2xl p-6">
+              <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                <Clock size={18} className="text-blue-400" />
+                Activity Overview
+              </h3>
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-400 text-sm">Active Enrollments</span>
+                  <span className="text-white font-bold">{stats.activeEnrollments}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-400 text-sm">Inactive Students</span>
+                  <span className="text-white font-bold">{stats.totalStudents - stats.activeStudents}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-400 text-sm">Courses Published</span>
+                  <span className="text-white font-bold">{stats.totalCourses}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-[#161922] border border-slate-800/60 rounded-2xl p-6">
+              <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                <Target size={18} className="text-purple-400" />
+                Performance Metrics
+              </h3>
+              <div className="space-y-4">
+                <div>
+                  <div className="flex justify-between text-xs mb-2">
+                    <span className="text-slate-400">Engagement Rate</span>
+                    <span className="text-white font-bold">
+                      {stats.totalStudents > 0 ? Math.round((stats.activeEnrollments / stats.totalStudents) * 100) : 0}%
+                    </span>
+                  </div>
+                  <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-gradient-to-r from-purple-600 to-pink-600"
+                      style={{ width: `${stats.totalStudents > 0 ? Math.round((stats.activeEnrollments / stats.totalStudents) * 100) : 0}%` }}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <div className="flex justify-between text-xs mb-2">
+                    <span className="text-slate-400">Course Utilization</span>
+                    <span className="text-white font-bold">
+                      {stats.totalCourses > 0 ? Math.round((stats.totalEnrollments / stats.totalCourses) * 10) / 10 : 0}
+                    </span>
+                  </div>
+                  <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-gradient-to-r from-blue-600 to-cyan-600"
+                      style={{ width: `${Math.min(100, stats.totalCourses > 0 ? (stats.totalEnrollments / stats.totalCourses) * 10 : 0)}%` }}
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-[#161922] border border-slate-800/60 rounded-2xl p-6">
+              <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                <Award size={18} className="text-orange-400" />
+                Quick Stats
+              </h3>
+              <div className="space-y-3">
+                <div className="p-3 bg-[#1a1d26] rounded-lg border border-slate-800/40">
+                  <p className="text-xs text-slate-500 mb-1">Avg. Courses per Student</p>
+                  <p className="text-lg font-bold text-white">
+                    {stats.totalStudents > 0 ? (stats.totalEnrollments / stats.totalStudents).toFixed(1) : '0.0'}
+                  </p>
+                </div>
+                <div className="p-3 bg-[#1a1d26] rounded-lg border border-slate-800/40">
+                  <p className="text-xs text-slate-500 mb-1">Students with Progress</p>
+                  <p className="text-lg font-bold text-white">{stats.activeEnrollments}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </>
     </div>
   );
 };
@@ -733,6 +1484,16 @@ const DailyVideoManager = ({ nav }: { nav: (mod: string) => void }) => {
   const [day, setDay] = React.useState<number>(0);
   const [title, setTitle] = React.useState<string>('');
   const [description, setDescription] = React.useState<string>('');
+  const [videoUrl, setVideoUrl] = React.useState<string>('');
+  const [videoProvider, setVideoProvider] = React.useState<string>('youtube');
+  const [videoSourceType, setVideoSourceType] = React.useState<'url' | 'upload'>('url');
+  const [uploadedVideoUrl, setUploadedVideoUrl] = React.useState<string>('');
+  const [videoDuration, setVideoDuration] = React.useState<number | null>(null);
+  const [thumbnail, setThumbnail] = React.useState<string>('');
+  const [scheduledDate, setScheduledDate] = React.useState<string>('');
+  const [priority, setPriority] = React.useState<number>(0);
+  const [isActive, setIsActive] = React.useState<boolean>(true);
+  const [editingVideo, setEditingVideo] = React.useState<any | null>(null);
   const [isLoading, setIsLoading] = React.useState(true);
 
   React.useEffect(() => {
@@ -804,8 +1565,32 @@ const DailyVideoManager = ({ nav }: { nav: (mod: string) => void }) => {
     if (!selectedChapter || !title) return;
 
     try {
-      const response = await fetch('/api/daily-videos', {
-        method: 'POST',
+      const url = editingVideo ? `/api/admin/daily-videos/${editingVideo.id}` : '/api/admin/daily-videos';
+      const method = editingVideo ? 'PUT' : 'POST';
+
+      // Determine final video URL and provider based on source type
+      let finalVideoUrl = '';
+      let finalProvider = videoProvider;
+      
+      if (videoSourceType === 'upload') {
+        finalVideoUrl = uploadedVideoUrl;
+        finalProvider = 'uploaded';
+      } else {
+        finalVideoUrl = videoUrl;
+        // Auto-detect provider from URL if not explicitly set
+        if (finalVideoUrl) {
+          if (finalVideoUrl.includes('youtube.com') || finalVideoUrl.includes('youtu.be')) {
+            finalProvider = 'youtube';
+          } else if (finalVideoUrl.includes('vimeo.com')) {
+            finalProvider = 'vimeo';
+          } else if (finalVideoUrl.match(/\.(mp4|webm|ogg|mov)$/i)) {
+            finalProvider = 'direct';
+          }
+        }
+      }
+
+      const response = await fetch(url, {
+        method,
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({
@@ -813,20 +1598,94 @@ const DailyVideoManager = ({ nav }: { nav: (mod: string) => void }) => {
           title,
           description,
           day: parseInt(day.toString()),
+          videoUrl: finalVideoUrl || null,
+          videoProvider: finalProvider,
+          videoDuration: videoDuration || null,
+          thumbnail: thumbnail || null,
+          scheduledDate: scheduledDate || null,
+          priority: priority || 0,
+          isActive,
         }),
       });
 
       if (response.ok) {
-        alert('Daily video configured successfully');
-        setTitle('');
-        setDescription('');
+        alert(`Daily video ${editingVideo ? 'updated' : 'configured'} successfully`);
+        resetForm();
         fetchData(); // Refresh list
       } else {
-        alert('Failed to configure daily video');
+        const error = await response.json();
+        alert(`Failed to ${editingVideo ? 'update' : 'configure'} daily video: ${error.message || 'Unknown error'}`);
       }
     } catch (error) {
       console.error('Error configuring daily video:', error);
       alert('Failed to configure daily video');
+    }
+  };
+
+  const handleEdit = (video: any) => {
+    setEditingVideo(video);
+    setSelectedCourse(video.courseId?.toString() || '');
+    setTitle(video.title);
+    setDescription(video.description || '');
+    setDay(video.day);
+    
+    // Determine source type based on provider
+    const provider = video.videoProvider || 'youtube';
+    if (provider === 'uploaded') {
+      setVideoSourceType('upload');
+      setUploadedVideoUrl(video.videoUrl || '');
+      setVideoUrl('');
+    } else {
+      setVideoSourceType('url');
+      setVideoUrl(video.videoUrl || '');
+      setUploadedVideoUrl('');
+    }
+    
+    setVideoProvider(provider);
+    setVideoDuration(video.videoDuration || null);
+    setThumbnail(video.thumbnail || '');
+    setScheduledDate(video.scheduledDate || '');
+    setPriority(video.priority || 0);
+    setIsActive(video.isActive !== undefined ? video.isActive : true);
+    // Fetch modules and chapters for the course
+    if (video.courseId) {
+      fetchModules(video.courseId.toString());
+    }
+  };
+
+  const resetForm = () => {
+    setTitle('');
+    setDescription('');
+    setDay(0);
+    setVideoUrl('');
+    setVideoProvider('youtube');
+    setVideoSourceType('url');
+    setUploadedVideoUrl('');
+    setVideoDuration(null);
+    setThumbnail('');
+    setScheduledDate('');
+    setPriority(0);
+    setIsActive(true);
+    setSelectedCourse('');
+    setSelectedModule('');
+    setSelectedChapter('');
+    setEditingVideo(null);
+  };
+
+  const handleDelete = async (id: number) => {
+    if (!confirm('Are you sure you want to delete this daily video?')) return;
+    try {
+      const response = await fetch(`/api/admin/daily-videos/${id}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      if (response.ok) {
+        fetchData();
+      } else {
+        alert('Failed to delete daily video');
+      }
+    } catch (error) {
+      console.error('Error deleting daily video:', error);
     }
   };
 
@@ -840,7 +1699,14 @@ const DailyVideoManager = ({ nav }: { nav: (mod: string) => void }) => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Configuration Form */}
         <div className="lg:col-span-1 bg-[#161922] border border-slate-800/60 rounded-2xl p-6 h-fit">
-          <h3 className="font-bold text-white mb-6">Add New Daily Video</h3>
+          <div className="flex justify-between items-center mb-6">
+            <h3 className="font-bold text-white">{editingVideo ? 'Edit Daily Video' : 'Add New Daily Video'}</h3>
+            {editingVideo && (
+              <button onClick={resetForm} className="text-slate-400 hover:text-white text-xs font-bold">
+                Cancel
+              </button>
+            )}
+          </div>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-xs font-bold text-slate-400 mb-1">Select Course</label>
@@ -925,11 +1791,179 @@ const DailyVideoManager = ({ nav }: { nav: (mod: string) => void }) => {
               />
             </div>
 
+            <div className="border-t border-slate-800 pt-4">
+              <h4 className="text-xs font-bold text-slate-400 mb-3 uppercase">Video Settings</h4>
+              
+              {/* Video Source Type Selector */}
+              <div className="mb-4">
+                <label className="block text-xs font-bold text-slate-400 mb-2">Video Source</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setVideoSourceType('url');
+                      setUploadedVideoUrl('');
+                    }}
+                    className={`px-3 py-2 rounded-lg border-2 transition-all flex items-center justify-center gap-2 text-xs font-bold ${
+                      videoSourceType === 'url'
+                        ? 'border-purple-500 bg-purple-500/10 text-purple-400'
+                        : 'border-slate-700 text-slate-400 hover:border-slate-600'
+                    }`}
+                  >
+                    <LinkIcon size={14} />
+                    Video URL
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setVideoSourceType('upload');
+                      setVideoUrl('');
+                    }}
+                    className={`px-3 py-2 rounded-lg border-2 transition-all flex items-center justify-center gap-2 text-xs font-bold ${
+                      videoSourceType === 'upload'
+                        ? 'border-purple-500 bg-purple-500/10 text-purple-400'
+                        : 'border-slate-700 text-slate-400 hover:border-slate-600'
+                    }`}
+                  >
+                    <Upload size={14} />
+                    Upload Video
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                {videoSourceType === 'url' ? (
+                  <>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-400 mb-1">Video URL</label>
+                      <input
+                        type="url"
+                        value={videoUrl}
+                        onChange={(e) => {
+                          setVideoUrl(e.target.value);
+                          // Auto-detect provider
+                          const url = e.target.value;
+                          if (url.includes('youtube.com') || url.includes('youtu.be')) {
+                            setVideoProvider('youtube');
+                          } else if (url.includes('vimeo.com')) {
+                            setVideoProvider('vimeo');
+                          } else if (url.match(/\.(mp4|webm|ogg|mov)$/i)) {
+                            setVideoProvider('direct');
+                          }
+                        }}
+                        className="w-full px-3 py-2 bg-[#1a1d26] border border-slate-800 rounded-lg text-white text-sm focus:outline-none focus:border-purple-500"
+                        placeholder="https://youtube.com/watch?v=... or https://vimeo.com/... or direct video URL (.mp4, .webm, etc.)"
+                      />
+                      <p className="text-[10px] text-slate-500 mt-1">
+                        Supports YouTube, Vimeo, or any publicly accessible video URL
+                      </p>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-400 mb-1">Provider</label>
+                      <select
+                        value={videoProvider}
+                        onChange={(e) => setVideoProvider(e.target.value)}
+                        className="w-full px-3 py-2 bg-[#1a1d26] border border-slate-800 rounded-lg text-white text-sm focus:outline-none focus:border-purple-500"
+                      >
+                        <option value="youtube">YouTube</option>
+                        <option value="vimeo">Vimeo</option>
+                        <option value="direct">Direct Link (MP4, WebM, etc.)</option>
+                        <option value="custom">Custom</option>
+                      </select>
+                    </div>
+                  </>
+                ) : (
+                  <div>
+                    <label className="block text-xs font-bold text-slate-400 mb-1">Upload Video File</label>
+                    <FileUpload
+                      type="video"
+                      onUploadComplete={(url) => {
+                        setUploadedVideoUrl(url);
+                        setVideoProvider('uploaded');
+                      }}
+                      currentUrl={uploadedVideoUrl}
+                      maxSizeMB={500}
+                    />
+                    <p className="text-[10px] text-slate-500 mt-1">
+                      Maximum file size: 500MB. Supported formats: MP4, WebM, OGG, MOV
+                    </p>
+                  </div>
+                )}
+                
+                <div>
+                  <label className="block text-xs font-bold text-slate-400 mb-1">Duration (min)</label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={videoDuration || ''}
+                    onChange={(e) => setVideoDuration(e.target.value ? parseInt(e.target.value) : null)}
+                    className="w-full px-3 py-2 bg-[#1a1d26] border border-slate-800 rounded-lg text-white text-sm focus:outline-none focus:border-purple-500"
+                    placeholder="e.g. 15"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-xs font-bold text-slate-400 mb-1">Thumbnail URL</label>
+                  <input
+                    type="url"
+                    value={thumbnail}
+                    onChange={(e) => setThumbnail(e.target.value)}
+                    className="w-full px-3 py-2 bg-[#1a1d26] border border-slate-800 rounded-lg text-white text-sm focus:outline-none focus:border-purple-500"
+                    placeholder="https://example.com/thumbnail.jpg"
+                  />
+                  <p className="text-[10px] text-slate-500 mt-1">
+                    Optional: Custom thumbnail image URL
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="border-t border-slate-800 pt-4">
+              <h4 className="text-xs font-bold text-slate-400 mb-3 uppercase">Scheduling</h4>
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-400 mb-1">Scheduled Date</label>
+                  <input
+                    type="datetime-local"
+                    value={scheduledDate}
+                    onChange={(e) => setScheduledDate(e.target.value)}
+                    className="w-full px-3 py-2 bg-[#1a1d26] border border-slate-800 rounded-lg text-white text-sm focus:outline-none focus:border-purple-500"
+                  />
+                  <p className="text-[10px] text-slate-500 mt-1">Optional: Schedule when video should be active</p>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-400 mb-1">Priority</label>
+                    <input
+                      type="number"
+                      min="0"
+                      max="100"
+                      value={priority}
+                      onChange={(e) => setPriority(parseInt(e.target.value) || 0)}
+                      className="w-full px-3 py-2 bg-[#1a1d26] border border-slate-800 rounded-lg text-white text-sm focus:outline-none focus:border-purple-500"
+                    />
+                    <p className="text-[10px] text-slate-500 mt-1">Higher = shown first</p>
+                  </div>
+                  <div className="flex items-end">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={isActive}
+                        onChange={(e) => setIsActive(e.target.checked)}
+                        className="w-4 h-4 rounded bg-[#1a1d26] border-slate-800 text-purple-600 focus:ring-purple-500"
+                      />
+                      <span className="text-xs font-bold text-slate-400">Active</span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <button
               type="submit"
               className="w-full py-2.5 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-lg transition-colors"
             >
-              Save Configuration
+              {editingVideo ? 'Update Video' : 'Save Configuration'}
             </button>
           </form>
         </div>
@@ -946,13 +1980,16 @@ const DailyVideoManager = ({ nav }: { nav: (mod: string) => void }) => {
                   <th className="p-4">Day</th>
                   <th className="p-4">Title</th>
                   <th className="p-4">Source Chapter</th>
+                  <th className="p-4">Provider</th>
+                  <th className="p-4 text-center">Priority</th>
                   <th className="p-4 text-center">Status</th>
+                  <th className="p-4 text-center">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800/50">
                 {videos.length === 0 ? (
                   <tr>
-                    <td colSpan={4} className="p-8 text-center text-slate-400">
+                    <td colSpan={7} className="p-8 text-center text-slate-400">
                       No daily videos configured
                     </td>
                   </tr>
@@ -962,10 +1999,28 @@ const DailyVideoManager = ({ nav }: { nav: (mod: string) => void }) => {
                       <td className="p-4 font-mono text-purple-400">Day {video.day}</td>
                       <td className="p-4 font-medium text-white">{video.title}</td>
                       <td className="p-4 text-slate-400">{video.chapterTitle}</td>
+                      <td className="p-4 text-slate-400 text-xs uppercase">{video.videoProvider || 'youtube'}</td>
+                      <td className="p-4 text-center text-purple-400 font-bold">{video.priority || 0}</td>
                       <td className="p-4 text-center">
                         <span className={`px-2 py-1 rounded text-xs font-bold ${video.isActive ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'}`}>
                           {video.isActive ? 'Active' : 'Inactive'}
                         </span>
+                      </td>
+                      <td className="p-4 text-center">
+                        <div className="flex gap-2 justify-center">
+                          <button
+                            onClick={() => handleEdit(video)}
+                            className="text-blue-400 hover:text-blue-300 text-xs font-bold px-2 py-1 rounded hover:bg-blue-500/10"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => handleDelete(video.id)}
+                            className="text-red-400 hover:text-red-300 text-xs font-bold px-2 py-1 rounded hover:bg-red-500/10"
+                          >
+                            Delete
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))
@@ -980,7 +2035,8 @@ const DailyVideoManager = ({ nav }: { nav: (mod: string) => void }) => {
 };
 
 // --- COURSE BUILDER MODULE ---
-const CourseList = ({ nav, setActive }: { nav: (mod: string) => void; setActive: (item: any) => void }) => {
+const CourseList = ({ nav, setActive }: { nav: (mod: string, id?: number) => void; setActive: (item: any) => void }) => {
+  const notification = useNotification();
   const [coursesList, setCoursesList] = React.useState<any[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
 
@@ -990,7 +2046,12 @@ const CourseList = ({ nav, setActive }: { nav: (mod: string) => void; setActive:
 
   const fetchCourses = async () => {
     try {
-      const response = await fetch('/api/courses', { credentials: 'include' });
+      // Show loading state immediately
+      setIsLoading(true);
+      const response = await fetch('/api/courses', { 
+        credentials: 'include',
+        cache: 'no-cache', // Ensure fresh data
+      });
       if (response.ok) {
         const data = await response.json();
         const mappedCourses = (data.courses || []).map((c: any) => ({
@@ -1008,20 +2069,27 @@ const CourseList = ({ nav, setActive }: { nav: (mod: string) => void; setActive:
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm('Are you sure you want to delete this course?')) return;
-    try {
-      const response = await fetch(`/api/courses/${id}`, {
-        method: 'DELETE',
-        credentials: 'include',
-      });
-      if (response.ok) {
-        fetchCourses();
-      } else {
-        alert('Failed to delete course');
+    notification.showConfirm(
+      'Delete Course',
+      'Are you sure you want to delete this course?',
+      async () => {
+        try {
+          const response = await fetch(`/api/courses/${id}`, {
+            method: 'DELETE',
+            credentials: 'include',
+          });
+          if (response.ok) {
+            fetchCourses();
+            notification.showSuccess('Course deleted successfully');
+          } else {
+            notification.showError('Failed to delete course');
+          }
+        } catch (error) {
+          console.error('Error deleting course:', error);
+          notification.showError('Failed to delete course');
+        }
       }
-    } catch (error) {
-      console.error('Error deleting course:', error);
-    }
+    );
   };
 
   return (
@@ -1055,7 +2123,7 @@ const CourseList = ({ nav, setActive }: { nav: (mod: string) => void; setActive:
                   <td className="p-6">{c.author}</td>
                   <td className="p-6"><span className={`px-2 py-1 rounded text-xs font-bold ${c.status === 'Active' ? 'bg-green-500/10 text-green-400' : 'bg-slate-700/30 text-slate-400'}`}>{c.status}</span></td>
                   <td className="p-6 text-right">
-                    <button onClick={() => { setActive(c); nav('course_editor'); }} className="text-purple-400 hover:text-purple-300 font-semibold mr-4">Edit</button>
+                    <button onClick={() => { setActive(c); nav('course_editor', c.id); }} className="text-purple-400 hover:text-purple-300 font-semibold mr-4">Edit</button>
                     <button onClick={() => handleDelete(c.id)} className="text-red-400 hover:text-red-300 font-semibold">Delete</button>
                   </td>
                 </tr>
@@ -1072,16 +2140,22 @@ const CourseList = ({ nav, setActive }: { nav: (mod: string) => void; setActive:
 };
 
 const CourseBuilder = ({ course, back }: { course: any; back: () => void }) => {
+  const notification = useNotification();
   const [modules, setModules] = React.useState<any[]>([]);
   const [title, setTitle] = React.useState(course?.title || '');
   const [description, setDescription] = React.useState(course?.description || '');
   const [instructor, setInstructor] = React.useState(course?.instructor || 'Nurse Pro Academy');
   const [pricing, setPricing] = React.useState(course?.pricing || 0);
+  const [thumbnail, setThumbnail] = React.useState(course?.thumbnail || '');
   const [isPublished, setIsPublished] = React.useState(course?.status === 'published' || course?.status === 'Active');
   const [isDefaultUnlocked, setIsDefaultUnlocked] = React.useState(course?.isDefaultUnlocked || false);
   const [isRequestable, setIsRequestable] = React.useState(course?.isRequestable !== false);
+  const [isPublic, setIsPublic] = React.useState(course?.isPublic !== false); // Default to false (private) for new courses
   const [courseId, setCourseId] = React.useState(course?.id || null);
   const [isLoading, setIsLoading] = React.useState(!!course?.id);
+  const [showVideoModal, setShowVideoModal] = React.useState(false);
+  const [showDocumentModal, setShowDocumentModal] = React.useState(false);
+  const [currentModuleId, setCurrentModuleId] = React.useState<number | null>(null);
 
   React.useEffect(() => {
     if (course?.id) {
@@ -1121,10 +2195,12 @@ const CourseBuilder = ({ course, back }: { course: any; back: () => void }) => {
           title,
           description,
           instructor,
+          thumbnail: thumbnail || null,
           pricing: parseFloat(pricing.toString()),
           status: isPublished ? 'published' : 'draft',
           isDefaultUnlocked,
           isRequestable,
+          isPublic,
         }),
       });
 
@@ -1132,26 +2208,26 @@ const CourseBuilder = ({ course, back }: { course: any; back: () => void }) => {
         const data = await response.json();
         if (!courseId) {
           setCourseId(data.course.id);
-          alert('Course created! You can now add modules.');
+          notification.showSuccess('Course created!', 'You can now add modules.');
         } else {
-          alert('Course updated successfully');
+          notification.showSuccess('Course updated successfully');
         }
       } else {
-        alert('Failed to save course');
+        notification.showError('Failed to save course');
       }
     } catch (error) {
       console.error('Error saving course:', error);
-      alert('Failed to save course');
+      notification.showError('Failed to save course');
     }
   };
 
   const addModule = async () => {
     if (!courseId) {
-      alert('Please save the course first');
+      notification.showWarning('Please save the course first');
       return;
     }
 
-    const title = prompt('Enter module title:');
+    const title = await notification.showPrompt('Add Module', 'Enter module title:', '');
     if (!title) return;
 
     try {
@@ -1176,18 +2252,22 @@ const CourseBuilder = ({ course, back }: { course: any; back: () => void }) => {
   };
 
   const addItem = async (modId: number, type: string) => {
+    if (type === 'video') {
+      setCurrentModuleId(modId);
+      setShowVideoModal(true);
+      return;
+    } else if (type === 'document') {
+      setCurrentModuleId(modId);
+      setShowDocumentModal(true);
+      return;
+    }
+
     const title = prompt(`Enter ${type} title:`);
     if (!title) return;
 
     let contentData: any = { title, type, order: 999 };
 
-    if (type === 'video') {
-      const url = prompt('Enter video URL (YouTube/Vimeo):');
-      if (!url) return;
-      contentData.videoUrl = url;
-      contentData.videoProvider = url.includes('vimeo') ? 'vimeo' : 'youtube';
-      contentData.videoDuration = 15;
-    } else if (type === 'textbook') {
+    if (type === 'textbook') {
       contentData.textbookContent = '<p>Enter content here...</p>';
       contentData.readingTime = 10;
     } else if (type === 'mcq') {
@@ -1214,15 +2294,22 @@ const CourseBuilder = ({ course, back }: { course: any; back: () => void }) => {
   };
 
   const deleteChapter = async (chapterId: number, modId: number) => {
-    if (!confirm('Delete this chapter?')) return;
-    try {
-      await fetch(`/api/chapters/${chapterId}`, { method: 'DELETE', credentials: 'include' });
-      setModules(modules.map((m: any) => m.id === modId ? {
-        ...m, items: m.items.filter((i: any) => i.id !== chapterId)
-      } : m));
-    } catch (error) {
-      console.error('Error deleting chapter:', error);
-    }
+    notification.showConfirm(
+      'Delete Chapter',
+      'Are you sure you want to delete this chapter?',
+      async () => {
+        try {
+          await fetch(`/api/chapters/${chapterId}`, { method: 'DELETE', credentials: 'include' });
+          setModules(modules.map((m: any) => m.id === modId ? {
+            ...m, items: m.items.filter((i: any) => i.id !== chapterId)
+          } : m));
+          notification.showSuccess('Chapter deleted successfully');
+        } catch (error) {
+          console.error('Error deleting chapter:', error);
+          notification.showError('Failed to delete chapter');
+        }
+      }
+    );
   };
 
   return (
@@ -1253,6 +2340,15 @@ const CourseBuilder = ({ course, back }: { course: any; back: () => void }) => {
                 <label className="block text-xs font-bold text-slate-400 mb-1">Description</label>
                 <textarea value={description} onChange={e => setDescription(e.target.value)} className="w-full px-3 py-2 bg-[#1a1d26] border border-slate-800 rounded-lg text-white text-sm h-20" />
               </div>
+              <div className="col-span-2">
+                <FileUpload
+                  type="thumbnail"
+                  label="Course Thumbnail"
+                  currentUrl={thumbnail}
+                  onUploadComplete={(url: string) => setThumbnail(url)}
+                  maxSizeMB={10}
+                />
+              </div>
               <div>
                 <label className="block text-xs font-bold text-slate-400 mb-1">Pricing (0 for Free)</label>
                 <input type="number" value={pricing} onChange={e => setPricing(parseFloat(e.target.value))} className="w-full px-3 py-2 bg-[#1a1d26] border border-slate-800 rounded-lg text-white text-sm" />
@@ -1269,6 +2365,10 @@ const CourseBuilder = ({ course, back }: { course: any; back: () => void }) => {
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input type="checkbox" checked={isRequestable} onChange={e => setIsRequestable(e.target.checked)} className="rounded bg-slate-800 border-slate-600" />
                   <span className="text-sm text-white">Allow Requests</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer" title="Public courses allow direct enrollment. Private courses require admin approval.">
+                  <input type="checkbox" checked={isPublic} onChange={e => setIsPublic(e.target.checked)} className="rounded bg-slate-800 border-slate-600" />
+                  <span className="text-sm text-white">Public Course (Direct Enrollment)</span>
                 </label>
               </div>
             </div>
@@ -1291,8 +2391,17 @@ const CourseBuilder = ({ course, back }: { course: any; back: () => void }) => {
                 {mod.items.length === 0 && <div className="text-center py-8 border-2 border-dashed border-slate-800 rounded-lg text-slate-500 text-sm">Drop content here</div>}
                 {mod.items.map((item: any) => (
                   <div key={item.id} className="flex items-center p-3 bg-[#13151d] border border-slate-800/50 rounded-lg hover:border-purple-500/30 transition-colors">
-                    <div className={`mr-3 p-2 rounded-lg ${item.type === 'mcq' || item.type === 'qbank' ? 'bg-purple-500/10 text-purple-400' : 'bg-blue-500/10 text-blue-400'}`}>
-                      {item.type === 'video' ? <Video size={16} /> : item.type === 'mcq' || item.type === 'qbank' ? <Zap size={16} /> : <FileText size={16} />}
+                    <div className={`mr-3 p-2 rounded-lg ${
+                      item.type === 'mcq' || item.type === 'qbank' 
+                        ? 'bg-purple-500/10 text-purple-400' 
+                        : item.type === 'document'
+                        ? 'bg-orange-500/10 text-orange-400'
+                        : 'bg-blue-500/10 text-blue-400'
+                    }`}>
+                      {item.type === 'video' ? <Video size={16} /> : 
+                       item.type === 'document' ? <FileText size={16} /> :
+                       item.type === 'mcq' || item.type === 'qbank' ? <Zap size={16} /> : 
+                       <FileText size={16} />}
                     </div>
                     <span className="text-sm font-medium text-slate-300">{item.title}</span>
                     <div className="ml-auto flex items-center gap-2">
@@ -1303,6 +2412,7 @@ const CourseBuilder = ({ course, back }: { course: any; back: () => void }) => {
                 <div className="flex justify-center gap-3 pt-4 mt-2 border-t border-slate-800/50">
                   <QuickAddBtn icon={<Video size={14} />} label="Video" onClick={() => addItem(mod.id, 'video')} active={false} />
                   <QuickAddBtn icon={<FileText size={14} />} label="Reading" onClick={() => addItem(mod.id, 'textbook')} active={false} />
+                  <QuickAddBtn icon={<FileText size={14} />} label="Document" onClick={() => addItem(mod.id, 'document')} active={false} />
                   <QuickAddBtn icon={<Zap size={14} />} label="Quiz" active={true} onClick={() => addItem(mod.id, 'mcq')} />
                 </div>
               </div>
@@ -1314,12 +2424,96 @@ const CourseBuilder = ({ course, back }: { course: any; back: () => void }) => {
           </button>
         </div>
       </div>
+
+      {/* Video Upload Modal */}
+      {showVideoModal && (
+        <VideoUploadModal
+          onClose={() => {
+            setShowVideoModal(false);
+            setCurrentModuleId(null);
+          }}
+          onSave={async (title: string, videoUrl: string, videoFile: string) => {
+            if (!currentModuleId || !title) return;
+            
+            const contentData: any = {
+              title,
+              type: 'video',
+              order: 999,
+              videoUrl: videoUrl || videoFile,
+              videoProvider: videoUrl ? (videoUrl.includes('vimeo') ? 'vimeo' : 'youtube') : 'uploaded',
+              videoDuration: 15,
+            };
+
+            try {
+              const response = await fetch(`/api/modules/${currentModuleId}/chapters`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify(contentData),
+              });
+
+              if (response.ok) {
+                const data = await response.json();
+                setModules(modules.map((m: any) => m.id === currentModuleId ? {
+                  ...m, items: [...m.items, data.chapter]
+                } : m));
+                setShowVideoModal(false);
+                setCurrentModuleId(null);
+              }
+            } catch (error) {
+              console.error('Error adding video:', error);
+            }
+          }}
+        />
+      )}
+
+      {/* Document Upload Modal */}
+      {showDocumentModal && (
+        <DocumentUploadModal
+          onClose={() => {
+            setShowDocumentModal(false);
+            setCurrentModuleId(null);
+          }}
+          onSave={async (title: string, documentUrl: string) => {
+            if (!currentModuleId || !title || !documentUrl) return;
+            
+            const contentData: any = {
+              title,
+              type: 'document',
+              order: 999,
+              documentUrl, // Will be saved as textbookFileUrl in the API
+              textbookFileUrl: documentUrl, // Also set this for compatibility
+              documentType: documentUrl.split('.').pop()?.toLowerCase() || 'pdf',
+            };
+
+            try {
+              const response = await fetch(`/api/modules/${currentModuleId}/chapters`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify(contentData),
+              });
+
+              if (response.ok) {
+                const data = await response.json();
+                setModules(modules.map((m: any) => m.id === currentModuleId ? {
+                  ...m, items: [...m.items, data.chapter]
+                } : m));
+                setShowDocumentModal(false);
+                setCurrentModuleId(null);
+              }
+            } catch (error) {
+              console.error('Error adding document:', error);
+            }
+          }}
+        />
+      )}
     </div>
   );
 };
 
 // --- Q-BANK LIST (MAIN) ---
-const QBankList = ({ nav, setActive }: { nav: (mod: string) => void; setActive: (item: any) => void }) => {
+const QBankList = ({ nav, setActive }: { nav: (mod: string, id?: number) => void; setActive: (item: any) => void }) => {
   const [questions, setQuestions] = React.useState<any[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
 
@@ -1407,6 +2601,14 @@ const BlogManager = ({ nav }: { nav: (mod: string) => void }) => {
   const [author, setAuthor] = React.useState('');
   const [tags, setTags] = React.useState('');
   const [status, setStatus] = React.useState('draft');
+  const [cover, setCover] = React.useState('');
+  const [excerpt, setExcerpt] = React.useState('');
+  const [featured, setFeatured] = React.useState(false);
+  const [seoTitle, setSeoTitle] = React.useState('');
+  const [seoDescription, setSeoDescription] = React.useState('');
+  const [scheduledPublish, setScheduledPublish] = React.useState('');
+  const [category, setCategory] = React.useState('');
+  const [readingTime, setReadingTime] = React.useState<number | null>(null);
 
   React.useEffect(() => {
     fetchBlogs();
@@ -1436,7 +2638,7 @@ const BlogManager = ({ nav }: { nav: (mod: string) => void }) => {
       const url = editingBlog ? `/api/blogs/${editingBlog.id}` : '/api/blogs';
 
       const response = await fetch(url, {
-        method,
+        method: editingBlog ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({
@@ -1444,8 +2646,16 @@ const BlogManager = ({ nav }: { nav: (mod: string) => void }) => {
           slug,
           content,
           author,
-          tags: tags.split(',').map(t => t.trim()),
+          tags: tags.split(',').map(t => t.trim()).filter(t => t),
           status,
+          cover: cover || null,
+          excerpt,
+          featured,
+          seoTitle: seoTitle || title,
+          seoDescription: seoDescription || excerpt,
+          scheduledPublish: scheduledPublish || null,
+          category,
+          readingTime: readingTime || null,
         }),
       });
 
@@ -1488,8 +2698,16 @@ const BlogManager = ({ nav }: { nav: (mod: string) => void }) => {
     setSlug(blog.slug);
     setContent(blog.content);
     setAuthor(blog.author);
-    setTags(Array.isArray(blog.tags) ? blog.tags.join(', ') : JSON.parse(blog.tags).join(', '));
+    setTags(Array.isArray(blog.tags) ? blog.tags.join(', ') : (typeof blog.tags === 'string' ? JSON.parse(blog.tags).join(', ') : ''));
     setStatus(blog.status);
+    setCover(blog.cover || '');
+    setExcerpt(blog.excerpt || '');
+    setFeatured(blog.featured || false);
+    setSeoTitle(blog.seoTitle || blog.title);
+    setSeoDescription(blog.seoDescription || '');
+    setScheduledPublish(blog.scheduledPublish || '');
+    setCategory(blog.category || '');
+    setReadingTime(blog.readingTime || null);
   };
 
   const resetForm = () => {
@@ -1499,6 +2717,14 @@ const BlogManager = ({ nav }: { nav: (mod: string) => void }) => {
     setAuthor('');
     setTags('');
     setStatus('draft');
+    setCover('');
+    setExcerpt('');
+    setFeatured(false);
+    setSeoTitle('');
+    setSeoDescription('');
+    setScheduledPublish('');
+    setCategory('');
+    setReadingTime(null);
     setEditingBlog(null);
   };
 
@@ -1548,6 +2774,27 @@ const BlogManager = ({ nav }: { nav: (mod: string) => void }) => {
             </div>
 
             <div>
+              <label className="block text-xs font-bold text-slate-400 mb-1">Cover Image URL</label>
+              <input
+                type="url"
+                value={cover}
+                onChange={(e) => setCover(e.target.value)}
+                className="w-full px-3 py-2 bg-[#1a1d26] border border-slate-800 rounded-lg text-white text-sm focus:outline-none focus:border-purple-500"
+                placeholder="https://example.com/image.jpg"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-400 mb-1">Excerpt / Summary</label>
+              <textarea
+                value={excerpt}
+                onChange={(e) => setExcerpt(e.target.value)}
+                className="w-full px-3 py-2 bg-[#1a1d26] border border-slate-800 rounded-lg text-white text-sm focus:outline-none focus:border-purple-500 h-20 resize-none"
+                placeholder="Brief summary for preview cards..."
+              />
+            </div>
+
+            <div>
               <label className="block text-xs font-bold text-slate-400 mb-1">Content</label>
               <textarea
                 value={content}
@@ -1558,7 +2805,7 @@ const BlogManager = ({ nav }: { nav: (mod: string) => void }) => {
               />
             </div>
 
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-bold text-slate-400 mb-1">Author</label>
                 <input
@@ -1570,14 +2817,29 @@ const BlogManager = ({ nav }: { nav: (mod: string) => void }) => {
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-400 mb-1">Tags (comma sep)</label>
+                <label className="block text-xs font-bold text-slate-400 mb-1">Category</label>
                 <input
                   type="text"
-                  value={tags}
-                  onChange={(e) => setTags(e.target.value)}
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value)}
                   className="w-full px-3 py-2 bg-[#1a1d26] border border-slate-800 rounded-lg text-white text-sm focus:outline-none focus:border-purple-500"
+                  placeholder="e.g. Nursing Tips, Study Guide"
                 />
               </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-400 mb-1">Tags (comma separated)</label>
+              <input
+                type="text"
+                value={tags}
+                onChange={(e) => setTags(e.target.value)}
+                className="w-full px-3 py-2 bg-[#1a1d26] border border-slate-800 rounded-lg text-white text-sm focus:outline-none focus:border-purple-500"
+                placeholder="nursing, tips, study"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-bold text-slate-400 mb-1">Status</label>
                 <select
@@ -1589,6 +2851,65 @@ const BlogManager = ({ nav }: { nav: (mod: string) => void }) => {
                   <option value="published">Published</option>
                 </select>
               </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-400 mb-1">Reading Time (minutes)</label>
+                <input
+                  type="number"
+                  min="1"
+                  value={readingTime || ''}
+                  onChange={(e) => setReadingTime(e.target.value ? parseInt(e.target.value) : null)}
+                  className="w-full px-3 py-2 bg-[#1a1d26] border border-slate-800 rounded-lg text-white text-sm focus:outline-none focus:border-purple-500"
+                  placeholder="Auto-calculated if empty"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center gap-4">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={featured}
+                  onChange={(e) => setFeatured(e.target.checked)}
+                  className="w-4 h-4 rounded bg-[#1a1d26] border-slate-800 text-purple-600 focus:ring-purple-500"
+                />
+                <span className="text-xs font-bold text-slate-400">Featured Post</span>
+              </label>
+            </div>
+
+            <div className="border-t border-slate-800 pt-4">
+              <h4 className="text-xs font-bold text-slate-400 mb-3 uppercase">SEO Settings</h4>
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-400 mb-1">SEO Title</label>
+                  <input
+                    type="text"
+                    value={seoTitle}
+                    onChange={(e) => setSeoTitle(e.target.value)}
+                    className="w-full px-3 py-2 bg-[#1a1d26] border border-slate-800 rounded-lg text-white text-sm focus:outline-none focus:border-purple-500"
+                    placeholder="Leave empty to use post title"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-400 mb-1">SEO Description</label>
+                  <textarea
+                    value={seoDescription}
+                    onChange={(e) => setSeoDescription(e.target.value)}
+                    className="w-full px-3 py-2 bg-[#1a1d26] border border-slate-800 rounded-lg text-white text-sm focus:outline-none focus:border-purple-500 h-16 resize-none"
+                    placeholder="Meta description for search engines"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-400 mb-1">Scheduled Publish Date (optional)</label>
+              <input
+                type="datetime-local"
+                value={scheduledPublish}
+                onChange={(e) => setScheduledPublish(e.target.value)}
+                className="w-full px-3 py-2 bg-[#1a1d26] border border-slate-800 rounded-lg text-white text-sm focus:outline-none focus:border-purple-500"
+              />
+              <p className="text-[10px] text-slate-500 mt-1">Leave empty to publish immediately when status is set to published</p>
             </div>
 
             <button
@@ -1970,7 +3291,7 @@ const UniversalQuestionEditor = ({ question, back }: { question: any; back: () =
     // Use QuestionTypeBuilder for all question types
     const format = getQuestionFormat(type);
     return (
-      <div className="bg-white rounded-lg p-6 shadow-lg">
+      <div className="bg-[#161922] border border-slate-800/60 rounded-xl p-6 shadow-xl">
         <QuestionTypeBuilder
           format={format}
           question={questionData}
@@ -1983,65 +3304,78 @@ const UniversalQuestionEditor = ({ question, back }: { question: any; back: () =
   return (
     <div className="flex flex-col h-full bg-[#0b0d12]">
       {/* EDITOR HEADER */}
-      <div className="h-20 bg-[#161922] border-b border-slate-800/60 flex items-center justify-between px-6 z-20">
+      <div className="h-20 bg-gradient-to-r from-[#161922] to-[#1a1d26] border-b border-slate-800/60 flex items-center justify-between px-6 z-20 shadow-lg">
         <div className="flex items-center gap-4">
-          <button onClick={back} className="p-2 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white"><ArrowLeft size={20} /></button>
+          <button onClick={back} className="p-2 hover:bg-slate-800/50 rounded-lg text-slate-400 hover:text-white transition-colors"><ArrowLeft size={20} /></button>
           <div>
-            <h2 className="font-bold text-white text-lg">Question Editor</h2>
-            <div className="flex items-center gap-3 mt-1.5">
+            <h2 className="font-bold text-white text-xl tracking-tight">Question Editor</h2>
+            <div className="flex items-center gap-3 mt-2">
               {/* CATEGORY SWITCHER */}
-              <div className="flex bg-[#0b0d12] rounded-lg p-0.5 border border-slate-700/50">
+              <div className="flex bg-[#0b0d12] rounded-lg p-1 border border-slate-700/50 shadow-inner">
                 <button
                   onClick={() => handleCategoryChange('classic')}
-                  className={`px-3 py-0.5 text-xs font-bold rounded-md transition-all ${category === 'classic' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-500 hover:text-white'}`}
+                  className={`px-4 py-1 text-xs font-bold rounded-md transition-all duration-200 ${category === 'classic' ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/30' : 'text-slate-500 hover:text-slate-300'}`}
                 >
                   CLASSIC
                 </button>
                 <button
                   onClick={() => handleCategoryChange('ngn')}
-                  className={`px-3 py-0.5 text-xs font-bold rounded-md transition-all ${category === 'ngn' ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg' : 'text-slate-500 hover:text-white'}`}
+                  className={`px-4 py-1 text-xs font-bold rounded-md transition-all duration-200 ${category === 'ngn' ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg shadow-purple-500/30' : 'text-slate-500 hover:text-slate-300'}`}
                 >
                   NGN MODE
                 </button>
               </div>
-              <span className="text-slate-700">|</span>
+              <span className="text-slate-600">|</span>
               {/* TYPE SELECTOR */}
               <select
                 value={type}
                 onChange={(e) => setType(e.target.value)}
-                className="bg-[#0b0d12] border border-slate-700 text-slate-200 rounded px-2 py-1 text-xs font-medium outline-none focus:border-purple-500"
+                className="bg-[#0b0d12] border border-slate-700 text-slate-200 rounded-lg px-3 py-1.5 text-xs font-medium outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 transition-all cursor-pointer"
               >
-                {(QUESTION_MODES[category.toUpperCase() as keyof typeof QUESTION_MODES]?.types || []).map((t: { id: string; label: string }) => <option key={t.id} value={t.id}>{t.label}</option>)}
+                {(QUESTION_MODES[category.toUpperCase() as keyof typeof QUESTION_MODES]?.types || []).map((t: { id: string; label: string }) => <option key={t.id} value={t.id} className="bg-[#0b0d12]">{t.label}</option>)}
               </select>
             </div>
           </div>
         </div>
-        <div className="flex gap-2">
-          <button className="text-slate-400 px-4 py-1.5 text-sm font-bold hover:text-white">Preview</button>
-          <button className="bg-white text-slate-900 px-6 py-2 rounded-lg text-sm font-bold hover:bg-slate-200 transition-colors">Save Item</button>
+        <div className="flex gap-3">
+          <button className="text-slate-400 px-5 py-2 text-sm font-bold hover:text-white hover:bg-slate-800/50 rounded-lg transition-all">Preview</button>
+          <button className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-6 py-2 rounded-lg text-sm font-bold hover:from-purple-500 hover:to-pink-500 transition-all shadow-lg shadow-purple-500/20">Save Item</button>
         </div>
       </div>
 
       {/* EDITOR BODY */}
       <div className="flex-1 overflow-hidden flex">
         {/* LEFT: SCENARIO / STEM (Shared) */}
-        <div className="w-1/2 border-r border-slate-800/50 flex flex-col bg-[#11131a]">
+        <div className="w-1/2 border-r border-slate-800/50 flex flex-col bg-gradient-to-br from-[#11131a] to-[#0b0d12]">
           {/* If NGN, show tabs. If Classic, just simple stem header */}
           {category === 'ngn' ? (
-            <div className="p-3 border-b border-slate-800/50 bg-[#161922] flex gap-1">
+            <div className="p-4 border-b border-slate-800/50 bg-[#161922] flex gap-2">
               {['Scenario', 'Vitals', 'Labs', 'Notes'].map(tab => (
-                <button key={tab} onClick={() => setActiveTab(tab.toLowerCase())} className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${activeTab === tab.toLowerCase() ? 'bg-slate-700 text-white' : 'text-slate-500 hover:text-slate-300'}`}>{tab}</button>
+                <button 
+                  key={tab} 
+                  onClick={() => setActiveTab(tab.toLowerCase())} 
+                  className={`px-4 py-2 text-xs font-bold rounded-lg transition-all duration-200 ${
+                    activeTab === tab.toLowerCase() 
+                      ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg shadow-purple-500/20' 
+                      : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800/30'
+                  }`}
+                >
+                  {tab}
+                </button>
               ))}
             </div>
           ) : (
-            <div className="p-4 border-b border-slate-800/50 bg-[#161922] text-xs font-bold text-blue-400 uppercase tracking-wider">
-              Question Stem
+            <div className="p-4 border-b border-slate-800/50 bg-gradient-to-r from-[#161922] to-[#1a1d26]">
+              <div className="flex items-center gap-2">
+                <div className="w-1 h-4 bg-blue-500 rounded-full"></div>
+                <span className="text-xs font-bold text-blue-400 uppercase tracking-wider">Question Stem</span>
+              </div>
             </div>
           )}
 
           <div className="flex-1 p-6 overflow-y-auto custom-scrollbar">
             <textarea
-              className="w-full h-full bg-transparent border-none outline-none text-slate-300 text-sm resize-none leading-relaxed font-mono"
+              className="w-full h-full bg-[#161922]/50 border border-slate-800/50 rounded-xl p-4 outline-none text-slate-200 text-sm resize-none leading-relaxed focus:border-purple-500/50 focus:ring-2 focus:ring-purple-500/20 transition-all placeholder:text-slate-600"
               placeholder={category === 'ngn' ? `Enter patient ${activeTab} data here...` : "Enter the question text here..."}
               defaultValue={category === 'ngn' ? "A 45-year-old male client is admitted..." : "Which of the following is the priority nursing intervention?"}
             />
@@ -2049,31 +3383,52 @@ const UniversalQuestionEditor = ({ question, back }: { question: any; back: () =
         </div>
 
         {/* RIGHT: INTERACTION AREA */}
-        <div className="w-1/2 flex flex-col bg-[#0b0d12]">
+        <div className="w-1/2 flex flex-col bg-gradient-to-br from-[#0b0d12] to-[#11131a]">
           {type === 'casestudy' && (
-            <div className="p-4 border-b border-slate-800/50 bg-[#161922] flex justify-between items-center">
-              <div className="flex gap-1">
+            <div className="p-4 border-b border-slate-800/50 bg-gradient-to-r from-[#161922] to-[#1a1d26] flex justify-between items-center shadow-sm">
+              <div className="flex gap-2">
                 {CJMM_STEPS.map(s => (
-                  <button key={s.step} onClick={() => setActiveStep(s.step)} className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold transition-all ${activeStep === s.step ? 'bg-purple-600 text-white shadow-lg' : 'bg-slate-800 text-slate-500'}`}>{s.step}</button>
+                  <button 
+                    key={s.step} 
+                    onClick={() => setActiveStep(s.step)} 
+                    className={`w-10 h-10 rounded-lg flex items-center justify-center text-xs font-bold transition-all duration-200 ${
+                      activeStep === s.step 
+                        ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg shadow-purple-500/30' 
+                        : 'bg-slate-800 text-slate-500 hover:bg-slate-700 hover:text-slate-300'
+                    }`}
+                  >
+                    {s.step}
+                  </button>
                 ))}
               </div>
-              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">{CJMM_STEPS[activeStep - 1].label}</span>
+              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider px-3 py-1.5 bg-slate-800/50 rounded-lg">
+                {CJMM_STEPS[activeStep - 1].label}
+              </span>
             </div>
           )}
 
-          <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
+          <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
             {renderEditor()}
           </div>
 
-          <div className="border-t border-slate-800/50 p-4 bg-[#11131a]">
+          <div className="border-t border-slate-800/50 p-4 bg-gradient-to-r from-[#11131a] to-[#161922]">
             <details className="group">
-              <summary className="flex items-center justify-between cursor-pointer list-none text-slate-400 text-xs font-bold uppercase tracking-wider">
-                <span>Rationale Engine</span>
-                <ChevronRight size={16} className="group-open:rotate-90 transition-transform" />
+              <summary className="flex items-center justify-between cursor-pointer list-none text-slate-300 text-xs font-bold uppercase tracking-wider hover:text-white transition-colors py-2">
+                <span className="flex items-center gap-2">
+                  <Zap size={14} className="text-purple-400" />
+                  Rationale Engine
+                </span>
+                <ChevronRight size={16} className="group-open:rotate-90 transition-transform text-slate-500" />
               </summary>
-              <div className="mt-4 space-y-3 pl-2 border-l-2 border-slate-800">
-                <input className="w-full bg-[#0b0d12] border border-slate-800 rounded p-2 text-sm text-slate-300" placeholder="Correct Answer Explanation..." />
-                <input className="w-full bg-[#0b0d12] border border-slate-800 rounded p-2 text-sm text-slate-300" placeholder="Distractor Analysis..." />
+              <div className="mt-4 space-y-3 pl-4 border-l-2 border-purple-500/30">
+                <input 
+                  className="w-full bg-[#0b0d12] border border-slate-800 rounded-lg p-3 text-sm text-slate-200 placeholder:text-slate-600 focus:border-purple-500/50 focus:ring-2 focus:ring-purple-500/20 transition-all" 
+                  placeholder="Correct Answer Explanation..." 
+                />
+                <input 
+                  className="w-full bg-[#0b0d12] border border-slate-800 rounded-lg p-3 text-sm text-slate-200 placeholder:text-slate-600 focus:border-purple-500/50 focus:ring-2 focus:ring-purple-500/20 transition-all" 
+                  placeholder="Distractor Analysis..." 
+                />
               </div>
             </details>
           </div>
@@ -2168,12 +3523,28 @@ const NavItem = ({ icon, label, active, onClick, badge }: { icon: React.ReactNod
   </button>
 );
 
-const MetricCard = ({ title, value, trend, color }: { title: string; value: string; trend: string; color: string }) => (
-  <div className="bg-[#161922] border border-slate-800/60 rounded-2xl p-6 hover:border-slate-700 transition-colors">
-    <p className="text-slate-500 text-[10px] font-bold uppercase tracking-wider mb-1">{title}</p>
-    <div className="flex items-end justify-between"><h3 className="text-2xl font-bold text-white">{value}</h3><span className={`text-xs font-bold px-2 py-0.5 rounded ${color === 'green' ? 'text-green-400 bg-green-400/10' : color === 'blue' ? 'text-blue-400 bg-blue-400/10' : color === 'purple' ? 'text-purple-400 bg-purple-400/10' : 'text-orange-400 bg-orange-400/10'}`}>{trend}</span></div>
-  </div>
-);
+const MetricCard = ({ title, value, trend, color, icon }: { title: string; value: string; trend: string; color: string; icon?: React.ReactNode }) => {
+  const colorClasses: Record<string, string> = {
+    green: 'text-green-400 bg-green-400/10 border-green-400/20',
+    blue: 'text-blue-400 bg-blue-400/10 border-blue-400/20',
+    purple: 'text-purple-400 bg-purple-400/10 border-purple-400/20',
+    orange: 'text-orange-400 bg-orange-400/10 border-orange-400/20',
+    pink: 'text-pink-400 bg-pink-400/10 border-pink-400/20',
+  };
+  
+  return (
+    <div className="bg-[#161922] border border-slate-800/60 rounded-2xl p-6 hover:border-slate-700 transition-colors">
+      <div className="flex items-center justify-between mb-2">
+        <p className="text-slate-500 text-[10px] font-bold uppercase tracking-wider">{title}</p>
+        {icon && <div className={`p-2 rounded-lg ${colorClasses[color] || colorClasses.blue}`}>{icon}</div>}
+      </div>
+      <div className="flex items-end justify-between">
+        <h3 className="text-3xl font-bold text-white">{value}</h3>
+        <span className={`text-xs font-bold px-2 py-0.5 rounded border ${colorClasses[color] || colorClasses.blue}`}>{trend}</span>
+      </div>
+    </div>
+  );
+};
 
 const ProgressBar = ({ label, percent, color }: { label: string; percent: number; color: string }) => (
   <div><div className="flex justify-between text-xs font-bold mb-2 text-slate-400"><span>{label}</span><span>{percent}%</span></div><div className="h-2 bg-slate-800 rounded-full overflow-hidden"><div className={`h-full ${color}`} style={{ width: `${percent}%` }}></div></div></div>
@@ -2201,6 +3572,486 @@ const BowTieColumn = ({ title, color, count, center }: { title: string; color: s
           </div>
         ))}
       </div>
+    </div>
+  );
+};
+
+// --- ADMIN PROFILE MODULE ---
+const AdminProfile = ({ nav, adminUser }: { nav: (mod: string) => void; adminUser: any }) => {
+  const [user, setUser] = React.useState(adminUser);
+  const [isLoading, setIsLoading] = React.useState(!adminUser);
+  const [isSaving, setIsSaving] = React.useState(false);
+  const [editMode, setEditMode] = React.useState(false);
+  const [formData, setFormData] = React.useState({
+    name: adminUser?.name || '',
+    email: adminUser?.email || '',
+    phone: adminUser?.phone || '',
+    bio: adminUser?.bio || '',
+  });
+
+  React.useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const response = await fetch('/api/admin/profile', { credentials: 'include' });
+        if (response.ok) {
+          const data = await response.json();
+          setUser(data.user);
+          setFormData({
+            name: data.user.name || '',
+            email: data.user.email || '',
+            phone: data.user.phone || '',
+            bio: data.user.bio || '',
+          });
+        } else if (adminUser) {
+          // Fallback to adminUser from props
+          setUser(adminUser);
+          setFormData({
+            name: adminUser.name || '',
+            email: adminUser.email || '',
+            phone: adminUser.phone || '',
+            bio: adminUser.bio || '',
+          });
+        }
+      } catch (error) {
+        console.error('Error fetching admin user:', error);
+        if (adminUser) {
+          // Fallback to adminUser from props
+          setUser(adminUser);
+          setFormData({
+            name: adminUser.name || '',
+            email: adminUser.email || '',
+            phone: adminUser.phone || '',
+            bio: adminUser.bio || '',
+          });
+        }
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchUser();
+  }, [adminUser]);
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      const response = await fetch('/api/admin/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(formData),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setUser(data.user);
+        setEditMode(false);
+        // Refresh admin user in parent component
+        window.location.reload();
+      } else {
+        const error = await response.json();
+        alert(error.message || 'Failed to save profile');
+      }
+    } catch (error) {
+      console.error('Error saving profile:', error);
+      alert('Failed to save profile');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="animate-spin rounded-full h-12 w-12 border-4 border-purple-600 border-t-transparent"></div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col h-full">
+      {/* HEADER */}
+      <div className="h-20 bg-[#161922] border-b border-slate-800/60 flex items-center justify-between px-6">
+        <div className="flex items-center gap-4">
+          <button onClick={() => nav('dashboard')} className="p-2 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition-colors">
+            <ArrowLeft size={20} />
+          </button>
+          <h2 className="font-bold text-white text-xl">Admin Profile</h2>
+        </div>
+        <div className="flex gap-3">
+          {editMode ? (
+            <>
+              <button
+                onClick={() => setEditMode(false)}
+                className="px-4 py-2 text-slate-400 hover:text-white text-sm font-medium"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSave}
+                disabled={isSaving}
+                className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-6 py-2 rounded-lg text-sm font-bold hover:from-purple-500 hover:to-pink-500 transition-all shadow-lg shadow-purple-500/20 disabled:opacity-50"
+              >
+                {isSaving ? 'Saving...' : 'Save Changes'}
+              </button>
+            </>
+          ) : (
+            <button
+              onClick={() => setEditMode(true)}
+              className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-6 py-2 rounded-lg text-sm font-bold hover:from-purple-500 hover:to-pink-500 transition-all shadow-lg shadow-purple-500/20"
+            >
+              Edit Profile
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* CONTENT */}
+      <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
+        <div className="max-w-4xl mx-auto space-y-6">
+          {/* Profile Header */}
+          <div className="bg-gradient-to-r from-purple-600/20 to-pink-600/20 border border-purple-500/30 rounded-2xl p-8">
+            <div className="flex items-center gap-6">
+              <div className="w-24 h-24 rounded-full bg-gradient-to-br from-purple-600 to-pink-500 flex items-center justify-center text-3xl font-bold text-white shadow-lg shadow-purple-500/30">
+                {user?.name ? user.name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2) : 'AD'}
+              </div>
+              <div className="flex-1">
+                <h1 className="text-3xl font-bold text-white mb-2">{user?.name || 'Admin User'}</h1>
+                <p className="text-slate-300 mb-1">{user?.email || ''}</p>
+                <div className="flex items-center gap-2 mt-3">
+                  <span className="px-3 py-1 bg-green-500/20 text-green-400 rounded-full text-xs font-bold border border-green-500/30">
+                    Active
+                  </span>
+                  <span className="px-3 py-1 bg-purple-500/20 text-purple-400 rounded-full text-xs font-bold border border-purple-500/30">
+                    Super Admin
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Profile Details */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Personal Information */}
+            <div className="bg-[#161922] border border-slate-800/60 rounded-2xl p-6">
+              <h3 className="font-bold text-white mb-6 flex items-center gap-2">
+                <User size={18} className="text-purple-400" />
+                Personal Information
+              </h3>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Full Name</label>
+                  {editMode ? (
+                    <input
+                      type="text"
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      className="w-full px-4 py-3 bg-[#0b0d12] border border-slate-800 rounded-lg text-slate-200 focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500 transition-all"
+                    />
+                  ) : (
+                    <p className="text-slate-200 font-medium">{user?.name || 'Not set'}</p>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Email Address</label>
+                  {editMode ? (
+                    <input
+                      type="email"
+                      value={formData.email}
+                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                      className="w-full px-4 py-3 bg-[#0b0d12] border border-slate-800 rounded-lg text-slate-200 focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500 transition-all"
+                      disabled
+                    />
+                  ) : (
+                    <p className="text-slate-200 font-medium">{user?.email || 'Not set'}</p>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Phone Number</label>
+                  {editMode ? (
+                    <input
+                      type="tel"
+                      value={formData.phone}
+                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                      className="w-full px-4 py-3 bg-[#0b0d12] border border-slate-800 rounded-lg text-slate-200 focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500 transition-all"
+                      placeholder="Enter phone number"
+                    />
+                  ) : (
+                    <p className="text-slate-200 font-medium">{user?.phone || 'Not provided'}</p>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Account Information */}
+            <div className="bg-[#161922] border border-slate-800/60 rounded-2xl p-6">
+              <h3 className="font-bold text-white mb-6 flex items-center gap-2">
+                <Shield size={18} className="text-blue-400" />
+                Account Information
+              </h3>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Role</label>
+                  <p className="text-slate-200 font-medium">{user?.role || 'admin'}</p>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Account Status</label>
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                    <p className="text-green-400 font-medium">Active</p>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Member Since</label>
+                  <p className="text-slate-200 font-medium">
+                    {user?.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'N/A'}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Bio Section */}
+            <div className="md:col-span-2 bg-[#161922] border border-slate-800/60 rounded-2xl p-6">
+              <h3 className="font-bold text-white mb-6 flex items-center gap-2">
+                <FileText size={18} className="text-pink-400" />
+                Bio
+              </h3>
+              {editMode ? (
+                <textarea
+                  value={formData.bio}
+                  onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
+                  rows={4}
+                  className="w-full px-4 py-3 bg-[#0b0d12] border border-slate-800 rounded-lg text-slate-200 focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500 transition-all resize-none"
+                  placeholder="Tell us about yourself..."
+                />
+              ) : (
+                <p className="text-slate-300 leading-relaxed">{user?.bio || 'No bio provided yet.'}</p>
+              )}
+            </div>
+
+            {/* Face ID Section */}
+            <div className="md:col-span-2 bg-[#161922] border border-slate-800/60 rounded-2xl p-6">
+              <h3 className="font-bold text-white mb-6 flex items-center gap-2">
+                <Monitor size={18} className="text-emerald-400" />
+                Face ID Authentication
+              </h3>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-slate-200 font-medium mb-1">Face ID Status</p>
+                    <p className="text-sm text-slate-400">
+                      {user?.faceIdEnrolled 
+                        ? 'Face ID is enrolled and ready to use' 
+                        : 'Face ID is not set up yet'}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {user?.faceIdEnrolled ? (
+                      <span className="px-3 py-1 bg-green-500/20 text-green-400 rounded-full text-xs font-bold border border-green-500/30">
+                        Enrolled
+                      </span>
+                    ) : (
+                      <span className="px-3 py-1 bg-slate-500/20 text-slate-400 rounded-full text-xs font-bold border border-slate-500/30">
+                        Not Enrolled
+                      </span>
+                    )}
+                  </div>
+                </div>
+                {user?.faceIdEnrolled ? (
+                  <button
+                    onClick={async () => {
+                      if (confirm('Are you sure you want to reset Face ID? You will need to enroll again.')) {
+                        try {
+                          const response = await fetch('/api/admin/profile/reset-face', {
+                            method: 'POST',
+                            credentials: 'include',
+                          });
+                          if (response.ok) {
+                            const data = await response.json();
+                            setUser({ ...user, faceIdEnrolled: false });
+                            alert('Face ID has been reset. You can enroll again.');
+                          } else {
+                            alert('Failed to reset Face ID');
+                          }
+                        } catch (error) {
+                          console.error('Error resetting Face ID:', error);
+                          alert('Failed to reset Face ID');
+                        }
+                      }
+                    }}
+                    className="px-4 py-2 bg-red-500/20 text-red-400 border border-red-500/30 rounded-lg text-sm font-medium hover:bg-red-500/30 transition-colors"
+                  >
+                    Reset Face ID
+                  </button>
+                ) : (
+                  <FaceEnrollmentComponent
+                    onComplete={() => {
+                      setUser({ ...user, faceIdEnrolled: true });
+                    }}
+                  />
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Face Enrollment Component
+const FaceEnrollmentComponent = ({ onComplete }: { onComplete: () => void }) => {
+  const [isEnrolling, setIsEnrolling] = React.useState(false);
+  const [status, setStatus] = React.useState<string>('');
+  const [error, setError] = React.useState<string>('');
+  const [progress, setProgress] = React.useState(0);
+  const videoRef = React.useRef<HTMLVideoElement>(null);
+  const streamRef = React.useRef<MediaStream | null>(null);
+  const [modelsReady, setModelsReady] = React.useState(false);
+
+  React.useEffect(() => {
+    return () => {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+      }
+    };
+  }, []);
+
+  const initializeCamera = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user' },
+      });
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        setModelsReady(true);
+        setStatus('Camera ready. Position your face in the frame.');
+      }
+    } catch (err: any) {
+      setError(err.message || 'Failed to access camera');
+    }
+  };
+
+  const handleEnroll = async () => {
+    if (!videoRef.current || !modelsReady) {
+      setError('Camera not ready');
+      return;
+    }
+
+    setIsEnrolling(true);
+    setError('');
+    setStatus('Get ready...');
+    setProgress(0);
+
+    try {
+      // Import simple-face-auth functions
+      const { enrollFace } = await import('@/lib/simple-face-auth');
+
+      // Countdown
+      for (let i = 3; i > 0; i--) {
+        setStatus(`Capturing in ${i}...`);
+        setProgress(10);
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+
+      setStatus('Capturing face...');
+      setProgress(30);
+
+      const result = await enrollFace(videoRef.current);
+
+      if (!result.success || !result.features) {
+        throw new Error(result.error || 'Face capture failed');
+      }
+
+      setStatus('Saving face data...');
+      setProgress(70);
+
+      // Convert features to base64
+      const faceTemplate = btoa(JSON.stringify(result.features));
+
+      const response = await fetch('/api/auth/face-enroll', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ faceTemplate }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.message || 'Failed to save face data');
+      }
+
+      setStatus('✓ Face enrollment successful!');
+      setProgress(100);
+
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+        streamRef.current = null;
+      }
+
+      setTimeout(() => {
+        onComplete();
+      }, 1500);
+    } catch (err: any) {
+      setError(err.message || 'Face enrollment failed');
+      setIsEnrolling(false);
+      setProgress(0);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      {!modelsReady ? (
+        <button
+          onClick={initializeCamera}
+          className="w-full px-4 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg font-bold hover:from-purple-500 hover:to-pink-500 transition-all"
+        >
+          Enable Camera
+        </button>
+      ) : (
+        <>
+          <div className="relative bg-[#0b0d12] rounded-xl overflow-hidden border border-slate-800">
+            <video
+              ref={videoRef}
+              autoPlay
+              playsInline
+              muted
+              className="w-full h-64 object-cover"
+            />
+            {isEnrolling && (
+              <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                <div className="text-center">
+                  <div className="animate-spin rounded-full h-12 w-12 border-4 border-purple-600 border-t-transparent mx-auto mb-4"></div>
+                  <p className="text-white font-medium">{status}</p>
+                  {progress > 0 && (
+                    <div className="mt-2 w-48 bg-slate-700 rounded-full h-2 overflow-hidden">
+                      <div
+                        className="bg-gradient-to-r from-purple-600 to-pink-600 h-full transition-all duration-300"
+                        style={{ width: `${progress}%` }}
+                      ></div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+          {error && (
+            <div className="p-3 bg-red-500/20 border border-red-500/30 rounded-lg text-red-400 text-sm">
+              {error}
+            </div>
+          )}
+          {status && !isEnrolling && (
+            <p className="text-slate-400 text-sm text-center">{status}</p>
+          )}
+          <button
+            onClick={handleEnroll}
+            disabled={isEnrolling}
+            className="w-full px-4 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg font-bold hover:from-purple-500 hover:to-pink-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isEnrolling ? 'Enrolling...' : 'Start Enrollment'}
+          </button>
+        </>
+      )}
     </div>
   );
 };

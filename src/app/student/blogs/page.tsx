@@ -4,6 +4,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import LoadingSpinner from '@/components/student/LoadingSpinner';
 
 export default function BlogsPage() {
   const [allBlogs, setAllBlogs] = useState<any[]>([]);
@@ -40,22 +41,28 @@ export default function BlogsPage() {
     return matchesSearch && matchesTag && blog.status === 'published';
   });
 
+  // Calculate real stats
+  const totalArticles = filteredBlogs.length;
+  const totalCategories = allTags.length;
+  
+  // Calculate total read time (estimate: 200 words per minute, average word length ~5 chars)
+  const calculateReadTime = (content: string): number => {
+    // Remove HTML tags and count words
+    const textContent = content.replace(/<[^>]*>/g, '');
+    const wordCount = textContent.split(/\s+/).filter(word => word.length > 0).length;
+    // Average reading speed: 200 words per minute
+    return Math.ceil(wordCount / 200);
+  };
+  
+  const totalReadTime = filteredBlogs.reduce((sum, blog) => {
+    return sum + calculateReadTime(blog.content || '');
+  }, 0);
+
   const featuredBlog = filteredBlogs[0];
   const regularBlogs = filteredBlogs.slice(1);
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-96">
-        <div className="text-center">
-          <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <svg className="w-8 h-8 text-gray-400 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-            </svg>
-          </div>
-          <h3 className="text-xl font-semibold text-gray-900">Loading blogs...</h3>
-        </div>
-      </div>
-    );
+    return <LoadingSpinner message="Loading blogs..." fullScreen />;
   }
 
   return (
@@ -92,7 +99,7 @@ export default function BlogsPage() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
           <div className="flex items-center space-x-3">
             <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
@@ -101,7 +108,7 @@ export default function BlogsPage() {
               </svg>
             </div>
             <div>
-              <p className="text-2xl font-bold text-gray-900">{allBlogs.length}</p>
+              <p className="text-2xl font-bold text-gray-900">{totalArticles}</p>
               <p className="text-sm text-gray-600">Total Articles</p>
             </div>
           </div>
@@ -115,23 +122,8 @@ export default function BlogsPage() {
               </svg>
             </div>
             <div>
-              <p className="text-2xl font-bold text-gray-900">{allTags.length}</p>
+              <p className="text-2xl font-bold text-gray-900">{totalCategories}</p>
               <p className="text-sm text-gray-600">Categories</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
-          <div className="flex items-center space-x-3">
-            <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
-              <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-              </svg>
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-gray-900">2.4k</p>
-              <p className="text-sm text-gray-600">Total Views</p>
             </div>
           </div>
         </div>
@@ -144,7 +136,7 @@ export default function BlogsPage() {
               </svg>
             </div>
             <div>
-              <p className="text-2xl font-bold text-gray-900">45</p>
+              <p className="text-2xl font-bold text-gray-900">{totalReadTime}</p>
               <p className="text-sm text-gray-600">Min Read Time</p>
             </div>
           </div>

@@ -36,6 +36,7 @@ export async function GET(
         pricing: course.pricing || 0,
         status: course.status,
         isRequestable: course.isRequestable,
+        isPublic: course.isPublic,
         createdAt: course.createdAt?.toISOString(),
         updatedAt: course.updatedAt?.toISOString(),
       },
@@ -74,6 +75,18 @@ export async function PUT(
     }
 
     // Update course (any admin can edit any course)
+    // Normalize status: "Active" or "active" -> "published" for consistency
+    let newStatus = status !== undefined ? status : existingCourse.status;
+    
+    // Normalize status values to ensure consistency
+    if (newStatus === 'Active' || newStatus === 'active' || newStatus === 'ACTIVE') {
+      newStatus = 'published';
+      console.log(`🔄 Normalizing status: "${status}" → "published"`);
+    }
+    
+    console.log(`📝 Updating course ID ${courseId}: ${existingCourse.title}`);
+    console.log(`📝 Status change: ${existingCourse.status} → ${newStatus}`);
+    
     const [updatedCourse] = await db
       .update(courses)
       .set({
@@ -82,12 +95,28 @@ export async function PUT(
         instructor: instructor || existingCourse.instructor,
         thumbnail: thumbnail !== undefined ? thumbnail : existingCourse.thumbnail,
         pricing: pricing !== undefined ? (pricing ? parseFloat(pricing) : null) : existingCourse.pricing,
-        status: status || existingCourse.status,
+        status: newStatus,
         isRequestable: isRequestable !== undefined ? isRequestable : existingCourse.isRequestable,
+        isPublic: isPublic !== undefined ? isPublic : existingCourse.isPublic,
         updatedAt: new Date(),
       })
       .where(eq(courses.id, courseId))
       .returning();
+    
+    console.log(`✅ Course updated: ${updatedCourse.title} (Status: ${updatedCourse.status})`);
+    
+    if (newStatus === 'published' && existingCourse.status !== 'published') {
+      console.log(`📢 Course "${updatedCourse.title}" is now published and visible to students!`);
+      
+      // Notify all students about the newly published course
+      try {
+        const { notifyNewCoursePublished } = await import('@/lib/sync-service');
+        await notifyNewCoursePublished(updatedCourse.id, updatedCourse.title);
+      } catch (notifError) {
+        console.error('Failed to notify students about published course:', notifError);
+        // Don't fail the update if notification fails
+      }
+    }
 
     // Log activity
     const token = request.cookies.get('adminToken')?.value;
@@ -219,5 +248,13 @@ export async function DELETE(
       { status: 500 }
     );
   }
+}
+
+// PATCH handler (alias for PUT for compatibility with admin UI)
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: { courseId: string } }
+) {
+  return PUT(request, { params });
 }
 

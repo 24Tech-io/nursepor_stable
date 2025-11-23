@@ -73,12 +73,68 @@ export default function StudentLayout({
     router.push('/login');
   }
 
-  // Mock notifications - in real app, this would come from API
-  const notifications = [
-    { id: 1, message: 'New course available: Advanced React Patterns', time: '2 hours ago', read: false },
-    { id: 2, message: 'Your quiz score: 85% - Great job!', time: '1 day ago', read: false },
-    { id: 3, message: 'Course access request approved', time: '2 days ago', read: true },
-  ];
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  // Helper function to format time ago
+  const formatTimeAgo = (date: Date) => {
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins} minute${diffMins > 1 ? 's' : ''} ago`;
+    if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+    if (diffDays < 7) return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+    return date.toLocaleDateString();
+  };
+
+  // Fetch real notifications
+  useEffect(() => {
+    const fetchNotifications = async () => {
+      if (!user) return;
+      
+      try {
+        const response = await fetch('/api/notifications', {
+          credentials: 'include',
+          cache: 'no-store',
+          headers: {
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+          }
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          const notifs = (data.notifications || []).map((n: any) => ({
+            id: n.id,
+            message: n.message,
+            title: n.title || n.message,
+            time: formatTimeAgo(new Date(n.createdAt)),
+            read: n.isRead,
+            type: n.type || 'info',
+          }));
+          setNotifications(notifs);
+          setUnreadCount(notifs.filter((n: any) => !n.read).length);
+          console.log('✅ Notifications fetched (REAL DATA):', notifs.length);
+        } else {
+          console.error('❌ Failed to fetch notifications:', response.status);
+          setNotifications([]);
+        }
+      } catch (error) {
+        console.error('❌ Error fetching notifications:', error);
+        setNotifications([]);
+      }
+    };
+
+    if (user) {
+      fetchNotifications();
+      // Poll for new notifications every 30 seconds
+      const interval = setInterval(fetchNotifications, 30000);
+      return () => clearInterval(interval);
+    }
+  }, [user]);
 
   // Fetch user data for profile display
   useEffect(() => {
@@ -236,7 +292,7 @@ export default function StudentLayout({
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
                   </svg>
-                  {notifications.filter(n => !n.read).length > 0 && (
+                  {unreadCount > 0 && (
                     <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
                   )}
                 </button>
@@ -260,9 +316,31 @@ export default function StudentLayout({
                         notifications.map(notification => (
                           <div 
                             key={notification.id} 
-                            className={`p-4 hover:bg-gray-50 transition ${!notification.read ? 'bg-blue-50' : ''}`}
+                            className={`p-4 hover:bg-gray-50 transition cursor-pointer ${!notification.read ? 'bg-blue-50' : ''}`}
+                            onClick={async () => {
+                              if (!notification.read) {
+                                try {
+                                  await fetch('/api/notifications', {
+                                    method: 'PATCH',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    credentials: 'include',
+                                    body: JSON.stringify({ notificationId: notification.id }),
+                                  });
+                                  // Update local state
+                                  setNotifications(prev => 
+                                    prev.map(n => n.id === notification.id ? { ...n, read: true } : n)
+                                  );
+                                  setUnreadCount(prev => Math.max(0, prev - 1));
+                                } catch (error) {
+                                  console.error('Failed to mark notification as read:', error);
+                                }
+                              }
+                            }}
                           >
-                            <p className="text-sm text-gray-900 font-medium">{notification.message}</p>
+                            <p className="text-sm text-gray-900 font-medium">{notification.title || notification.message}</p>
+                            {notification.title && notification.message !== notification.title && (
+                              <p className="text-xs text-gray-600 mt-1">{notification.message}</p>
+                            )}
                             <p className="text-xs text-gray-500 mt-1">{notification.time}</p>
                           </div>
                         ))

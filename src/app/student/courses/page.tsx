@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useEffect } from 'react';
 import CourseCard from '@/components/student/CourseCard';
+import LoadingSpinner from '@/components/student/LoadingSpinner';
 
 type Course = {
   id: string;
@@ -12,6 +13,7 @@ type Course = {
   pricing: number;
   status: string;
   isRequestable: boolean;
+  isPublic?: boolean;
   isEnrolled: boolean;
   modules?: any[];
 };
@@ -33,6 +35,7 @@ export default function CoursesPage() {
   const [note, setNote] = useState('');
   const [requestingId, setRequestingId] = useState<string | null>(null);
   const [enrolledCourseIds, setEnrolledCourseIds] = useState<string[]>([]);
+  const [pendingRequestCourseIds, setPendingRequestCourseIds] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
 
@@ -54,17 +57,23 @@ export default function CoursesPage() {
     fetchUser();
   }, []);
 
-  // Fetch courses and enrolled courses
+  // Fetch courses, enrolled courses, and pending requests
   useEffect(() => {
     const fetchData = async () => {
       try {
         setIsLoading(true);
         
-        // Fetch all available courses
-        const coursesResponse = await fetch('/api/student/courses', {
-          credentials: 'include',
-          cache: 'no-store',
-        });
+        // Fetch all available courses and pending requests in parallel
+        const [coursesResponse, requestsResponse] = await Promise.all([
+          fetch('/api/student/courses', {
+            credentials: 'include',
+            cache: 'no-store',
+          }),
+          fetch('/api/student/requests', {
+            credentials: 'include',
+            cache: 'no-store',
+          }),
+        ]);
         
         if (coursesResponse.ok) {
           const coursesData = await coursesResponse.json();
@@ -77,6 +86,15 @@ export default function CoursesPage() {
           setEnrolledCourseIds(enrolledIds);
         } else {
           console.error('Failed to fetch courses:', coursesResponse.status);
+        }
+
+        if (requestsResponse.ok) {
+          const requestsData = await requestsResponse.json();
+          const pendingCourseIds = (requestsData.requests || [])
+            .filter((r: any) => r.status === 'pending')
+            .map((r: any) => r.courseId.toString());
+          setPendingRequestCourseIds(pendingCourseIds);
+          console.log('✅ Pending requests fetched:', pendingCourseIds);
         }
       } catch (error) {
         console.error('Error fetching data:', error);
@@ -121,6 +139,18 @@ export default function CoursesPage() {
         alert('Access request submitted successfully! You will be notified when it is reviewed.');
         setRequestingId(null);
         setNote('');
+        // Refresh pending requests
+        const requestsResponse = await fetch('/api/student/requests', {
+          credentials: 'include',
+          cache: 'no-store',
+        });
+        if (requestsResponse.ok) {
+          const requestsData = await requestsResponse.json();
+          const pendingCourseIds = (requestsData.requests || [])
+            .filter((r: any) => r.status === 'pending')
+            .map((r: any) => r.courseId.toString());
+          setPendingRequestCourseIds(pendingCourseIds);
+        }
       } else {
         const error = await response.json();
         alert(error.message || 'Failed to submit request');
@@ -132,14 +162,7 @@ export default function CoursesPage() {
   }
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading your courses...</p>
-        </div>
-      </div>
-    );
+    return <LoadingSpinner message="Loading your courses..." fullScreen />;
   }
 
   return (
@@ -176,8 +199,15 @@ export default function CoursesPage() {
                 key={c.id} 
                 course={{...c, modules: c.modules || [], status: c.status as 'draft' | 'published'}} 
                 isLocked 
-                userId={user?.id || undefined} 
-                onRequestAccess={() => requestAccess(c.id)} 
+                userId={user?.id || undefined}
+                hasPendingRequest={pendingRequestCourseIds.includes(c.id)}
+                hasApprovedRequest={c.hasApprovedRequest || false}
+                isLocked={!c.isEnrolled && !c.hasApprovedRequest}
+                isPublic={c.isPublic || false}
+                onRequestAccess={() => {
+                  // Refresh data after enrollment/request
+                  window.location.reload();
+                }} 
               />
             ))}
           </div>

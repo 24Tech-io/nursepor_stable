@@ -1,25 +1,64 @@
 'use client';
 
-import { useMemo, useState } from 'react';
-import { getCourses, getStudentProgress } from '@/lib/data';
+import { useMemo, useState, useEffect } from 'react';
+import LoadingSpinner from '@/components/student/LoadingSpinner';
+
+type ProgressItem = {
+  courseId: string;
+  course: {
+    id: string;
+    title: string;
+    description: string;
+    instructor: string;
+    thumbnail: string | null;
+  };
+  totalProgress: number;
+  completedModules: number;
+  completedQuizzes: number;
+  watchedVideos: number;
+  lastAccessed: string;
+};
 
 export default function ProgressPage() {
-  const studentId = '1';
-  const courses = getCourses();
+  const [progress, setProgress] = useState<ProgressItem[]>([]);
   const [query, setQuery] = useState('');
-  const progress = getStudentProgress(studentId);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const merged = useMemo(() => {
-    return progress.map(p => ({
-      ...p,
-      course: courses.find(c => c.id === p.courseId)!
-    })).filter(Boolean);
-  }, [progress, courses]);
+  useEffect(() => {
+    const fetchProgress = async () => {
+      try {
+        setIsLoading(true);
+        const response = await fetch('/api/student/progress-details', {
+          credentials: 'include',
+          cache: 'no-store',
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setProgress(data.progress || []);
+        } else {
+          console.error('Failed to fetch progress:', response.status);
+          setProgress([]);
+        }
+      } catch (error) {
+        console.error('Error fetching progress:', error);
+        setProgress([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchProgress();
+  }, []);
 
   const filtered = useMemo(() => {
     const q = query.toLowerCase();
-    return merged.filter(r => r.course.title.toLowerCase().includes(q));
-  }, [merged, query]);
+    return progress.filter(r => r.course.title.toLowerCase().includes(q));
+  }, [progress, query]);
+
+  if (isLoading) {
+    return <LoadingSpinner message="Loading your progress..." fullScreen />;
+  }
 
   return (
     <div className="space-y-8">
@@ -33,25 +72,37 @@ export default function ProgressPage() {
         </div>
       </div>
 
-      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filtered.map(item => (
-          <div key={item.courseId} className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="font-bold text-gray-900">{item.course.title}</h3>
-              <span className="text-sm text-gray-600">{item.totalProgress}%</span>
+      {filtered.length > 0 ? (
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filtered.map(item => (
+            <div key={item.courseId} className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-bold text-gray-900">{item.course.title}</h3>
+                <span className="text-sm text-gray-600">{item.totalProgress}%</span>
+              </div>
+              <div className="h-2 bg-gray-100 rounded-full overflow-hidden mb-4">
+                <div className="h-full bg-gradient-to-r from-purple-500 to-blue-500 rounded-full" style={{ width: `${item.totalProgress}%` }} />
+              </div>
+              <div className="text-sm text-gray-700 space-y-1">
+                <p>Completed modules: {item.completedModules || 0}</p>
+                <p>Completed quizzes: {item.completedQuizzes || 0}</p>
+                <p>Watched videos: {item.watchedVideos || 0}</p>
+                <p className="text-gray-500">Last accessed: {new Date(item.lastAccessed).toLocaleDateString()}</p>
+              </div>
             </div>
-            <div className="h-2 bg-gray-100 rounded-full overflow-hidden mb-4">
-              <div className="h-full bg-gradient-to-r from-purple-500 to-blue-500 rounded-full" style={{ width: `${item.totalProgress}%` }} />
-            </div>
-            <div className="text-sm text-gray-700 space-y-1">
-              <p>Completed modules: {item.completedModules?.length || 0}</p>
-              <p>Completed quizzes: {item.completedQuizzes?.length || 0}</p>
-              <p>Watched videos: {item.watchedVideos?.length || 0}</p>
-              <p className="text-gray-500">Last accessed: {item.lastAccessed.toLocaleDateString()}</p>
-            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="bg-white rounded-2xl shadow-sm p-12 text-center border border-gray-100">
+          <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg className="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+            </svg>
           </div>
-        ))}
-      </div>
+          <h3 className="text-xl font-semibold text-gray-900 mb-2">No progress yet</h3>
+          <p className="text-gray-600">Start enrolling in courses to track your progress here</p>
+        </div>
+      )}
     </div>
   );
 }

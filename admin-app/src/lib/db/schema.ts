@@ -40,6 +40,7 @@ export const courses = pgTable('courses', {
   status: text('status').notNull().default('draft'),
   isRequestable: boolean('is_requestable').notNull().default(true),
   isDefaultUnlocked: boolean('is_default_unlocked').notNull().default(false),
+  isPublic: boolean('is_public').notNull().default(false), // true = direct enrollment, false = requires approval
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 });
@@ -67,21 +68,21 @@ export const chapters = pgTable('chapters', {
   order: integer('order').notNull(),
   isPublished: boolean('is_published').notNull().default(true),
   prerequisiteChapterId: integer('prerequisite_chapter_id'),
-  
+
   // Video specific fields
   videoUrl: text('video_url'),
   videoProvider: text('video_provider'),
   videoDuration: integer('video_duration'),
   transcript: text('transcript'),
-  
+
   // Textbook specific fields
   textbookContent: text('textbook_content'),
   textbookFileUrl: text('textbook_file_url'),
   readingTime: integer('reading_time'),
-  
+
   // MCQ specific fields
   mcqData: text('mcq_data'), // JSON string of quiz data
-  
+
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 });
@@ -143,6 +144,21 @@ export const quizQuestions = pgTable('quiz_questions', {
   order: integer('order').notNull(),
 });
 
+// Quiz Attempts table
+export const quizAttempts = pgTable('quiz_attempts', {
+  id: serial('id').primaryKey(),
+  studentId: integer('student_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  quizId: integer('quiz_id').notNull().references(() => quizzes.id, { onDelete: 'cascade' }),
+  score: integer('score').notNull(),
+  totalQuestions: integer('total_questions').notNull(),
+  passed: boolean('passed').notNull(),
+  timeSpent: integer('time_spent'), // in seconds
+  answers: text('answers'), // JSON string of answers
+  startedAt: timestamp('started_at').notNull().defaultNow(),
+  completedAt: timestamp('completed_at'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+});
+
 // Blog Posts table
 export const blogPosts = pgTable('blog_posts', {
   id: serial('id').primaryKey(),
@@ -160,10 +176,34 @@ export const blogPosts = pgTable('blog_posts', {
 // Question Banks table (legacy/alternative to quizzes)
 export const questionBanks = pgTable('question_banks', {
   id: serial('id').primaryKey(),
-  courseId: integer('course_id').notNull().references(() => courses.id, { onDelete: 'cascade' }),
+  courseId: integer('course_id').references(() => courses.id, { onDelete: 'cascade' }), // nullable for general Q-Bank
   name: text('name').notNull(),
   description: text('description'),
   isActive: boolean('is_active').notNull().default(true),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+// Q-Bank Questions table
+export const qbankQuestions = pgTable('qbank_questions', {
+  id: serial('id').primaryKey(),
+  questionBankId: integer('question_bank_id').notNull().references(() => questionBanks.id, { onDelete: 'cascade' }),
+  question: text('question').notNull(),
+  questionType: text('question_type').notNull().default('standard'),
+  questionFormat: text('question_format').notNull().default('standard'),
+  options: text('options').notNull().default('[]'), // JSON array
+  correctAnswer: text('correct_answer').notNull().default('{}'), // JSON
+  explanation: text('explanation'),
+  points: integer('points').notNull().default(1),
+  // NGN-specific fields (nullable)
+  matrixData: text('matrix_data'),
+  dragDropData: text('drag_drop_data'),
+  trendTabs: text('trend_tabs'),
+  bowtieData: text('bowtie_data'),
+  clozeData: text('cloze_data'),
+  rankingData: text('ranking_data'),
+  highlightData: text('highlight_data'),
+  selectNCount: integer('select_n_count'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 });
@@ -199,7 +239,7 @@ export const sessions = pgTable('sessions', {
   createdAt: timestamp('created_at').notNull().defaultNow(),
 });
 
-// Activity Logs table
+// Activity Logs table (Admin activities)
 export const activityLogs = pgTable('activity_logs', {
   id: serial('id').primaryKey(),
   adminId: integer('admin_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
@@ -209,6 +249,19 @@ export const activityLogs = pgTable('activity_logs', {
   entityId: integer('entity_id'),
   entityName: text('entity_name'), // Name/title of the entity for display
   details: text('details'), // Additional details in JSON format
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+});
+
+// Student Activity Logs table
+export const studentActivityLogs = pgTable('student_activity_logs', {
+  id: serial('id').primaryKey(),
+  studentId: integer('student_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  activityType: text('activity_type').notNull(), // 'login', 'logout', 'course_view', 'module_access', 'test_attempt', 'test_result', 'video_watch', 'document_view', etc.
+  title: text('title').notNull(), // Human-readable title
+  description: text('description'), // Additional details
+  metadata: text('metadata'), // JSON string for additional data (courseId, moduleId, quizId, score, etc.)
+  ipAddress: text('ip_address'),
+  userAgent: text('user_agent'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
 });
 

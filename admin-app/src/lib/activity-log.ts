@@ -5,10 +5,10 @@ export interface ActivityLogData {
   adminId: number;
   adminName: string;
   action: 'created' | 'updated' | 'deleted' | 'activated' | 'deactivated' | 'approved' | 'rejected';
-  entityType: 'course' | 'student' | 'question' | 'module' | 'chapter' | 'access_request' | 'blog';
-  entityId?: number;
-  entityName?: string;
-  details?: Record<string, any>;
+  entityType: 'course' | 'student' | 'question' | 'module' | 'chapter' | 'access_request' | 'blog' | 'admin';
+  entityId?: number | null;
+  entityName?: string | null;
+  details?: Record<string, any> | null;
 }
 
 export async function logActivity(data: ActivityLogData) {

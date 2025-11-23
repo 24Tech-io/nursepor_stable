@@ -1,8 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/auth';
 import { getDatabase } from '@/lib/db';
-import { courses, studentProgress, payments } from '@/lib/db/schema';
+import { courses, studentProgress, payments, accessRequests, enrollments } from '@/lib/db/schema';
 import { desc, eq, and, or } from 'drizzle-orm';
+
+// Helper function to retry database operations for reliability
+async function retryOperation<T>(operation: () => Promise<T>, retries = 3): Promise<T> {
+  for (let i = 0; i < retries; i++) {
+    try {
+      return await operation();
+    } catch (error: any) {
+      if (i === retries - 1) throw error;
+      console.warn(`Retry ${i + 1}/${retries} after error:`, error.message);
+      await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1)));
+    }
+  }
+  throw new Error('Operation failed after retries');
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -19,151 +33,190 @@ export async function GET(request: NextRequest) {
     const decoded = verifyToken(token);
 
     if (!decoded || !decoded.id) {
-      console.log('❌ Token verification failed:', { 
-        hasDecoded: !!decoded, 
-        hasId: decoded?.id,
-        tokenLength: token.length 
-      });
+      console.log('❌ Token verification failed');
       return NextResponse.json(
         { message: 'Invalid or expired token. Please log in again.' },
         { status: 401 }
       );
     }
 
-    console.log('✅ Token verified for user:', decoded.id, decoded.email);
+    console.log('✅ User authenticated:', decoded.id, decoded.email);
 
-    const db = getDatabase();
-
-    // First, ensure Nurse Pro course exists (auto-fix inline)
+    let db;
     try {
-      const existingCourses = await db
+      db = getDatabase();
+    } catch (dbError: any) {
+      console.error('❌ Database initialization error:', dbError);
+      return NextResponse.json(
+        {
+          message: 'Database connection failed',
+          error: dbError.message || 'Database is not available',
+          courses: []
+        },
+        { status: 500 }
+      );
+    }
+
+    // Fetch courses with retry logic for reliability
+    const allCourses = await retryOperation(async () => {
+      return await db
         .select()
         .from(courses)
         .where(
           or(
-            eq(courses.title, 'Nurse Pro'),
-            eq(courses.title, 'Q-Bank')
+            eq(courses.status, 'published'),
+            eq(courses.status, 'active'),
+            eq(courses.status, 'Active')
           )
-        );
+        )
+        .orderBy(desc(courses.createdAt));
+    });
 
-      if (existingCourses.length === 0) {
-        // Create the course
-        await db.insert(courses).values({
-          title: 'Nurse Pro',
-          description: 'Comprehensive nursing education platform with Q-Bank, live reviews, notes, and cheat sheets. Master nursing concepts and prepare for your exams.',
-          instructor: 'Nurse Pro Academy',
-          thumbnail: null,
-          pricing: 0,
-          status: 'published',
-          isRequestable: true,
-          isDefaultUnlocked: false,
-        });
-        console.log('✅ Auto-created Nurse Pro course');
-      } else {
-        // Update existing course to ensure it's correct
-        const course = existingCourses[0];
-        await db
-          .update(courses)
-          .set({
-            title: 'Nurse Pro',
-            pricing: 0,
-            status: 'published',
-          })
-          .where(eq(courses.id, course.id));
-        console.log('✅ Auto-fixed Nurse Pro course');
-      }
-    } catch (e) {
-      // Silently continue - course might already exist
-      console.log('Note: Could not auto-fix course (this is normal)');
+    console.log(`📚 Found ${allCourses.length} published courses`);
+
+    if (allCourses.length === 0) {
+      console.warn('⚠️ No published courses found');
+      return NextResponse.json({ courses: [] });
     }
 
-    // Get all published courses
-    const allCourses = await db
-      .select()
-      .from(courses)
-      .where(eq(courses.status, 'published'))
-      .orderBy(desc(courses.createdAt));
-
-    // Get enrolled course IDs (from student progress or payments)
-    const enrolledProgress = await db
-      .select({ courseId: studentProgress.courseId })
-      .from(studentProgress)
-      .where(eq(studentProgress.studentId, decoded.id));
-
-    const purchasedCourses = await db
-      .select({ courseId: payments.courseId })
-      .from(payments)
-      .where(
-        and(
-          eq(payments.userId, decoded.id),
-          eq(payments.status, 'completed')
-        )
-      );
-
-    const enrolledCourseIds = new Set([
-      ...enrolledProgress.map((p: typeof enrolledProgress[0]) => p.courseId.toString()),
-      ...purchasedCourses.map((p: typeof purchasedCourses[0]) => p.courseId.toString()),
+    // Get enrollment status in parallel for better performance
+    const [enrolledProgress, purchasedCourses, enrolledRecords, pendingRequests] = await Promise.all([
+      retryOperation(async () =>
+        await db.select({ courseId: studentProgress.courseId })
+          .from(studentProgress)
+          .where(eq(studentProgress.studentId, decoded.id))
+      ),
+      retryOperation(async () =>
+        await db.select({ courseId: payments.courseId })
+          .from(payments)
+          .where(
+            and(
+              eq(payments.userId, decoded.id),
+              eq(payments.status, 'completed')
+            )
+          )
+      ),
+      retryOperation(async () =>
+        await db.select({ courseId: enrollments.courseId })
+          .from(enrollments)
+          .where(
+            and(
+              eq(enrollments.userId, decoded.id),
+              eq(enrollments.status, 'active')
+            )
+          )
+      ),
+      retryOperation(async () =>
+        await db.select({ 
+          courseId: accessRequests.courseId,
+          status: accessRequests.status 
+        })
+          .from(accessRequests)
+          .where(
+            eq(accessRequests.studentId, decoded.id)
+          )
+      )
     ]);
 
+    const enrolledCourseIds = new Set([
+      ...enrolledProgress.map((p: any) => p.courseId.toString()),
+      ...purchasedCourses.map((p: any) => p.courseId.toString()),
+      ...enrolledRecords.map((p: any) => p.courseId.toString()),
+    ]);
+
+    // Separate pending and approved requests
+    const pendingRequestCourseIds = new Set(
+      pendingRequests
+        .filter((r: any) => r.status === 'pending')
+        .map((r: any) => r.courseId.toString())
+    );
+    
+    const approvedRequestCourseIds = new Set(
+      pendingRequests
+        .filter((r: any) => r.status === 'approved')
+        .map((r: any) => r.courseId.toString())
+    );
+
     // Auto-grant access to default unlocked courses
-    const defaultUnlockedCourses = allCourses.filter((c: any) => c.isDefaultUnlocked);
-    for (const course of defaultUnlockedCourses) {
+    for (const course of allCourses.filter((c: any) => c.isDefaultUnlocked)) {
       if (!enrolledCourseIds.has(course.id.toString())) {
         try {
-          // Check if progress entry already exists
-          const existingProgress = await db
-            .select()
-            .from(studentProgress)
-            .where(
-              and(
-                eq(studentProgress.studentId, decoded.id),
-                eq(studentProgress.courseId, course.id)
-              )
-            );
+          // We already checked enrolledCourseIds which includes studentProgress
+          // So we can safely insert without checking DB again
 
-          if (existingProgress.length === 0) {
-            // Create progress entry (grants access)
-            await db.insert(studentProgress).values({
+          // Use Promise.all to insert both records in parallel
+          await Promise.all([
+            db.insert(studentProgress).values({
               studentId: decoded.id,
               courseId: course.id,
               totalProgress: 0,
-            });
-            enrolledCourseIds.add(course.id.toString());
-            console.log(`✅ Auto-granted access to default unlocked course: ${course.title}`);
-          }
+            }),
+            db.insert(enrollments).values({
+              userId: decoded.id,
+              courseId: course.id,
+              status: 'active',
+              progress: 0,
+            })
+          ]);
+
+          enrolledCourseIds.add(course.id.toString());
+          console.log(`✅ Auto-granted access to default unlocked: ${course.title}`);
         } catch (error) {
           console.error(`Error auto-granting access to course ${course.id}:`, error);
         }
       }
     }
 
-    const coursesList = allCourses.map((course: any) => ({
-      id: course.id.toString(),
-      title: course.title,
-      description: course.description,
-      instructor: course.instructor,
-      thumbnail: course.thumbnail,
-      pricing: course.pricing || 0,
-      status: course.status,
-      isRequestable: course.isRequestable,
-      isDefaultUnlocked: course.isDefaultUnlocked,
-      isEnrolled: enrolledCourseIds.has(course.id.toString()),
-      createdAt: course.createdAt?.toISOString(),
-      updatedAt: course.updatedAt?.toISOString(),
-    }));
+    // Map courses with proper flags and enrollment status
+    const coursesList = allCourses.map((course: any) => {
+      const courseIdStr = course.id.toString();
+      const hasEnrollment = enrolledCourseIds.has(courseIdStr);
+      const hasPendingRequest = pendingRequestCourseIds.has(courseIdStr);
 
-    console.log('📚 API: Returning courses:', coursesList.length);
-    console.log('📚 API: Course titles:', coursesList.map((c: any) => c.title));
+      // Enrollment logic respecting all flags:
+      // - isPublic (Public Course checkbox): Direct enrollment without approval
+      // - isRequestable (Allow Requests checkbox): Can request access
+      // - isDefaultUnlocked: Auto-enrolled on first access
+      const isEnrolled = hasEnrollment && !hasPendingRequest;
+      const hasApprovedRequest = approvedRequestCourseIds.has(courseIdStr);
+      
+      // If request was approved, student should be enrolled (enrollment sync should handle this)
+      // But we'll also mark it as enrolled if there's an approved request
+      const finalIsEnrolled = isEnrolled || hasApprovedRequest;
+
+      return {
+        id: courseIdStr,
+        title: course.title,
+        description: course.description,
+        instructor: course.instructor,
+        thumbnail: course.thumbnail,
+        pricing: course.pricing || 0,
+        status: course.status,
+        isRequestable: course.isRequestable ?? true, // Allow Requests checkbox
+        isDefaultUnlocked: course.isDefaultUnlocked ?? false, // Default Unlocked checkbox
+        isPublic: course.isPublic ?? false, // Public Course checkbox - direct enrollment
+        isEnrolled: finalIsEnrolled,
+        hasPendingRequest: hasPendingRequest,
+        hasApprovedRequest: hasApprovedRequest, // New field to track approved requests
+        createdAt: course.createdAt?.toISOString(),
+        updatedAt: course.updatedAt?.toISOString(),
+      };
+    });
+
+    console.log(`✅ Returning ${coursesList.length} courses`);
 
     return NextResponse.json({
       courses: coursesList,
     });
   } catch (error: any) {
-    console.error('Get student courses error:', error);
+    console.error('❌ Get student courses error:', error);
+
+    // Return empty array instead of error to ensure UI doesn't break
     return NextResponse.json(
-      { 
-        message: 'Failed to get courses',
-        error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      {
+        message: 'Failed to fetch courses',
+        error: error.message,
+        courses: [], // Always return courses array even on error
       },
       { status: 500 }
     );

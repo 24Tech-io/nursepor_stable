@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { CheckCircle, XCircle, Clock, Award, TrendingUp } from 'lucide-react';
+import LoadingSpinner from '@/components/student/LoadingSpinner';
 
 interface QuizResult {
     score: number;
@@ -58,11 +59,7 @@ export default function QuizResultsPage() {
     };
 
     if (isLoading) {
-        return (
-            <div className="flex items-center justify-center min-h-screen">
-                <div className="animate-spin rounded-full h-12 w-12 border-4 border-purple-600 border-t-transparent"></div>
-            </div>
-        );
+        return <LoadingSpinner message="Loading quiz results..." fullScreen />;
     }
 
     const completedQuizzes = quizHistory.filter(q => q.status === 'completed');

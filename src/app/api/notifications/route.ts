@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { notifications, accessRequests, users } from '@/lib/db/schema';
-import { eq } from 'drizzle-orm';
+import { eq, desc } from 'drizzle-orm';
 
 // Send notification when access request is approved/denied
 export async function sendRequestStatusNotification(
@@ -48,7 +48,8 @@ export async function GET(request: NextRequest) {
             .select()
             .from(notifications)
             .where(eq(notifications.userId, decoded.id))
-            .orderBy(notifications.createdAt);
+            .orderBy(desc(notifications.createdAt))
+            .limit(50); // Limit to 50 most recent
 
         return NextResponse.json({ notifications: userNotifications });
     } catch (error) {

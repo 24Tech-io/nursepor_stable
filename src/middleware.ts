@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { securityLogger } from '@/lib/edge-logger';
 
 // Rate limiting store (in-memory, use Redis in production)
 const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
@@ -63,6 +64,11 @@ export function middleware(request: NextRequest) {
     if (rateLimit) {
       if (now < rateLimit.resetTime) {
         if (rateLimit.count >= RATE_LIMIT_MAX) {
+          securityLogger.warn('Rate limit exceeded', {
+            ip,
+            path: request.nextUrl.pathname,
+            count: rateLimit.count
+          });
           return new NextResponse(
             JSON.stringify({
               error: 'Too many requests',

@@ -47,6 +47,7 @@ export const courses = pgTable('courses', {
   status: text('status').notNull().default('draft'),
   isRequestable: boolean('is_requestable').notNull().default(true),
   isDefaultUnlocked: boolean('is_default_unlocked').notNull().default(false),
+  isPublic: boolean('is_public').notNull().default(false), // true = direct enrollment, false = requires approval
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 });
@@ -154,7 +155,9 @@ export const studentProgress = pgTable('student_progress', {
   quizAttempts: text('quiz_attempts').notNull().default('[]'),
   totalProgress: integer('total_progress').notNull().default(0),
   lastAccessed: timestamp('last_accessed').notNull().defaultNow(),
-});
+}, (table) => ({
+  userCourseProgressUnique: unique('user_course_progress_unique').on(table.studentId, table.courseId),
+}));
 
 // Daily Videos table
 export const dailyVideos = pgTable('daily_videos', {
@@ -606,7 +609,7 @@ export const nursingCandidateForms = pgTable('nursing_candidate_forms', {
 // Question Banks - links Q-Bank to courses
 export const questionBanks = pgTable('question_banks', {
   id: serial('id').primaryKey(),
-  courseId: integer('course_id').notNull().references(() => courses.id, { onDelete: 'cascade' }),
+  courseId: integer('course_id').references(() => courses.id, { onDelete: 'cascade' }),
   name: text('name').notNull(),
   description: text('description'),
   isActive: boolean('is_active').notNull().default(true),
