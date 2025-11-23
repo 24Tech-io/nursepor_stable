@@ -449,25 +449,11 @@ const Dashboard = ({ nav }: { nav: (mod: string) => void }) => {
                 };
 
                 const getActionText = () => {
-                  const actionMap: Record<string, string> = {
-                    created: 'created',
-                    updated: 'updated',
-                    deleted: 'deleted',
-                    activated: 'activated',
-                    deactivated: 'deactivated',
-                    approved: 'approved',
-                    rejected: 'rejected',
-                  };
-                  return actionMap[log.action] || log.action;
+                  return log.action;
                 };
 
                 const getEntityDisplay = () => {
                   const entityMap: Record<string, string> = {
-                    course: 'course',
-                    student: 'student',
-                    question: 'question',
-                    module: 'module',
-                    chapter: 'chapter',
                     access_request: 'access request',
                     blog: 'blog post',
                   };
