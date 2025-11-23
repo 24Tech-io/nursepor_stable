@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/auth';
 import { getDatabase } from '@/lib/db';
-import { studentProgress, courses, accessRequests } from '@/lib/db/schema';
-import { eq, and, or } from 'drizzle-orm';
+import { studentProgress, courses, accessRequests, enrollments } from '@/lib/db/schema';
+import { eq, and, or, sql } from 'drizzle-orm';
 
 export async function GET(request: NextRequest) {
   try {
@@ -55,38 +55,140 @@ export async function GET(request: NextRequest) {
 
     const pendingRequestCourseIds = pendingRequests.map((r: any) => r.courseId);
 
-    // Get all progress records with course details
-    const allProgress = await db
-      .select({
-        courseId: studentProgress.courseId,
-        totalProgress: studentProgress.totalProgress,
-        completedChapters: studentProgress.completedChapters,
-        watchedVideos: studentProgress.watchedVideos,
-        quizAttempts: studentProgress.quizAttempts,
-        lastAccessed: studentProgress.lastAccessed,
-        course: {
-          id: courses.id,
-          title: courses.title,
-          description: courses.description,
-          instructor: courses.instructor,
-          thumbnail: courses.thumbnail,
-          status: courses.status,
-        },
-      })
-      .from(studentProgress)
-      .innerJoin(courses, eq(studentProgress.courseId, courses.id))
-      .where(
-        and(
-          eq(studentProgress.studentId, decoded.id),
-          or(
-            eq(courses.status, 'published'),
-            eq(courses.status, 'active')
+    // Get all enrolled courses from both studentProgress and enrollments tables
+    let progressRecords: any[] = [];
+    let enrollmentRecords: any[] = [];
+    
+    try {
+      // Get from studentProgress table
+      progressRecords = await db
+        .select({
+          courseId: studentProgress.courseId,
+          totalProgress: studentProgress.totalProgress,
+          completedChapters: studentProgress.completedChapters,
+          watchedVideos: studentProgress.watchedVideos,
+          quizAttempts: studentProgress.quizAttempts,
+          lastAccessed: studentProgress.lastAccessed,
+          course: {
+            id: courses.id,
+            title: courses.title,
+            description: courses.description,
+            instructor: courses.instructor,
+            thumbnail: courses.thumbnail,
+            status: courses.status,
+          },
+        })
+        .from(studentProgress)
+        .innerJoin(courses, eq(studentProgress.courseId, courses.id))
+        .where(
+          and(
+            eq(studentProgress.studentId, decoded.id),
+            or(
+              eq(courses.status, 'published'),
+              eq(courses.status, 'active')
+            )
           )
-        )
-      );
+        );
+    } catch (error: any) {
+      console.error('Error fetching progress records:', error);
+    }
+    
+    try {
+      // Get from enrollments table
+      enrollmentRecords = await db
+        .select({
+          courseId: enrollments.courseId,
+          progress: enrollments.progress,
+          course: {
+            id: courses.id,
+            title: courses.title,
+            description: courses.description,
+            instructor: courses.instructor,
+            thumbnail: courses.thumbnail,
+            status: courses.status,
+          },
+        })
+        .from(enrollments)
+        .innerJoin(courses, eq(enrollments.courseId, courses.id))
+        .where(
+          and(
+            eq(enrollments.userId, decoded.id),
+            or(
+              eq(courses.status, 'published'),
+              eq(courses.status, 'active')
+            )
+          )
+        );
+    } catch (error: any) {
+      // If enrollments table doesn't exist or query fails, continue with just progress records
+      console.log('Enrollments table query failed (may not exist):', error.message);
+      enrollmentRecords = [];
+    }
 
-    // Filter out courses with pending requests
-    const filteredProgress = allProgress.filter((p: any) => 
+    // Create a map of all enrolled courses
+    const enrolledCoursesMap = new Map();
+    
+    // Add courses from studentProgress
+    progressRecords.forEach((p: any) => {
+      enrolledCoursesMap.set(p.courseId, {
+        courseId: p.courseId,
+        totalProgress: p.totalProgress,
+        completedChapters: p.completedChapters,
+        watchedVideos: p.watchedVideos,
+        quizAttempts: p.quizAttempts,
+        lastAccessed: p.lastAccessed,
+        course: p.course,
+      });
+    });
+    
+    // Add courses from enrollments that don't have progress records
+    // Also create progress records for them in the database
+    for (const e of enrollmentRecords) {
+      if (!enrolledCoursesMap.has(e.courseId)) {
+        // Create a progress record in the database if it doesn't exist
+        try {
+          const existingProgress = await db
+            .select({ id: studentProgress.id })
+            .from(studentProgress)
+            .where(
+              and(
+                eq(studentProgress.studentId, decoded.id),
+                eq(studentProgress.courseId, e.courseId)
+              )
+            )
+            .limit(1);
+          
+          if (existingProgress.length === 0) {
+            // Create progress record
+            await db.insert(studentProgress).values({
+              studentId: decoded.id,
+              courseId: e.courseId,
+              completedChapters: '[]',
+              watchedVideos: '[]',
+              quizAttempts: '[]',
+              totalProgress: e.progress || 0,
+            });
+            console.log(`✅ Created progress record for course ${e.courseId} for student ${decoded.id}`);
+          }
+        } catch (error: any) {
+          console.error(`Error creating progress record for course ${e.courseId}:`, error);
+        }
+        
+        // Add to map for response
+        enrolledCoursesMap.set(e.courseId, {
+          courseId: e.courseId,
+          totalProgress: e.progress || 0,
+          completedChapters: '[]',
+          watchedVideos: '[]',
+          quizAttempts: '[]',
+          lastAccessed: new Date(),
+          course: e.course,
+        });
+      }
+    }
+
+    // Convert map to array and filter out courses with pending requests
+    const filteredProgress = Array.from(enrolledCoursesMap.values()).filter((p: any) => 
       !pendingRequestCourseIds.includes(p.courseId)
     );
 

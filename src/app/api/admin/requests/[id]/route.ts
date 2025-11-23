@@ -118,12 +118,28 @@ export async function PATCH(
       courseTitle: accessRequest.courseTitle
     });
 
+    // If request is already approved/rejected, just delete it and return success
+    // This handles cases where the request was approved but not deleted
     if (accessRequest.status !== 'pending') {
-      console.warn('⚠️ Request already reviewed. Current status:', accessRequest.status);
-      return NextResponse.json(
-        { message: `Request has already been reviewed (status: ${accessRequest.status})` },
-        { status: 400 }
-      );
+      console.warn(`⚠️ Request #${requestId} already reviewed (status: ${accessRequest.status}). Deleting it now.`);
+      try {
+        await db.delete(accessRequests).where(eq(accessRequests.id, requestId));
+        console.log(`🗑️ Deleted already-reviewed request #${requestId}`);
+        return NextResponse.json({
+          message: `Request was already ${accessRequest.status} and has been removed`,
+          action: accessRequest.status === 'approved' ? 'approve' : 'deny',
+          requestId,
+          studentId: accessRequest.studentId,
+          courseId: accessRequest.courseId,
+          deleted: true,
+        });
+      } catch (deleteError: any) {
+        console.error(`❌ Failed to delete already-reviewed request #${requestId}:`, deleteError);
+        return NextResponse.json(
+          { message: `Request already reviewed (status: ${accessRequest.status})` },
+          { status: 400 }
+        );
+      }
     }
 
     // Update request status
@@ -160,10 +176,41 @@ export async function PATCH(
         } else {
           console.log(`ℹ️ Student ${accessRequest.studentId} already enrolled in course ${accessRequest.courseId}`);
         }
+        
+        // Verify enrollment was successful before deleting request
+        const enrollmentCheck = await db
+          .select()
+          .from(studentProgress)
+          .where(
+            and(
+              eq(studentProgress.studentId, accessRequest.studentId),
+              eq(studentProgress.courseId, accessRequest.courseId)
+            )
+          )
+          .limit(1);
+        
+        // Delete the request regardless - it's been approved and processed
+        // Even if enrollment check fails, we should delete since status is already updated to 'approved'
+        try {
+          await db.delete(accessRequests).where(eq(accessRequests.id, requestId));
+          console.log(`🗑️ Deleted access request #${requestId} after approval`);
+        } catch (deleteError: any) {
+          console.error(`❌ Failed to delete request #${requestId}:`, deleteError);
+          // Continue even if deletion fails - the status is already updated
+        }
+        
+        if (enrollmentCheck.length === 0) {
+          console.warn(`⚠️ Enrollment not confirmed for request #${requestId}, but request deleted`);
+        }
       } catch (enrollmentError: any) {
         console.error('❌ Error syncing enrollment:', enrollmentError);
-        // Don't fail the whole request if enrollment sync fails - request is already approved
-        // But log it for debugging
+        // Still try to delete the request since it's been approved
+        try {
+          await db.delete(accessRequests).where(eq(accessRequests.id, requestId));
+          console.log(`🗑️ Deleted access request #${requestId} after approval (despite enrollment error)`);
+        } catch (deleteError: any) {
+          console.error(`❌ Failed to delete request #${requestId}:`, deleteError);
+        }
         console.warn('⚠️ Request approved but enrollment sync failed. Student may need manual enrollment.');
       }
 
@@ -180,6 +227,14 @@ export async function PATCH(
         // Don't fail the request if notification fails
       }
     } else {
+      // For denied requests, delete immediately
+      try {
+        await db.delete(accessRequests).where(eq(accessRequests.id, requestId));
+        console.log(`🗑️ Deleted denied access request #${requestId}`);
+      } catch (deleteError: any) {
+        console.error('⚠️ Failed to delete denied request (non-critical):', deleteError);
+      }
+      
       // Send notification for denied requests (non-blocking)
       try {
         await sendRequestStatusNotification(
@@ -193,12 +248,16 @@ export async function PATCH(
       }
     }
 
+    // Return response indicating request was processed and deleted
     return NextResponse.json({
-      message: action === 'approve' ? 'Request approved and access granted' : 'Request denied',
+      message: action === 'approve' 
+        ? 'Request approved, access granted, and request removed' 
+        : 'Request denied and removed',
       action,
       requestId,
       studentId: accessRequest.studentId,
       courseId: accessRequest.courseId,
+      deleted: true, // Indicate that the request was deleted
     });
   } catch (error: any) {
     console.error('❌ [PATCH /api/admin/requests/[id]] Unexpected error:', error);

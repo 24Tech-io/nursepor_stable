@@ -535,23 +535,27 @@ const RequestsInbox = ({ nav }: { nav: (mod: string) => void }) => {
       if (response.ok) {
         const data = await response.json();
         
-        // Force refresh requests list with a delay to ensure DB is updated
-        // The delay helps ensure the database transaction is committed
-        setTimeout(async () => {
-          await fetchRequests();
-        }, 1000);
+        // The PATCH endpoint always deletes requests after processing
+        // So we should always refresh, but with a small delay to ensure DB transaction is committed
+        console.log(`✅ [Frontend] Request ${requestId} ${action}d, refreshing list...`);
         
-        // Also refresh immediately (in case it's already updated)
+        // Refresh immediately (optimistic update)
         await fetchRequests();
         
+        // Also refresh after a short delay to ensure database transaction is fully committed
+        // This handles any race conditions where the GET request might run before deletion completes
+        setTimeout(async () => {
+          console.log(`🔄 [Frontend] Secondary refresh for request ${requestId}...`);
+          await fetchRequests();
+        }, 300);
+        
         // Show success message
-        const message = data.alreadyApproved || data.alreadyDenied 
-          ? data.message 
-          : (data.message || `Request ${action}d successfully`);
+        const message = data.message || `Request ${action}d and removed successfully`;
         notification.showSuccess(message);
         
         // If approved, the enrollment sync utility will handle enrollment automatically
         if (action === 'approve') {
+          console.log(`✅ [Frontend] Request ${requestId} approved - enrollment will be synced automatically`);
         }
       } else {
         // Try to get error message from response
@@ -577,7 +581,25 @@ const RequestsInbox = ({ nav }: { nav: (mod: string) => void }) => {
   };
 
   // Filter requests - only show truly pending requests
-  const pendingRequests = requests.filter(r => r.status === 'pending');
+  // Also filter out any requests that have reviewedAt set (they should be deleted)
+  const pendingRequests = requests.filter(r => {
+    const isPending = r.status === 'pending';
+    const hasReviewedAt = r.reviewedAt;
+    
+    // If it has reviewedAt but status is pending, it's inconsistent - don't show it
+    if (hasReviewedAt && isPending) {
+      console.warn(`⚠️ Request ${r.id} has reviewedAt but status is 'pending' - data inconsistency!`, r);
+      return false;
+    }
+    
+    // If status is not pending, don't show it
+    if (!isPending) {
+      return false;
+    }
+    
+    return true;
+  });
+  
   const reviewedRequests = requests.filter(r => r.status !== 'pending' && r.status !== null && r.status !== undefined);
   
   // Validate request data consistency
@@ -585,7 +607,11 @@ const RequestsInbox = ({ nav }: { nav: (mod: string) => void }) => {
     // Log any requests that should be reviewed but aren't
     requests.forEach((r: any) => {
       if (r.reviewedAt && r.status === 'pending') {
-        console.warn(`Request ${r.id} has reviewedAt but status is still 'pending'!`, r);
+        console.warn(`⚠️ Request ${r.id} has reviewedAt but status is still 'pending'! This should be deleted.`, r);
+      }
+      // Log approved/rejected requests that shouldn't be in the list
+      if (r.status === 'approved' || r.status === 'rejected') {
+        console.warn(`⚠️ Request ${r.id} has status '${r.status}' but is still in database - should be deleted!`, r);
       }
     });
   }, [requests]);

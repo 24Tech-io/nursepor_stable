@@ -114,10 +114,31 @@ export async function POST(request: NextRequest) {
           { status: 400 }
         );
       } else if (status === 'approved') {
-        return NextResponse.json(
-          { message: 'Your request for this course has already been approved' },
-          { status: 400 }
-        );
+        // Check if student is actually enrolled - if not, delete old approved request and allow new request
+        const enrollmentCheck = await db
+          .select()
+          .from(studentProgress)
+          .where(
+            and(
+              eq(studentProgress.studentId, decoded.id),
+              eq(studentProgress.courseId, courseIdNum)
+            )
+          )
+          .limit(1);
+        
+        if (enrollmentCheck.length > 0) {
+          // Student is enrolled, delete the old approved request
+          await db.delete(accessRequests).where(eq(accessRequests.id, existing[0].id));
+          console.log(`🗑️ Deleted old approved request #${existing[0].id} - student is already enrolled`);
+          return NextResponse.json(
+            { message: 'You are already enrolled in this course' },
+            { status: 400 }
+          );
+        } else {
+          // Approved but not enrolled - delete old request and allow new one
+          await db.delete(accessRequests).where(eq(accessRequests.id, existing[0].id));
+          console.log(`🗑️ Deleted old approved request #${existing[0].id} - student not enrolled, allowing new request`);
+        }
       } else if (status === 'rejected') {
         // Allow re-request for rejected courses after deleting old request
         await db.delete(accessRequests).where(eq(accessRequests.id, existing[0].id));
@@ -163,6 +184,23 @@ export async function POST(request: NextRequest) {
       status: result[0].status,
       requestedAt: result[0].requestedAt
     });
+
+    // Verify the request was actually created and is queryable
+    const verifyRequest = await db
+      .select()
+      .from(accessRequests)
+      .where(eq(accessRequests.id, result[0].id))
+      .limit(1);
+    
+    if (verifyRequest.length === 0) {
+      console.error('❌ CRITICAL: Request was created but cannot be queried!');
+      return NextResponse.json(
+        { message: 'Request created but verification failed', error: 'Database consistency issue' },
+        { status: 500 }
+      );
+    }
+    
+    console.log('✅ Request verification passed - request is queryable with ID:', result[0].id);
 
     return NextResponse.json({
       message: 'Request submitted successfully',

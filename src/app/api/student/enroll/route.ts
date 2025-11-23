@@ -115,6 +115,9 @@ export async function POST(request: NextRequest) {
       .values({
         studentId,
         courseId: courseIdNum,
+        completedChapters: '[]',
+        watchedVideos: '[]',
+        quizAttempts: '[]',
         totalProgress: 0,
       })
       .returning();

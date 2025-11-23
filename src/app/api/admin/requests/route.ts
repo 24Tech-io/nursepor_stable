@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/auth';
 import { getDatabase } from '@/lib/db';
-import { accessRequests, users, courses } from '@/lib/db/schema';
-import { eq, desc } from 'drizzle-orm';
+import { accessRequests, users, courses, studentProgress } from '@/lib/db/schema';
+import { eq, desc, and } from 'drizzle-orm';
 
 // GET - Fetch all access requests
 export async function GET(request: NextRequest) {
@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
     const db = getDatabase();
 
     // Fetch all requests with student and course details
-    const requests = await db
+    const allRequests = await db
       .select({
         id: accessRequests.id,
         studentId: accessRequests.studentId,
@@ -39,7 +39,52 @@ export async function GET(request: NextRequest) {
       .innerJoin(courses, eq(accessRequests.courseId, courses.id))
       .orderBy(desc(accessRequests.requestedAt));
 
-    return NextResponse.json({ requests });
+    // Filter out approved/rejected requests where student is already enrolled
+    // This cleans up old requests that should have been deleted
+    const enrolledCourses = await db
+      .select({
+        studentId: studentProgress.studentId,
+        courseId: studentProgress.courseId,
+      })
+      .from(studentProgress);
+
+    const enrolledSet = new Set(
+      enrolledCourses.map((e: any) => `${e.studentId}-${e.courseId}`)
+    );
+
+    // Filter requests: ONLY show pending requests
+    // Approved/rejected requests should be deleted immediately, so we filter them out
+    const filteredRequests = allRequests.filter((req: any) => {
+      // Only show pending requests
+      if (req.status !== 'pending') {
+        console.log(`🔍 Filtering out ${req.status} request #${req.id} - only showing pending requests`);
+        return false;
+      }
+      return true;
+    });
+
+    // Clean up ALL approved/rejected requests (they should be deleted immediately after processing)
+    const requestsToDelete = allRequests.filter((req: any) => req.status !== 'pending');
+
+    if (requestsToDelete.length > 0) {
+      // Delete all non-pending requests synchronously to ensure cleanup
+      try {
+        const deleteIds = requestsToDelete.map((req: any) => req.id);
+        for (const id of deleteIds) {
+          try {
+            await db.delete(accessRequests).where(eq(accessRequests.id, id));
+            console.log(`🗑️ Cleaned up ${requestsToDelete.find((r: any) => r.id === id)?.status || 'processed'} request #${id}`);
+          } catch (err: any) {
+            console.error(`Error cleaning up request #${id}:`, err);
+          }
+        }
+        console.log(`🧹 Cleaned up ${requestsToDelete.length} processed requests (approved/rejected)`);
+      } catch (error: any) {
+        console.error('Error during request cleanup:', error);
+      }
+    }
+
+    return NextResponse.json({ requests: filteredRequests });
   } catch (error: any) {
     console.error('Get requests error:', error);
     return NextResponse.json(
