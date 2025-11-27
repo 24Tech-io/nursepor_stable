@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useEffect } from 'react';
 import LoadingSpinner from '@/components/student/LoadingSpinner';
+import { syncClient } from '@/lib/sync-client';
 
 type ProgressItem = {
   courseId: string;
@@ -34,13 +35,16 @@ export default function ProgressPage() {
 
       if (response.ok) {
         const data = await response.json();
+        console.log('📊 [Progress Page] Received progress data:', data);
+        console.log('📊 [Progress Page] Progress items count:', data.progress?.length || 0);
         setProgress(data.progress || []);
       } else {
-        console.error('Failed to fetch progress:', response.status);
+        const errorText = await response.text();
+        console.error('❌ [Progress Page] Failed to fetch progress:', response.status, errorText);
         setProgress([]);
       }
     } catch (error) {
-      console.error('Error fetching progress:', error);
+      console.error('❌ [Progress Page] Error fetching progress:', error);
       setProgress([]);
     } finally {
       setIsLoading(false);
@@ -50,7 +54,15 @@ export default function ProgressPage() {
   useEffect(() => {
     fetchProgress();
     
-    // Refresh progress when page comes into focus (e.g., after enrolling in a course)
+    // Start sync client for auto-updates
+    syncClient.start();
+    syncClient.on('sync', (syncData: any) => {
+      console.log('🔄 [Progress Page] Sync update received:', syncData);
+      // Refresh progress when sync update is received
+      fetchProgress();
+    });
+    
+    // Refresh progress when page comes into focus
     const handleFocus = () => {
       fetchProgress();
     };
@@ -59,6 +71,8 @@ export default function ProgressPage() {
     
     return () => {
       window.removeEventListener('focus', handleFocus);
+      syncClient.off('sync', fetchProgress);
+      syncClient.stop();
     };
   }, []);
 

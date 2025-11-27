@@ -54,13 +54,56 @@ export async function GET(request: NextRequest) {
       );
 
     const pendingRequestCourseIds = pendingRequests.map((r: any) => r.courseId);
+    
+    // Also get approved requests to sync enrollments
+    const approvedRequests = await db
+      .select({
+        courseId: accessRequests.courseId,
+      })
+      .from(accessRequests)
+      .where(
+        and(
+          eq(accessRequests.studentId, decoded.id),
+          eq(accessRequests.status, 'approved')
+        )
+      );
+    
+    const approvedRequestCourseIds = approvedRequests.map((r: any) => r.courseId);
+    
+    console.log(`🔍 [Progress Details] Student ${decoded.id}: Found ${pendingRequestCourseIds.length} pending requests and ${approvedRequestCourseIds.length} approved requests`);
+    
+    // For approved requests, ensure enrollment exists (sync)
+    if (approvedRequestCourseIds.length > 0) {
+      const { syncEnrollmentAfterApproval } = await import('@/lib/enrollment-sync');
+      for (const courseId of approvedRequestCourseIds) {
+        try {
+          const existing = await db
+            .select({ id: studentProgress.id })
+            .from(studentProgress)
+            .where(
+              and(
+                eq(studentProgress.studentId, decoded.id),
+                eq(studentProgress.courseId, courseId)
+              )
+            )
+            .limit(1);
+          
+          if (existing.length === 0) {
+            console.log(`🔄 [Progress Details] Syncing enrollment for approved request: student ${decoded.id}, course ${courseId}`);
+            await syncEnrollmentAfterApproval(decoded.id, courseId);
+          }
+        } catch (syncError: any) {
+          console.error(`❌ [Progress Details] Error syncing enrollment for course ${courseId}:`, syncError);
+        }
+      }
+    }
 
     // Get all enrolled courses from both studentProgress and enrollments tables
     let progressRecords: any[] = [];
     let enrollmentRecords: any[] = [];
     
     try {
-      // Get from studentProgress table
+      // Get from studentProgress table - Don't filter by status in query, filter after
       progressRecords = await db
         .select({
           courseId: studentProgress.courseId,
@@ -80,22 +123,28 @@ export async function GET(request: NextRequest) {
         })
         .from(studentProgress)
         .innerJoin(courses, eq(studentProgress.courseId, courses.id))
-        .where(
-          and(
-            eq(studentProgress.studentId, decoded.id),
-            or(
-              eq(courses.status, 'published'),
-              eq(courses.status, 'active')
-            )
-          )
-        );
+        .where(eq(studentProgress.studentId, decoded.id));
+      
+      console.log(`📊 [Progress Details] Found ${progressRecords.length} progress records from studentProgress table`);
+      
+      // Filter by status AFTER fetching (case-insensitive)
+      progressRecords = progressRecords.filter((p: any) => {
+        const status = (p.course.status || '').toLowerCase();
+        const isValid = status === 'published' || status === 'active';
+        if (!isValid) {
+          console.log(`⚠️ [Progress Details] Filtering out course ${p.course.id} (${p.course.title}) - status: ${p.course.status}`);
+        }
+        return isValid;
+      });
+      
+      console.log(`📊 [Progress Details] After status filter: ${progressRecords.length} records`);
     } catch (error: any) {
-      console.error('Error fetching progress records:', error);
+      console.error('❌ [Progress Details] Error fetching progress records:', error);
     }
     
     try {
       // Get from enrollments table
-      enrollmentRecords = await db
+      const allEnrollmentRecords = await db
         .select({
           courseId: enrollments.courseId,
           progress: enrollments.progress,
@@ -110,15 +159,15 @@ export async function GET(request: NextRequest) {
         })
         .from(enrollments)
         .innerJoin(courses, eq(enrollments.courseId, courses.id))
-        .where(
-          and(
-            eq(enrollments.userId, decoded.id),
-            or(
-              eq(courses.status, 'published'),
-              eq(courses.status, 'active')
-            )
-          )
-        );
+        .where(eq(enrollments.userId, decoded.id));
+      
+      // Filter by status (case-insensitive)
+      enrollmentRecords = allEnrollmentRecords.filter((e: any) => {
+        const status = (e.course.status || '').toLowerCase();
+        return status === 'published' || status === 'active';
+      });
+      
+      console.log(`📊 [Progress Details] Found ${enrollmentRecords.length} enrollment records`);
     } catch (error: any) {
       // If enrollments table doesn't exist or query fails, continue with just progress records
       console.log('Enrollments table query failed (may not exist):', error.message);
@@ -188,9 +237,16 @@ export async function GET(request: NextRequest) {
     }
 
     // Convert map to array and filter out courses with pending requests
-    const filteredProgress = Array.from(enrolledCoursesMap.values()).filter((p: any) => 
-      !pendingRequestCourseIds.includes(p.courseId)
-    );
+    const allProgress = Array.from(enrolledCoursesMap.values());
+    const filteredProgress = allProgress.filter((p: any) => {
+      const hasPendingRequest = pendingRequestCourseIds.includes(p.courseId);
+      if (hasPendingRequest) {
+        console.log(`⚠️ [Progress Details] Filtering out course ${p.courseId} (${p.course.title}) - has pending request`);
+      }
+      return !hasPendingRequest;
+    });
+    
+    console.log(`✅ [Progress Details] Total enrolled courses: ${allProgress.length}, After filtering pending requests: ${filteredProgress.length}`);
 
     // Parse the JSON fields and calculate stats
     const progressList = filteredProgress.map((p: any) => {
@@ -235,6 +291,15 @@ export async function GET(request: NextRequest) {
         lastAccessed: p.lastAccessed ? new Date(p.lastAccessed).toISOString() : new Date().toISOString(),
       };
     });
+    
+    console.log(`✅ [Progress Details] Returning ${progressList.length} progress items for student ${decoded.id}`);
+    if (progressList.length > 0) {
+      console.log(`📋 [Progress Details] Progress items:`, progressList.map((p: any) => ({
+        courseId: p.courseId,
+        title: p.course.title,
+        totalProgress: p.totalProgress
+      })));
+    }
 
     return NextResponse.json({
       progress: progressList,

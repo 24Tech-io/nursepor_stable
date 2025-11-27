@@ -119,6 +119,25 @@ export async function syncEnrollmentAfterApproval(
       throw new Error(`Invalid parameters: studentId=${studentId}, courseId=${courseId}`);
     }
 
+    // Validate that course and user exist
+    const { courses, users } = await import('./db/schema');
+    const { eq } = await import('drizzle-orm');
+    
+    const [courseCheck, userCheck] = await Promise.all([
+      db.select().from(courses).where(eq(courses.id, courseId)).limit(1),
+      db.select().from(users).where(eq(users.id, studentId)).limit(1)
+    ]);
+
+    if (courseCheck.length === 0) {
+      throw new Error(`Course ${courseId} does not exist`);
+    }
+
+    if (userCheck.length === 0) {
+      throw new Error(`User ${studentId} does not exist`);
+    }
+
+    console.log(`✅ [syncEnrollmentAfterApproval] Validated course and user exist`);
+
     let created = false;
 
     // 1. Check/Create studentProgress (Legacy but required for progress tracking)
@@ -221,20 +240,73 @@ export async function cleanupInconsistentStates(studentId: number): Promise<numb
 
     if (enrolledCourseIds.length > 0) {
       // Delete pending requests for enrolled courses
-      const result = await db
-        .delete(accessRequests)
-        .where(
-          and(
-            eq(accessRequests.studentId, studentId),
-            eq(accessRequests.status, 'pending')
-          )
-        );
-
-      console.log(`🧹 Cleanup: Found ${enrolledCourseIds.length} enrolled courses`);
+      for (const courseId of enrolledCourseIds) {
+        const result = await db
+          .delete(accessRequests)
+          .where(
+            and(
+              eq(accessRequests.studentId, studentId),
+              eq(accessRequests.courseId, courseId),
+              eq(accessRequests.status, 'pending')
+            )
+          );
+        cleaned += result ? 1 : 0;
+      }
+      console.log(`🧹 Cleanup: Found ${enrolledCourseIds.length} enrolled courses, deleted ${cleaned} pending requests`);
     }
   } catch (error) {
     console.error('Error cleaning up states:', error);
   }
 
   return cleaned;
+}
+
+/**
+ * Sync progress from studentProgress to enrollments table
+ * Ensures enrollments.progress matches studentProgress.totalProgress
+ */
+export async function syncProgressToEnrollments(
+  userId: number,
+  courseId: number,
+  progress: number
+): Promise<void> {
+  try {
+    const db = getDatabase();
+    
+    // Update enrollments.progress to match studentProgress.totalProgress
+    await db
+      .update(enrollments)
+      .set({ 
+        progress: Math.min(100, Math.max(0, progress)), // Clamp 0-100
+        updatedAt: new Date()
+      })
+      .where(
+        and(
+          eq(enrollments.userId, userId),
+          eq(enrollments.courseId, courseId)
+        )
+      );
+    
+    console.log(`✅ Synced progress: enrollments.progress = ${progress}% for user ${userId}, course ${courseId}`);
+  } catch (error: any) {
+    // If enrollment doesn't exist, create it
+    if (error.code === '23503' || error.message?.includes('not found')) {
+      console.log(`ℹ️ Enrollment not found, creating...`);
+      try {
+        await db.insert(enrollments).values({
+          userId,
+          courseId,
+          status: 'active',
+          progress: Math.min(100, Math.max(0, progress)),
+        });
+        console.log(`✅ Created enrollment with progress ${progress}%`);
+      } catch (createError: any) {
+        console.error(`❌ Error creating enrollment:`, createError);
+        // Don't throw - progress sync is not critical enough to fail the operation
+      }
+    } else {
+      console.error(`❌ Error syncing progress to enrollments:`, error);
+      // Don't throw - progress sync is not critical enough to fail the operation
+    }
+  }
 }

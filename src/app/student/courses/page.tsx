@@ -3,6 +3,7 @@
 import { useMemo, useState, useEffect } from 'react';
 import CourseCard from '@/components/student/CourseCard';
 import LoadingSpinner from '@/components/student/LoadingSpinner';
+import { syncClient } from '@/lib/sync-client';
 
 type Course = {
   id: string;
@@ -104,6 +105,19 @@ export default function CoursesPage() {
     };
     
     fetchData();
+    
+    // Start sync client for auto-updates
+    syncClient.start();
+    syncClient.on('sync', (syncData: any) => {
+      console.log('🔄 [Courses Page] Sync update received:', syncData);
+      // Refresh data when sync update is received
+      fetchData();
+    });
+    
+    return () => {
+      syncClient.off('sync', fetchData);
+      syncClient.stop();
+    };
   }, []);
 
 
@@ -113,7 +127,11 @@ export default function CoursesPage() {
   }, [courses, query]);
 
   const enrolled = filtered.filter(c => c.isEnrolled && c.status === 'published');
-  const locked = filtered.filter(c => !c.isEnrolled && c.status === 'published');
+  const locked = filtered.filter(c => 
+    !c.isEnrolled && 
+    c.status === 'published' && 
+    !pendingRequestCourseIds.includes(c.id)  // Exclude courses with pending requests
+  );
 
   function requestAccess(courseId: string) {
     setRequestingId(courseId);

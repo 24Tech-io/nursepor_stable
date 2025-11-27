@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/auth';
 import { getDatabase } from '@/lib/db';
-import { accessRequests, users, courses } from '@/lib/db/schema';
+import { accessRequests, users, courses, studentProgress } from '@/lib/db/schema';
 import { eq, desc, and, ne, or, isNotNull } from 'drizzle-orm';
 
 // GET - Fetch all access requests
@@ -83,14 +83,63 @@ export async function GET(request: NextRequest) {
         reviewedAt: accessRequests.reviewedAt,
       })
       .from(accessRequests)
-      .leftJoin(users, eq(accessRequests.studentId, users.id))
-      .leftJoin(courses, eq(accessRequests.courseId, courses.id))
+      .innerJoin(users, eq(accessRequests.studentId, users.id))
+      .innerJoin(courses, eq(accessRequests.courseId, courses.id))
       .where(eq(accessRequests.status, 'pending')) // Database-level filter
       .orderBy(desc(accessRequests.requestedAt));
     
+    // STEP 2.5: Clean up requests where student is already enrolled
+    // This fixes the critical issue where approved requests weren't properly deleted
+    const requestsToDeleteForEnrollment: number[] = [];
+    try {
+      console.log('🧹 [GET /api/requests] Checking for requests where students are already enrolled...');
+      
+      if (allPendingRequests.length > 0) {
+        const enrollments = await db
+          .select({
+            studentId: studentProgress.studentId,
+            courseId: studentProgress.courseId,
+          })
+          .from(studentProgress)
+          .limit(10000);
+        
+        const enrollmentSet = new Set(
+          enrollments.map((e: any) => `${e.studentId}-${e.courseId}`)
+        );
+        
+        allPendingRequests.forEach((req: any) => {
+          const key = `${req.studentId}-${req.courseId}`;
+          if (enrollmentSet.has(key)) {
+            console.warn(`⚠️ [GET /api/requests] Student ${req.studentId} already enrolled in course ${req.courseId} (${req.courseTitle || 'Unknown'}) - deleting stale request #${req.id}`);
+            requestsToDeleteForEnrollment.push(req.id);
+          }
+        });
+        
+        if (requestsToDeleteForEnrollment.length > 0) {
+          for (const id of requestsToDeleteForEnrollment) {
+            try {
+              await db.delete(accessRequests).where(eq(accessRequests.id, id));
+              console.log(`🗑️ [GET /api/requests] Deleted stale request #${id} (student already enrolled)`);
+            } catch (err: any) {
+              console.error(`❌ [GET /api/requests] Error deleting stale request #${id}:`, err);
+            }
+          }
+          console.log(`✅ [GET /api/requests] Cleaned up ${requestsToDeleteForEnrollment.length} stale requests`);
+        }
+      }
+    } catch (enrollmentCleanupError: any) {
+      console.error('❌ [GET /api/requests] Error during enrollment cleanup:', enrollmentCleanupError);
+    }
+    
     // Filter out any requests with reviewedAt set (these were processed but status wasn't updated)
+    // Also filter out requests that were deleted during enrollment cleanup
     const inconsistentIds: number[] = [];
     const pendingRequests = allPendingRequests.filter((req: any) => {
+      // Skip requests that were deleted during enrollment cleanup
+      if (requestsToDeleteForEnrollment.includes(req.id)) {
+        return false;
+      }
+      
       // Check properly for null/undefined
       if (req.reviewedAt !== null && req.reviewedAt !== undefined) {
         console.warn(`⚠️ [GET /api/requests] Found request #${req.id} with status='pending' but reviewedAt is set - will delete`);
@@ -117,14 +166,21 @@ export async function GET(request: NextRequest) {
     // (These shouldn't exist after cleanup, but double-check)
     const inconsistentRequestIds: number[] = [];
     const validatedRequests = pendingRequests.filter((req: any) => {
-      // Handle orphaned requests (deleted user or course)
-      if (!req.studentName && !req.studentEmail) {
-        console.warn(`⚠️ [GET /api/requests] Orphaned request #${req.id} - user not found (studentId: ${req.studentId})`);
-        // Still return it, but log the warning
+      // Skip requests that were deleted during enrollment cleanup
+      if (requestsToDeleteForEnrollment.includes(req.id)) {
+        return false;
       }
-      if (!req.courseTitle) {
-        console.warn(`⚠️ [GET /api/requests] Orphaned request #${req.id} - course not found (courseId: ${req.courseId})`);
-        // Still return it, but log the warning
+      
+      // Handle orphaned requests (deleted user or course) - delete them
+      if (!req.studentName || !req.studentEmail) {
+        console.warn(`⚠️ [GET /api/requests] Orphaned request #${req.id} - user not found (studentId: ${req.studentId}). Deleting...`);
+        inconsistentRequestIds.push(req.id);
+        return false;
+      }
+      if (!req.courseTitle || !req.courseId) {
+        console.warn(`⚠️ [GET /api/requests] Orphaned request #${req.id} - course not found (courseId: ${req.courseId}). Deleting...`);
+        inconsistentRequestIds.push(req.id);
+        return false;
       }
       
       // CRITICAL: If reviewedAt is set, this request was already processed - don't show it

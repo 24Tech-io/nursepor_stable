@@ -58,6 +58,7 @@ const CJMM_STEPS = [
 
 import StudentProfile from './admin/StudentProfile';
 import QuestionTypeBuilder from './qbank/QuestionTypeBuilder';
+import { adminSyncClient } from '@/lib/sync-client';
 
 // --- ROOT COMPONENT ---
 export default function NurseProAdminUltimate({ 
@@ -312,6 +313,49 @@ const Dashboard = ({ nav }: { nav: (mod: string) => void }) => {
   const [stats, setStats] = React.useState({ courses: 0, questions: 0, students: 0 });
   const [activityLogs, setActivityLogs] = React.useState<any[]>([]);
 
+  // Fetch dashboard stats
+  const fetchDashboardStats = async () => {
+    try {
+      const [coursesRes, qbankRes, studentsRes] = await Promise.all([
+        fetch('/api/courses', { credentials: 'include' }),
+        fetch('/api/qbank?countOnly=true', { credentials: 'include' }),
+        fetch('/api/students', { credentials: 'include' })
+      ]);
+
+      if (coursesRes.ok) {
+        const coursesData = await coursesRes.json();
+        setStats(prev => ({ ...prev, courses: coursesData.courses?.length || 0 }));
+      }
+      if (qbankRes.ok) {
+        const qbankData = await qbankRes.json();
+        setStats(prev => ({ ...prev, questions: qbankData.count || 0 }));
+      }
+      if (studentsRes.ok) {
+        const studentsData = await studentsRes.json();
+        setStats(prev => ({ ...prev, students: studentsData.students?.length || 0 }));
+      }
+    } catch (error) {
+      console.error('Error fetching dashboard stats:', error);
+    }
+  };
+
+  React.useEffect(() => {
+    fetchDashboardStats();
+    
+    // Start admin sync client for auto-refresh
+    adminSyncClient.start();
+    const handleSync = (syncData: any) => {
+      console.log('🔄 Admin Dashboard: Sync update received:', syncData);
+      fetchDashboardStats(); // Refresh stats on sync
+    };
+    adminSyncClient.on('sync', handleSync);
+
+    return () => {
+      adminSyncClient.off('sync', handleSync);
+      adminSyncClient.stop();
+    };
+  }, []);
+
   React.useEffect(() => {
     const fetchStats = async () => {
       try {
@@ -493,6 +537,19 @@ const RequestsInbox = ({ nav }: { nav: (mod: string) => void }) => {
 
   React.useEffect(() => {
     fetchRequests();
+    
+    // Start admin sync client for auto-refresh
+    adminSyncClient.start();
+    const handleSync = (syncData: any) => {
+      console.log('🔄 Admin Requests: Sync update received:', syncData);
+      fetchRequests(); // Refresh requests on sync
+    };
+    adminSyncClient.on('sync', handleSync);
+
+    return () => {
+      adminSyncClient.off('sync', handleSync);
+      adminSyncClient.stop();
+    };
   }, []);
 
   const fetchRequests = async () => {
@@ -1006,6 +1063,19 @@ const Analytics = ({ nav }: { nav: (mod: string) => void }) => {
 
   React.useEffect(() => {
     fetchAnalytics();
+    
+    // Start admin sync client for auto-refresh
+    adminSyncClient.start();
+    const handleSync = (syncData: any) => {
+      console.log('🔄 Admin Analytics: Sync update received:', syncData);
+      fetchAnalytics(); // Refresh analytics on sync
+    };
+    adminSyncClient.on('sync', handleSync);
+
+    return () => {
+      adminSyncClient.off('sync', handleSync);
+      adminSyncClient.stop();
+    };
   }, [dateRange]);
 
   const fetchAnalytics = async () => {
@@ -1075,22 +1145,45 @@ const Analytics = ({ nav }: { nav: (mod: string) => void }) => {
         let enrollmentCount = 0;
         const engagementData: any[] = [];
         
+        console.log(`📊 [Analytics] Processing ${studentDetails.length} students with enrollments`);
         studentDetails.forEach((detailData, index) => {
           if (detailData?.student) {
             const student = studentsWithEnrollments[index];
             const enrollments = detailData.student.enrollments || [];
+            console.log(`📊 [Analytics] Student ${student.name} (ID: ${student.id}) has ${enrollments.length} enrollments`);
+            
+            if (enrollments.length === 0) {
+              console.warn(`⚠️ [Analytics] Student ${student.name} has 0 enrollments but enrolledCourses > 0`);
+            }
+            
             enrollments.forEach((e: any) => {
-              totalProgress += e.progress || 0;
+              // Ensure progress is always a number - use totalProgress if progress is missing
+              const progress = typeof e.progress === 'number' && e.progress >= 0 
+                ? e.progress 
+                : (typeof e.totalProgress === 'number' && e.totalProgress >= 0 ? e.totalProgress : 0);
+              
+              console.log(`📊 [Analytics] Course: ${e.course?.title || 'Unknown'}, Progress: ${progress}%, CourseId: ${e.courseId}, e.progress=${e.progress}, e.totalProgress=${e.totalProgress}`);
+              
+              if (progress === 0 && e.course?.title) {
+                console.warn(`⚠️ [Analytics] Student ${student.name} has 0% progress in ${e.course.title}`);
+              }
+              
+              totalProgress += progress;
               enrollmentCount++;
               engagementData.push({
                 studentName: student.name,
                 courseTitle: e.course?.title || 'Unknown',
-                progress: e.progress || 0,
+                courseId: e.courseId || e.course?.id, // ADD courseId for reliable matching
+                progress: progress, // Use calculated progress
                 lastAccessed: e.lastAccessed,
               });
             });
+          } else {
+            console.warn(`⚠️ [Analytics] Student detail data is missing for index ${index}`);
           }
         });
+        
+        console.log(`📊 [Analytics] Total engagement data items: ${engagementData.length}, Total progress sum: ${totalProgress}, Enrollment count: ${enrollmentCount}`);
 
         const averageProgress = enrollmentCount > 0 ? Math.round(totalProgress / enrollmentCount) : 0;
         const completedCount = engagementData.filter((e: any) => (e.progress || 0) >= 100).length;
@@ -1105,10 +1198,19 @@ const Analytics = ({ nav }: { nav: (mod: string) => void }) => {
         }));
 
         // Update course stats with enrollment data
+        // Match by courseId (preferred) or title (fallback) for accuracy
         const courseStatsData = courses.map((course: any) => {
-          const courseEnrollments = engagementData.filter(e => e.courseTitle === course.title);
+          const courseEnrollments = engagementData.filter(e => {
+            // Prefer courseId matching (more reliable)
+            const courseIdMatch = e.courseId && course.id && 
+              e.courseId.toString() === course.id.toString();
+            // Fallback to title matching (for legacy data)
+            const titleMatch = e.courseTitle === course.title;
+            return courseIdMatch || titleMatch;
+          });
           const enrollments = courseEnrollments.length;
-          const totalProgress = courseEnrollments.reduce((sum: number, e: any) => sum + e.progress, 0);
+          const totalProgress = courseEnrollments.reduce((sum: number, e: any) => 
+            sum + (e.progress || 0), 0);
           return {
             ...course,
             enrollments,
@@ -1332,23 +1434,26 @@ const Analytics = ({ nav }: { nav: (mod: string) => void }) => {
                   </div>
                 ) : studentEngagement.length > 0 ? (
                   studentEngagement
-                    .sort((a, b) => b.progress - a.progress)
+                    .sort((a, b) => (b.progress || 0) - (a.progress || 0))
                     .slice(0, 10)
-                    .map((engagement, idx) => (
-                      <div key={idx} className="p-3 bg-[#1a1d26] rounded-xl border border-slate-800/40">
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-sm font-semibold text-white">{engagement.studentName}</span>
-                          <span className="text-xs text-slate-400">{engagement.progress}%</span>
+                    .map((engagement, idx) => {
+                      const progress = Math.max(0, Math.min(100, engagement.progress || 0)); // Clamp between 0-100
+                      return (
+                        <div key={idx} className="p-3 bg-[#1a1d26] rounded-xl border border-slate-800/40">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-sm font-semibold text-white">{engagement.studentName}</span>
+                            <span className="text-xs text-slate-400">{progress}%</span>
+                          </div>
+                          <p className="text-xs text-slate-500 mb-2">{engagement.courseTitle}</p>
+                          <div className="h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-gradient-to-r from-green-600 to-emerald-600"
+                              style={{ width: `${progress}%` }}
+                            />
+                          </div>
                         </div>
-                        <p className="text-xs text-slate-500 mb-2">{engagement.courseTitle}</p>
-                        <div className="h-1.5 bg-slate-800 rounded-full overflow-hidden">
-                          <div
-                            className="h-full bg-gradient-to-r from-green-600 to-emerald-600"
-                            style={{ width: `${engagement.progress}%` }}
-                          />
-                        </div>
-                      </div>
-                    ))
+                      );
+                    })
                 ) : (
                   <p className="text-slate-400 text-center py-8">No engagement data available</p>
                 )}

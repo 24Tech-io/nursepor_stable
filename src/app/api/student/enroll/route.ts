@@ -3,6 +3,7 @@ import { verifyToken } from '@/lib/auth';
 import { getDatabase } from '@/lib/db';
 import { courses, studentProgress, accessRequests, enrollments } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
+import { enrollStudent } from '@/lib/data-manager/helpers/enrollment-helper';
 
 /**
  * POST - Direct enrollment for public courses
@@ -66,77 +67,30 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if already enrolled
-    const existingProgress = await db
-      .select()
-      .from(studentProgress)
-      .where(
-        and(
-          eq(studentProgress.studentId, studentId),
-          eq(studentProgress.courseId, courseIdNum)
-        )
-      )
-      .limit(1);
-
-    if (existingProgress.length > 0) {
-      return NextResponse.json(
-        { message: 'You are already enrolled in this course' },
-        { status: 400 }
-      );
-    }
-
-    // Check if there's a pending request (shouldn't happen for public courses, but check anyway)
-    const pendingRequest = await db
-      .select()
-      .from(accessRequests)
-      .where(
-        and(
-          eq(accessRequests.studentId, studentId),
-          eq(accessRequests.courseId, courseIdNum),
-          eq(accessRequests.status, 'pending')
-        )
-      )
-      .limit(1);
-
-    if (pendingRequest.length > 0) {
-      // Cancel the pending request since we're enrolling directly
-      await db
-        .update(accessRequests)
-        .set({
-          status: 'rejected',
-          reviewedAt: new Date(),
-        })
-        .where(eq(accessRequests.id, pendingRequest[0].id));
-    }
-
-    // Enroll student directly (Legacy studentProgress)
-    const [newProgress] = await db
-      .insert(studentProgress)
-      .values({
-        studentId,
-        courseId: courseIdNum,
-        completedChapters: '[]',
-        watchedVideos: '[]',
-        quizAttempts: '[]',
-        totalProgress: 0,
-      })
-      .returning();
-
-    // Enroll student directly (New enrollments table)
-    await db.insert(enrollments).values({
+    // Use DataManager for enrollment (with validation, transaction, and event emission)
+    const result = await enrollStudent({
       userId: studentId,
       courseId: courseIdNum,
-      status: 'active',
-      progress: 0,
+      source: 'student',
     });
 
-    console.log(`✅ Student ${studentId} enrolled directly in public course ${courseIdNum}`);
+    if (!result.success) {
+      return NextResponse.json(
+        {
+          message: result.error?.message || 'Failed to enroll in course',
+          error: result.error?.code,
+          details: result.error?.details,
+        },
+        { status: result.error?.retryable ? 503 : 400 }
+      );
+    }
 
     return NextResponse.json({
       message: 'Successfully enrolled in course',
       enrolled: true,
       courseId: courseIdNum,
-      progressId: newProgress.id,
+      operationId: result.operationId,
+      syncResult: result.data,
     });
   } catch (error: any) {
     console.error('Direct enrollment error:', error);

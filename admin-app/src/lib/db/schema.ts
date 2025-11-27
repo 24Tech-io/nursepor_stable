@@ -265,6 +265,20 @@ export const studentActivityLogs = pgTable('student_activity_logs', {
   createdAt: timestamp('created_at').notNull().defaultNow(),
 });
 
+// Enrollments table (new source of truth for enrollment status)
+export const enrollments = pgTable('enrollments', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  courseId: integer('course_id').notNull().references(() => courses.id, { onDelete: 'cascade' }),
+  status: text('status').notNull().default('active'), // active, completed, cancelled
+  progress: integer('progress').notNull().default(0), // percentage
+  enrolledAt: timestamp('enrolled_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  completedAt: timestamp('completed_at'),
+}, (table) => ({
+  userCourseUnique: unique('user_course_enrollment_unique').on(table.userId, table.courseId),
+}));
+
 // Define relations
 export const coursesRelations = relations(courses, ({ many }) => ({
   modules: many(modules),

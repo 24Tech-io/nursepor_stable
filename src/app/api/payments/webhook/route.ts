@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { stripe } from '@/lib/stripe';
 import { getDatabase } from '@/lib/db';
-import { payments, studentProgress } from '@/lib/db/schema';
+import { payments, studentProgress, enrollments } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
+import { enrollStudent } from '@/lib/data-manager/helpers/enrollment-helper';
 
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
@@ -53,18 +54,7 @@ export async function POST(request: NextRequest) {
       case 'checkout.session.completed': {
         const session = event.data.object as any;
         
-        // Update payment status
-        await db
-          .update(payments)
-          .set({
-            status: 'completed',
-            stripePaymentIntentId: session.payment_intent,
-            transactionId: session.id,
-            updatedAt: new Date(),
-          })
-          .where(eq(payments.stripeSessionId, session.id));
-
-        // Enroll user in course
+        // Update payment status and get payment data in one transaction
         const payment = await db
           .select()
           .from(payments)
@@ -74,28 +64,29 @@ export async function POST(request: NextRequest) {
         if (payment.length > 0) {
           const paymentData = payment[0];
           
-          // Check if progress already exists
-          const existingProgress = await db
-            .select()
-            .from(studentProgress)
-            .where(
-              and(
-                eq(studentProgress.studentId, paymentData.userId),
-                eq(studentProgress.courseId, paymentData.courseId)
-              )
-            )
-            .limit(1);
+          // Update payment status
+          await db
+            .update(payments)
+            .set({
+              status: 'completed',
+              stripePaymentIntentId: session.payment_intent,
+              transactionId: session.id,
+              updatedAt: new Date(),
+            })
+            .where(eq(payments.stripeSessionId, session.id));
 
-          // Create student progress if it doesn't exist
-          if (existingProgress.length === 0) {
-            await db.insert(studentProgress).values({
-              studentId: paymentData.userId,
-              courseId: paymentData.courseId,
-              completedChapters: '[]',
-              watchedVideos: '[]',
-              quizAttempts: '[]',
-              totalProgress: 0,
-            });
+          // Use DataManager for enrollment (with validation, transaction, dual-table sync, and events)
+          const enrollmentResult = await enrollStudent({
+            userId: paymentData.userId,
+            courseId: paymentData.courseId,
+            source: 'payment',
+          });
+
+          if (!enrollmentResult.success) {
+            console.error('❌ Error enrolling student after payment:', enrollmentResult.error);
+            // Don't fail webhook - payment is recorded, enrollment can be retried
+          } else {
+            console.log(`✅ Student ${paymentData.userId} enrolled in course ${paymentData.courseId} after payment`);
           }
         }
 

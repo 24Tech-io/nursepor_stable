@@ -4,6 +4,7 @@ import { studentProgress, chapters, modules } from '@/lib/db/schema';
 import { eq, and, sql } from 'drizzle-orm';
 import { requireAuth } from '@/lib/auth-helpers';
 import { verifyToken } from '@/lib/auth';
+import { markChapterComplete } from '@/lib/data-manager/helpers/progress-helper';
 
 export async function POST(request: NextRequest) {
     try {
@@ -108,116 +109,22 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        if (existingProgress.length) {
-            // Update existing progress
-            const progress = existingProgress[0];
-            let completedChapters: number[] = [];
-            let watchedVideos: number[] = [];
-            
-            try {
-                completedChapters = JSON.parse(progress.completedChapters || '[]');
-            } catch (e) {
-                console.warn('Failed to parse completedChapters, starting fresh');
-                completedChapters = [];
-            }
+        // Use DataManager for chapter completion (with validation, transaction, dual-table sync, and events)
+        const result = await markChapterComplete(
+            userId,
+            Number(courseId),
+            Number(chapterId)
+        );
 
-            try {
-                watchedVideos = JSON.parse(progress.watchedVideos || '[]');
-            } catch (e) {
-                console.warn('Failed to parse watchedVideos, starting fresh');
-                watchedVideos = [];
-            }
-
-            // Ensure chapterId is a number
-            const chapterIdNum = Number(chapterId);
-            const chapterData = chapter[0];
-            
-            // Track video if chapter is a video type
-            if (chapterData.type === 'video' && !watchedVideos.includes(chapterIdNum)) {
-                watchedVideos.push(chapterIdNum);
-            }
-            
-            if (!completedChapters.includes(chapterIdNum)) {
-                completedChapters.push(chapterIdNum);
-
-                // Calculate total progress: Get total chapters in course and calculate percentage
-                const totalChaptersResult = await db
-                    .select({ count: sql<number>`count(*)` })
-                    .from(chapters)
-                    .innerJoin(modules, eq(chapters.moduleId, modules.id))
-                    .where(eq(modules.courseId, Number(courseId)));
-
-                const totalChapters = Number(totalChaptersResult[0]?.count || 0);
-                const totalProgress = totalChapters > 0 
-                    ? Math.round((completedChapters.length / totalChapters) * 100)
-                    : 0;
-
-                try {
-                    await db
-                        .update(studentProgress)
-                        .set({
-                            completedChapters: JSON.stringify(completedChapters),
-                            watchedVideos: JSON.stringify(watchedVideos),
-                            totalProgress: totalProgress,
-                            lastAccessed: new Date(),
-                        })
-                        .where(eq(studentProgress.id, progress.id));
-                    
-                    console.log(`✅ Chapter ${chapterIdNum} marked as complete for student ${userId}. Progress: ${totalProgress}% (${completedChapters.length}/${totalChapters} chapters)`);
-                } catch (error: any) {
-                    console.error('❌ Error updating progress:', error);
-                    return NextResponse.json(
-                        { 
-                            message: 'Error updating progress',
-                            error: process.env.NODE_ENV === 'development' ? error.message : undefined
-                        },
-                        { status: 500 }
-                    );
-                }
-            } else {
-                console.log(`ℹ️ Chapter ${chapterIdNum} already marked as complete`);
-            }
-        } else {
-            // Create new progress entry
-            const chapterIdNum = Number(chapterId);
-            const chapterData = chapter[0];
-            
-            // Track video if chapter is a video type
-            const watchedVideos = chapterData.type === 'video' ? [chapterIdNum] : [];
-
-            // Calculate total progress: Get total chapters in course and calculate percentage
-            const totalChaptersResult = await db
-                .select({ count: sql<number>`count(*)` })
-                .from(chapters)
-                .innerJoin(modules, eq(chapters.moduleId, modules.id))
-                .where(eq(modules.courseId, Number(courseId)));
-
-            const totalChapters = Number(totalChaptersResult[0]?.count || 0);
-            const totalProgress = totalChapters > 0 
-                ? Math.round((1 / totalChapters) * 100)
-                : 0;
-
-            try {
-                await db.insert(studentProgress).values({
-                    studentId: userId,
-                    courseId: Number(courseId),
-                    completedChapters: JSON.stringify([chapterIdNum]),
-                    watchedVideos: JSON.stringify(watchedVideos),
-                    quizAttempts: '[]',
-                    totalProgress: totalProgress,
-                });
-                
-                console.log(`✅ Created new progress entry with chapter ${chapterIdNum} for student ${userId}. Progress: ${totalProgress}% (1/${totalChapters} chapters)`);
-            } catch (error: any) {
-                console.error('❌ Error creating progress entry:', error);
-                return NextResponse.json(
-                    { 
-                        message: 'Error creating progress entry',
-                        error: process.env.NODE_ENV === 'development' ? error.message : undefined
-                    },
-                    { status: 500 }
-                );
-            }
+        if (!result.success) {
+            return NextResponse.json(
+                {
+                    message: result.error?.message || 'Failed to mark chapter complete',
+                    error: result.error?.code,
+                    details: result.error?.details,
+                },
+                { status: result.error?.retryable ? 503 : 400 }
+            );
         }
 
         return NextResponse.json({

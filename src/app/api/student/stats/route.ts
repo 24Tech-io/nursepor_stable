@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/auth';
 import { getDatabase } from '@/lib/db';
-import { studentProgress, courses, users, accessRequests } from '@/lib/db/schema';
+import { studentProgress, courses, users, accessRequests, enrollments } from '@/lib/db/schema';
 import { eq, and, or, sql } from 'drizzle-orm';
 
 export async function GET(request: NextRequest) {
@@ -44,66 +44,141 @@ export async function GET(request: NextRequest) {
 
     const pendingRequestCourseIds = pendingRequests.map((r: any) => r.courseId);
 
-    // Get all enrolled courses
-    const allEnrolledProgress = await db
-      .select({
-        courseId: studentProgress.courseId,
-      })
-      .from(studentProgress)
-      .innerJoin(courses, eq(studentProgress.courseId, courses.id))
-      .where(
-        and(
-          eq(studentProgress.studentId, userId),
-          or(
-            eq(courses.status, 'published'),
-            eq(courses.status, 'active')
+    // Get all enrolled courses from BOTH tables
+    const [allEnrolledProgress, allEnrolledRecords] = await Promise.all([
+      db
+        .select({
+          courseId: studentProgress.courseId,
+        })
+        .from(studentProgress)
+        .innerJoin(courses, eq(studentProgress.courseId, courses.id))
+        .where(
+          and(
+            eq(studentProgress.studentId, userId),
+            or(
+              eq(courses.status, 'published'),
+              eq(courses.status, 'active'),
+              eq(courses.status, 'Published'),
+              eq(courses.status, 'Active')
+            )
           )
-        )
-      );
+        ),
+      db
+        .select({
+          courseId: enrollments.courseId,
+        })
+        .from(enrollments)
+        .innerJoin(courses, eq(enrollments.courseId, courses.id))
+        .where(
+          and(
+            eq(enrollments.userId, userId),
+            eq(enrollments.status, 'active'),
+            or(
+              eq(courses.status, 'published'),
+              eq(courses.status, 'active'),
+              eq(courses.status, 'Published'),
+              eq(courses.status, 'Active')
+            )
+          )
+        ),
+    ]);
+
+    // Merge course IDs from both tables
+    const allEnrolledCourseIds = new Set([
+      ...allEnrolledProgress.map((p: any) => p.courseId),
+      ...allEnrolledRecords.map((e: any) => e.courseId),
+    ]);
 
     // Filter out courses with pending requests
     // A course with a pending request should NOT be counted as enrolled
-    const actualEnrolledProgress = allEnrolledProgress.filter((p: any) => 
-      !pendingRequestCourseIds.includes(p.courseId)
+    const actualEnrolledCourseIds = Array.from(allEnrolledCourseIds).filter(
+      (courseId: number) => !pendingRequestCourseIds.includes(courseId)
     );
 
-    const coursesEnrolled = actualEnrolledProgress.length;
+    const coursesEnrolled = actualEnrolledCourseIds.length;
 
-    // Get completed courses (progress >= 100) - exclude courses with pending requests
-    const allCompletedProgress = await db
-      .select({
-        courseId: studentProgress.courseId,
-        totalProgress: studentProgress.totalProgress,
-      })
-      .from(studentProgress)
-      .innerJoin(courses, eq(studentProgress.courseId, courses.id))
-      .where(
-        and(
-          eq(studentProgress.studentId, userId),
-          eq(courses.status, 'published'),
-          sql`${studentProgress.totalProgress} >= 100`
-        )
-      );
+    // Get completed courses (progress >= 100) from BOTH tables - exclude courses with pending requests
+    const [allCompletedProgress, allCompletedEnrollments] = await Promise.all([
+      db
+        .select({
+          courseId: studentProgress.courseId,
+          totalProgress: studentProgress.totalProgress,
+        })
+        .from(studentProgress)
+        .innerJoin(courses, eq(studentProgress.courseId, courses.id))
+        .where(
+          and(
+            eq(studentProgress.studentId, userId),
+            or(
+              eq(courses.status, 'published'),
+              eq(courses.status, 'active'),
+              eq(courses.status, 'Published'),
+              eq(courses.status, 'Active')
+            ),
+            sql`${studentProgress.totalProgress} >= 100`
+          )
+        ),
+      db
+        .select({
+          courseId: enrollments.courseId,
+          progress: enrollments.progress,
+        })
+        .from(enrollments)
+        .innerJoin(courses, eq(enrollments.courseId, courses.id))
+        .where(
+          and(
+            eq(enrollments.userId, userId),
+            eq(enrollments.status, 'active'),
+            or(
+              eq(courses.status, 'published'),
+              eq(courses.status, 'active'),
+              eq(courses.status, 'Published'),
+              eq(courses.status, 'Active')
+            ),
+            sql`${enrollments.progress} >= 100`
+          )
+        ),
+    ]);
+
+    // Merge completed course IDs from both tables
+    const allCompletedCourseIds = new Set([
+      ...allCompletedProgress.map((p: any) => p.courseId),
+      ...allCompletedEnrollments.map((e: any) => e.courseId),
+    ]);
 
     // Filter out courses with pending requests
-    const actualCompletedProgress = allCompletedProgress.filter((p: any) => 
-      !pendingRequestCourseIds.includes(p.courseId)
+    const actualCompletedCourseIds = Array.from(allCompletedCourseIds).filter(
+      (courseId: number) => !pendingRequestCourseIds.includes(courseId)
     );
 
-    const coursesCompleted = actualCompletedProgress.length;
+    const coursesCompleted = actualCompletedCourseIds.length;
 
-    // Calculate total hours learned (sum of video durations watched)
-    // For now, we'll estimate based on progress and course duration
-    // In a real system, you'd track actual video watch time
-    const hoursLearnedResult = await db
-      .select({
-        totalProgress: sql<number>`sum(${studentProgress.totalProgress})`,
-      })
-      .from(studentProgress)
-      .where(eq(studentProgress.studentId, userId));
+    // Calculate total hours learned (sum of progress from both tables)
+    // Prefer enrollments.progress, fallback to studentProgress.totalProgress
+    const [progressSum, enrollmentSum] = await Promise.all([
+      db
+        .select({
+          totalProgress: sql<number>`coalesce(sum(${studentProgress.totalProgress}), 0)`,
+        })
+        .from(studentProgress)
+        .where(eq(studentProgress.studentId, userId)),
+      db
+        .select({
+          totalProgress: sql<number>`coalesce(sum(${enrollments.progress}), 0)`,
+        })
+        .from(enrollments)
+        .where(
+          and(
+            eq(enrollments.userId, userId),
+            eq(enrollments.status, 'active')
+          )
+        ),
+    ]);
 
+    // Use enrollments.progress as primary source, fallback to studentProgress
+    const totalProgress = Number(enrollmentSum[0]?.totalProgress || progressSum[0]?.totalProgress || 0);
+    
     // Estimate: assume average course is 10 hours, multiply by progress percentage
-    const totalProgress = Number(hoursLearnedResult[0]?.totalProgress || 0);
     // Average 10 hours per course, calculate based on progress
     const estimatedHours = coursesEnrolled > 0 
       ? Math.round((totalProgress / coursesEnrolled / 100) * 10 * 10) / 10 

@@ -30,3 +30,8 @@ CREATE INDEX IF NOT EXISTS "student_activity_logs_created_at_idx" ON "student_ac
 CREATE INDEX IF NOT EXISTS "student_activity_logs_activity_type_idx" ON "student_activity_logs" ("activity_type");
 
 
+
+
+
+
+

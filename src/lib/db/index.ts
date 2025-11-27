@@ -14,11 +14,18 @@ function initializeDatabase() {
   }
 
   try {
-    // Neon Postgres configuration
-    // fetchConnectionCache is now always true by default, no need to set it
-    const sql = neon(process.env.DATABASE_URL);
-    db = drizzle(sql, { schema });
-    console.log('✅ Database connection initialized (Neon Postgres)');
+    // Neon Postgres configuration with optimized settings
+    // fetchConnectionCache is enabled by default for connection pooling
+    // Using neon-http for better performance in serverless environments
+    const sql = neon(process.env.DATABASE_URL, {
+      fetchConnectionCache: true, // Enable connection caching for faster queries
+    });
+    db = drizzle(sql, { 
+      schema,
+      // Optimize for performance
+      logger: process.env.NODE_ENV === 'development' ? true : false,
+    });
+    console.log('✅ Database connection initialized (Neon Postgres - Optimized)');
     return db;
   } catch (error: any) {
     console.error('❌ Failed to initialize database connection:', error?.message || error);

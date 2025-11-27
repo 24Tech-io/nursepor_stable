@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/auth';
 import { getDatabase } from '@/lib/db';
-import { users, studentProgress, courses, accessRequests } from '@/lib/db/schema';
+import { users, studentProgress, courses, accessRequests, enrollments } from '@/lib/db/schema';
 import { eq, sql, and, or } from 'drizzle-orm';
 
 // GET - Fetch all students with their stats
@@ -53,22 +53,44 @@ export async function GET(request: NextRequest) {
     // For each student, get detailed enrollment status
     const studentsWithStats = await Promise.all(
       allStudents.map(async (student: any) => {
-        // Get all enrolled course IDs (from studentProgress)
-        const enrolledProgress = await db
-          .select({
-            courseId: studentProgress.courseId,
-          })
-          .from(studentProgress)
-          .innerJoin(courses, eq(studentProgress.courseId, courses.id))
-          .where(
-            and(
-              eq(studentProgress.studentId, student.id),
-              or(
-                eq(courses.status, 'published'),
-                eq(courses.status, 'active')
+        // Get all enrolled course IDs from BOTH tables - filter by status (case-insensitive)
+        const [enrolledProgress, enrolledRecords] = await Promise.all([
+          db
+            .select({
+              courseId: studentProgress.courseId,
+            })
+            .from(studentProgress)
+            .innerJoin(courses, eq(studentProgress.courseId, courses.id))
+            .where(
+              and(
+                eq(studentProgress.studentId, student.id),
+                or(
+                  eq(courses.status, 'published'),
+                  eq(courses.status, 'active'),
+                  eq(courses.status, 'Published'), // Case-insensitive
+                  eq(courses.status, 'Active')     // Case-insensitive
+                )
               )
-            )
-          );
+            ),
+          db
+            .select({
+              courseId: enrollments.courseId,
+            })
+            .from(enrollments)
+            .innerJoin(courses, eq(enrollments.courseId, courses.id))
+            .where(
+              and(
+                eq(enrollments.userId, student.id),
+                eq(enrollments.status, 'active'),
+                or(
+                  eq(courses.status, 'published'),
+                  eq(courses.status, 'active'),
+                  eq(courses.status, 'Published'),
+                  eq(courses.status, 'Active')
+                )
+              )
+            ),
+        ]);
 
         // Get all pending request course IDs
         const pendingRequests = await db
@@ -83,13 +105,17 @@ export async function GET(request: NextRequest) {
             )
           );
 
-        const enrolledCourseIds = new Set(enrolledProgress.map((p: any) => p.courseId));
+        // Merge course IDs from both tables
+        const allEnrolledCourseIds = new Set([
+          ...enrolledProgress.map((p: any) => p.courseId),
+          ...enrolledRecords.map((e: any) => e.courseId),
+        ]);
         const pendingRequestCourseIds = new Set(pendingRequests.map((r: any) => r.courseId));
 
-        // IMPORTANT: Only count as enrolled if there's a studentProgress entry AND no pending request
+        // IMPORTANT: Only count as enrolled if there's an enrollment entry AND no pending request
         // A course with a pending request should NOT be counted as enrolled
-        const actualEnrolledCourses = enrolledProgress.filter((p: any) => 
-          !pendingRequestCourseIds.has(p.courseId)
+        const actualEnrolledCourses = Array.from(allEnrolledCourseIds).filter(
+          (courseId) => !pendingRequestCourseIds.has(courseId)
         );
 
         const enrolled = actualEnrolledCourses.length;
@@ -98,7 +124,7 @@ export async function GET(request: NextRequest) {
         console.log(`📊 Student ${student.name} (ID: ${student.id}):`, {
           enrolled: enrolled,
           requested: requested,
-          enrolledCourseIds: Array.from(enrolledCourseIds),
+          enrolledCourseIds: Array.from(allEnrolledCourseIds),
           pendingRequestCourseIds: Array.from(pendingRequestCourseIds),
         });
 

@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/auth';
 import { getDatabase } from '@/lib/db';
-import { studentProgress, courses, accessRequests } from '@/lib/db/schema';
+import { studentProgress, courses, accessRequests, enrollments } from '@/lib/db/schema';
 import { eq, and, or, notInArray } from 'drizzle-orm';
+import { mergeEnrollmentData } from '@/lib/progress-utils';
 
 export async function GET(request: NextRequest) {
   try {
@@ -102,47 +103,83 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Get enrolled courses for the student
+    // Get enrolled courses from BOTH tables
     // IMPORTANT: Exclude courses that have pending requests
-    const allProgress = await db
-      .select({
-        courseId: studentProgress.courseId,
-        totalProgress: studentProgress.totalProgress,
-        lastAccessed: studentProgress.lastAccessed,
-        course: {
-          id: courses.id,
-          title: courses.title,
-          description: courses.description,
-          instructor: courses.instructor,
-          thumbnail: courses.thumbnail,
-          pricing: courses.pricing,
-          status: courses.status,
-        },
-      })
-      .from(studentProgress)
-      .innerJoin(courses, eq(studentProgress.courseId, courses.id))
-      .where(
-        and(
-          eq(studentProgress.studentId, decoded.id),
-          or(
-            eq(courses.status, 'published'),
-            eq(courses.status, 'active')
+    const [allProgress, allEnrollments] = await Promise.all([
+      db
+        .select({
+          courseId: studentProgress.courseId,
+          totalProgress: studentProgress.totalProgress,
+          lastAccessed: studentProgress.lastAccessed,
+          course: {
+            id: courses.id,
+            title: courses.title,
+            description: courses.description,
+            instructor: courses.instructor,
+            thumbnail: courses.thumbnail,
+            pricing: courses.pricing,
+            status: courses.status,
+          },
+        })
+        .from(studentProgress)
+        .innerJoin(courses, eq(studentProgress.courseId, courses.id))
+        .where(
+          and(
+            eq(studentProgress.studentId, decoded.id),
+            or(
+              eq(courses.status, 'published'),
+              eq(courses.status, 'active'),
+              eq(courses.status, 'Published'),
+              eq(courses.status, 'Active')
+            )
           )
-        )
-      );
+        ),
+      db
+        .select({
+          courseId: enrollments.courseId,
+          progress: enrollments.progress,
+          lastAccessed: enrollments.updatedAt,
+          course: {
+            id: courses.id,
+            title: courses.title,
+            description: courses.description,
+            instructor: courses.instructor,
+            thumbnail: courses.thumbnail,
+            pricing: courses.pricing,
+            status: courses.status,
+          },
+        })
+        .from(enrollments)
+        .innerJoin(courses, eq(enrollments.courseId, courses.id))
+        .where(
+          and(
+            eq(enrollments.userId, decoded.id),
+            eq(enrollments.status, 'active'),
+            or(
+              eq(courses.status, 'published'),
+              eq(courses.status, 'active'),
+              eq(courses.status, 'Published'),
+              eq(courses.status, 'Active')
+            )
+          )
+        ),
+    ]);
+
+    // Merge data from both tables (prefer enrollments.progress)
+    const mergedData = mergeEnrollmentData(allProgress, allEnrollments);
 
     // Filter out courses with pending requests
     // A course with a pending request should NOT be shown as enrolled
-    const enrolledProgress = allProgress.filter((p: any) => 
+    const enrolledProgress = mergedData.filter((p: any) => 
       !pendingRequestCourseIds.includes(p.courseId)
     );
 
-    console.log(`✅ Student ${decoded.id}: Showing ${enrolledProgress.length} enrolled courses (excluded ${allProgress.length - enrolledProgress.length} with pending requests)`);
+    console.log(`✅ Student ${decoded.id}: Showing ${enrolledProgress.length} enrolled courses (merged from both tables, excluded ${mergedData.length - enrolledProgress.length} with pending requests)`);
 
     return NextResponse.json({
       enrolledCourses: enrolledProgress.map((p: any) => ({
         courseId: p.courseId.toString(),
-        progress: p.totalProgress,
+        progress: p.progress || 0, // Use merged progress (prefers enrollments.progress)
         lastAccessed: p.lastAccessed ? new Date(p.lastAccessed).toISOString() : null,
         course: p.course,
       })),

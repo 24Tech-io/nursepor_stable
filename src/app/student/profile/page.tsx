@@ -6,6 +6,7 @@ import { useState, useEffect } from 'react';
 import { getAchievements, getNotifications } from '../../../lib/data';
 import BiometricEnrollment from '@/components/auth/BiometricEnrollment';
 import LoadingSpinner from '@/components/student/LoadingSpinner';
+import { syncClient } from '@/lib/sync-client';
 
 export default function ProfilePage() {
   const [activeTab, setActiveTab] = useState<'profile' | 'achievements' | 'notifications' | 'settings'>('profile');
@@ -174,6 +175,19 @@ export default function ProfilePage() {
     };
 
     fetchStats();
+
+    // Start sync client for auto-refresh
+    syncClient.start();
+    const handleSync = (syncData: any) => {
+      console.log('🔄 Profile: Sync update received:', syncData);
+      fetchStats(); // Refresh stats on sync
+    };
+    syncClient.on('sync', handleSync);
+
+    return () => {
+      syncClient.off('sync', handleSync);
+      syncClient.stop();
+    };
   }, [user]);
 
   // For now, show empty achievements - in future, fetch from database

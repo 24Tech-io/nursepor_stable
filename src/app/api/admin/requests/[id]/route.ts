@@ -4,7 +4,7 @@ import { getDatabase } from '@/lib/db';
 import { accessRequests, studentProgress, courses } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { sendRequestStatusNotification } from '@/app/api/notifications/route';
-import { syncEnrollmentAfterApproval } from '@/lib/enrollment-sync';
+import { approveRequest, rejectRequest } from '@/lib/data-manager/helpers/request-helper';
 
 // PATCH - Approve or deny request
 export async function PATCH(
@@ -142,76 +142,24 @@ export async function PATCH(
       }
     }
 
-    // Update request status
-    try {
-      await db
-        .update(accessRequests)
-        .set({
-          status: action === 'approve' ? 'approved' : 'rejected',
-          reviewedAt: new Date(),
-          reviewedBy: decoded.id,
-        })
-        .where(eq(accessRequests.id, requestId));
-
-      console.log(`✅ Request ${requestId} updated to status: ${action === 'approve' ? 'approved' : 'rejected'}`);
-    } catch (updateError: any) {
-      console.error('❌ Error updating request status:', updateError);
-      return NextResponse.json(
-        { message: 'Failed to update request status', error: updateError.message },
-        { status: 500 }
-      );
-    }
-
-    // If approved, grant access by creating studentProgress entry
+    // Use DataManager for request approval/rejection (with validation, transaction, and event emission)
     if (action === 'approve') {
-      try {
-        console.log(`🔄 Syncing enrollment for student ${accessRequest.studentId} and course ${accessRequest.courseId}...`);
-        const synced = await syncEnrollmentAfterApproval(
-          accessRequest.studentId,
-          accessRequest.courseId
+      const result = await approveRequest({
+        requestId,
+        action: 'approve',
+        adminId: decoded.id,
+        reason: body.reason,
+      });
+
+      if (!result.success) {
+        return NextResponse.json(
+          {
+            message: result.error?.message || 'Failed to approve request',
+            error: result.error?.code,
+            details: result.error?.details,
+          },
+          { status: result.error?.retryable ? 503 : 400 }
         );
-        
-        if (synced) {
-          console.log(`✅ Student ${accessRequest.studentId} enrolled in course ${accessRequest.courseId}`);
-        } else {
-          console.log(`ℹ️ Student ${accessRequest.studentId} already enrolled in course ${accessRequest.courseId}`);
-        }
-        
-        // Verify enrollment was successful before deleting request
-        const enrollmentCheck = await db
-          .select()
-          .from(studentProgress)
-          .where(
-            and(
-              eq(studentProgress.studentId, accessRequest.studentId),
-              eq(studentProgress.courseId, accessRequest.courseId)
-            )
-          )
-          .limit(1);
-        
-        // Delete the request regardless - it's been approved and processed
-        // Even if enrollment check fails, we should delete since status is already updated to 'approved'
-        try {
-          await db.delete(accessRequests).where(eq(accessRequests.id, requestId));
-          console.log(`🗑️ Deleted access request #${requestId} after approval`);
-        } catch (deleteError: any) {
-          console.error(`❌ Failed to delete request #${requestId}:`, deleteError);
-          // Continue even if deletion fails - the status is already updated
-        }
-        
-        if (enrollmentCheck.length === 0) {
-          console.warn(`⚠️ Enrollment not confirmed for request #${requestId}, but request deleted`);
-        }
-      } catch (enrollmentError: any) {
-        console.error('❌ Error syncing enrollment:', enrollmentError);
-        // Still try to delete the request since it's been approved
-        try {
-          await db.delete(accessRequests).where(eq(accessRequests.id, requestId));
-          console.log(`🗑️ Deleted access request #${requestId} after approval (despite enrollment error)`);
-        } catch (deleteError: any) {
-          console.error(`❌ Failed to delete request #${requestId}:`, deleteError);
-        }
-        console.warn('⚠️ Request approved but enrollment sync failed. Student may need manual enrollment.');
       }
 
       // Send notification to student (non-blocking)
@@ -224,17 +172,37 @@ export async function PATCH(
         console.log('✅ Notification sent to student');
       } catch (notifError: any) {
         console.error('⚠️ Failed to send notification (non-critical):', notifError);
-        // Don't fail the request if notification fails
       }
+
+      return NextResponse.json({
+        message: 'Request approved, access granted, and request removed',
+        action: 'approve',
+        requestId,
+        studentId: accessRequest.studentId,
+        courseId: accessRequest.courseId,
+        deleted: true,
+        operationId: result.operationId,
+        enrollmentCreated: result.data?.enrollmentCreated,
+      });
     } else {
-      // For denied requests, delete immediately
-      try {
-        await db.delete(accessRequests).where(eq(accessRequests.id, requestId));
-        console.log(`🗑️ Deleted denied access request #${requestId}`);
-      } catch (deleteError: any) {
-        console.error('⚠️ Failed to delete denied request (non-critical):', deleteError);
+      const result = await rejectRequest({
+        requestId,
+        action: 'reject',
+        adminId: decoded.id,
+        reason: body.reason,
+      });
+
+      if (!result.success) {
+        return NextResponse.json(
+          {
+            message: result.error?.message || 'Failed to reject request',
+            error: result.error?.code,
+            details: result.error?.details,
+          },
+          { status: result.error?.retryable ? 503 : 400 }
+        );
       }
-      
+
       // Send notification for denied requests (non-blocking)
       try {
         await sendRequestStatusNotification(
@@ -246,19 +214,19 @@ export async function PATCH(
       } catch (notifError: any) {
         console.error('⚠️ Failed to send notification (non-critical):', notifError);
       }
+
+      return NextResponse.json({
+        message: 'Request denied and removed',
+        action: 'deny',
+        requestId,
+        studentId: accessRequest.studentId,
+        courseId: accessRequest.courseId,
+        deleted: true,
+        operationId: result.operationId,
+      });
     }
 
-    // Return response indicating request was processed and deleted
-    return NextResponse.json({
-      message: action === 'approve' 
-        ? 'Request approved, access granted, and request removed' 
-        : 'Request denied and removed',
-      action,
-      requestId,
-      studentId: accessRequest.studentId,
-      courseId: accessRequest.courseId,
-      deleted: true, // Indicate that the request was deleted
-    });
+    // Response is already returned in the approve/reject blocks above
   } catch (error: any) {
     console.error('❌ [PATCH /api/admin/requests/[id]] Unexpected error:', error);
     console.error('Error stack:', error.stack);

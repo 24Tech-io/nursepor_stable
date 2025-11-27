@@ -774,6 +774,7 @@ export const enrollments = pgTable('enrollments', {
   status: text('status').notNull().default('active'), // active, completed, cancelled
   progress: integer('progress').notNull().default(0), // percentage
   enrolledAt: timestamp('enrolled_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(), // ADD updatedAt for tracking
   completedAt: timestamp('completed_at'),
 }, (table) => ({
   userCourseUnique: unique('user_course_enrollment_unique').on(table.userId, table.courseId),

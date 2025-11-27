@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDatabase } from '@/lib/db';
-import { payments, studentProgress } from '@/lib/db/schema';
+import { payments, studentProgress, enrollments } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { stripe } from '@/lib/stripe';
 
@@ -54,17 +54,29 @@ export async function GET(request: NextRequest) {
             })
             .where(eq(payments.stripeSessionId, sessionId));
 
-          // Ensure student is enrolled
-          const existingProgress = await db
-            .select()
-            .from(studentProgress)
-            .where(
-              and(
-                eq(studentProgress.studentId, paymentData.userId),
-                eq(studentProgress.courseId, paymentData.courseId)
+          // Ensure student is enrolled in both tables
+          const [existingProgress, existingEnrollment] = await Promise.all([
+            db
+              .select()
+              .from(studentProgress)
+              .where(
+                and(
+                  eq(studentProgress.studentId, paymentData.userId),
+                  eq(studentProgress.courseId, paymentData.courseId)
+                )
               )
-            )
-            .limit(1);
+              .limit(1),
+            db
+              .select()
+              .from(enrollments)
+              .where(
+                and(
+                  eq(enrollments.userId, paymentData.userId),
+                  eq(enrollments.courseId, paymentData.courseId)
+                )
+              )
+              .limit(1),
+          ]);
 
           if (existingProgress.length === 0) {
             await db.insert(studentProgress).values({
@@ -74,6 +86,15 @@ export async function GET(request: NextRequest) {
               watchedVideos: '[]',
               quizAttempts: '[]',
               totalProgress: 0,
+            });
+          }
+
+          if (existingEnrollment.length === 0) {
+            await db.insert(enrollments).values({
+              userId: paymentData.userId,
+              courseId: paymentData.courseId,
+              status: 'active',
+              progress: 0,
             });
           }
 

@@ -34,26 +34,33 @@ export async function GET(request: NextRequest) {
     };
 
     if (isAdmin) {
-      // Admin sync data
-      const [coursesCount] = await db
-        .select({ count: sql<number>`count(*)` })
-        .from(courses)
-        .where(eq(courses.status, 'published'));
-
-      const [studentsCount] = await db
-        .select({ count: sql<number>`count(*)` })
-        .from(users)
-        .where(eq(users.role, 'student'));
-
-      const [pendingRequestsCount] = await db
-        .select({ count: sql<number>`count(*)` })
-        .from(accessRequests)
-        .where(eq(accessRequests.status, 'pending'));
+      // Admin sync data - optimized with parallel queries
+      const [coursesCount, studentsCount, pendingRequestsCount] = await Promise.all([
+        db
+          .select({ count: sql<number>`count(*)` })
+          .from(courses)
+          .where(
+            or(
+              eq(courses.status, 'published'),
+              eq(courses.status, 'active'),
+              eq(courses.status, 'Published'),
+              eq(courses.status, 'Active')
+            )
+          ),
+        db
+          .select({ count: sql<number>`count(*)` })
+          .from(users)
+          .where(eq(users.role, 'student')),
+        db
+          .select({ count: sql<number>`count(*)` })
+          .from(accessRequests)
+          .where(eq(accessRequests.status, 'pending')),
+      ]);
 
       syncData.admin = {
-        publishedCourses: Number(coursesCount?.count || 0),
-        totalStudents: Number(studentsCount?.count || 0),
-        pendingRequests: Number(pendingRequestsCount?.count || 0),
+        publishedCourses: Number(coursesCount[0]?.count || 0),
+        totalStudents: Number(studentsCount[0]?.count || 0),
+        pendingRequests: Number(pendingRequestsCount[0]?.count || 0),
       };
     } else {
       // Student sync data - exclude courses with pending requests
@@ -78,7 +85,9 @@ export async function GET(request: NextRequest) {
             eq(studentProgress.studentId, userId),
             or(
               eq(courses.status, 'published'),
-              eq(courses.status, 'active')
+              eq(courses.status, 'active'),
+              eq(courses.status, 'Published'),
+              eq(courses.status, 'Active')
             )
           )
         );

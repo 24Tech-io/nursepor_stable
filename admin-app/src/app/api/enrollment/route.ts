@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/auth';
 import { getDatabase } from '@/lib/db';
-import { accessRequests, studentProgress, courses } from '@/lib/db/schema';
-import { eq, and, or } from 'drizzle-orm';
+import { accessRequests, studentProgress, courses, enrollments } from '@/lib/db/schema';
+import { eq, and, or, sql } from 'drizzle-orm';
+import { enrollStudent, unenrollStudent } from '@/lib/data-manager/helpers/enrollment-helper';
 
 /**
  * Unified Enrollment Management API
@@ -44,17 +45,79 @@ export async function GET(request: NextRequest) {
       .from(courses)
       .where(or(eq(courses.status, 'published'), eq(courses.status, 'active')));
 
-    // Get enrolled courses (studentProgress entries)
-    const enrolledProgress = await db
-      .select({
-        courseId: studentProgress.courseId,
-        progress: studentProgress.totalProgress,
-        lastAccessed: studentProgress.lastAccessed,
-      })
-      .from(studentProgress)
-      .where(eq(studentProgress.studentId, studentIdNum));
+    // Get enrolled courses from BOTH tables (studentProgress + enrollments)
+    let enrolledProgress: any[] = [];
+    let enrolledRecords: any[] = [];
+    
+    try {
+      // Try to get from studentProgress table
+      enrolledProgress = await db
+        .select({
+          courseId: studentProgress.courseId,
+          progress: studentProgress.totalProgress,
+          lastAccessed: studentProgress.lastAccessed,
+        })
+        .from(studentProgress)
+        .where(eq(studentProgress.studentId, studentIdNum));
+    } catch (progressError: any) {
+      console.error('⚠️ Error fetching from studentProgress:', progressError);
+      enrolledProgress = [];
+    }
 
-    const enrolledCourseIds = new Set(enrolledProgress.map((ep: any) => ep.courseId.toString()));
+    try {
+      // Try to get from enrollments table (new source of truth)
+      enrolledRecords = await db
+        .select({
+          courseId: enrollments.courseId,
+          progress: enrollments.progress,
+          lastAccessed: enrollments.enrolledAt, // Use enrolledAt for now (updatedAt may not exist in DB yet)
+        })
+        .from(enrollments)
+        .where(
+          and(
+            eq(enrollments.userId, studentIdNum),
+            eq(enrollments.status, 'active')
+          )
+        );
+    } catch (enrollmentsError: any) {
+      console.error('⚠️ Error fetching from enrollments table:', enrollmentsError);
+      console.error('⚠️ This might mean the enrollments table or column does not exist yet');
+      enrolledRecords = [];
+    }
+
+    // Merge enrollments from both tables - prefer enrollments table (new source of truth)
+    const enrollmentMap = new Map();
+    
+    // First, add all from enrollments table (new source of truth)
+    enrolledRecords.forEach((e: any) => {
+      const courseIdStr = e.courseId.toString();
+      enrollmentMap.set(courseIdStr, {
+        courseId: e.courseId,
+        progress: e.progress || 0,
+        lastAccessed: e.lastAccessed,
+      });
+    });
+
+    // Then, add any from studentProgress that aren't in enrollments (legacy data)
+    enrolledProgress.forEach((e: any) => {
+      const courseIdStr = e.courseId.toString();
+      if (!enrollmentMap.has(courseIdStr)) {
+        enrollmentMap.set(courseIdStr, {
+          courseId: e.courseId,
+          progress: e.progress || 0,
+          lastAccessed: e.lastAccessed,
+        });
+      } else {
+        // Update lastAccessed if studentProgress is more recent
+        const existing = enrollmentMap.get(courseIdStr);
+        if (e.lastAccessed && (!existing.lastAccessed || e.lastAccessed > existing.lastAccessed)) {
+          existing.lastAccessed = e.lastAccessed;
+        }
+      }
+    });
+
+    const mergedEnrollments = Array.from(enrollmentMap.values());
+    const enrolledCourseIds = new Set(mergedEnrollments.map((ep: any) => ep.courseId.toString()));
 
     // Get pending requests
     const pendingRequests = await db
@@ -78,7 +141,7 @@ export async function GET(request: NextRequest) {
       const courseIdStr = course.id.toString();
       const isEnrolled = enrolledCourseIds.has(courseIdStr);
       const hasPendingRequest = pendingRequestCourseIds.has(courseIdStr);
-      const progressData = enrolledProgress.find((ep: any) => ep.courseId.toString() === courseIdStr);
+      const progressData = mergedEnrollments.find((ep: any) => ep.courseId.toString() === courseIdStr);
 
       let status: 'enrolled' | 'requested' | 'available' = 'available';
       if (isEnrolled) {
@@ -115,9 +178,19 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error: any) {
-    console.error('Get enrollment status error:', error);
+    console.error('❌ Get enrollment status error:', error);
+    console.error('Error details:', {
+      message: error.message,
+      stack: error.stack,
+      name: error.name,
+      code: error.code,
+    });
     return NextResponse.json(
-      { message: 'Failed to get enrollment status', error: error.message },
+      { 
+        message: 'Failed to get enrollment status', 
+        error: error.message,
+        details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      },
       { status: 500 }
     );
   }
@@ -146,64 +219,30 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const db = getDatabase();
-
-    // Check if already enrolled
-    const existing = await db
-      .select()
-      .from(studentProgress)
-      .where(
-        and(
-          eq(studentProgress.studentId, parseInt(studentId)),
-          eq(studentProgress.courseId, parseInt(courseId))
-        )
-      )
-      .limit(1);
-
-    if (existing.length > 0) {
-      return NextResponse.json(
-        { message: 'Student is already enrolled in this course' },
-        { status: 400 }
-      );
-    }
-
-    // Check if there's a pending request - if so, approve it first
-    const pendingRequest = await db
-      .select()
-      .from(accessRequests)
-      .where(
-        and(
-          eq(accessRequests.studentId, parseInt(studentId)),
-          eq(accessRequests.courseId, parseInt(courseId)),
-          eq(accessRequests.status, 'pending')
-        )
-      )
-      .limit(1);
-
-    if (pendingRequest.length > 0) {
-      // Update request to approved
-      await db
-        .update(accessRequests)
-        .set({
-          status: 'approved',
-          reviewedAt: new Date(),
-          reviewedBy: decoded.id,
-        })
-        .where(eq(accessRequests.id, pendingRequest[0].id));
-    }
-
-    // Create enrollment
-    await db.insert(studentProgress).values({
-      studentId: parseInt(studentId),
+    // Use DataManager for enrollment (with validation, transaction, and event emission)
+    const result = await enrollStudent({
+      userId: parseInt(studentId),
       courseId: parseInt(courseId),
-      totalProgress: 0,
+      adminId: decoded.id,
+      source: 'admin',
     });
 
-    console.log(`✅ Student ${studentId} enrolled in course ${courseId}`);
+    if (!result.success) {
+      return NextResponse.json(
+        {
+          message: result.error?.message || 'Failed to enroll student',
+          error: result.error?.code,
+          details: result.error?.details,
+        },
+        { status: result.error?.retryable ? 503 : 400 }
+      );
+    }
 
     return NextResponse.json({
       message: 'Student enrolled successfully',
       enrolled: true,
+      operationId: result.operationId,
+      syncResult: result.data,
     });
   } catch (error: any) {
     console.error('Enroll student error:', error);
@@ -239,23 +278,30 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    const db = getDatabase();
+    // Use DataManager for unenrollment (with validation, transaction, and event emission)
+    const result = await unenrollStudent({
+      userId: parseInt(studentId),
+      courseId: parseInt(courseId),
+      adminId: decoded.id,
+      reason: 'Admin unenrollment',
+    });
 
-    // Delete enrollment
-    const result = await db
-      .delete(studentProgress)
-      .where(
-        and(
-          eq(studentProgress.studentId, parseInt(studentId)),
-          eq(studentProgress.courseId, parseInt(courseId))
-        )
+    if (!result.success) {
+      return NextResponse.json(
+        {
+          message: result.error?.message || 'Failed to unenroll student',
+          error: result.error?.code,
+          details: result.error?.details,
+        },
+        { status: result.error?.retryable ? 503 : 400 }
       );
-
-    console.log(`✅ Student ${studentId} unenrolled from course ${courseId}`);
+    }
 
     return NextResponse.json({
       message: 'Student unenrolled successfully',
       unenrolled: true,
+      operationId: result.operationId,
+      deleted: result.data?.deleted,
     });
   } catch (error: any) {
     console.error('Unenroll student error:', error);

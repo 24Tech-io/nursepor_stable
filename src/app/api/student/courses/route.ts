@@ -173,16 +173,16 @@ export async function GET(request: NextRequest) {
       const hasEnrollment = enrolledCourseIds.has(courseIdStr);
       const hasPendingRequest = pendingRequestCourseIds.has(courseIdStr);
 
-      // Enrollment logic respecting all flags:
-      // - isPublic (Public Course checkbox): Direct enrollment without approval
-      // - isRequestable (Allow Requests checkbox): Can request access
-      // - isDefaultUnlocked: Auto-enrolled on first access
-      const isEnrolled = hasEnrollment && !hasPendingRequest;
+      // Enrollment logic:
+      // - If enrolled in either table → isEnrolled = true (regardless of pending request)
+      // - Pending requests for enrolled courses are stale and should be ignored
+      // - Approved requests should also be treated as enrolled (enrollment sync may be in progress)
       const hasApprovedRequest = approvedRequestCourseIds.has(courseIdStr);
+      const isEnrolled = hasEnrollment || hasApprovedRequest;
       
-      // If request was approved, student should be enrolled (enrollment sync should handle this)
-      // But we'll also mark it as enrolled if there's an approved request
-      const finalIsEnrolled = isEnrolled || hasApprovedRequest;
+      // If enrolled, pending request is stale - treat as enrolled
+      // If not enrolled but has pending request, show as requested
+      const finalIsEnrolled = isEnrolled;
 
       return {
         id: courseIdStr,

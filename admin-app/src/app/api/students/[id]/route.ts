@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/auth';
 import { getDatabase } from '@/lib/db';
-import { users, studentProgress, courses, accessRequests } from '@/lib/db/schema';
-import { eq, and, sql } from 'drizzle-orm';
+import { users, studentProgress, courses, accessRequests, enrollments } from '@/lib/db/schema';
+import { eq, and, or, sql } from 'drizzle-orm';
 
 export async function GET(
   request: NextRequest,
@@ -114,12 +114,46 @@ export async function GET(
       pendingRequestCourseIds = new Set();
     }
 
-    // Optimized: Fetch enrollments and count in a single query
-    // IMPORTANT: Exclude courses with pending requests
-    let enrollments: any[] = [];
+    // Optimized: Fetch enrollments from BOTH tables and merge
+    // IMPORTANT: Prefer enrollments.progress as source of truth, fallback to studentProgress.totalProgress
+    let enrollmentsList: any[] = [];
     let enrolledCount = 0;
     try {
-      const enrollmentData = await db
+      // Get enrollments from enrollments table (new source of truth)
+      // IMPORTANT: Only show published/active courses
+      const enrollmentsData = await db
+        .select({
+          courseId: enrollments.courseId,
+          progress: enrollments.progress,
+          lastAccessed: enrollments.updatedAt,
+          course: {
+            id: courses.id,
+            title: courses.title,
+            description: courses.description,
+            instructor: courses.instructor,
+            thumbnail: courses.thumbnail,
+            status: courses.status,
+          },
+        })
+        .from(enrollments)
+        .innerJoin(courses, eq(enrollments.courseId, courses.id))
+        .where(
+          and(
+            eq(enrollments.userId, student.id),
+            eq(enrollments.status, 'active'),
+            or(
+              eq(courses.status, 'published'),
+              eq(courses.status, 'active'),
+              eq(courses.status, 'Published'),
+              eq(courses.status, 'Active')
+            )
+          )
+        )
+        .limit(100);
+
+      // Get enrollments from studentProgress table (legacy)
+      // IMPORTANT: Only show published/active courses
+      const studentProgressData = await db
         .select({
           courseId: studentProgress.courseId,
           totalProgress: studentProgress.totalProgress,
@@ -135,24 +169,65 @@ export async function GET(
         })
         .from(studentProgress)
         .innerJoin(courses, eq(studentProgress.courseId, courses.id))
-        .where(eq(studentProgress.studentId, student.id))
-        .limit(100); // Limit to prevent huge queries
+        .where(
+          and(
+            eq(studentProgress.studentId, student.id),
+            or(
+              eq(courses.status, 'published'),
+              eq(courses.status, 'active'),
+              eq(courses.status, 'Published'),
+              eq(courses.status, 'Active')
+            )
+          )
+        )
+        .limit(100);
 
-      // Filter out courses with pending requests
-      enrollments = enrollmentData.filter((e: any) => {
-        const courseIdStr = e.courseId.toString();
-        const hasPendingRequest = pendingRequestCourseIds.has(courseIdStr);
-        if (hasPendingRequest) {
-          console.log(`⚠️ Excluding course ${courseIdStr} (${e.course.title}) - has pending request`);
-        }
-        return !hasPendingRequest;
-      });
+      // Merge: prefer enrollments.progress (new source of truth), fallback to studentProgress.totalProgress
+      const enrollmentMap = new Map();
       
-      enrolledCount = enrollments.length;
-      console.log(`✅ Found ${enrolledCount} valid enrollments (excluded ${enrollmentData.length - enrolledCount} with pending requests)`);
+      // First, add all from enrollments table (new source of truth)
+      enrollmentsData.forEach((e: any) => {
+        const courseIdStr = e.courseId.toString();
+        if (!pendingRequestCourseIds.has(courseIdStr)) {
+          enrollmentMap.set(courseIdStr, {
+            courseId: e.courseId,
+            progress: e.progress || 0, // Use enrollments.progress
+            totalProgress: e.progress || 0, // Also set totalProgress for compatibility
+            lastAccessed: e.lastAccessed,
+            course: e.course,
+          });
+        }
+      });
+
+      // Then, add any from studentProgress that aren't in enrollments (legacy data)
+      studentProgressData.forEach((e: any) => {
+        const courseIdStr = e.courseId.toString();
+        if (!pendingRequestCourseIds.has(courseIdStr)) {
+          if (!enrollmentMap.has(courseIdStr)) {
+            // Not in enrollments table, use studentProgress
+            enrollmentMap.set(courseIdStr, {
+              courseId: e.courseId,
+              progress: e.totalProgress || 0,
+              totalProgress: e.totalProgress || 0,
+              lastAccessed: e.lastAccessed,
+              course: e.course,
+            });
+          } else {
+            // Already in map from enrollments, but update lastAccessed if studentProgress is more recent
+            const existing = enrollmentMap.get(courseIdStr);
+            if (e.lastAccessed && (!existing.lastAccessed || e.lastAccessed > existing.lastAccessed)) {
+              existing.lastAccessed = e.lastAccessed;
+            }
+          }
+        }
+      });
+
+      enrollmentsList = Array.from(enrollmentMap.values());
+      enrolledCount = enrollmentsList.length;
+      console.log(`✅ Found ${enrolledCount} valid enrollments (merged from both tables, excluded ${(enrollmentsData.length + studentProgressData.length) - enrolledCount} with pending requests)`);
     } catch (enrollmentError: any) {
       console.error('Error fetching enrollments:', enrollmentError);
-      enrollments = [];
+      enrollmentsList = [];
       enrolledCount = 0;
     }
 
@@ -197,9 +272,10 @@ export async function GET(
       student: {
         ...student,
         enrolledCourses: enrolledCount,
-        enrollments: enrollments.map((e: any) => ({
+        enrollments: enrollmentsList.map((e: any) => ({
           courseId: e.courseId,
-          progress: e.totalProgress,
+          progress: e.progress || 0, // Use merged progress (prefers enrollments.progress)
+          totalProgress: e.totalProgress || 0, // Also include totalProgress for backwards compatibility
           lastAccessed: e.lastAccessed,
           course: e.course,
         })),

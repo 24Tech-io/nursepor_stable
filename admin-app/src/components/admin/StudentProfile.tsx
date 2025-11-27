@@ -334,51 +334,70 @@ export default function StudentProfile({ studentId, back, onEnrollmentChange }: 
                     <div className="bg-[#161922] border border-slate-800/60 rounded-2xl p-6">
                         <h3 className="font-bold text-white mb-4 flex items-center gap-2">
                             <BookOpen size={18} className="text-blue-400" />
-                            Enrolled Courses ({student.enrolledCourses || student.enrollments?.length || 0})
+                            Enrolled Courses ({student.enrolledCourses || student.enrollments?.length || (student.enrollmentData?.filter((e: any) => e.enrollmentStatus === 'enrolled')?.length || 0)})
                         </h3>
 
-                        {student.enrollments && student.enrollments.length > 0 ? (
-                            <div className="space-y-3">
-                                {student.enrollments.map((enrollment: any) => (
-                                    <div key={enrollment.courseId} className="p-4 bg-[#1a1d26] rounded-xl border border-slate-800/40">
-                                        <div className="flex items-start justify-between mb-3">
-                                            <div className="flex-1">
-                                                <h4 className="font-bold text-white mb-1">{enrollment.course.title}</h4>
-                                                <p className="text-xs text-slate-500 mb-2">{enrollment.course.description?.substring(0, 80)}...</p>
-                                                <div className="flex items-center gap-4 mt-2">
-                                                    <div>
-                                                        <span className="text-xs text-slate-500">Progress: </span>
-                                                        <span className="text-xs font-bold text-purple-400">{enrollment.progress || 0}%</span>
-                                                    </div>
-                                                    <div>
-                                                        <span className="text-xs text-slate-500">Last Accessed: </span>
-                                                        <span className="text-xs text-slate-400">
-                                                            {enrollment.lastAccessed ? new Date(enrollment.lastAccessed).toLocaleDateString() : 'Never'}
-                                                        </span>
+                        {(() => {
+                            // Use enrollments from /api/students/[id] if available, otherwise use enrollmentData from /api/enrollment
+                            const enrolledList = student.enrollments && student.enrollments.length > 0 
+                                ? student.enrollments 
+                                : (student.enrollmentData?.filter((e: any) => e.enrollmentStatus === 'enrolled').map((e: any) => ({
+                                    courseId: e.courseId,
+                                    progress: e.progress || 0,
+                                    totalProgress: e.progress || 0,
+                                    lastAccessed: e.lastAccessed,
+                                    course: e.course || courses.find((c: any) => c.id === e.courseId),
+                                })) || []);
+                            
+                            console.log('📊 [StudentProfile] Enrolled courses:', {
+                                fromEnrollments: student.enrollments?.length || 0,
+                                fromEnrollmentData: student.enrollmentData?.filter((e: any) => e.enrollmentStatus === 'enrolled')?.length || 0,
+                                finalList: enrolledList.length,
+                            });
+                            
+                            return enrolledList.length > 0 ? (
+                                <div className="space-y-3">
+                                    {enrolledList.map((enrollment: any) => (
+                                        <div key={enrollment.courseId} className="p-4 bg-[#1a1d26] rounded-xl border border-slate-800/40">
+                                            <div className="flex items-start justify-between mb-3">
+                                                <div className="flex-1">
+                                                    <h4 className="font-bold text-white mb-1">{enrollment.course?.title || 'Unknown Course'}</h4>
+                                                    <p className="text-xs text-slate-500 mb-2">{enrollment.course?.description?.substring(0, 80) || ''}...</p>
+                                                    <div className="flex items-center gap-4 mt-2">
+                                                        <div>
+                                                            <span className="text-xs text-slate-500">Progress: </span>
+                                                            <span className="text-xs font-bold text-purple-400">{enrollment.progress || enrollment.totalProgress || 0}%</span>
+                                                        </div>
+                                                        <div>
+                                                            <span className="text-xs text-slate-500">Last Accessed: </span>
+                                                            <span className="text-xs text-slate-400">
+                                                                {enrollment.lastAccessed ? new Date(enrollment.lastAccessed).toLocaleDateString() : 'Never'}
+                                                            </span>
+                                                        </div>
                                                     </div>
                                                 </div>
+                                                <button
+                                                    onClick={() => handleToggleCourse(enrollment.courseId, true)}
+                                                    className="ml-4 px-4 py-2 bg-red-500/10 text-red-400 hover:bg-red-500/20 rounded-lg font-bold text-xs transition-colors border border-red-500/30"
+                                                >
+                                                    Unenroll
+                                                </button>
                                             </div>
-                                            <button
-                                                onClick={() => handleToggleCourse(enrollment.courseId, true)}
-                                                className="ml-4 px-4 py-2 bg-red-500/10 text-red-400 hover:bg-red-500/20 rounded-lg font-bold text-xs transition-colors border border-red-500/30"
-                                            >
-                                                Unenroll
-                                            </button>
+                                            {(enrollment.progress || enrollment.totalProgress || 0) > 0 && (
+                                                <div className="mt-2 w-full bg-slate-800 rounded-full h-2 overflow-hidden">
+                                                    <div
+                                                        className="bg-gradient-to-r from-purple-600 to-pink-600 h-full transition-all"
+                                                        style={{ width: `${enrollment.progress || enrollment.totalProgress || 0}%` }}
+                                                    ></div>
+                                                </div>
+                                            )}
                                         </div>
-                                        {enrollment.progress > 0 && (
-                                            <div className="mt-2 w-full bg-slate-800 rounded-full h-2 overflow-hidden">
-                                                <div
-                                                    className="bg-gradient-to-r from-purple-600 to-pink-600 h-full transition-all"
-                                                    style={{ width: `${enrollment.progress}%` }}
-                                                ></div>
-                                            </div>
-                                        )}
-                                    </div>
-                                ))}
-                            </div>
-                        ) : (
-                            <p className="text-slate-400 text-center py-8">No enrolled courses</p>
-                        )}
+                                    ))}
+                                </div>
+                            ) : (
+                                <p className="text-slate-400 text-center py-8">No enrolled courses</p>
+                            );
+                        })()}
                     </div>
 
                     {/* Available Courses */}

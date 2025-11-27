@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDatabase } from '@/lib/db';
-import { quizAttempts, chapters, quizzes, quizQuestions } from '@/lib/db/schema';
-import { eq } from 'drizzle-orm';
+import { quizAttempts, chapters, quizzes, quizQuestions, modules, studentProgress } from '@/lib/db/schema';
+import { eq, and, sql } from 'drizzle-orm';
 import { verifyAuth } from '@/lib/auth-helpers';
+import { submitQuiz } from '@/lib/data-manager/helpers/progress-helper';
 
 export async function POST(
     request: NextRequest,
@@ -97,6 +98,48 @@ export async function POST(
                 passed,
             })
             .returning();
+
+        // Sync quiz attempt to studentProgress using DataManager
+        try {
+            // Get courseId from chapter
+            const chapterResult = await db
+                .select({ moduleId: chapters.moduleId })
+                .from(chapters)
+                .where(eq(chapters.id, quizData.chapterId))
+                .limit(1);
+
+            if (chapterResult.length > 0) {
+                const moduleResult = await db
+                    .select({ courseId: modules.courseId })
+                    .from(modules)
+                    .where(eq(modules.id, chapterResult[0].moduleId))
+                    .limit(1);
+
+                if (moduleResult.length > 0) {
+                    const courseId = moduleResult[0].courseId;
+
+                    // Use DataManager for quiz submission (with validation, transaction, dual-table sync, and events)
+                    const result = await submitQuiz(
+                        userId,
+                        courseId,
+                        quizData.chapterId,
+                        quizId,
+                        score,
+                        passed
+                    );
+
+                    if (!result.success) {
+                        console.error('❌ Error syncing quiz attempt:', result.error);
+                        // Don't fail the request - quiz attempt is saved, sync can be fixed later
+                    } else {
+                        console.log(`✅ Quiz attempt synced to studentProgress for course ${courseId}. Progress: ${result.data?.progress}%`);
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('❌ Error syncing quiz attempt to studentProgress:', error);
+            // Don't fail the request - quiz attempt is saved, sync can be fixed later
+        }
 
         return NextResponse.json({
             message: passed ? 'Quiz passed!' : 'Quiz failed. Try again.',

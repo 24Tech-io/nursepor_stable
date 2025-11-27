@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/auth';
 import { getDatabase } from '@/lib/db';
-import { courses, studentProgress, payments } from '@/lib/db/schema';
+import { courses, studentProgress, payments, enrollments } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
+import { enrollStudent } from '@/lib/data-manager/helpers/enrollment-helper';
 
 export async function POST(request: NextRequest) {
   try {
@@ -61,44 +62,35 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if already enrolled
-    const existingEnrollment = await db
-      .select()
-      .from(studentProgress)
-      .where(
-        and(
-          eq(studentProgress.studentId, decoded.id),
-          eq(studentProgress.courseId, courseIdNum)
-        )
-      )
-      .limit(1);
+    // Use DataManager for enrollment (with validation, transaction, and event emission)
+    const enrollmentResult = await enrollStudent({
+      userId: decoded.id,
+      courseId: courseIdNum,
+      source: 'payment',
+    });
 
-    if (existingEnrollment.length > 0) {
+    if (!enrollmentResult.success) {
       return NextResponse.json(
-        { message: 'Already enrolled in this course' },
-        { status: 400 }
+        {
+          message: enrollmentResult.error?.message || 'Failed to enroll',
+          error: enrollmentResult.error?.code,
+          details: enrollmentResult.error?.details,
+        },
+        { status: enrollmentResult.error?.retryable ? 503 : 400 }
       );
     }
 
-    // Create free payment record
-    await db.insert(payments).values({
-      userId: decoded.id,
-      courseId: courseIdNum,
-      amount: 0,
-      currency: 'INR',
-      status: 'completed',
-      paymentMethod: 'free',
-      transactionId: `FREE-${Date.now()}-${decoded.id}`,
-    });
-
-    // Enroll student
-    await db.insert(studentProgress).values({
-      studentId: decoded.id,
-      courseId: courseIdNum,
-      completedChapters: '[]',
-      watchedVideos: '[]',
-      quizAttempts: '[]',
-      totalProgress: 0,
+    // Create free payment record in separate transaction
+    await db.transaction(async (tx) => {
+      await tx.insert(payments).values({
+        userId: decoded.id,
+        courseId: courseIdNum,
+        amount: 0,
+        currency: 'INR',
+        status: 'completed',
+        paymentMethod: 'free',
+        transactionId: `FREE-${Date.now()}-${decoded.id}`,
+      });
     });
 
     return NextResponse.json({
