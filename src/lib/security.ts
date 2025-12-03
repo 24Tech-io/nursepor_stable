@@ -9,10 +9,7 @@ export function sanitizeString(input: string, maxLength: number = 255): string {
   if (typeof input !== 'string') {
     return '';
   }
-  return input
-    .trim()
-    .slice(0, maxLength)
-    .replace(/[<>]/g, ''); // Basic XSS prevention
+  return input.trim().slice(0, maxLength).replace(/[<>]/g, ''); // Basic XSS prevention
 }
 
 export function validateEmail(email: string): boolean {
@@ -122,7 +119,7 @@ export function containsSQLInjection(input: string): boolean {
     /(\b(OR|AND)\s+\d+\s*=\s*\d+)/i,
     /(\bUNION\s+SELECT\b)/i,
   ];
-  return sqlPatterns.some(pattern => pattern.test(input));
+  return sqlPatterns.some((pattern) => pattern.test(input));
 }
 
 // Sanitize for SQL (though we use ORM, this is extra protection)
@@ -132,4 +129,3 @@ export function sanitizeForSQL(input: string): string {
   }
   return input;
 }
-

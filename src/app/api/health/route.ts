@@ -8,12 +8,12 @@ import { db } from '@/lib/db';
 
 export async function GET(request: NextRequest) {
   const startTime = Date.now();
-  
+
   try {
     // Check database connection
     let dbStatus = 'healthy';
     let dbResponseTime = 0;
-    
+
     try {
       const dbStart = Date.now();
       await db.query.users.findFirst();
@@ -22,11 +22,11 @@ export async function GET(request: NextRequest) {
       dbStatus = 'unhealthy';
       console.error('Database health check failed:', error);
     }
-    
+
     // Check overall health
     const isHealthy = dbStatus === 'healthy';
     const responseTime = Date.now() - startTime;
-    
+
     const healthData = {
       status: isHealthy ? 'healthy' : 'degraded',
       timestamp: new Date().toISOString(),
@@ -52,14 +52,14 @@ export async function GET(request: NextRequest) {
         },
       },
     };
-    
+
     // Return 200 if healthy, 503 if degraded
     const statusCode = isHealthy ? 200 : 503;
-    
+
     return NextResponse.json(healthData, { status: statusCode });
   } catch (error: any) {
     console.error('Health check error:', error);
-    
+
     return NextResponse.json(
       {
         status: 'unhealthy',
@@ -80,4 +80,3 @@ export async function HEAD(request: NextRequest) {
     return new NextResponse(null, { status: 503 });
   }
 }
-

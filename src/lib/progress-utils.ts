@@ -55,12 +55,7 @@ export async function getStudentProgress(
         lastAccessed: studentProgress.lastAccessed,
       })
       .from(studentProgress)
-      .where(
-        and(
-          eq(studentProgress.studentId, userId),
-          eq(studentProgress.courseId, courseId)
-        )
-      )
+      .where(and(eq(studentProgress.studentId, userId), eq(studentProgress.courseId, courseId)))
       .limit(1);
 
     // Prefer enrollments.progress, fallback to studentProgress.totalProgress
@@ -127,12 +122,7 @@ export async function getEnrollmentStatus(
         lastAccessed: studentProgress.lastAccessed,
       })
       .from(studentProgress)
-      .where(
-        and(
-          eq(studentProgress.studentId, userId),
-          eq(studentProgress.courseId, courseId)
-        )
-      )
+      .where(and(eq(studentProgress.studentId, userId), eq(studentProgress.courseId, courseId)))
       .limit(1);
 
     // Student is enrolled if record exists in either table AND no pending request
@@ -171,10 +161,7 @@ export async function getEnrollmentStatus(
  * Merge enrollment data from both tables
  * Prefers enrollments.progress as source of truth
  */
-export function mergeEnrollmentData(
-  progressData: any[],
-  enrollmentData: any[]
-): any[] {
+export function mergeEnrollmentData(progressData: any[], enrollmentData: any[]): any[] {
   const mergedMap = new Map();
 
   // First, add all from enrollments table (new source of truth)
@@ -242,12 +229,7 @@ export async function getAllStudentEnrollments(
       })
       .from(enrollments)
       .innerJoin(courses, eq(enrollments.courseId, courses.id))
-      .where(
-        and(
-          eq(enrollments.userId, userId),
-          eq(enrollments.status, 'active')
-        )
-      )
+      .where(and(eq(enrollments.userId, userId), eq(enrollments.status, 'active')))
       .limit(100);
 
     // Get from studentProgress table
@@ -284,4 +266,3 @@ export async function getAllStudentEnrollments(
     return [];
   }
 }
-

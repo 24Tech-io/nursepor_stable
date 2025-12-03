@@ -5,10 +5,7 @@ import { chapters } from '@/lib/db/schema';
 import { eq, desc } from 'drizzle-orm';
 
 // GET - Fetch all chapters for a module
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { moduleId: string } }
-) {
+export async function GET(request: NextRequest, { params }: { params: { moduleId: string } }) {
   try {
     const token = request.cookies.get('token')?.value;
     if (!token) {
@@ -40,10 +37,7 @@ export async function GET(
 }
 
 // POST - Create new chapter
-export async function POST(
-  request: NextRequest,
-  { params }: { params: { moduleId: string } }
-) {
+export async function POST(request: NextRequest, { params }: { params: { moduleId: string } }) {
   try {
     const token = request.cookies.get('token')?.value;
     if (!token) {
@@ -56,9 +50,9 @@ export async function POST(
     }
 
     const body = await request.json();
-    const { 
-      title, 
-      description, 
+    const {
+      title,
+      description,
       type,
       order,
       isPublished,
@@ -70,14 +64,11 @@ export async function POST(
       textbookContent,
       textbookFileUrl,
       readingTime,
-      mcqData
+      mcqData,
     } = body;
 
     if (!title || !type) {
-      return NextResponse.json(
-        { message: 'Title and type are required' },
-        { status: 400 }
-      );
+      return NextResponse.json({ message: 'Title and type are required' }, { status: 400 });
     }
 
     const db = getDatabase();
@@ -92,27 +83,30 @@ export async function POST(
         .where(eq(chapters.moduleId, moduleId))
         .orderBy(desc(chapters.order))
         .limit(1);
-      
+
       chapterOrder = existingChapters.length > 0 ? existingChapters[0].order + 1 : 0;
     }
 
-    const result = await db.insert(chapters).values({
-      moduleId,
-      title,
-      description: description || '',
-      type,
-      order: chapterOrder,
-      isPublished: isPublished !== false,
-      prerequisiteChapterId: prerequisiteChapterId || null,
-      videoUrl: videoUrl || null,
-      videoProvider: videoProvider || null,
-      videoDuration: videoDuration || null,
-      transcript: transcript || null,
-      textbookContent: textbookContent || null,
-      textbookFileUrl: textbookFileUrl || null,
-      readingTime: readingTime || null,
-      mcqData: mcqData || null,
-    }).returning();
+    const result = await db
+      .insert(chapters)
+      .values({
+        moduleId,
+        title,
+        description: description || '',
+        type,
+        order: chapterOrder,
+        isPublished: isPublished !== false,
+        prerequisiteChapterId: prerequisiteChapterId || null,
+        videoUrl: videoUrl || null,
+        videoProvider: videoProvider || null,
+        videoDuration: videoDuration || null,
+        transcript: transcript || null,
+        textbookContent: textbookContent || null,
+        textbookFileUrl: textbookFileUrl || null,
+        readingTime: readingTime || null,
+        mcqData: mcqData || null,
+      })
+      .returning();
 
     console.log('✅ Chapter created:', result[0]);
 
@@ -125,4 +119,3 @@ export async function POST(
     );
   }
 }
-

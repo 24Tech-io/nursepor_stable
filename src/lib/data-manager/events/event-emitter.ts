@@ -31,7 +31,7 @@ class DataManagerEventEmitter extends EventEmitter {
       // Emit with both specific type and wildcard
       this.emit(event.type, event);
       this.emit('*', event); // Wildcard for global listeners
-      
+
       // Log in development
       if (process.env.NODE_ENV === 'development') {
         console.log(`📢 Event emitted: ${event.type}`, {
@@ -80,4 +80,3 @@ class DataManagerEventEmitter extends EventEmitter {
 
 // Export singleton instance
 export const dataManagerEvents = DataManagerEventEmitter.getInstance();
-

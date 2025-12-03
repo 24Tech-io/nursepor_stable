@@ -156,10 +156,13 @@ export function createErrorResponse(
       error: process.env.NODE_ENV === 'development' ? error.message : undefined,
       type: ErrorType.INTERNAL,
       code: error.code || 'INTERNAL_ERROR',
-      details: process.env.NODE_ENV === 'development' ? {
-        stack: error.stack,
-        name: error.name,
-      } : undefined,
+      details:
+        process.env.NODE_ENV === 'development'
+          ? {
+              stack: error.stack,
+              name: error.name,
+            }
+          : undefined,
       retryable,
     },
     { status: statusCode }
@@ -169,10 +172,7 @@ export function createErrorResponse(
 /**
  * Create validation error response
  */
-export function createValidationError(
-  message: string,
-  details?: any
-): NextResponse<ErrorResponse> {
+export function createValidationError(message: string, details?: any): NextResponse<ErrorResponse> {
   return NextResponse.json(
     {
       message,
@@ -205,9 +205,7 @@ export function createAuthError(
 /**
  * Create authorization error response
  */
-export function createAuthzError(
-  message: string = 'Access denied'
-): NextResponse<ErrorResponse> {
+export function createAuthzError(message: string = 'Access denied'): NextResponse<ErrorResponse> {
   return NextResponse.json(
     {
       message,
@@ -235,7 +233,3 @@ export function createNotFoundError(
     { status: 404 }
   );
 }
-
-
-
-

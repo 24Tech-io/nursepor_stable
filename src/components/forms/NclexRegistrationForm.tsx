@@ -79,12 +79,9 @@ const jobRoleSuggestions = [
   'Pediatric Nurse',
 ];
 
-const employmentTypeOptions: Array<NursingCandidateFormPayload['canadaEmploymentHistory'][number]['employmentType']> = [
-  'Full-time',
-  'Part-time',
-  'Casual',
-  'Contract',
-];
+const employmentTypeOptions: Array<
+  NursingCandidateFormPayload['canadaEmploymentHistory'][number]['employmentType']
+> = ['Full-time', 'Part-time', 'Casual', 'Contract'];
 
 const registrationStatusOptions: Array<
   NursingCandidateFormPayload['registrationDetails']['entries'][number]['status']
@@ -96,8 +93,16 @@ const educationSections = [
   { key: 'postBasic', label: 'Post Basic BSc Nursing', programType: 'Post Basic BSc Nursing' },
   { key: 'msc', label: 'MSc Nursing', programType: 'MSc Nursing' },
   { key: 'plusTwo', label: 'Plus Two / 12th Grade', programType: 'Plus Two / 12th Grade' },
-  { key: 'tenthGrade', label: '10th Grade / Secondary School', programType: '10th Grade / Secondary School' },
-  { key: 'primaryHighSchool', label: 'Primary and High School (Grades 1–10)', programType: 'Primary & High School' },
+  {
+    key: 'tenthGrade',
+    label: '10th Grade / Secondary School',
+    programType: '10th Grade / Secondary School',
+  },
+  {
+    key: 'primaryHighSchool',
+    label: 'Primary and High School (Grades 1–10)',
+    programType: 'Primary & High School',
+  },
 ] as const;
 
 const programOptions = Array.from(
@@ -270,9 +275,16 @@ interface NclexRegistrationFormProps {
 export default function NclexRegistrationForm({ variant = 'inline' }: NclexRegistrationFormProps) {
   const [formState, setFormState] = useState<NursingCandidateFormPayload>(initialState);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error'; message: string; reference?: string } | null>(null);
+  const [statusMessage, setStatusMessage] = useState<{
+    type: 'success' | 'error';
+    message: string;
+    reference?: string;
+  } | null>(null);
 
-  const handlePersonalChange = (field: keyof NursingCandidateFormPayload['personalDetails'], value: string) => {
+  const handlePersonalChange = (
+    field: keyof NursingCandidateFormPayload['personalDetails'],
+    value: string
+  ) => {
     setFormState((prev: NursingCandidateFormPayload) => ({
       ...prev,
       personalDetails: {
@@ -373,7 +385,11 @@ export default function NclexRegistrationForm({ variant = 'inline' }: NclexRegis
   };
 
   const validateRequiredFields = () => {
-    const missing = personalFields.filter((field) => field.required && !formState.personalDetails[field.name as keyof typeof formState.personalDetails]);
+    const missing = personalFields.filter(
+      (field) =>
+        field.required &&
+        !formState.personalDetails[field.name as keyof typeof formState.personalDetails]
+    );
     if (missing.length > 0) {
       return `Please complete all required personal fields (${missing.map((f) => f.label).join(', ')})`;
     }
@@ -407,7 +423,8 @@ export default function NclexRegistrationForm({ variant = 'inline' }: NclexRegis
 
       setStatusMessage({
         type: 'success',
-        message: 'Thank you! Your NCLEX-RN registration information has been received. Our team will contact you shortly.',
+        message:
+          'Thank you! Your NCLEX-RN registration information has been received. Our team will contact you shortly.',
         reference: result.referenceNumber,
       });
       setFormState(initialState);
@@ -429,7 +446,10 @@ export default function NclexRegistrationForm({ variant = 'inline' }: NclexRegis
         : 'mt-20 bg-white rounded-3xl shadow-2xl border border-slate-100 p-8';
 
   return (
-    <section id={variant !== 'modal' ? 'nclex-registration' : undefined} className={`${containerClasses} relative overflow-hidden`}>
+    <section
+      id={variant !== 'modal' ? 'nclex-registration' : undefined}
+      className={`${containerClasses} relative overflow-hidden`}
+    >
       <div className="absolute inset-0 bg-slate-900">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(99,102,241,0.25),_transparent_45%)]" />
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom,_rgba(236,72,153,0.2),_transparent_50%)]" />
@@ -451,7 +471,8 @@ export default function NclexRegistrationForm({ variant = 'inline' }: NclexRegis
               NursePro Academy — Quantum Registration Matrix
             </h2>
             <p className="text-lg text-indigo-100">
-              Provide accurate information as seen on official records. Fields may be marked “N/A” if they do not apply.
+              Provide accurate information as seen on official records. Fields may be marked “N/A”
+              if they do not apply.
             </p>
           </div>
         )}
@@ -478,19 +499,37 @@ export default function NclexRegistrationForm({ variant = 'inline' }: NclexRegis
           <div>
             <div className="flex items-center gap-3 mb-4">
               <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-400 to-indigo-600 flex items-center justify-center shadow-lg shadow-indigo-500/40">
-                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l9-5-9-5-9 5 9 5z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l6.16-3.422A12 12 0 0112 21a12 12 0 01-6.16-10.422L12 14z" />
+                <svg
+                  className="w-5 h-5 text-white"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 14l9-5-9-5-9 5 9 5z"
+                  />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 14l6.16-3.422A12 12 0 0112 21a12 12 0 01-6.16-10.422L12 14z"
+                  />
                 </svg>
               </div>
-              <h3 className="text-2xl font-semibold text-white">Section 1: Personal / Identity Details</h3>
+              <h3 className="text-2xl font-semibold text-white">
+                Section 1: Personal / Identity Details
+              </h3>
             </div>
             <div className="grid md:grid-cols-2 gap-6">
               {personalFields.map((field) => {
                 const value = formState.personalDetails[field.name];
                 const isTextarea = field.component === 'textarea';
                 const isSelect = field.component === 'select';
-                const placeholder = field.placeholder ?? 'Enter details exactly as on official documents';
+                const placeholder =
+                  field.placeholder ?? 'Enter details exactly as on official documents';
                 return (
                   <div key={field.name} className={isTextarea ? 'md:col-span-2' : ''}>
                     <label className="block text-sm font-semibold text-slate-700 mb-2">
@@ -536,7 +575,9 @@ export default function NclexRegistrationForm({ variant = 'inline' }: NclexRegis
               })}
 
               <div className="md:col-span-2">
-                <label className="block text-sm font-semibold text-slate-400 mb-3 tracking-wide uppercase">Any name change</label>
+                <label className="block text-sm font-semibold text-slate-400 mb-3 tracking-wide uppercase">
+                  Any name change
+                </label>
                 <div className="flex flex-wrap gap-4">
                   {['Yes', 'No'].map((option) => (
                     <label
@@ -562,7 +603,9 @@ export default function NclexRegistrationForm({ variant = 'inline' }: NclexRegis
               </div>
 
               <div className="md:col-span-2">
-                <label className="block text-sm font-semibold text-slate-400 mb-3 tracking-wide uppercase">Gender</label>
+                <label className="block text-sm font-semibold text-slate-400 mb-3 tracking-wide uppercase">
+                  Gender
+                </label>
                 <div className="flex flex-wrap gap-4">
                   {['Female', 'Male', 'Other'].map((option) => (
                     <label
@@ -598,37 +641,76 @@ export default function NclexRegistrationForm({ variant = 'inline' }: NclexRegis
           <div>
             <div className="flex items-center gap-3 mb-4">
               <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-pink-500 to-purple-600 flex items-center justify-center shadow-lg shadow-purple-500/40">
-                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+                <svg
+                  className="w-5 h-5 text-white"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M4 6h16M4 10h16M4 14h16M4 18h16"
+                  />
                 </svg>
               </div>
               <h3 className="text-2xl font-semibold text-white">Section 2: Education Details</h3>
             </div>
-            <p className="text-sm text-indigo-200 mb-4">Fill in the programs that apply to you. Use “N/A” if not applicable.</p>
+            <p className="text-sm text-indigo-200 mb-4">
+              Fill in the programs that apply to you. Use “N/A” if not applicable.
+            </p>
             <div className="space-y-6">
               {educationSections.map((section) => (
-                <div key={section.key} className="border border-white/10 rounded-2xl p-5 bg-white/5 backdrop-blur shadow-[0_0_20px_rgba(79,70,229,0.3)]">
+                <div
+                  key={section.key}
+                  className="border border-white/10 rounded-2xl p-5 bg-white/5 backdrop-blur shadow-[0_0_20px_rgba(79,70,229,0.3)]"
+                >
                   <h4 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
                     <span className="w-2 h-2 rounded-full bg-gradient-to-r from-indigo-400 to-fuchsia-400 animate-pulse" />
                     {section.label}
                   </h4>
                   <div className="grid md:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <label className="block text-xs uppercase tracking-[0.3em] text-indigo-200">Institution</label>
+                      <label className="block text-xs uppercase tracking-[0.3em] text-indigo-200">
+                        Institution
+                      </label>
                       <input
                         className="rounded-2xl border border-white/10 bg-slate-900/40 text-white placeholder:text-slate-400 focus:ring-2 focus:ring-fuchsia-400/60 focus:border-fuchsia-400/60 p-3"
                         placeholder="College / School name"
                         list="institution-suggestions"
-                        value={formState.educationDetails[section.key as keyof typeof formState.educationDetails].institutionName}
-                        onChange={(e) => handleEducationChange(section.key as keyof typeof formState.educationDetails, 'institutionName', e.target.value)}
+                        value={
+                          formState.educationDetails[
+                            section.key as keyof typeof formState.educationDetails
+                          ].institutionName
+                        }
+                        onChange={(e) =>
+                          handleEducationChange(
+                            section.key as keyof typeof formState.educationDetails,
+                            'institutionName',
+                            e.target.value
+                          )
+                        }
                       />
                     </div>
                     <div className="space-y-2">
-                      <label className="block text-xs uppercase tracking-[0.3em] text-indigo-200">Program / Degree type</label>
+                      <label className="block text-xs uppercase tracking-[0.3em] text-indigo-200">
+                        Program / Degree type
+                      </label>
                       <select
                         className="rounded-2xl border border-white/10 bg-slate-900/40 text-white focus:ring-2 focus:ring-fuchsia-400/60 focus:border-fuchsia-400/60 p-3"
-                        value={formState.educationDetails[section.key as keyof typeof formState.educationDetails].programType}
-                        onChange={(e) => handleEducationChange(section.key as keyof typeof formState.educationDetails, 'programType', e.target.value)}
+                        value={
+                          formState.educationDetails[
+                            section.key as keyof typeof formState.educationDetails
+                          ].programType
+                        }
+                        onChange={(e) =>
+                          handleEducationChange(
+                            section.key as keyof typeof formState.educationDetails,
+                            'programType',
+                            e.target.value
+                          )
+                        }
                       >
                         {programOptions.map((option) => (
                           <option key={option} value={option}>
@@ -638,35 +720,67 @@ export default function NclexRegistrationForm({ variant = 'inline' }: NclexRegis
                       </select>
                     </div>
                     <div className="md:col-span-2 space-y-2">
-                      <label className="block text-xs uppercase tracking-[0.3em] text-indigo-200">Full address</label>
+                      <label className="block text-xs uppercase tracking-[0.3em] text-indigo-200">
+                        Full address
+                      </label>
                       <textarea
                         className="rounded-2xl border border-white/10 bg-slate-900/40 text-white placeholder:text-slate-400 focus:ring-2 focus:ring-fuchsia-400/60 focus:border-fuchsia-400/60 p-3 resize-none min-h-[110px]"
                         rows={3}
                         placeholder="Full address (with postal code and country)"
-                        value={formState.educationDetails[section.key as keyof typeof formState.educationDetails].address}
-                        onChange={(e) => handleEducationChange(section.key as keyof typeof formState.educationDetails, 'address', e.target.value)}
+                        value={
+                          formState.educationDetails[
+                            section.key as keyof typeof formState.educationDetails
+                          ].address
+                        }
+                        onChange={(e) =>
+                          handleEducationChange(
+                            section.key as keyof typeof formState.educationDetails,
+                            'address',
+                            e.target.value
+                          )
+                        }
                       />
                     </div>
                     <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <label className="block text-xs uppercase tracking-[0.3em] text-indigo-200">Study period — from</label>
+                        <label className="block text-xs uppercase tracking-[0.3em] text-indigo-200">
+                          Study period — from
+                        </label>
                         <input
                           type="date"
                           className="rounded-2xl border border-white/10 bg-slate-900/40 text-white focus:ring-2 focus:ring-fuchsia-400/60 focus:border-fuchsia-400/60 p-3"
-                          value={formState.educationDetails[section.key as keyof typeof formState.educationDetails].studyPeriod.from}
+                          value={
+                            formState.educationDetails[
+                              section.key as keyof typeof formState.educationDetails
+                            ].studyPeriod.from
+                          }
                           onChange={(e) =>
-                            handleEducationDateChange(section.key as keyof typeof formState.educationDetails, 'from', e.target.value)
+                            handleEducationDateChange(
+                              section.key as keyof typeof formState.educationDetails,
+                              'from',
+                              e.target.value
+                            )
                           }
                         />
                       </div>
                       <div className="space-y-2">
-                        <label className="block text-xs uppercase tracking-[0.3em] text-indigo-200">Study period — to</label>
+                        <label className="block text-xs uppercase tracking-[0.3em] text-indigo-200">
+                          Study period — to
+                        </label>
                         <input
                           type="date"
                           className="rounded-2xl border border-white/10 bg-slate-900/40 text-white focus:ring-2 focus:ring-fuchsia-400/60 focus:border-fuchsia-400/60 p-3"
-                          value={formState.educationDetails[section.key as keyof typeof formState.educationDetails].studyPeriod.to}
+                          value={
+                            formState.educationDetails[
+                              section.key as keyof typeof formState.educationDetails
+                            ].studyPeriod.to
+                          }
                           onChange={(e) =>
-                            handleEducationDateChange(section.key as keyof typeof formState.educationDetails, 'to', e.target.value)
+                            handleEducationDateChange(
+                              section.key as keyof typeof formState.educationDetails,
+                              'to',
+                              e.target.value
+                            )
                           }
                         />
                       </div>
@@ -682,19 +796,32 @@ export default function NclexRegistrationForm({ variant = 'inline' }: NclexRegis
             </datalist>
           </div>
 
-  {/* Section 3 */}
+          {/* Section 3 */}
           <div>
             <div className="flex items-center gap-3 mb-4">
               <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 to-orange-600 flex items-center justify-center shadow-lg shadow-orange-500/40">
-                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                <svg
+                  className="w-5 h-5 text-white"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M5 13l4 4L19 7"
+                  />
                 </svg>
               </div>
-              <h3 className="text-2xl font-semibold text-white">Section 3: Registration / License Details</h3>
+              <h3 className="text-2xl font-semibold text-white">
+                Section 3: Registration / License Details
+              </h3>
             </div>
             <div className="mb-4">
               <label className="block text-sm font-semibold text-slate-700 mb-3">
-                Have you ever been suspended, dismissed, or faced disciplinary action by any nursing council?
+                Have you ever been suspended, dismissed, or faced disciplinary action by any nursing
+                council?
               </label>
               <div className="flex flex-wrap gap-4">
                 {['No', 'Yes'].map((option) => (
@@ -729,48 +856,67 @@ export default function NclexRegistrationForm({ variant = 'inline' }: NclexRegis
             </div>
             <div className="space-y-6">
               {formState.registrationDetails.entries.map((entry, index) => (
-                <div key={index} className="border border-white/10 rounded-2xl p-5 bg-white/5 backdrop-blur">
+                <div
+                  key={index}
+                  className="border border-white/10 rounded-2xl p-5 bg-white/5 backdrop-blur"
+                >
                   <h4 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
                     <span className="text-xs tracking-[0.4em] text-indigo-300">NR-{index + 1}</span>
                     Nursing Registration {index + 1}
                   </h4>
                   <div className="grid md:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <label className="block text-xs uppercase tracking-[0.3em] text-orange-200">Council / Licensing body</label>
+                      <label className="block text-xs uppercase tracking-[0.3em] text-orange-200">
+                        Council / Licensing body
+                      </label>
                       <input
                         className="rounded-2xl border border-white/10 bg-slate-900/40 text-white placeholder:text-slate-400 focus:ring-2 focus:ring-orange-400/60 focus:border-orange-400/60 p-3"
                         placeholder="Council or licensing body name"
                         list="council-suggestions"
                         value={entry.councilName}
-                        onChange={(e) => handleRegistrationChange(index, 'councilName', e.target.value)}
+                        onChange={(e) =>
+                          handleRegistrationChange(index, 'councilName', e.target.value)
+                        }
                       />
                     </div>
                     <input
                       className="rounded-2xl border border-white/10 bg-slate-900/40 text-white placeholder:text-slate-400 focus:ring-2 focus:ring-orange-400/60 focus:border-orange-400/60 p-3"
                       placeholder="Registration number"
                       value={entry.registrationNumber}
-                      onChange={(e) => handleRegistrationChange(index, 'registrationNumber', e.target.value)}
+                      onChange={(e) =>
+                        handleRegistrationChange(index, 'registrationNumber', e.target.value)
+                      }
                     />
                     <div className="space-y-2">
-                      <label className="block text-xs uppercase tracking-[0.3em] text-orange-200">Date issued</label>
+                      <label className="block text-xs uppercase tracking-[0.3em] text-orange-200">
+                        Date issued
+                      </label>
                       <input
                         type="date"
                         className="rounded-2xl border border-white/10 bg-slate-900/40 text-white focus:ring-2 focus:ring-orange-400/60 focus:border-orange-400/60 p-3"
                         value={entry.issuedDate}
-                        onChange={(e) => handleRegistrationChange(index, 'issuedDate', e.target.value)}
+                        onChange={(e) =>
+                          handleRegistrationChange(index, 'issuedDate', e.target.value)
+                        }
                       />
                     </div>
                     <div className="space-y-2">
-                      <label className="block text-xs uppercase tracking-[0.3em] text-orange-200">Expiry / renewal date</label>
+                      <label className="block text-xs uppercase tracking-[0.3em] text-orange-200">
+                        Expiry / renewal date
+                      </label>
                       <input
                         type="date"
                         className="rounded-2xl border border-white/10 bg-slate-900/40 text-white focus:ring-2 focus:ring-orange-400/60 focus:border-orange-400/60 p-3"
                         value={entry.expiryDate}
-                        onChange={(e) => handleRegistrationChange(index, 'expiryDate', e.target.value)}
+                        onChange={(e) =>
+                          handleRegistrationChange(index, 'expiryDate', e.target.value)
+                        }
                       />
                     </div>
                     <div className="space-y-2">
-                      <label className="block text-xs uppercase tracking-[0.3em] text-orange-200">Current status</label>
+                      <label className="block text-xs uppercase tracking-[0.3em] text-orange-200">
+                        Current status
+                      </label>
                       <select
                         className="rounded-2xl border border-white/10 bg-slate-900/40 text-white focus:ring-2 focus:ring-orange-400/60 focus:border-orange-400/60 p-3"
                         value={entry.status}
@@ -799,54 +945,109 @@ export default function NclexRegistrationForm({ variant = 'inline' }: NclexRegis
           <div>
             <div className="flex items-center gap-3 mb-4">
               <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-400 to-emerald-500 flex items-center justify-center shadow-lg shadow-cyan-500/40">
-                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                <svg
+                  className="w-5 h-5 text-white"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M13 10V3L4 14h7v7l9-11h-7z"
+                  />
                 </svg>
               </div>
-              <h3 className="text-2xl font-semibold text-white">Section 4: Employment History – USA & Australia</h3>
+              <h3 className="text-2xl font-semibold text-white">
+                Section 4: Employment History – USA & Australia
+              </h3>
             </div>
-            <p className="text-sm text-cyan-100 mb-4">Provide the most recent nursing roles relevant for NCLEX-RN verification.</p>
+            <p className="text-sm text-cyan-100 mb-4">
+              Provide the most recent nursing roles relevant for NCLEX-RN verification.
+            </p>
             <div className="space-y-6">
               {formState.employmentHistory.map((entry, index) => (
-                <div key={index} className="border border-white/10 rounded-2xl p-5 bg-gradient-to-br from-slate-900/60 to-emerald-900/20 backdrop-blur">
-                  <h4 className="text-lg font-semibold text-white mb-4">Nursing Experience {index + 1}</h4>
+                <div
+                  key={index}
+                  className="border border-white/10 rounded-2xl p-5 bg-gradient-to-br from-slate-900/60 to-emerald-900/20 backdrop-blur"
+                >
+                  <h4 className="text-lg font-semibold text-white mb-4">
+                    Nursing Experience {index + 1}
+                  </h4>
                   <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
                     <div className="space-y-2 lg:col-span-2">
-                      <label className="block text-xs uppercase tracking-[0.3em] text-emerald-200">Employer / hospital</label>
+                      <label className="block text-xs uppercase tracking-[0.3em] text-emerald-200">
+                        Employer / hospital
+                      </label>
                       <input
                         className="rounded-2xl border border-white/10 bg-slate-900/40 text-white placeholder:text-slate-400 focus:ring-2 focus:ring-emerald-400/60 focus:border-emerald-400/60 p-3"
                         placeholder="Employer / hospital name"
                         list="employer-suggestions"
                         value={entry.employer}
-                        onChange={(e) => handleEmploymentChange('employmentHistory', index, 'employer', e.target.value)}
+                        onChange={(e) =>
+                          handleEmploymentChange(
+                            'employmentHistory',
+                            index,
+                            'employer',
+                            e.target.value
+                          )
+                        }
                       />
                     </div>
                     <div className="space-y-2 lg:col-span-2">
-                      <label className="block text-xs uppercase tracking-[0.3em] text-emerald-200">Job title / position</label>
+                      <label className="block text-xs uppercase tracking-[0.3em] text-emerald-200">
+                        Job title / position
+                      </label>
                       <input
                         className="rounded-2xl border border-white/10 bg-slate-900/40 text-white placeholder:text-slate-400 focus:ring-2 focus:ring-emerald-400/60 focus:border-emerald-400/60 p-3"
                         placeholder="Job title / position"
                         list="job-role-suggestions"
                         value={entry.position}
-                        onChange={(e) => handleEmploymentChange('employmentHistory', index, 'position', e.target.value)}
+                        onChange={(e) =>
+                          handleEmploymentChange(
+                            'employmentHistory',
+                            index,
+                            'position',
+                            e.target.value
+                          )
+                        }
                       />
                     </div>
                     <div className="space-y-2">
-                      <label className="block text-xs uppercase tracking-[0.3em] text-emerald-200">Start date</label>
+                      <label className="block text-xs uppercase tracking-[0.3em] text-emerald-200">
+                        Start date
+                      </label>
                       <input
                         type="date"
                         className="rounded-2xl border border-white/10 bg-slate-900/40 text-white focus:ring-2 focus:ring-emerald-400/60 focus:border-emerald-400/60 p-3"
                         value={entry.dates.from}
-                        onChange={(e) => handleEmploymentDateChange('employmentHistory', index, 'from', e.target.value)}
+                        onChange={(e) =>
+                          handleEmploymentDateChange(
+                            'employmentHistory',
+                            index,
+                            'from',
+                            e.target.value
+                          )
+                        }
                       />
                     </div>
                     <div className="space-y-2">
-                      <label className="block text-xs uppercase tracking-[0.3em] text-emerald-200">End date</label>
+                      <label className="block text-xs uppercase tracking-[0.3em] text-emerald-200">
+                        End date
+                      </label>
                       <input
                         type="date"
                         className="rounded-2xl border border-white/10 bg-slate-900/40 text-white focus:ring-2 focus:ring-emerald-400/60 focus:border-emerald-400/60 p-3"
                         value={entry.dates.to}
-                        onChange={(e) => handleEmploymentDateChange('employmentHistory', index, 'to', e.target.value)}
+                        onChange={(e) =>
+                          handleEmploymentDateChange(
+                            'employmentHistory',
+                            index,
+                            'to',
+                            e.target.value
+                          )
+                        }
                       />
                     </div>
                   </div>
@@ -869,58 +1070,115 @@ export default function NclexRegistrationForm({ variant = 'inline' }: NclexRegis
           <div>
             <div className="flex items-center gap-3 mb-4">
               <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-sky-500 to-blue-600 flex items-center justify-center shadow-lg shadow-sky-500/40">
-                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-3-3v6m9-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                <svg
+                  className="w-5 h-5 text-white"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 12h6m-3-3v6m9-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
                 </svg>
               </div>
-              <h3 className="text-2xl font-semibold text-white">Section 5: Employment Details – Canada</h3>
+              <h3 className="text-2xl font-semibold text-white">
+                Section 5: Employment Details – Canada
+              </h3>
             </div>
-            <p className="text-sm text-sky-100 mb-4">Include hospitals, clinics, or community health agencies (last 5 years).</p>
+            <p className="text-sm text-sky-100 mb-4">
+              Include hospitals, clinics, or community health agencies (last 5 years).
+            </p>
             <div className="space-y-6">
               {formState.canadaEmploymentHistory.map((entry, index) => (
-                <div key={index} className="border border-white/10 rounded-2xl p-5 bg-gradient-to-br from-blue-900/40 to-violet-900/30 backdrop-blur">
-                  <h4 className="text-lg font-semibold text-white mb-4">Canada Nursing Experience {index + 1}</h4>
+                <div
+                  key={index}
+                  className="border border-white/10 rounded-2xl p-5 bg-gradient-to-br from-blue-900/40 to-violet-900/30 backdrop-blur"
+                >
+                  <h4 className="text-lg font-semibold text-white mb-4">
+                    Canada Nursing Experience {index + 1}
+                  </h4>
                   <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
                     <div className="space-y-2 lg:col-span-2">
-                      <label className="block text-xs uppercase tracking-[0.3em] text-sky-200">Employer / hospital</label>
+                      <label className="block text-xs uppercase tracking-[0.3em] text-sky-200">
+                        Employer / hospital
+                      </label>
                       <input
                         className="rounded-2xl border border-white/10 bg-slate-900/40 text-white placeholder:text-slate-400 focus:ring-2 focus:ring-sky-400/60 focus:border-sky-400/60 p-3"
                         placeholder="Employer / hospital name"
                         list="employer-suggestions"
                         value={entry.employer}
-                        onChange={(e) => handleEmploymentChange('canadaEmploymentHistory', index, 'employer', e.target.value)}
+                        onChange={(e) =>
+                          handleEmploymentChange(
+                            'canadaEmploymentHistory',
+                            index,
+                            'employer',
+                            e.target.value
+                          )
+                        }
                       />
                     </div>
                     <div className="space-y-2 lg:col-span-2">
-                      <label className="block text-xs uppercase tracking-[0.3em] text-sky-200">Job title / position</label>
+                      <label className="block text-xs uppercase tracking-[0.3em] text-sky-200">
+                        Job title / position
+                      </label>
                       <input
                         className="rounded-2xl border border-white/10 bg-slate-900/40 text-white placeholder:text-slate-400 focus:ring-2 focus:ring-sky-400/60 focus:border-sky-400/60 p-3"
                         placeholder="Job title / position"
                         list="job-role-suggestions"
                         value={entry.position}
-                        onChange={(e) => handleEmploymentChange('canadaEmploymentHistory', index, 'position', e.target.value)}
+                        onChange={(e) =>
+                          handleEmploymentChange(
+                            'canadaEmploymentHistory',
+                            index,
+                            'position',
+                            e.target.value
+                          )
+                        }
                       />
                     </div>
                     <div className="space-y-2">
-                      <label className="block text-xs uppercase tracking-[0.3em] text-sky-200">Start date</label>
+                      <label className="block text-xs uppercase tracking-[0.3em] text-sky-200">
+                        Start date
+                      </label>
                       <input
                         type="date"
                         className="rounded-2xl border border-white/10 bg-slate-900/40 text-white focus:ring-2 focus:ring-sky-400/60 focus:border-sky-400/60 p-3"
                         value={entry.dates.from}
-                        onChange={(e) => handleEmploymentDateChange('canadaEmploymentHistory', index, 'from', e.target.value)}
+                        onChange={(e) =>
+                          handleEmploymentDateChange(
+                            'canadaEmploymentHistory',
+                            index,
+                            'from',
+                            e.target.value
+                          )
+                        }
                       />
                     </div>
                     <div className="space-y-2">
-                      <label className="block text-xs uppercase tracking-[0.3em] text-sky-200">End date</label>
+                      <label className="block text-xs uppercase tracking-[0.3em] text-sky-200">
+                        End date
+                      </label>
                       <input
                         type="date"
                         className="rounded-2xl border border-white/10 bg-slate-900/40 text-white focus:ring-2 focus:ring-sky-400/60 focus:border-sky-400/60 p-3"
                         value={entry.dates.to}
-                        onChange={(e) => handleEmploymentDateChange('canadaEmploymentHistory', index, 'to', e.target.value)}
+                        onChange={(e) =>
+                          handleEmploymentDateChange(
+                            'canadaEmploymentHistory',
+                            index,
+                            'to',
+                            e.target.value
+                          )
+                        }
                       />
                     </div>
                     <div className="space-y-2 md:col-span-2 lg:col-span-3">
-                      <label className="block text-xs uppercase tracking-[0.3em] text-sky-200">Employment type</label>
+                      <label className="block text-xs uppercase tracking-[0.3em] text-sky-200">
+                        Employment type
+                      </label>
                       <div className="flex flex-wrap gap-3">
                         {employmentTypeOptions.map((option) => (
                           <label
@@ -937,7 +1195,14 @@ export default function NclexRegistrationForm({ variant = 'inline' }: NclexRegis
                               value={option}
                               className="text-sky-400 focus:ring-sky-500"
                               checked={entry.employmentType === option}
-                              onChange={(e) => handleEmploymentChange('canadaEmploymentHistory', index, 'employmentType', e.target.value)}
+                              onChange={(e) =>
+                                handleEmploymentChange(
+                                  'canadaEmploymentHistory',
+                                  index,
+                                  'employmentType',
+                                  e.target.value
+                                )
+                              }
                             />
                             <span>{option}</span>
                           </label>
@@ -945,7 +1210,9 @@ export default function NclexRegistrationForm({ variant = 'inline' }: NclexRegis
                       </div>
                     </div>
                     <div className="space-y-2">
-                      <label className="block text-xs uppercase tracking-[0.3em] text-sky-200">Approx. hours per month</label>
+                      <label className="block text-xs uppercase tracking-[0.3em] text-sky-200">
+                        Approx. hours per month
+                      </label>
                       <input
                         type="number"
                         min="0"
@@ -953,7 +1220,14 @@ export default function NclexRegistrationForm({ variant = 'inline' }: NclexRegis
                         className="rounded-2xl border border-white/10 bg-slate-900/40 text-white placeholder:text-slate-400 focus:ring-2 focus:ring-sky-400/60 focus:border-sky-400/60 p-3"
                         placeholder="e.g. 160"
                         value={entry.hoursPerMonth}
-                        onChange={(e) => handleEmploymentChange('canadaEmploymentHistory', index, 'hoursPerMonth', e.target.value)}
+                        onChange={(e) =>
+                          handleEmploymentChange(
+                            'canadaEmploymentHistory',
+                            index,
+                            'hoursPerMonth',
+                            e.target.value
+                          )
+                        }
                       />
                     </div>
                   </div>
@@ -964,13 +1238,24 @@ export default function NclexRegistrationForm({ variant = 'inline' }: NclexRegis
 
           <div className="bg-white/5 border border-white/10 rounded-2xl p-6 space-y-4 backdrop-blur">
             <h4 className="text-lg font-semibold text-white flex items-center gap-2">
-              <svg className="w-5 h-5 text-indigo-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              <svg
+                className="w-5 h-5 text-indigo-300"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M5 13l4 4L19 7"
+                />
               </svg>
               Document Submission Checklist
             </h4>
             <p className="text-sm text-indigo-100">
-              Email colour copies of the following to <span className="font-semibold text-white">nurses@nurseproacademy.ca</span>:
+              Email colour copies of the following to{' '}
+              <span className="font-semibold text-white">nurses@nurseproacademy.ca</span>:
             </p>
             <ul className="grid sm:grid-cols-2 gap-2 text-sm text-indigo-100 list-disc list-inside">
               <li>All nursing mark lists and transcripts</li>
@@ -991,7 +1276,9 @@ export default function NclexRegistrationForm({ variant = 'inline' }: NclexRegis
                   }))
                 }
               />
-              <span>I confirm I will email the required documents to the NursePro Academy team.</span>
+              <span>
+                I confirm I will email the required documents to the NursePro Academy team.
+              </span>
             </label>
           </div>
 
@@ -1015,4 +1302,3 @@ export default function NclexRegistrationForm({ variant = 'inline' }: NclexRegis
     </section>
   );
 }
-

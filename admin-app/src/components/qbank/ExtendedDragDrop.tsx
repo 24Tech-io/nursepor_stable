@@ -2,9 +2,19 @@
 
 import { useState } from 'react';
 
-export default function ExtendedDragDrop({ question, onChange }: { question: any; onChange: (q: any) => void }) {
-  const [items, setItems] = useState(question.dragDropData?.items || ['Item 1', 'Item 2', 'Item 3']);
-  const [categories, setCategories] = useState(question.dragDropData?.categories || ['Category 1', 'Category 2']);
+export default function ExtendedDragDrop({
+  question,
+  onChange,
+}: {
+  question: any;
+  onChange: (q: any) => void;
+}) {
+  const [items, setItems] = useState(
+    question.dragDropData?.items || ['Item 1', 'Item 2', 'Item 3']
+  );
+  const [categories, setCategories] = useState(
+    question.dragDropData?.categories || ['Category 1', 'Category 2']
+  );
   const [correctMapping, setCorrectMapping] = useState(question.dragDropData?.correctMapping || {});
 
   const updateDragDrop = (newItems: string[], newCategories: string[], newMapping: any) => {
@@ -20,7 +30,8 @@ export default function ExtendedDragDrop({ question, onChange }: { question: any
     <div className="space-y-4">
       <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4">
         <p className="text-sm text-blue-300">
-          <strong>Extended Drag-and-Drop:</strong> Rank steps, place items in order, or classify items into categories.
+          <strong>Extended Drag-and-Drop:</strong> Rank steps, place items in order, or classify
+          items into categories.
         </p>
       </div>
 
@@ -53,7 +64,9 @@ export default function ExtendedDragDrop({ question, onChange }: { question: any
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-slate-300 mb-2">Drop Zones / Categories</label>
+        <label className="block text-sm font-medium text-slate-300 mb-2">
+          Drop Zones / Categories
+        </label>
         {categories.map((cat: string, idx: number) => (
           <div key={idx} className="mb-3">
             <input
@@ -109,4 +122,3 @@ export default function ExtendedDragDrop({ question, onChange }: { question: any
     </div>
   );
 }
-

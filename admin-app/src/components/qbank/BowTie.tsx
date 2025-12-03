@@ -2,10 +2,20 @@
 
 import { useState } from 'react';
 
-export default function BowTie({ question, onChange }: { question: any; onChange: (q: any) => void }) {
-  const [assessmentFindings, setAssessmentFindings] = useState(question.bowtieData?.assessmentFindings || ['Finding 1', 'Finding 2']);
+export default function BowTie({
+  question,
+  onChange,
+}: {
+  question: any;
+  onChange: (q: any) => void;
+}) {
+  const [assessmentFindings, setAssessmentFindings] = useState(
+    question.bowtieData?.assessmentFindings || ['Finding 1', 'Finding 2']
+  );
   const [condition, setCondition] = useState(question.bowtieData?.condition || '');
-  const [nursingActions, setNursingActions] = useState(question.bowtieData?.nursingActions || ['Action 1', 'Action 2']);
+  const [nursingActions, setNursingActions] = useState(
+    question.bowtieData?.nursingActions || ['Action 1', 'Action 2']
+  );
 
   const updateBowTie = (newFindings: string[], newCondition: string, newActions: string[]) => {
     const bowtieData = {
@@ -13,21 +23,29 @@ export default function BowTie({ question, onChange }: { question: any; onChange
       condition: newCondition,
       nursingActions: newActions,
     };
-    onChange({ ...question, bowtieData, correctAnswer: { findings: newFindings, condition: newCondition, actions: newActions } });
+    onChange({
+      ...question,
+      bowtieData,
+      correctAnswer: { findings: newFindings, condition: newCondition, actions: newActions },
+    });
   };
 
   return (
     <div className="space-y-4">
       <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4">
         <p className="text-sm text-blue-300">
-          <strong>Bow-Tie Item:</strong> 3 central areas - Left: Assessment findings (2 choices), Center: Single most likely condition (1 choice), Right: 2 nursing actions (priority interventions).
+          <strong>Bow-Tie Item:</strong> 3 central areas - Left: Assessment findings (2 choices),
+          Center: Single most likely condition (1 choice), Right: 2 nursing actions (priority
+          interventions).
         </p>
       </div>
 
       <div className="grid grid-cols-3 gap-4">
         {/* Left: Assessment Findings */}
         <div className="bg-blue-500/10 rounded-lg p-4 border border-blue-500/30">
-          <label className="block text-sm font-medium text-slate-300 mb-2">Assessment Findings (2 choices)</label>
+          <label className="block text-sm font-medium text-slate-300 mb-2">
+            Assessment Findings (2 choices)
+          </label>
           {assessmentFindings.map((finding: string, idx: number) => (
             <input
               key={idx}
@@ -46,7 +64,9 @@ export default function BowTie({ question, onChange }: { question: any; onChange
 
         {/* Center: Condition */}
         <div className="bg-purple-500/10 rounded-lg p-4 border border-purple-500/30">
-          <label className="block text-sm font-medium text-slate-300 mb-2">Most Likely Condition (1 choice)</label>
+          <label className="block text-sm font-medium text-slate-300 mb-2">
+            Most Likely Condition (1 choice)
+          </label>
           <input
             value={condition}
             onChange={(e) => {
@@ -60,7 +80,9 @@ export default function BowTie({ question, onChange }: { question: any; onChange
 
         {/* Right: Nursing Actions */}
         <div className="bg-green-500/10 rounded-lg p-4 border border-green-500/30">
-          <label className="block text-sm font-medium text-slate-300 mb-2">Nursing Actions (2 priority interventions)</label>
+          <label className="block text-sm font-medium text-slate-300 mb-2">
+            Nursing Actions (2 priority interventions)
+          </label>
           {nursingActions.map((action: string, idx: number) => (
             <input
               key={idx}
@@ -80,4 +102,3 @@ export default function BowTie({ question, onChange }: { question: any; onChange
     </div>
   );
 }
-

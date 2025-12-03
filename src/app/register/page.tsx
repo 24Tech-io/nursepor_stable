@@ -92,20 +92,36 @@ export default function RegisterPage() {
         {/* Header */}
         <div className="text-center">
           <div className="mx-auto h-16 w-16 bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg">
-            <svg className="h-8 w-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+            <svg
+              className="h-8 w-8 text-white"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"
+              />
             </svg>
           </div>
           <h2 className="mt-6 text-3xl font-bold text-gray-900">Create your student account</h2>
           <p className="mt-2 text-sm text-gray-600">
-            {step === 'details' ? 'Join our learning community today' : 'Setup Face ID for secure login'}
+            {step === 'details'
+              ? 'Join our learning community today'
+              : 'Setup Face ID for secure login'}
           </p>
         </div>
 
         {/* Steps Indicator */}
         <div className="flex justify-center space-x-2 mb-6">
-          <div className={`h-2 w-16 rounded-full ${step === 'details' ? 'bg-blue-600' : 'bg-green-500'}`} />
-          <div className={`h-2 w-16 rounded-full ${step === 'face' ? 'bg-blue-600' : 'bg-gray-200'}`} />
+          <div
+            className={`h-2 w-16 rounded-full ${step === 'details' ? 'bg-blue-600' : 'bg-green-500'}`}
+          />
+          <div
+            className={`h-2 w-16 rounded-full ${step === 'face' ? 'bg-blue-600' : 'bg-gray-200'}`}
+          />
         </div>
 
         {step === 'details' ? (
@@ -181,7 +197,10 @@ export default function RegisterPage() {
               </div>
 
               <div>
-                <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
+                <label
+                  htmlFor="confirmPassword"
+                  className="block text-sm font-medium text-gray-700"
+                >
                   Confirm Password
                 </label>
                 <input
@@ -203,8 +222,18 @@ export default function RegisterPage() {
               <div className="bg-red-50 border border-red-200 rounded-xl p-4">
                 <div className="flex">
                   <div className="flex-shrink-0">
-                    <svg className="h-5 w-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    <svg
+                      className="h-5 w-5 text-red-400"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                      />
                     </svg>
                   </div>
                   <div className="ml-3">
@@ -226,10 +255,7 @@ export default function RegisterPage() {
             <div className="text-center">
               <p className="text-sm text-gray-600">
                 Already have an account?{' '}
-                <Link
-                  href="/login"
-                  className="font-medium text-blue-600 hover:text-blue-500"
-                >
+                <Link href="/login" className="font-medium text-blue-600 hover:text-blue-500">
                   Sign in
                 </Link>
               </p>

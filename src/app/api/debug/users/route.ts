@@ -44,12 +44,11 @@ export async function GET(request: NextRequest) {
   } catch (error: any) {
     console.error('Debug users error:', error);
     return NextResponse.json(
-      { 
+      {
         message: 'Failed to get users',
-        error: process.env.NODE_ENV === 'development' ? error.message : undefined
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined,
       },
       { status: 500 }
     );
   }
 }
-

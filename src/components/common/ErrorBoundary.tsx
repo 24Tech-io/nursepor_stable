@@ -77,9 +77,7 @@ class ErrorBoundary extends Component<Props, State> {
               </div>
 
               {/* Error Title */}
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                Oops! Something went wrong
-              </h2>
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">Oops! Something went wrong</h2>
 
               {/* Error Message */}
               <p className="text-gray-600 mb-6">
@@ -126,7 +124,10 @@ class ErrorBoundary extends Component<Props, State> {
               {/* Support Link */}
               <p className="mt-6 text-sm text-gray-500">
                 Need help?{' '}
-                <a href="mailto:support@nurseproacademy.com" className="text-blue-600 hover:underline">
+                <a
+                  href="mailto:support@nurseproacademy.com"
+                  className="text-blue-600 hover:underline"
+                >
                   Contact Support
                 </a>
               </p>
@@ -145,10 +146,10 @@ export default ErrorBoundary;
 /**
  * Hook for using Error Boundary with functional components
  * Usage:
- * 
+ *
  * function MyComponent() {
  *   const throwError = useErrorHandler();
- *   
+ *
  *   const handleClick = () => {
  *     try {
  *       // Some code that might throw
@@ -167,4 +168,3 @@ export function useErrorHandler() {
     });
   }, []);
 }
-

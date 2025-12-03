@@ -65,10 +65,7 @@ export class EnrollmentValidator {
           .select()
           .from(enrollments)
           .where(
-            and(
-              eq(enrollments.userId, params.userId),
-              eq(enrollments.courseId, params.courseId)
-            )
+            and(eq(enrollments.userId, params.userId), eq(enrollments.courseId, params.courseId))
           )
           .limit(1),
       ]);
@@ -117,11 +114,7 @@ export class EnrollmentValidator {
       const db = getDatabase();
 
       // Validate user exists
-      const user = await db
-        .select()
-        .from(users)
-        .where(eq(users.id, params.userId))
-        .limit(1);
+      const user = await db.select().from(users).where(eq(users.id, params.userId)).limit(1);
 
       if (user.length === 0) {
         errors.push(`User ${params.userId} does not exist`);
@@ -154,10 +147,7 @@ export class EnrollmentValidator {
           .select()
           .from(enrollments)
           .where(
-            and(
-              eq(enrollments.userId, params.userId),
-              eq(enrollments.courseId, params.courseId)
-            )
+            and(eq(enrollments.userId, params.userId), eq(enrollments.courseId, params.courseId))
           )
           .limit(1),
       ]);
@@ -178,4 +168,3 @@ export class EnrollmentValidator {
     }
   }
 }
-

@@ -33,7 +33,13 @@ export async function POST(request: NextRequest) {
     const allowedTypes: Record<string, string[]> = {
       thumbnail: ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'],
       video: ['video/mp4', 'video/webm', 'video/ogg', 'video/quicktime'],
-      document: ['application/pdf', 'application/vnd.ms-powerpoint', 'application/vnd.openxmlformats-officedocument.presentationml.presentation', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document']
+      document: [
+        'application/pdf',
+        'application/vnd.ms-powerpoint',
+        'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+        'application/msword',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      ],
     };
 
     if (!allowedTypes[type] || !allowedTypes[type].includes(file.type)) {
@@ -52,7 +58,9 @@ export async function POST(request: NextRequest) {
 
     if (file.size > maxSizes[type]) {
       return NextResponse.json(
-        { message: `File too large. Max size for ${type}: ${Math.round(maxSizes[type] / 1024 / 1024)}MB` },
+        {
+          message: `File too large. Max size for ${type}: ${Math.round(maxSizes[type] / 1024 / 1024)}MB`,
+        },
         { status: 400 }
       );
     }
@@ -90,22 +98,11 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     console.error('File upload error:', error);
     return NextResponse.json(
-      { 
+      {
         message: 'Failed to upload file',
-        error: process.env.NODE_ENV === 'development' ? error.message : undefined
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined,
       },
       { status: 500 }
     );
   }
 }
-
-
-
-
-
-
-
-
-
-
-

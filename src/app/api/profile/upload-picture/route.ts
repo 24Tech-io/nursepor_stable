@@ -27,10 +27,7 @@ export async function POST(request: NextRequest) {
     const file = formData.get('file') as File | null;
 
     if (!file) {
-      return NextResponse.json(
-        { error: 'No file provided' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'No file provided' }, { status: 400 });
     }
 
     // Validate file type
@@ -43,10 +40,7 @@ export async function POST(request: NextRequest) {
 
     // Validate file size
     if (file.size > MAX_FILE_SIZE) {
-      return NextResponse.json(
-        { error: 'File size exceeds 5MB limit' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'File size exceeds 5MB limit' }, { status: 400 });
     }
 
     // Create uploads directory if it doesn't exist
@@ -96,4 +90,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-

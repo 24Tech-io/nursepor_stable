@@ -20,10 +20,7 @@ export async function POST(request: NextRequest) {
     const { role, password } = await request.json();
 
     if (!role) {
-      return NextResponse.json(
-        { message: 'Role is required' },
-        { status: 400 }
-      );
+      return NextResponse.json({ message: 'Role is required' }, { status: 400 });
     }
 
     if (!['student', 'admin'].includes(role)) {
@@ -37,7 +34,7 @@ export async function POST(request: NextRequest) {
     const accounts = await getUserAccounts(currentUser.email);
 
     // Find the account with the requested role
-    const targetAccount = accounts.find(acc => acc.role === role);
+    const targetAccount = accounts.find((acc) => acc.role === role);
 
     if (!targetAccount) {
       return NextResponse.json(
@@ -58,10 +55,7 @@ export async function POST(request: NextRequest) {
       // Verify password for the target account
       const isValid = await authenticateUser(currentUser.email, password, role);
       if (!isValid) {
-        return NextResponse.json(
-          { message: 'Invalid password for this account' },
-          { status: 401 }
-        );
+        return NextResponse.json({ message: 'Invalid password for this account' }, { status: 401 });
       }
     }
 
@@ -91,12 +85,11 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     console.error('Switch role error:', error);
     return NextResponse.json(
-      { 
+      {
         message: 'Failed to switch role',
-        error: process.env.NODE_ENV === 'development' ? error.message : undefined
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined,
       },
       { status: 500 }
     );
   }
 }
-

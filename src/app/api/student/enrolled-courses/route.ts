@@ -35,10 +35,7 @@ export async function GET(request: NextRequest) {
           })
           .from(accessRequests)
           .where(
-            and(
-              eq(accessRequests.studentId, decoded.id),
-              eq(accessRequests.status, 'pending')
-            )
+            and(eq(accessRequests.studentId, decoded.id), eq(accessRequests.status, 'pending'))
           );
       }),
       retryDatabase(async () => {
@@ -48,19 +45,18 @@ export async function GET(request: NextRequest) {
           })
           .from(accessRequests)
           .where(
-            and(
-              eq(accessRequests.studentId, decoded.id),
-              eq(accessRequests.status, 'approved')
-            )
+            and(eq(accessRequests.studentId, decoded.id), eq(accessRequests.status, 'approved'))
           );
       }),
     ]);
 
     const pendingRequestCourseIds = pendingRequests.map((r: any) => r.courseId);
     const approvedRequestCourseIds = approvedRequests.map((r: any) => r.courseId);
-    
-    console.log(`🔍 Student ${decoded.id}: Found ${pendingRequestCourseIds.length} pending requests and ${approvedRequestCourseIds.length} approved requests`);
-    
+
+    console.log(
+      `🔍 Student ${decoded.id}: Found ${pendingRequestCourseIds.length} pending requests and ${approvedRequestCourseIds.length} approved requests`
+    );
+
     // For approved requests, ensure enrollment exists (sync)
     // CRITICAL: Only sync approved requests - don't treat them as enrolled until enrollment records exist
     if (approvedRequestCourseIds.length > 0) {
@@ -95,11 +91,13 @@ export async function GET(request: NextRequest) {
                 .limit(1);
             }),
           ]);
-          
+
           // Only sync if no enrollment exists in either table
           if (existingProgress.length === 0 && existingEnrollment.length === 0) {
             // Not enrolled yet - sync it
-            console.log(`🔄 Syncing enrollment for approved request: student ${decoded.id}, course ${courseId}`);
+            console.log(
+              `🔄 Syncing enrollment for approved request: student ${decoded.id}, course ${courseId}`
+            );
             await syncEnrollmentAfterApproval(decoded.id, courseId);
           }
         } catch (syncError: any) {
@@ -130,12 +128,7 @@ export async function GET(request: NextRequest) {
           })
           .from(studentProgress)
           .innerJoin(courses, eq(studentProgress.courseId, courses.id))
-          .where(
-            and(
-              eq(studentProgress.studentId, decoded.id),
-              getPublishedCourseFilter()
-            )
-          );
+          .where(and(eq(studentProgress.studentId, decoded.id), getPublishedCourseFilter()));
       }),
       retryDatabase(async () => {
         return await db
@@ -170,11 +163,13 @@ export async function GET(request: NextRequest) {
 
     // Filter out courses with pending requests
     // A course with a pending request should NOT be shown as enrolled
-    const enrolledProgress = mergedData.filter((p: any) => 
-      !pendingRequestCourseIds.includes(p.courseId)
+    const enrolledProgress = mergedData.filter(
+      (p: any) => !pendingRequestCourseIds.includes(p.courseId)
     );
 
-    console.log(`✅ Student ${decoded.id}: Showing ${enrolledProgress.length} enrolled courses (merged from both tables, excluded ${mergedData.length - enrolledProgress.length} with pending requests)`);
+    console.log(
+      `✅ Student ${decoded.id}: Showing ${enrolledProgress.length} enrolled courses (merged from both tables, excluded ${mergedData.length - enrolledProgress.length} with pending requests)`
+    );
 
     return NextResponse.json({
       enrolledCourses: enrolledProgress.map((p: any) => ({

@@ -36,10 +36,7 @@ export default function PreviousTestsTab({ courseId }: PreviousTestsTabProps) {
   async function fetchTests() {
     try {
       setIsLoading(true);
-      const response = await fetch(
-        `/api/qbank/${courseId}/tests`,
-        { credentials: 'include' }
-      );
+      const response = await fetch(`/api/qbank/${courseId}/tests`, { credentials: 'include' });
       if (response.ok) {
         const data = await response.json();
         setTests(data.tests || []);
@@ -85,7 +82,7 @@ export default function PreviousTestsTab({ courseId }: PreviousTestsTabProps) {
     window.location.href = `/student/courses/${courseId}/qbank/test/${test.testId}`;
   }
 
-  const filteredTests = tests.filter(test => {
+  const filteredTests = tests.filter((test) => {
     if (filter === 'pending') {
       return test.status === 'pending' || test.status === 'in_progress';
     }
@@ -180,9 +177,7 @@ export default function PreviousTestsTab({ courseId }: PreviousTestsTabProps) {
                   <tr key={test.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm font-medium text-gray-900">{test.testId}</div>
-                      {test.title && (
-                        <div className="text-xs text-gray-500">{test.title}</div>
-                      )}
+                      {test.title && <div className="text-xs text-gray-500">{test.title}</div>}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       {test.percentage !== null ? (
@@ -198,16 +193,24 @@ export default function PreviousTestsTab({ courseId }: PreviousTestsTabProps) {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-900">
-                        {test.mode === 'cat' ? 'CAT' : 
-                         test.mode === 'tutorial' ? 'Tutorial' :
-                         test.mode === 'timed' ? 'Timed' :
-                         test.mode === 'readiness_assessment' ? 'Readiness Assessment' :
-                         test.mode}
+                        {test.mode === 'cat'
+                          ? 'CAT'
+                          : test.mode === 'tutorial'
+                            ? 'Tutorial'
+                            : test.mode === 'timed'
+                              ? 'Timed'
+                              : test.mode === 'readiness_assessment'
+                                ? 'Readiness Assessment'
+                                : test.mode}
                       </div>
                       <div className="text-xs text-gray-500">
-                        {test.testType === 'classic' ? 'Classic' :
-                         test.testType === 'ngn' ? 'NGN' :
-                         test.testType === 'mixed' ? 'Mixed' : test.testType}
+                        {test.testType === 'classic'
+                          ? 'Classic'
+                          : test.testType === 'ngn'
+                            ? 'NGN'
+                            : test.testType === 'mixed'
+                              ? 'Mixed'
+                              : test.testType}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -221,17 +224,40 @@ export default function PreviousTestsTab({ courseId }: PreviousTestsTabProps) {
                     <td className="px-6 py-4 whitespace-nowrap">
                       {test.status === 'pending' || test.status === 'in_progress' ? (
                         <button
-                          onClick={() => test.status === 'in_progress' ? handleResumeTest(test) : handleStartTest(test)}
+                          onClick={() =>
+                            test.status === 'in_progress'
+                              ? handleResumeTest(test)
+                              : handleStartTest(test)
+                          }
                           className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium"
                         >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          <svg
+                            className="w-4 h-4"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"
+                            />
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                            />
                           </svg>
-                          <span>{test.status === 'in_progress' ? 'Resume Test' : 'Start Test'}</span>
+                          <span>
+                            {test.status === 'in_progress' ? 'Resume Test' : 'Start Test'}
+                          </span>
                         </button>
                       ) : (
-                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusBadge(test.status)}`}>
+                        <span
+                          className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusBadge(test.status)}`}
+                        >
                           {test.status}
                         </span>
                       )}
@@ -246,4 +272,3 @@ export default function PreviousTestsTab({ courseId }: PreviousTestsTabProps) {
     </div>
   );
 }
-

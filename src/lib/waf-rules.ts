@@ -81,37 +81,35 @@ const ATTACK_PATHS = [
  * Check if request contains SQL injection attempt
  */
 function detectSQLInjection(input: string): boolean {
-  return SQL_INJECTION_PATTERNS.some(pattern => pattern.test(input));
+  return SQL_INJECTION_PATTERNS.some((pattern) => pattern.test(input));
 }
 
 /**
  * Check if request contains XSS attempt
  */
 function detectXSS(input: string): boolean {
-  return XSS_PATTERNS.some(pattern => pattern.test(input));
+  return XSS_PATTERNS.some((pattern) => pattern.test(input));
 }
 
 /**
  * Check if request contains path traversal attempt
  */
 function detectPathTraversal(input: string): boolean {
-  return PATH_TRAVERSAL_PATTERNS.some(pattern => pattern.test(input));
+  return PATH_TRAVERSAL_PATTERNS.some((pattern) => pattern.test(input));
 }
 
 /**
  * Check if request contains command injection attempt
  */
 function detectCommandInjection(input: string): boolean {
-  return COMMAND_INJECTION_PATTERNS.some(pattern => pattern.test(input));
+  return COMMAND_INJECTION_PATTERNS.some((pattern) => pattern.test(input));
 }
 
 /**
  * Check if path is a known attack path
  */
 function isAttackPath(path: string): boolean {
-  return ATTACK_PATHS.some(attackPath => 
-    path.toLowerCase().includes(attackPath.toLowerCase())
-  );
+  return ATTACK_PATHS.some((attackPath) => path.toLowerCase().includes(attackPath.toLowerCase()));
 }
 
 /**
@@ -128,7 +126,7 @@ export function analyzeRequest(request: NextRequest): WAFAnalysisResult {
   const pathname = url.pathname;
   const searchParams = url.searchParams.toString();
   const method = request.method;
-  
+
   // Check for attack paths
   if (isAttackPath(pathname)) {
     return {
@@ -137,7 +135,7 @@ export function analyzeRequest(request: NextRequest): WAFAnalysisResult {
       severity: 'high',
     };
   }
-  
+
   // Check path for injections
   if (detectSQLInjection(pathname)) {
     return {
@@ -146,7 +144,7 @@ export function analyzeRequest(request: NextRequest): WAFAnalysisResult {
       severity: 'critical',
     };
   }
-  
+
   if (detectXSS(pathname)) {
     return {
       blocked: true,
@@ -154,7 +152,7 @@ export function analyzeRequest(request: NextRequest): WAFAnalysisResult {
       severity: 'high',
     };
   }
-  
+
   if (detectPathTraversal(pathname)) {
     return {
       blocked: true,
@@ -162,7 +160,7 @@ export function analyzeRequest(request: NextRequest): WAFAnalysisResult {
       severity: 'high',
     };
   }
-  
+
   // Check query parameters
   if (searchParams) {
     if (detectSQLInjection(searchParams)) {
@@ -172,7 +170,7 @@ export function analyzeRequest(request: NextRequest): WAFAnalysisResult {
         severity: 'critical',
       };
     }
-    
+
     if (detectXSS(searchParams)) {
       return {
         blocked: true,
@@ -180,7 +178,7 @@ export function analyzeRequest(request: NextRequest): WAFAnalysisResult {
         severity: 'high',
       };
     }
-    
+
     if (detectCommandInjection(searchParams)) {
       return {
         blocked: true,
@@ -189,11 +187,11 @@ export function analyzeRequest(request: NextRequest): WAFAnalysisResult {
       };
     }
   }
-  
+
   // Check HTTP headers for suspicious content
   const userAgent = request.headers.get('user-agent') || '';
   const referer = request.headers.get('referer') || '';
-  
+
   if (detectXSS(referer)) {
     return {
       blocked: true,
@@ -201,19 +199,22 @@ export function analyzeRequest(request: NextRequest): WAFAnalysisResult {
       severity: 'medium',
     };
   }
-  
+
   // Check for unusually large headers (potential DoS)
-  const headerSize = Array.from(request.headers.entries())
-    .reduce((size, [key, value]) => size + key.length + value.length, 0);
-  
-  if (headerSize > 8192) { // 8KB limit
+  const headerSize = Array.from(request.headers.entries()).reduce(
+    (size, [key, value]) => size + key.length + value.length,
+    0
+  );
+
+  if (headerSize > 8192) {
+    // 8KB limit
     return {
       blocked: true,
       reason: 'Unusually large request headers',
       severity: 'medium',
     };
   }
-  
+
   // Check for suspicious HTTP methods
   const allowedMethods = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD'];
   if (!allowedMethods.includes(method)) {
@@ -223,7 +224,7 @@ export function analyzeRequest(request: NextRequest): WAFAnalysisResult {
       severity: 'medium',
     };
   }
-  
+
   return {
     blocked: false,
     reason: 'Request passed WAF checks',
@@ -236,13 +237,14 @@ export function analyzeRequest(request: NextRequest): WAFAnalysisResult {
  */
 export async function applyWAFRules(request: NextRequest): Promise<NextResponse | null> {
   const result = analyzeRequest(request);
-  
+
   if (result.blocked) {
-    const clientIP = request.ip || 
-      request.headers.get('x-forwarded-for')?.split(',')[0].trim() || 
-      request.headers.get('x-real-ip') || 
+    const clientIP =
+      request.ip ||
+      request.headers.get('x-forwarded-for')?.split(',')[0].trim() ||
+      request.headers.get('x-real-ip') ||
       'unknown';
-    
+
     // Report security incident (async, don't wait)
     try {
       reportSecurityIncident(
@@ -258,7 +260,7 @@ export async function applyWAFRules(request: NextRequest): Promise<NextResponse 
     } catch (err) {
       console.error('Failed to report incident:', err);
     }
-    
+
     // Return 403 Forbidden
     return new NextResponse(
       JSON.stringify({
@@ -275,7 +277,7 @@ export async function applyWAFRules(request: NextRequest): Promise<NextResponse 
       }
     );
   }
-  
+
   return null; // Continue processing
 }
 
@@ -299,4 +301,3 @@ export function getPathRateLimit(path: string): { requests: number; windowSecond
   }
   return null;
 }
-

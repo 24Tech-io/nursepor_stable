@@ -1,6 +1,6 @@
 import { getDatabase } from './db';
-import { notifications, courses, users, accessRequests } from './db/schema';
-import { eq, and, desc } from 'drizzle-orm';
+import { notifications, courses, users, accessRequests, studentProgress } from './db/schema';
+import { eq, and, desc, sql } from 'drizzle-orm';
 
 /**
  * Advanced Sync Service
@@ -8,7 +8,14 @@ import { eq, and, desc } from 'drizzle-orm';
  */
 
 export interface SyncEvent {
-  type: 'course_created' | 'course_updated' | 'course_published' | 'access_approved' | 'access_denied' | 'enrollment_created' | 'enrollment_removed';
+  type:
+    | 'course_created'
+    | 'course_updated'
+    | 'course_published'
+    | 'access_approved'
+    | 'access_denied'
+    | 'enrollment_created'
+    | 'enrollment_removed';
   entityId: number | string;
   entityType: string;
   data: any;
@@ -23,13 +30,10 @@ export async function notifyNewCoursePublished(courseId: number, courseTitle: st
     const db = getDatabase();
 
     // Get all active students
-    const students = await db
-      .select()
-      .from(users)
-      .where(eq(users.role, 'student'));
+    const students = await db.select().from(users).where(eq(users.role, 'student'));
 
     // Create notifications for all students
-    const notificationValues = students.map(student => ({
+    const notificationValues = students.map((student) => ({
       userId: student.id,
       title: 'New Course Available',
       message: `A new course "${courseTitle}" is now available for enrollment!`,
@@ -39,7 +43,9 @@ export async function notifyNewCoursePublished(courseId: number, courseTitle: st
 
     if (notificationValues.length > 0) {
       await db.insert(notifications).values(notificationValues);
-      console.log(`✅ Created ${notificationValues.length} notifications for new course: ${courseTitle}`);
+      console.log(
+        `✅ Created ${notificationValues.length} notifications for new course: ${courseTitle}`
+      );
     }
 
     return true;
@@ -64,7 +70,9 @@ export async function notifyAccessApproved(studentId: number, courseTitle: strin
       isRead: false,
     });
 
-    console.log(`✅ Notification created for student ${studentId}: Access approved for ${courseTitle}`);
+    console.log(
+      `✅ Notification created for student ${studentId}: Access approved for ${courseTitle}`
+    );
     return true;
   } catch (error) {
     console.error('Failed to notify student about access approval:', error);
@@ -87,7 +95,9 @@ export async function notifyAccessDenied(studentId: number, courseTitle: string)
       isRead: false,
     });
 
-    console.log(`✅ Notification created for student ${studentId}: Access denied for ${courseTitle}`);
+    console.log(
+      `✅ Notification created for student ${studentId}: Access denied for ${courseTitle}`
+    );
     return true;
   } catch (error) {
     console.error('Failed to notify student about access denial:', error);
@@ -107,11 +117,11 @@ export async function performSyncCheck() {
     const allCourses = await db.select().from(courses);
     const allUsers = await db.select().from(users).where(eq(users.role, 'student'));
 
-    const courseIds = new Set(allCourses.map(c => c.id));
-    const userIds = new Set(allUsers.map(u => u.id));
+    const courseIds = new Set(allCourses.map((c) => c.id));
+    const userIds = new Set(allUsers.map((u) => u.id));
 
-    const orphanedProgress = allProgress.filter(p => 
-      !courseIds.has(p.courseId) || !userIds.has(p.studentId)
+    const orphanedProgress = allProgress.filter(
+      (p) => !courseIds.has(p.courseId) || !userIds.has(p.studentId)
     );
 
     // Check for pending requests that should be processed
@@ -124,13 +134,16 @@ export async function performSyncCheck() {
       success: true,
       stats: {
         totalCourses: allCourses.length,
-        publishedCourses: allCourses.filter(c => c.status === 'published').length,
+        publishedCourses: allCourses.filter((c) => c.status === 'published').length,
         totalStudents: allUsers.length,
         totalEnrollments: allProgress.length,
         orphanedEnrollments: orphanedProgress.length,
         pendingRequests: pendingRequests.length,
       },
-      issues: orphanedProgress.length > 0 ? [`Found ${orphanedProgress.length} orphaned enrollment(s)`] : [],
+      issues:
+        orphanedProgress.length > 0
+          ? [`Found ${orphanedProgress.length} orphaned enrollment(s)`]
+          : [],
     };
   } catch (error: any) {
     console.error('Sync check failed:', error);
@@ -179,4 +192,3 @@ export async function getSyncStatus() {
     return null;
   }
 }
-

@@ -1,13 +1,13 @@
 /**
  * Unified Student Data API
  * Single endpoint that returns ALL student data
- * 
+ *
  * This replaces multiple fragmented endpoints:
  * - /api/student/courses
  * - /api/student/enrolled-courses
  * - /api/student/stats
  * - /api/student/requests
- * 
+ *
  * Benefits:
  * - Single database transaction (atomic)
  * - Consistent data across all pages
@@ -52,18 +52,19 @@ export async function GET(request: NextRequest) {
         role: decoded.role,
       },
       enrollments: snapshot.enrollments,
-      enrolledCourseIds: snapshot.enrollments.map(e => e.courseId),
+      enrolledCourseIds: snapshot.enrollments.map((e) => e.courseId),
       requests: snapshot.requests,
-      pendingRequests: snapshot.requests.filter(r => r.status === 'pending'),
+      pendingRequests: snapshot.requests.filter((r) => r.status === 'pending'),
       courses: snapshot.availableCourses,
       stats: snapshot.stats,
       timestamp: snapshot.timestamp,
     };
 
-    console.log(`✅ [Unified API] Returning data: ${response.enrollments.length} enrollments, ${response.courses.length} courses, ${response.requests.length} requests`);
+    console.log(
+      `✅ [Unified API] Returning data: ${response.enrollments.length} enrollments, ${response.courses.length} courses, ${response.requests.length} requests`
+    );
 
     return NextResponse.json(response);
-
   } catch (error: any) {
     console.error('❌ [Unified API] Error:', error);
     return NextResponse.json(
@@ -98,7 +99,6 @@ export async function POST(request: NextRequest) {
       message: 'Cache invalidated',
       userId: decoded.id,
     });
-
   } catch (error: any) {
     console.error('❌ [Unified API] Cache invalidation error:', error);
     return NextResponse.json(
@@ -110,4 +110,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-

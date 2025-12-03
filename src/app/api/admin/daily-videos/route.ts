@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
     const videosWithMetadata = videos.map((video: any) => {
       let parsedDesc = video.description;
       let metadataObj = {};
-      
+
       try {
         parsedDesc = JSON.parse(video.description || '{}');
         metadataObj = parsedDesc.metadata || {};
@@ -82,10 +82,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: 'Admin access required' }, { status: 403 });
     }
 
-    const { 
-      chapterId, 
-      title, 
-      description, 
+    const {
+      chapterId,
+      title,
+      description,
       day,
       videoUrl,
       videoProvider,
@@ -93,7 +93,7 @@ export async function POST(request: NextRequest) {
       thumbnail,
       scheduledDate,
       priority,
-      isActive
+      isActive,
     } = await request.json();
 
     if (!chapterId || !title || day === undefined) {
@@ -116,18 +116,23 @@ export async function POST(request: NextRequest) {
     };
 
     // Combine description with metadata
-    const enhancedDescription = description ? {
-      description: description,
-      metadata: metadata,
-    } : { metadata: metadata };
+    const enhancedDescription = description
+      ? {
+          description: description,
+          metadata: metadata,
+        }
+      : { metadata: metadata };
 
-    const result = await db.insert(dailyVideos).values({
-      chapterId: parseInt(chapterId),
-      title,
-      description: JSON.stringify(enhancedDescription),
-      day: parseInt(day),
-      isActive: isActive !== undefined ? isActive : true,
-    }).returning();
+    const result = await db
+      .insert(dailyVideos)
+      .values({
+        chapterId: parseInt(chapterId),
+        title,
+        description: JSON.stringify(enhancedDescription),
+        day: parseInt(day),
+        isActive: isActive !== undefined ? isActive : true,
+      })
+      .returning();
 
     console.log('✅ Daily video created:', result[0]);
 
@@ -135,7 +140,7 @@ export async function POST(request: NextRequest) {
     const parsedDesc = JSON.parse(result[0].description || '{}');
     const metadataObj = parsedDesc.metadata || {};
 
-    return NextResponse.json({ 
+    return NextResponse.json({
       dailyVideo: {
         ...result[0],
         description: parsedDesc.description || result[0].description || '',
@@ -145,7 +150,7 @@ export async function POST(request: NextRequest) {
         thumbnail: (metadataObj as any).thumbnail || null,
         scheduledDate: (metadataObj as any).scheduledDate || null,
         priority: (metadataObj as any).priority || 0,
-      }
+      },
     });
   } catch (error: any) {
     console.error('Create daily video error:', error);
@@ -155,4 +160,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-

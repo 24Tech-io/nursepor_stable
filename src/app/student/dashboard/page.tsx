@@ -41,7 +41,7 @@ export default function StudentDashboard() {
     const fetchUser = async () => {
       const storedUserData = sessionStorage.getItem('userData');
       let hasStoredData = false;
-      
+
       if (storedUserData) {
         try {
           const parsedUser = JSON.parse(storedUserData);
@@ -53,19 +53,19 @@ export default function StudentDashboard() {
           console.error('Failed to parse stored user data:', e);
         }
       }
-      
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
+
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
       try {
         console.log('🔍 Fetching user data from /api/auth/me...');
-        const response = await fetch('/api/auth/me', { 
+        const response = await fetch('/api/auth/me', {
           credentials: 'include',
           cache: 'no-store',
-          headers: { 'Content-Type': 'application/json' }
+          headers: { 'Content-Type': 'application/json' },
         });
-        
+
         console.log('📡 Response status:', response.status);
-        
+
         if (response.ok) {
           const data = await response.json();
           console.log('✅ User data received from API:', data.user);
@@ -79,7 +79,7 @@ export default function StudentDashboard() {
             console.error('❌ No user data in API response');
             if (!hasStoredData) {
               setIsLoading(false);
-              setTimeout(() => window.location.href = '/login', 2000);
+              setTimeout(() => (window.location.href = '/login'), 2000);
             }
           }
         } else if (response.status === 401) {
@@ -87,9 +87,9 @@ export default function StudentDashboard() {
           if (hasStoredData) {
             setTimeout(async () => {
               try {
-                const retryResponse = await fetch('/api/auth/me', { 
+                const retryResponse = await fetch('/api/auth/me', {
                   credentials: 'include',
-                  cache: 'no-store'
+                  cache: 'no-store',
                 });
                 if (retryResponse.ok) {
                   const retryData = await retryResponse.json();
@@ -104,20 +104,20 @@ export default function StudentDashboard() {
             }, 3000);
           } else {
             setIsLoading(false);
-            setTimeout(() => window.location.href = '/login', 2000);
+            setTimeout(() => (window.location.href = '/login'), 2000);
           }
         } else {
           console.error('❌ Failed to fetch user - status:', response.status);
           if (!hasStoredData) {
             setIsLoading(false);
-            setTimeout(() => window.location.href = '/login', 2000);
+            setTimeout(() => (window.location.href = '/login'), 2000);
           }
         }
       } catch (error) {
         console.error('❌ Exception fetching user:', error);
         if (!hasStoredData) {
           setIsLoading(false);
-          setTimeout(() => window.location.href = '/login', 2000);
+          setTimeout(() => (window.location.href = '/login'), 2000);
         }
       }
     };
@@ -141,33 +141,36 @@ export default function StudentDashboard() {
       try {
         setIsLoadingCourses(true);
         console.log('📚 Fetching courses from API...');
-        const response = await fetch('/api/student/courses', { 
+        const response = await fetch('/api/student/courses', {
           credentials: 'include',
           signal: abortController.signal,
           cache: 'no-store',
           headers: {
             'Cache-Control': 'no-cache, no-store, must-revalidate',
-            'Pragma': 'no-cache',
-          }
+            Pragma: 'no-cache',
+          },
         });
-        
+
         if (!isMounted) return;
-        
+
         if (response.ok) {
           const data = await response.json();
           console.log('📚 API Response - Full data:', data);
           console.log('📚 API Response - Courses count:', data.courses?.length || 0);
-          
+
           if (data.courses && data.courses.length > 0) {
             console.log('📚 Courses received:', data.courses);
             setCourses(data.courses);
             console.log('✅ Courses SET in state:', data.courses.length, 'courses');
-            console.log('📚 Course details:', data.courses.map((c: any) => ({
-              id: c.id,
-              title: c.title,
-              status: c.status,
-              isEnrolled: c.isEnrolled
-            })));
+            console.log(
+              '📚 Course details:',
+              data.courses.map((c: any) => ({
+                id: c.id,
+                title: c.title,
+                status: c.status,
+                isEnrolled: c.isEnrolled,
+              }))
+            );
           } else {
             console.warn('⚠️ No courses returned from API');
             console.warn('⚠️ Response data:', JSON.stringify(data));
@@ -207,7 +210,7 @@ export default function StudentDashboard() {
 
     const fetchStats = async () => {
       if (!isMounted) return;
-      
+
       setIsFetchingStats(true);
       try {
         const [statsResponse, coursesResponse, requestsResponse] = await Promise.all([
@@ -318,7 +321,7 @@ export default function StudentDashboard() {
         setRequestNote('');
         // Add to pending requests list
         if (selectedCourse) {
-          setPendingRequestCourseIds(prev => [...prev, selectedCourse]);
+          setPendingRequestCourseIds((prev) => [...prev, selectedCourse]);
         }
         setSelectedCourse(null);
         // Refresh requests to get updated status
@@ -346,7 +349,7 @@ export default function StudentDashboard() {
   // IMPORTANT: Courses with pending requests should NOT be shown as enrolled
   // Only show as enrolled if they have actual enrollment (studentProgress entry) AND no pending request
   // Accept both 'published' and 'active' status (admin UI shows "Active" but DB stores "published")
-  const enrolledCourses = courses.filter(c => {
+  const enrolledCourses = courses.filter((c) => {
     // CRITICAL: Ensure string comparison for consistency
     const courseIdStr = String(c.id);
     const isEnrolled = studentData.enrolledCourses.includes(courseIdStr);
@@ -355,14 +358,16 @@ export default function StudentDashboard() {
     const statusLower = c.status?.toLowerCase();
     const isPublished = statusLower === 'published' || statusLower === 'active';
     const result = isEnrolled && !hasPendingRequest && isPublished;
-    
-    console.log(`📋 Course "${c.title}" (${courseIdStr}): enrolled=${isEnrolled}, pending=${hasPendingRequest}, status=${c.status}, published=${isPublished}, result=${result}`);
-    
+
+    console.log(
+      `📋 Course "${c.title}" (${courseIdStr}): enrolled=${isEnrolled}, pending=${hasPendingRequest}, status=${c.status}, published=${isPublished}, result=${result}`
+    );
+
     return result;
   });
 
   // Show courses with pending requests separately (they should show "Requested" status)
-  const requestedCourses = courses.filter(c => {
+  const requestedCourses = courses.filter((c) => {
     const courseIdStr = String(c.id);
     const hasPendingRequest = pendingRequestCourseIds.includes(courseIdStr);
     const isEnrolled = studentData.enrolledCourses.includes(courseIdStr);
@@ -373,7 +378,7 @@ export default function StudentDashboard() {
     return hasPendingRequest && !isEnrolled && isPublished;
   });
 
-  const lockedCourses = courses.filter(c => {
+  const lockedCourses = courses.filter((c) => {
     const courseIdStr = String(c.id);
     const isEnrolled = studentData.enrolledCourses.includes(courseIdStr);
     const hasPendingRequest = pendingRequestCourseIds.includes(courseIdStr);
@@ -390,18 +395,30 @@ export default function StudentDashboard() {
         <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-white/10 to-transparent rounded-full blur-3xl -mr-48 -mt-48 animate-pulse" />
         <div className="absolute bottom-0 left-0 w-80 h-80 bg-gradient-to-tr from-purple-400/20 to-transparent rounded-full blur-3xl -ml-40 -mb-40" />
         <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-blue-500/10 rounded-full blur-2xl" />
-        
+
         <div className="relative z-10">
           <div className="flex items-start justify-between mb-8">
             <div className="flex-1">
               <div className="flex items-center gap-3 mb-3">
                 <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center border border-white/30 shadow-lg">
-                  <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                  <svg
+                    className="w-7 h-7 text-white"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
+                    />
                   </svg>
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-blue-200 uppercase tracking-wider mb-1">Student Portal</p>
+                  <p className="text-sm font-semibold text-blue-200 uppercase tracking-wider mb-1">
+                    Student Portal
+                  </p>
                   <h1 className="text-5xl font-extrabold mb-2 bg-gradient-to-r from-white to-blue-100 bg-clip-text text-transparent">
                     Welcome back, {user.name.split(' ')[0]}
                   </h1>
@@ -410,7 +427,12 @@ export default function StudentDashboard() {
               </div>
               <p className="text-blue-200/90 text-base mt-4 flex items-center gap-2">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M13 10V3L4 14h7v7l9-11h-7z"
+                  />
                 </svg>
                 Ready to continue your learning journey today?
               </p>
@@ -420,20 +442,36 @@ export default function StudentDashboard() {
           {/* Quick Stats - REAL DATA ONLY */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/20 shadow-lg">
-              <div className="text-3xl font-bold text-white drop-shadow-lg">{stats.currentStreak}</div>
-              <div className="text-sm text-white font-semibold drop-shadow-md mt-1">Day Streak 🔥</div>
+              <div className="text-3xl font-bold text-white drop-shadow-lg">
+                {stats.currentStreak}
+              </div>
+              <div className="text-sm text-white font-semibold drop-shadow-md mt-1">
+                Day Streak 🔥
+              </div>
             </div>
             <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/20 shadow-lg">
-              <div className="text-3xl font-bold text-white drop-shadow-lg">{stats.coursesEnrolled}</div>
-              <div className="text-sm text-white font-semibold drop-shadow-md mt-1">Active Courses</div>
+              <div className="text-3xl font-bold text-white drop-shadow-lg">
+                {stats.coursesEnrolled}
+              </div>
+              <div className="text-sm text-white font-semibold drop-shadow-md mt-1">
+                Active Courses
+              </div>
             </div>
             <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/20 shadow-lg">
-              <div className="text-3xl font-bold text-white drop-shadow-lg">{stats.hoursLearned.toFixed(1)}</div>
-              <div className="text-sm text-white font-semibold drop-shadow-md mt-1">Hours Learned</div>
+              <div className="text-3xl font-bold text-white drop-shadow-lg">
+                {stats.hoursLearned.toFixed(1)}
+              </div>
+              <div className="text-sm text-white font-semibold drop-shadow-md mt-1">
+                Hours Learned
+              </div>
             </div>
             <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/20 shadow-lg">
-              <div className="text-3xl font-bold text-white drop-shadow-lg">{stats.totalPoints}</div>
-              <div className="text-sm text-white font-semibold drop-shadow-md mt-1">Points Earned 🏆</div>
+              <div className="text-3xl font-bold text-white drop-shadow-lg">
+                {stats.totalPoints}
+              </div>
+              <div className="text-sm text-white font-semibold drop-shadow-md mt-1">
+                Points Earned 🏆
+              </div>
             </div>
           </div>
         </div>
@@ -444,7 +482,12 @@ export default function StudentDashboard() {
         <StatCard
           icon={
             <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
+              />
             </svg>
           }
           label="Courses Enrolled"
@@ -456,7 +499,12 @@ export default function StudentDashboard() {
         <StatCard
           icon={
             <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
             </svg>
           }
           label="Courses Completed"
@@ -468,7 +516,12 @@ export default function StudentDashboard() {
         <StatCard
           icon={
             <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
             </svg>
           }
           label="Hours Learned"
@@ -480,7 +533,12 @@ export default function StudentDashboard() {
         <StatCard
           icon={
             <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"
+              />
             </svg>
           }
           label="Quizzes Completed"
@@ -494,7 +552,10 @@ export default function StudentDashboard() {
       <div>
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-bold text-gray-900">Continue Learning</h2>
-          <a href="/student/courses" className="text-purple-600 hover:text-purple-700 font-semibold flex items-center space-x-1">
+          <a
+            href="/student/courses"
+            className="text-purple-600 hover:text-purple-700 font-semibold flex items-center space-x-1"
+          >
             <span>View All</span>
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -509,7 +570,7 @@ export default function StudentDashboard() {
           </div>
         ) : enrolledCourses.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {enrolledCourses.map(course => (
+            {enrolledCourses.map((course) => (
               <CourseCard
                 key={course.id}
                 course={course}
@@ -522,8 +583,18 @@ export default function StudentDashboard() {
         ) : (
           <div className="bg-white rounded-2xl shadow-sm p-12 text-center">
             <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <svg className="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+              <svg
+                className="w-10 h-10 text-gray-400"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
+                />
               </svg>
             </div>
             <h3 className="text-lg font-semibold text-gray-900 mb-2">No enrolled courses yet</h3>
@@ -537,7 +608,7 @@ export default function StudentDashboard() {
         <div>
           <h2 className="text-2xl font-bold text-gray-900 mb-6">Requested Courses</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {requestedCourses.map(course => (
+            {requestedCourses.map((course) => (
               <CourseCard
                 key={course.id}
                 course={course}
@@ -559,7 +630,7 @@ export default function StudentDashboard() {
           <h2 className="text-2xl font-bold text-gray-900 mb-6">Explore More Courses</h2>
           {lockedCourses.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {lockedCourses.map(course => (
+              {lockedCourses.map((course) => (
                 <CourseCard
                   key={course.id}
                   course={course}
@@ -578,12 +649,24 @@ export default function StudentDashboard() {
           ) : (
             <div className="bg-white rounded-2xl shadow-sm p-12 text-center">
               <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <svg className="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                <svg
+                  className="w-10 h-10 text-gray-400"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
+                  />
                 </svg>
               </div>
               <h3 className="text-lg font-semibold text-gray-900 mb-2">No courses available</h3>
-              <p className="text-gray-600">Check back later for new courses from your instructors</p>
+              <p className="text-gray-600">
+                Check back later for new courses from your instructors
+              </p>
             </div>
           )}
         </div>
@@ -595,7 +678,8 @@ export default function StudentDashboard() {
           <div className="bg-white rounded-2xl max-w-md w-full p-8 shadow-2xl">
             <h2 className="text-2xl font-bold text-gray-900 mb-4">Request Course Access</h2>
             <p className="text-gray-600 mb-6">
-              Send a request to the admin to unlock this course. You&apos;ll be notified once it&apos;s approved.
+              Send a request to the admin to unlock this course. You&apos;ll be notified once
+              it&apos;s approved.
             </p>
 
             <div className="mb-6">

@@ -1,7 +1,7 @@
 /**
  * Unified Data Service - Single Source of Truth
  * All enrollment, course, and progress data flows through here
- * 
+ *
  * This service eliminates data fragmentation by:
  * 1. Providing a single method to get ALL student data
  * 2. Using atomic database transactions
@@ -13,28 +13,34 @@ import { getDatabase } from '@/lib/db';
 import { studentProgress, enrollments, accessRequests, courses } from '@/lib/db/schema';
 import { eq, and, or } from 'drizzle-orm';
 import { getPublishedCourseFilter } from '@/lib/enrollment-helpers';
-import type { StudentDataSnapshot, EnrollmentRecord, CourseRequest, CourseData, StudentStats } from '@/types/unified-data';
+import type {
+  StudentDataSnapshot,
+  EnrollmentRecord,
+  CourseRequest,
+  CourseData,
+  StudentStats,
+} from '@/types/unified-data';
 
 export class UnifiedDataService {
   private static instance: UnifiedDataService;
   private cache: Map<string, { data: StudentDataSnapshot; timestamp: number }> = new Map();
   private readonly CACHE_TTL = 30000; // 30 seconds
-  
+
   private constructor() {
     // Private constructor for singleton
   }
-  
+
   static getInstance(): UnifiedDataService {
     if (!this.instance) {
       this.instance = new UnifiedDataService();
     }
     return this.instance;
   }
-  
+
   /**
    * Get complete student data - enrollments, courses, progress, requests
    * This is the PRIMARY method that should be used everywhere
-   * 
+   *
    * @param userId - Student user ID
    * @param options - Optional configuration
    * @returns Complete student data snapshot
@@ -44,7 +50,7 @@ export class UnifiedDataService {
     options: { bypassCache?: boolean } = {}
   ): Promise<StudentDataSnapshot> {
     const cacheKey = `student:${userId}`;
-    
+
     // Check cache first (unless bypassed)
     if (!options.bypassCache) {
       const cached = this.cache.get(cacheKey);
@@ -53,18 +59,18 @@ export class UnifiedDataService {
         return cached.data;
       }
     }
-    
+
     console.log(`🔍 [UnifiedDataService] Fetching fresh data for user ${userId}`);
-    
+
     // Fetch from database using single transaction for consistency
     const db = getDatabase();
-    
+
     const snapshot = await db.transaction(async (tx) => {
       // Get ALL data in parallel within transaction for atomicity
-      const [progressRecords, enrollmentRecords, requestRecords, allCourses] = 
-        await Promise.all([
-          // Get from studentProgress table (legacy)
-          tx.select({
+      const [progressRecords, enrollmentRecords, requestRecords, allCourses] = await Promise.all([
+        // Get from studentProgress table (legacy)
+        tx
+          .select({
             id: studentProgress.id,
             studentId: studentProgress.studentId,
             courseId: studentProgress.courseId,
@@ -74,9 +80,10 @@ export class UnifiedDataService {
           })
           .from(studentProgress)
           .where(eq(studentProgress.studentId, userId)),
-          
-          // Get from enrollments table (new source of truth)
-          tx.select({
+
+        // Get from enrollments table (new source of truth)
+        tx
+          .select({
             id: enrollments.id,
             userId: enrollments.userId,
             courseId: enrollments.courseId,
@@ -86,9 +93,10 @@ export class UnifiedDataService {
           })
           .from(enrollments)
           .where(eq(enrollments.userId, userId)),
-          
-          // Get all requests (pending, approved, rejected)
-          tx.select({
+
+        // Get all requests (pending, approved, rejected)
+        tx
+          .select({
             id: accessRequests.id,
             studentId: accessRequests.studentId,
             courseId: accessRequests.courseId,
@@ -100,9 +108,10 @@ export class UnifiedDataService {
           })
           .from(accessRequests)
           .where(eq(accessRequests.studentId, userId)),
-          
-          // Get all published courses
-          tx.select({
+
+        // Get all published courses
+        tx
+          .select({
             id: courses.id,
             title: courses.title,
             description: courses.description,
@@ -123,23 +132,20 @@ export class UnifiedDataService {
               eq(courses.status, 'active'),
               eq(courses.status, 'Active')
             )
-          )
-        ]);
-      
+          ),
+      ]);
+
       // Merge enrollment data using consistent logic
-      const mergedEnrollments = this.mergeEnrollmentData(
-        progressRecords,
-        enrollmentRecords
-      );
-      
+      const mergedEnrollments = this.mergeEnrollmentData(progressRecords, enrollmentRecords);
+
       // Calculate stats
       const stats = this.calculateStats(mergedEnrollments, requestRecords);
-      
+
       // Build complete snapshot
       const snapshot: StudentDataSnapshot = {
         userId,
         enrollments: mergedEnrollments,
-        requests: requestRecords.map(r => ({
+        requests: requestRecords.map((r) => ({
           id: r.id,
           courseId: r.courseId,
           status: r.status as 'pending' | 'approved' | 'rejected',
@@ -148,7 +154,7 @@ export class UnifiedDataService {
           reviewedAt: r.reviewedAt || null,
           reviewedBy: r.reviewedBy || null,
         })),
-        availableCourses: allCourses.map(c => ({
+        availableCourses: allCourses.map((c) => ({
           id: c.id,
           title: c.title,
           description: c.description || null,
@@ -165,17 +171,17 @@ export class UnifiedDataService {
         stats,
         timestamp: Date.now(),
       };
-      
+
       return snapshot;
     });
-    
+
     // Cache the result
     this.cache.set(cacheKey, { data: snapshot, timestamp: Date.now() });
     console.log(`✅ [UnifiedDataService] Data cached for user ${userId}`);
-    
+
     return snapshot;
   }
-  
+
   /**
    * Merge enrollment data from both tables
    * enrollments table is source of truth, studentProgress is fallback for legacy data
@@ -185,9 +191,9 @@ export class UnifiedDataService {
     enrollmentRecords: any[]
   ): EnrollmentRecord[] {
     const map = new Map<number, EnrollmentRecord>();
-    
+
     // Add enrollments first (new source of truth)
-    enrollmentRecords.forEach(e => {
+    enrollmentRecords.forEach((e) => {
       map.set(e.courseId, {
         courseId: e.courseId,
         progress: e.progress || 0,
@@ -197,9 +203,9 @@ export class UnifiedDataService {
         source: 'enrollments',
       });
     });
-    
+
     // Add from studentProgress only if not already in enrollments (legacy data)
-    progressRecords.forEach(p => {
+    progressRecords.forEach((p) => {
       if (!map.has(p.courseId)) {
         map.set(p.courseId, {
           courseId: p.courseId,
@@ -217,21 +223,18 @@ export class UnifiedDataService {
         }
       }
     });
-    
+
     return Array.from(map.values());
   }
-  
+
   /**
    * Calculate student statistics
    */
-  private calculateStats(
-    enrollments: EnrollmentRecord[],
-    requests: any[]
-  ): StudentStats {
-    const completedCount = enrollments.filter(e => e.progress >= 100).length;
+  private calculateStats(enrollments: EnrollmentRecord[], requests: any[]): StudentStats {
+    const completedCount = enrollments.filter((e) => e.progress >= 100).length;
     const totalHours = enrollments.reduce((sum, e) => sum + (e.progress / 100) * 10, 0); // Estimate
-    const pendingCount = requests.filter(r => r.status === 'pending').length;
-    
+    const pendingCount = requests.filter((r) => r.status === 'pending').length;
+
     return {
       coursesEnrolled: enrollments.length,
       coursesCompleted: completedCount,
@@ -239,7 +242,7 @@ export class UnifiedDataService {
       pendingRequests: pendingCount,
     };
   }
-  
+
   /**
    * Invalidate cache when data changes
    * Call this after enrollment, unenrollment, or request changes
@@ -249,7 +252,7 @@ export class UnifiedDataService {
     this.cache.delete(cacheKey);
     console.log(`🗑️ [UnifiedDataService] Cache invalidated for user ${userId}`);
   }
-  
+
   /**
    * Clear all cache (for testing/debugging)
    */
@@ -257,7 +260,7 @@ export class UnifiedDataService {
     this.cache.clear();
     console.log(`🗑️ [UnifiedDataService] All cache cleared`);
   }
-  
+
   /**
    * Get cache statistics
    */
@@ -271,4 +274,3 @@ export class UnifiedDataService {
 
 // Export singleton instance
 export const unifiedDataService = UnifiedDataService.getInstance();
-

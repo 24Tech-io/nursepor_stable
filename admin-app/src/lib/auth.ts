@@ -12,11 +12,13 @@ function getJWTSecret(): string {
       if (process.env.NODE_ENV === 'production') {
         throw new Error(
           'JWT_SECRET must be set in environment variables and must be at least 32 characters long. ' +
-          'Please set a strong random secret in .env.local'
+            'Please set a strong random secret in .env.local'
         );
       }
       // Use a default secret in development only (for hot reload)
-      console.warn('⚠️ Using default JWT_SECRET in development. Set JWT_SECRET in .env.local for production.');
+      console.warn(
+        '⚠️ Using default JWT_SECRET in development. Set JWT_SECRET in .env.local for production.'
+      );
       return 'dev-secret-key-change-this-in-production-at-least-32-chars-long';
     }
     if (process.env.JWT_SECRET.length < 32) {
@@ -70,12 +72,12 @@ export function generateToken(user: AdminUser): string {
     if (!user || !user.id || !user.email || !user.role) {
       throw new Error('Invalid user data provided for token generation');
     }
-    
+
     const secret = getJWTSecretLazy();
     if (!secret) {
       throw new Error('JWT_SECRET is not available');
     }
-    
+
     const payload = {
       id: user.id,
       name: user.name,
@@ -83,15 +85,19 @@ export function generateToken(user: AdminUser): string {
       role: user.role,
       isActive: user.isActive,
     };
-    
-    console.log('🔑 Generating token for user:', { id: user.id, email: user.email, role: user.role });
-    
+
+    console.log('🔑 Generating token for user:', {
+      id: user.id,
+      email: user.email,
+      role: user.role,
+    });
+
     const token = jwt.sign(payload, secret, { expiresIn: JWT_EXPIRES_IN });
-    
+
     if (!token) {
       throw new Error('Token generation returned empty result');
     }
-    
+
     console.log('✅ Token generated successfully, length:', token.length);
     return token;
   } catch (error: any) {
@@ -121,7 +127,10 @@ export function verifyToken(token: string): AdminUser | null {
   }
 }
 
-export async function authenticateAdmin(email: string, password: string): Promise<AdminUser | null> {
+export async function authenticateAdmin(
+  email: string,
+  password: string
+): Promise<AdminUser | null> {
   try {
     let db;
     try {
@@ -158,7 +167,12 @@ export async function authenticateAdmin(email: string, password: string): Promis
     }
 
     const user = userResult[0];
-    console.log('👤 Found user:', { id: user.id, email: user.email, role: user.role, isActive: user.isActive });
+    console.log('👤 Found user:', {
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      isActive: user.isActive,
+    });
 
     if (!user.isActive) {
       console.log('❌ User account is not active');
@@ -173,7 +187,7 @@ export async function authenticateAdmin(email: string, password: string): Promis
       console.error('❌ Password verification error:', passwordError);
       throw new Error(`Password verification failed: ${passwordError.message || 'Unknown error'}`);
     }
-    
+
     if (!isValid) {
       console.log('❌ Password verification failed');
       return null;
@@ -190,7 +204,11 @@ export async function authenticateAdmin(email: string, password: string): Promis
   } catch (error: any) {
     console.error('❌ Error in authenticateAdmin:', error);
     // Re-throw with a more user-friendly message if it's a generic error
-    if (error.message && !error.message.includes('Database') && !error.message.includes('Password')) {
+    if (
+      error.message &&
+      !error.message.includes('Database') &&
+      !error.message.includes('Password')
+    ) {
       throw new Error(`Authentication failed: ${error.message}`);
     }
     throw error;

@@ -140,8 +140,18 @@ export default function LoginPage() {
         {/* Logo & Header */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-purple-500 to-pink-500 rounded-2xl mb-4 shadow-lg">
-            <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+            <svg
+              className="w-8 h-8 text-white"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
+              />
             </svg>
           </div>
           <h1 className="text-3xl font-bold text-white mb-2">Welcome back</h1>
@@ -154,28 +164,31 @@ export default function LoginPage() {
           <div className="flex gap-2 mb-6 bg-white/5 p-1 rounded-xl">
             <button
               onClick={() => setActiveTab('email')}
-              className={`flex-1 py-2.5 px-4 rounded-lg font-medium text-sm transition-all ${activeTab === 'email'
+              className={`flex-1 py-2.5 px-4 rounded-lg font-medium text-sm transition-all ${
+                activeTab === 'email'
                   ? 'bg-purple-600 text-white shadow-lg'
                   : 'text-purple-200 hover:text-white'
-                }`}
+              }`}
             >
               Email
             </button>
             <button
               onClick={() => setActiveTab('otp')}
-              className={`flex-1 py-2.5 px-4 rounded-lg font-medium text-sm transition-all ${activeTab === 'otp'
+              className={`flex-1 py-2.5 px-4 rounded-lg font-medium text-sm transition-all ${
+                activeTab === 'otp'
                   ? 'bg-purple-600 text-white shadow-lg'
                   : 'text-purple-200 hover:text-white'
-                }`}
+              }`}
             >
               OTP
             </button>
             <button
               onClick={() => setActiveTab('face')}
-              className={`flex-1 py-2.5 px-4 rounded-lg font-medium text-sm transition-all ${activeTab === 'face'
+              className={`flex-1 py-2.5 px-4 rounded-lg font-medium text-sm transition-all ${
+                activeTab === 'face'
                   ? 'bg-purple-600 text-white shadow-lg'
                   : 'text-purple-200 hover:text-white'
-                }`}
+              }`}
             >
               Face ID
             </button>
@@ -206,9 +219,7 @@ export default function LoginPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-purple-200 mb-2">
-                  Password
-                </label>
+                <label className="block text-sm font-medium text-purple-200 mb-2">Password</label>
                 <input
                   type="password"
                   value={password}
@@ -221,10 +232,16 @@ export default function LoginPage() {
 
               <div className="flex items-center justify-between text-sm">
                 <label className="flex items-center">
-                  <input type="checkbox" className="rounded border-white/30 bg-white/10 text-purple-600 focus:ring-purple-500" />
+                  <input
+                    type="checkbox"
+                    className="rounded border-white/30 bg-white/10 text-purple-600 focus:ring-purple-500"
+                  />
                   <span className="ml-2 text-purple-200">Remember me</span>
                 </label>
-                <Link href="/forgot-password" className="text-purple-300 hover:text-white font-medium transition-colors">
+                <Link
+                  href="/forgot-password"
+                  className="text-purple-300 hover:text-white font-medium transition-colors"
+                >
                   Forgot your password?
                 </Link>
               </div>
@@ -342,7 +359,7 @@ export default function LoginPage() {
                   <FaceLogin
                     mode="verify"
                     onVerify={handleFaceLogin}
-                    onComplete={() => { }}
+                    onComplete={() => {}}
                     onError={(err) => setError(err)}
                   />
                 </div>
@@ -354,7 +371,10 @@ export default function LoginPage() {
           <div className="mt-6 text-center">
             <p className="text-sm text-purple-200">
               Don&apos;t have an account?{' '}
-              <Link href="/register" className="text-purple-300 hover:text-white font-medium transition-colors">
+              <Link
+                href="/register"
+                className="text-purple-300 hover:text-white font-medium transition-colors"
+              >
                 Sign up
               </Link>
             </p>

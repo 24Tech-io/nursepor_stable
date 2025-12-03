@@ -25,10 +25,7 @@ export async function POST(request: NextRequest) {
 
     // Check if course is completed
     const progress = await db.query.studentProgress.findFirst({
-      where: and(
-        eq(studentProgress.studentId, user.id),
-        eq(studentProgress.courseId, courseId)
-      ),
+      where: and(eq(studentProgress.studentId, user.id), eq(studentProgress.courseId, courseId)),
     });
 
     if (!progress || progress.completionPercentage < 100) {
@@ -40,10 +37,7 @@ export async function POST(request: NextRequest) {
 
     // Check if certificate already exists
     const existing = await db.query.certificates.findFirst({
-      where: and(
-        eq(certificates.userId, user.id),
-        eq(certificates.courseId, courseId)
-      ),
+      where: and(eq(certificates.userId, user.id), eq(certificates.courseId, courseId)),
     });
 
     if (existing) {
@@ -57,12 +51,15 @@ export async function POST(request: NextRequest) {
     const certificateNumber = `NPA-${Date.now()}-${user.id}-${courseId}`;
 
     // Create certificate
-    const [certificate] = await db.insert(certificates).values({
-      userId: user.id,
-      courseId,
-      certificateNumber,
-      completedAt: progress.completedAt || new Date(),
-    }).returning();
+    const [certificate] = await db
+      .insert(certificates)
+      .values({
+        userId: user.id,
+        courseId,
+        certificateNumber,
+        completedAt: progress.completedAt || new Date(),
+      })
+      .returning();
 
     return NextResponse.json({
       success: true,
@@ -70,10 +67,6 @@ export async function POST(request: NextRequest) {
       message: 'Certificate generated successfully!',
     });
   } catch (error: any) {
-    return NextResponse.json(
-      { error: 'Failed to generate certificate' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Failed to generate certificate' }, { status: 500 });
   }
 }
-

@@ -27,32 +27,16 @@ export function buildCSP(nonce: string): string {
       'https://checkout.stripe.com',
       "'strict-dynamic'", // Allow dynamically loaded scripts from trusted sources
     ],
-    'style-src': [
-      "'self'",
-      `'nonce-${nonce}'`,
-      'https://fonts.googleapis.com',
-    ],
+    'style-src': ["'self'", `'nonce-${nonce}'`, 'https://fonts.googleapis.com'],
     'img-src': [
       "'self'",
       'data:', // For inline images
       'blob:', // For blob URLs
       'https:', // Allow images from HTTPS sources
     ],
-    'font-src': [
-      "'self'",
-      'data:',
-      'https://fonts.gstatic.com',
-    ],
-    'connect-src': [
-      "'self'",
-      'https://api.stripe.com',
-      'https://checkout.stripe.com',
-    ],
-    'frame-src': [
-      "'self'",
-      'https://js.stripe.com',
-      'https://checkout.stripe.com',
-    ],
+    'font-src': ["'self'", 'data:', 'https://fonts.gstatic.com'],
+    'connect-src': ["'self'", 'https://api.stripe.com', 'https://checkout.stripe.com'],
+    'frame-src': ["'self'", 'https://js.stripe.com', 'https://checkout.stripe.com'],
     'object-src': ["'none'"], // Disallow plugins like Flash
     'base-uri': ["'self'"], // Prevent base tag injection
     'form-action': ["'self'"], // Only allow form submissions to same origin
@@ -80,10 +64,8 @@ export function applyCSPHeaders(
   reportOnly: boolean = false
 ): void {
   const csp = buildCSP(nonce);
-  const headerName = reportOnly
-    ? 'Content-Security-Policy-Report-Only'
-    : 'Content-Security-Policy';
-  
+  const headerName = reportOnly ? 'Content-Security-Policy-Report-Only' : 'Content-Security-Policy';
+
   response.headers.set(headerName, csp);
 }
 
@@ -96,13 +78,13 @@ export function createCSPMiddleware(request: NextRequest): {
 } {
   const nonce = generateNonce();
   const response = NextResponse.next();
-  
+
   // Apply CSP headers
   applyCSPHeaders(response, nonce);
-  
+
   // Store nonce in response headers so it can be accessed by pages
   response.headers.set('X-Nonce', nonce);
-  
+
   return { response, nonce };
 }
 
@@ -118,29 +100,26 @@ export function getNonceFromHeaders(headers: Headers): string | null {
  */
 export function applyAdditionalSecurityHeaders(response: NextResponse): void {
   // Strict Transport Security (HSTS)
-  response.headers.set(
-    'Strict-Transport-Security',
-    'max-age=31536000; includeSubDomains; preload'
-  );
-  
+  response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
+
   // X-Frame-Options (defense in depth with CSP frame-ancestors)
   response.headers.set('X-Frame-Options', 'DENY');
-  
+
   // X-Content-Type-Options
   response.headers.set('X-Content-Type-Options', 'nosniff');
-  
+
   // Referrer Policy
   response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
-  
+
   // Permissions Policy (formerly Feature Policy)
   response.headers.set(
     'Permissions-Policy',
     'camera=(), microphone=(), geolocation=(), interest-cohort=()'
   );
-  
+
   // X-XSS-Protection (legacy, but adds defense in depth)
   response.headers.set('X-XSS-Protection', '1; mode=block');
-  
+
   // Cross-Origin policies
   response.headers.set('Cross-Origin-Embedder-Policy', 'require-corp');
   response.headers.set('Cross-Origin-Opener-Policy', 'same-origin');
@@ -150,7 +129,10 @@ export function applyAdditionalSecurityHeaders(response: NextResponse): void {
 /**
  * Generate SRI (Subresource Integrity) hash for a script/style
  */
-export function generateSRIHash(content: string, algorithm: 'sha256' | 'sha384' | 'sha512' = 'sha384'): string {
+export function generateSRIHash(
+  content: string,
+  algorithm: 'sha256' | 'sha384' | 'sha512' = 'sha384'
+): string {
   const hash = crypto.createHash(algorithm).update(content).digest('base64');
   return `${algorithm}-${hash}`;
 }
@@ -179,4 +161,3 @@ export function createSRIScriptTag(
   const integrityAttr = integrity ? `integrity="${integrity}"` : '';
   return `<script src="${src}" ${integrityAttr} crossorigin="${crossorigin}"></script>`;
 }
-

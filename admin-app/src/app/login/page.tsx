@@ -21,7 +21,7 @@ export default function AdminLoginPage() {
   useEffect(() => {
     async function checkAuth() {
       try {
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise((resolve) => setTimeout(resolve, 100));
 
         const response = await fetch('/api/auth/me', {
           credentials: 'include',
@@ -98,7 +98,6 @@ export default function AdminLoginPage() {
         }, 500);
 
         return;
-
       } else {
         let errorData: any = null;
         try {
@@ -208,11 +207,23 @@ export default function AdminLoginPage() {
         {/* Header */}
         <div className="text-center">
           <div className="mx-auto h-16 w-16 bg-gradient-to-r from-emerald-500 to-teal-600 rounded-2xl flex items-center justify-center shadow-[0_10px_40px_-12px_rgba(16,185,129,0.6)]">
-            <svg className="h-8 w-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+            <svg
+              className="h-8 w-8 text-white"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
+              />
             </svg>
           </div>
-          <h2 className="mt-6 text-3xl font-bold bg-gradient-to-r from-white to-slate-200 bg-clip-text text-transparent">Welcome back</h2>
+          <h2 className="mt-6 text-3xl font-bold bg-gradient-to-r from-white to-slate-200 bg-clip-text text-transparent">
+            Welcome back
+          </h2>
           <p className="mt-2 text-sm text-slate-300">Sign in to your Admin Portal account</p>
         </div>
 
@@ -220,28 +231,31 @@ export default function AdminLoginPage() {
         <div className="flex gap-2 bg-white/5 p-1 rounded-xl backdrop-blur-xl border border-white/10">
           <button
             onClick={() => setActiveTab('email')}
-            className={`flex-1 py-2.5 px-4 rounded-lg font-medium text-sm transition-all ${activeTab === 'email'
+            className={`flex-1 py-2.5 px-4 rounded-lg font-medium text-sm transition-all ${
+              activeTab === 'email'
                 ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-500/50'
                 : 'text-slate-300 hover:text-white'
-              }`}
+            }`}
           >
             Email
           </button>
           <button
             onClick={() => setActiveTab('otp')}
-            className={`flex-1 py-2.5 px-4 rounded-lg font-medium text-sm transition-all ${activeTab === 'otp'
+            className={`flex-1 py-2.5 px-4 rounded-lg font-medium text-sm transition-all ${
+              activeTab === 'otp'
                 ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-500/50'
                 : 'text-slate-300 hover:text-white'
-              }`}
+            }`}
           >
             OTP
           </button>
           <button
             onClick={() => setActiveTab('face')}
-            className={`flex-1 py-2.5 px-4 rounded-lg font-medium text-sm transition-all ${activeTab === 'face'
+            className={`flex-1 py-2.5 px-4 rounded-lg font-medium text-sm transition-all ${
+              activeTab === 'face'
                 ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-500/50'
                 : 'text-slate-300 hover:text-white'
-              }`}
+            }`}
           >
             Face ID
           </button>
@@ -254,8 +268,18 @@ export default function AdminLoginPage() {
             <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4">
               <div className="flex">
                 <div className="flex-shrink-0">
-                  <svg className="h-5 w-5 text-red-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  <svg
+                    className="h-5 w-5 text-red-300"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
                   </svg>
                 </div>
                 <div className="ml-3">
@@ -395,7 +419,7 @@ export default function AdminLoginPage() {
 
           {/* Face ID Login Tab */}
           {activeTab === 'face' && (
-            <FaceLoginTab 
+            <FaceLoginTab
               email={email}
               setEmail={setEmail}
               setIsLoading={setIsLoading}
@@ -409,10 +433,7 @@ export default function AdminLoginPage() {
         <div className="text-center">
           <p className="text-sm text-slate-300">
             Don't have an account?{' '}
-            <Link
-              href="/register"
-              className="font-medium text-emerald-300 hover:text-emerald-200"
-            >
+            <Link href="/register" className="font-medium text-emerald-300 hover:text-emerald-200">
               Sign up
             </Link>
           </p>
@@ -423,16 +444,16 @@ export default function AdminLoginPage() {
 }
 
 // Face Login Component
-function FaceLoginTab({ 
-  email, 
-  setEmail, 
-  setIsLoading, 
-  setError, 
-  router 
-}: { 
-  email: string; 
-  setEmail: (email: string) => void; 
-  setIsLoading: (loading: boolean) => void; 
+function FaceLoginTab({
+  email,
+  setEmail,
+  setIsLoading,
+  setError,
+  router,
+}: {
+  email: string;
+  setEmail: (email: string) => void;
+  setIsLoading: (loading: boolean) => void;
   setError: (error: string) => void;
   router: any;
 }) {
@@ -445,7 +466,7 @@ function FaceLoginTab({
   useEffect(() => {
     return () => {
       if (streamRef.current) {
-        streamRef.current.getTracks().forEach(track => track.stop());
+        streamRef.current.getTracks().forEach((track) => track.stop());
       }
     };
   }, []);
@@ -483,7 +504,7 @@ function FaceLoginTab({
 
     try {
       const { enrollFace } = await import('@/lib/simple-face-auth');
-      
+
       const result = await enrollFace(videoRef.current);
 
       if (!result.success || !result.features) {
@@ -506,13 +527,13 @@ function FaceLoginTab({
       }
 
       const data = await response.json();
-      
+
       if (data.user && data.user.role === 'admin') {
         sessionStorage.setItem('adminUser', JSON.stringify(data.user));
         sessionStorage.setItem('shouldRedirect', 'true');
-        
+
         if (streamRef.current) {
-          streamRef.current.getTracks().forEach(track => track.stop());
+          streamRef.current.getTracks().forEach((track) => track.stop());
         }
 
         setTimeout(() => {
@@ -531,9 +552,7 @@ function FaceLoginTab({
   return (
     <div className="space-y-4">
       <div>
-        <label className="block text-sm font-medium text-slate-200 mb-2">
-          Email address
-        </label>
+        <label className="block text-sm font-medium text-slate-200 mb-2">Email address</label>
         <input
           type="email"
           value={email}
@@ -555,13 +574,7 @@ function FaceLoginTab({
       ) : (
         <>
           <div className="relative bg-black/20 rounded-xl overflow-hidden border border-white/10">
-            <video
-              ref={videoRef}
-              autoPlay
-              playsInline
-              muted
-              className="w-full h-64 object-cover"
-            />
+            <video ref={videoRef} autoPlay playsInline muted className="w-full h-64 object-cover" />
             {isVerifying && (
               <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
                 <div className="text-center">
@@ -571,9 +584,7 @@ function FaceLoginTab({
               </div>
             )}
           </div>
-          {status && !isVerifying && (
-            <p className="text-slate-400 text-sm text-center">{status}</p>
-          )}
+          {status && !isVerifying && <p className="text-slate-400 text-sm text-center">{status}</p>}
           <button
             onClick={handleFaceLogin}
             disabled={isVerifying || !email.trim()}

@@ -37,11 +37,7 @@ export function getEnhancedCSP(nonce?: string): string {
       'wss:',
     ],
     'media-src': ["'self'", 'blob:', 'data:'],
-    'frame-src': [
-      "'self'",
-      'https://js.stripe.com',
-      'https://hooks.stripe.com',
-    ],
+    'frame-src': ["'self'", 'https://js.stripe.com', 'https://hooks.stripe.com'],
     'worker-src': ["'self'", 'blob:'],
     'object-src': ["'none'"],
     'base-uri': ["'self'"],
@@ -66,18 +62,18 @@ export function getEnhancedCSP(nonce?: string): string {
  */
 export function getPermissionsPolicy(): string {
   const permissions = {
-    'geolocation': [],
-    'microphone': ['self'],
-    'camera': ['self'],
-    'payment': ['self'],
-    'usb': [],
-    'magnetometer': [],
-    'gyroscope': [],
-    'accelerometer': [],
+    geolocation: [],
+    microphone: ['self'],
+    camera: ['self'],
+    payment: ['self'],
+    usb: [],
+    magnetometer: [],
+    gyroscope: [],
+    accelerometer: [],
     'ambient-light-sensor': [],
-    'autoplay': ['self'],
+    autoplay: ['self'],
     'encrypted-media': ['self'],
-    'fullscreen': ['self'],
+    fullscreen: ['self'],
     'picture-in-picture': ['self'],
   };
 
@@ -168,10 +164,7 @@ export function applyEnhancedSecurityHeaders(
 
   // Cache Control for sensitive pages
   if (response.headers.get('content-type')?.includes('text/html')) {
-    response.headers.set(
-      'Cache-Control',
-      'no-store, no-cache, must-revalidate, proxy-revalidate'
-    );
+    response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
     response.headers.set('Pragma', 'no-cache');
     response.headers.set('Expires', '0');
   }
@@ -187,9 +180,7 @@ export function generateSecureNonce(): string {
     return crypto.randomUUID();
   }
   // Fallback for older environments
-  return Array.from({ length: 32 }, () =>
-    Math.floor(Math.random() * 16).toString(16)
-  ).join('');
+  return Array.from({ length: 32 }, () => Math.floor(Math.random() * 16).toString(16)).join('');
 }
 
 /**
@@ -255,10 +246,7 @@ export function isTrustedOrigin(origin: string | null): boolean {
  */
 export function applyAPISecurityHeaders(response: NextResponse): NextResponse {
   // Prevent caching of API responses with sensitive data
-  response.headers.set(
-    'Cache-Control',
-    'no-store, no-cache, must-revalidate, private'
-  );
+  response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
 
   // Content type protection
   response.headers.set('X-Content-Type-Options', 'nosniff');
@@ -268,17 +256,3 @@ export function applyAPISecurityHeaders(response: NextResponse): NextResponse {
 
   return response;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-

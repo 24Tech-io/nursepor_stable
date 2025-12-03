@@ -45,10 +45,7 @@ export async function POST(request: NextRequest) {
     const { email, descriptor, faceTemplate } = await request.json();
 
     if (!email || (!descriptor && !faceTemplate)) {
-      return NextResponse.json(
-        { message: 'Email and face data are required' },
-        { status: 400 }
-      );
+      return NextResponse.json({ message: 'Email and face data are required' }, { status: 400 });
     }
 
     const db = getDatabase();
@@ -67,10 +64,7 @@ export async function POST(request: NextRequest) {
       .limit(1);
 
     if (!userResult.length) {
-      return NextResponse.json(
-        { message: 'Admin user not found' },
-        { status: 404 }
-      );
+      return NextResponse.json({ message: 'Admin user not found' }, { status: 404 });
     }
 
     const user = userResult[0];
@@ -87,10 +81,7 @@ export async function POST(request: NextRequest) {
     try {
       storedDescriptor = base64ToFloat32Array(user.faceTemplate);
     } catch (error) {
-      return NextResponse.json(
-        { message: 'Invalid stored face template' },
-        { status: 500 }
-      );
+      return NextResponse.json({ message: 'Invalid stored face template' }, { status: 500 });
     }
 
     // Convert provided descriptor
@@ -102,24 +93,15 @@ export async function POST(request: NextRequest) {
         if (Array.isArray(jsonData)) {
           providedDescriptor = new Float32Array(jsonData);
         } else {
-          return NextResponse.json(
-            { message: 'Invalid face template format' },
-            { status: 400 }
-          );
+          return NextResponse.json({ message: 'Invalid face template format' }, { status: 400 });
         }
       } catch (e) {
-        return NextResponse.json(
-          { message: 'Invalid face template format' },
-          { status: 400 }
-        );
+        return NextResponse.json({ message: 'Invalid face template format' }, { status: 400 });
       }
     } else if (descriptor && Array.isArray(descriptor)) {
       providedDescriptor = new Float32Array(descriptor);
     } else {
-      return NextResponse.json(
-        { message: 'Invalid face descriptor format' },
-        { status: 400 }
-      );
+      return NextResponse.json({ message: 'Invalid face descriptor format' }, { status: 400 });
     }
 
     // Calculate distance
@@ -144,10 +126,7 @@ export async function POST(request: NextRequest) {
     });
 
     // Update last login
-    await db
-      .update(users)
-      .set({ lastLogin: new Date() })
-      .where(eq(users.id, user.id));
+    await db.update(users).set({ lastLogin: new Date() }).where(eq(users.id, user.id));
 
     const response = NextResponse.json({
       message: 'Face login successful',
@@ -180,15 +159,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-
-
-
-
-
-
-
-
-
-
-
-

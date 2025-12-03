@@ -25,13 +25,10 @@ export async function POST(request: NextRequest) {
     const db = getDatabase();
 
     // Get all draft courses (excluding Nurse Pro/Q-Bank)
-    const draftCourses = await db
-      .select()
-      .from(courses)
-      .where(eq(courses.status, 'draft'));
+    const draftCourses = await db.select().from(courses).where(eq(courses.status, 'draft'));
 
-    const validDraftCourses = draftCourses.filter((c: any) => 
-      c.title !== 'Nurse Pro' && c.title !== 'Q-Bank'
+    const validDraftCourses = draftCourses.filter(
+      (c: any) => c.title !== 'Nurse Pro' && c.title !== 'Q-Bank'
     );
 
     if (validDraftCourses.length === 0) {
@@ -68,23 +65,12 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     console.error('Publish all error:', error);
     return NextResponse.json(
-      { 
+      {
         success: false,
         message: 'Failed to publish courses',
-        error: process.env.NODE_ENV === 'development' ? error.message : undefined
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined,
       },
       { status: 500 }
     );
   }
 }
-
-
-
-
-
-
-
-
-
-
-

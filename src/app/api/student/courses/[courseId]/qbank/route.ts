@@ -5,10 +5,7 @@ import { courseQuestionAssignments, qbankQuestions, courses } from '@/lib/db/sch
 import { eq, and } from 'drizzle-orm';
 
 // GET - Fetch Q-Bank questions for a course (student view)
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { courseId: string } }
-) {
+export async function GET(request: NextRequest, { params }: { params: { courseId: string } }) {
   try {
     const authResult = await verifyAuth(request);
     if (!authResult.authenticated || !authResult.user) {
@@ -55,7 +52,7 @@ export async function GET(
     };
 
     return NextResponse.json({
-      questions: questions.map(q => ({
+      questions: questions.map((q) => ({
         id: q.questionId,
         question: q.question,
         type: q.questionType,
@@ -77,10 +74,7 @@ export async function GET(
 }
 
 // POST - Submit Q-Bank test answers
-export async function POST(
-  request: NextRequest,
-  { params }: { params: { courseId: string } }
-) {
+export async function POST(request: NextRequest, { params }: { params: { courseId: string } }) {
   try {
     const authResult = await verifyAuth(request);
     if (!authResult.authenticated || !authResult.user) {
@@ -92,10 +86,7 @@ export async function POST(
     const { answers, moduleId } = body; // answers: { questionId: answer }
 
     if (!answers || typeof answers !== 'object') {
-      return NextResponse.json(
-        { message: 'Answers object is required' },
-        { status: 400 }
-      );
+      return NextResponse.json({ message: 'Answers object is required' }, { status: 400 });
     }
 
     // Get all assigned questions with correct answers
@@ -131,17 +122,18 @@ export async function POST(
     let earnedPoints = 0;
     const results: any[] = [];
 
-    assignedQuestions.forEach(q => {
+    assignedQuestions.forEach((q) => {
       const studentAnswer = answers[q.questionId];
       const correctAnswer = safeJsonParse(q.correctAnswer);
-      
+
       totalPoints += q.points;
-      
+
       let isCorrect = false;
       if (Array.isArray(correctAnswer) && Array.isArray(studentAnswer)) {
         // SATA - check if arrays match
-        isCorrect = correctAnswer.length === studentAnswer.length && 
-                    correctAnswer.every((a: any) => studentAnswer.includes(a));
+        isCorrect =
+          correctAnswer.length === studentAnswer.length &&
+          correctAnswer.every((a: any) => studentAnswer.includes(a));
       } else {
         // MCQ - direct comparison
         isCorrect = studentAnswer === correctAnswer;
@@ -179,4 +171,3 @@ export async function POST(
     );
   }
 }
-

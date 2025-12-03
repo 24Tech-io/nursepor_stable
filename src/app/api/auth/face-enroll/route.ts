@@ -20,10 +20,7 @@ export async function POST(request: NextRequest) {
     const { descriptor } = await request.json();
 
     if (!descriptor || !Array.isArray(descriptor)) {
-      return NextResponse.json(
-        { error: 'Face descriptor is required' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'Face descriptor is required' }, { status: 400 });
     }
 
     // Convert array to Float32Array and then to base64
@@ -55,4 +52,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-

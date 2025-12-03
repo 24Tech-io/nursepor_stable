@@ -9,7 +9,7 @@ export default function CustomCursor() {
 
   useEffect(() => {
     setMounted(true);
-    
+
     if (typeof window === 'undefined') {
       return;
     }
@@ -73,7 +73,7 @@ export default function CustomCursor() {
     document.addEventListener('mouseover', handleMouseOver);
     document.addEventListener('mousedown', handleMouseDown);
     document.addEventListener('mouseup', handleMouseUp);
-    
+
     animationFrameId = requestAnimationFrame(animate);
 
     return () => {
@@ -110,4 +110,3 @@ export default function CustomCursor() {
     </>
   );
 }
-

@@ -17,7 +17,8 @@ export async function approveRequest(
   return await dataManager.executeOperation({
     type: 'approve_request',
     params,
-    validator: async (p) => await RequestValidator.validateRequestAction(p.requestId, p.adminId, 'approve'),
+    validator: async (p) =>
+      await RequestValidator.validateRequestAction(p.requestId, p.adminId, 'approve'),
     executor: async (tx, p) => await RequestOperations.approveRequest(tx, p),
     retryable: true,
     maxRetries: 3,
@@ -33,7 +34,8 @@ export async function rejectRequest(
   return await dataManager.executeOperation({
     type: 'reject_request',
     params,
-    validator: async (p) => await RequestValidator.validateRequestAction(p.requestId, p.adminId, 'reject'),
+    validator: async (p) =>
+      await RequestValidator.validateRequestAction(p.requestId, p.adminId, 'reject'),
     executor: async (tx, p) => await RequestOperations.rejectRequest(tx, p),
     retryable: false, // Rejections shouldn't retry
   });
@@ -51,8 +53,8 @@ export async function createRequest(
     type: 'create_request',
     params: { studentId, courseId, reason },
     validator: async (p) => await RequestValidator.validateRequestCreation(p.studentId, p.courseId),
-    executor: async (tx, p) => await RequestOperations.createRequest(tx, p.studentId, p.courseId, p.reason),
+    executor: async (tx, p) =>
+      await RequestOperations.createRequest(tx, p.studentId, p.courseId, p.reason),
     retryable: false,
   });
 }
-

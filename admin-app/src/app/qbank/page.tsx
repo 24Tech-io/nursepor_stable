@@ -13,4 +13,3 @@ export default function QBankPage() {
 
   return null;
 }
-

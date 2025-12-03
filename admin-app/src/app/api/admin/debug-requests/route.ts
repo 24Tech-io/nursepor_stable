@@ -32,11 +32,7 @@ export async function GET(request: NextRequest) {
     // Get requests with student/course details
     const requestsWithDetails = await Promise.all(
       allRequests.map(async (req: any) => {
-        const [student] = await db
-          .select()
-          .from(users)
-          .where(eq(users.id, req.studentId))
-          .limit(1);
+        const [student] = await db.select().from(users).where(eq(users.id, req.studentId)).limit(1);
 
         const [course] = await db
           .select()
@@ -62,9 +58,9 @@ export async function GET(request: NextRequest) {
       })
     );
 
-    const pendingRequests = requestsWithDetails.filter(r => r.status === 'pending');
-    const validPending = pendingRequests.filter(r => r.isValid);
-    const orphanedPending = pendingRequests.filter(r => !r.isValid);
+    const pendingRequests = requestsWithDetails.filter((r) => r.status === 'pending');
+    const validPending = pendingRequests.filter((r) => r.isValid);
+    const orphanedPending = pendingRequests.filter((r) => !r.isValid);
 
     return NextResponse.json({
       success: true,
@@ -83,23 +79,12 @@ export async function GET(request: NextRequest) {
   } catch (error: any) {
     console.error('Debug requests error:', error);
     return NextResponse.json(
-      { 
+      {
         success: false,
         message: 'Failed to debug requests',
-        error: process.env.NODE_ENV === 'development' ? error.message : undefined
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined,
       },
       { status: 500 }
     );
   }
 }
-
-
-
-
-
-
-
-
-
-
-

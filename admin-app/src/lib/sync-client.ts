@@ -22,7 +22,7 @@ export class AdminSyncClient {
    */
   start() {
     this.subscribers++;
-    
+
     if (this.isConnected) {
       console.log(`🔄 Admin sync client already connected (${this.subscribers} subscribers)`);
       return;
@@ -39,7 +39,7 @@ export class AdminSyncClient {
     this.connectionState = 'connected';
     this.poll(); // Initial poll
     this.intervalId = setInterval(() => this.poll(), this.pollInterval);
-    console.log(`🔄 Admin sync client started (polling every ${this.pollInterval/1000}s)`);
+    console.log(`🔄 Admin sync client started (polling every ${this.pollInterval / 1000}s)`);
     this.emit('connected', { method: 'polling' });
   }
 
@@ -48,7 +48,7 @@ export class AdminSyncClient {
    */
   private getToken(): string | null {
     if (typeof document === 'undefined') return null;
-    
+
     const cookies = document.cookie.split(';');
     for (const cookie of cookies) {
       const [name, value] = cookie.trim().split('=');
@@ -64,18 +64,20 @@ export class AdminSyncClient {
    */
   stop() {
     this.subscribers = Math.max(0, this.subscribers - 1);
-    
+
     if (this.subscribers > 0) {
-      console.log(`🔄 Admin sync client has ${this.subscribers} remaining subscribers, keeping connection alive`);
+      console.log(
+        `🔄 Admin sync client has ${this.subscribers} remaining subscribers, keeping connection alive`
+      );
       return;
     }
-    
+
     // Stop polling
     if (this.intervalId) {
       clearInterval(this.intervalId);
       this.intervalId = null;
     }
-    
+
     this.isConnected = false;
     this.connectionState = 'disconnected';
     console.log('🛑 Admin sync client stopped (no subscribers)');
@@ -113,7 +115,7 @@ export class AdminSyncClient {
         cache: 'no-store',
         headers: {
           'Cache-Control': 'no-cache, no-store, must-revalidate',
-        }
+        },
       });
 
       if (response.ok) {
@@ -137,7 +139,9 @@ export class AdminSyncClient {
     if (this.reconnectAttempts < this.maxReconnectAttempts) {
       this.reconnectAttempts++;
       this.connectionState = 'reconnecting';
-      console.log(`🔄 Admin sync reconnecting (${this.reconnectAttempts}/${this.maxReconnectAttempts})...`);
+      console.log(
+        `🔄 Admin sync reconnecting (${this.reconnectAttempts}/${this.maxReconnectAttempts})...`
+      );
     } else {
       this.connectionState = 'disconnected';
       console.error('❌ Admin sync failed after max attempts');
@@ -226,7 +230,7 @@ export class AdminSyncClient {
   private emit(event: string, data: any) {
     const callbacks = this.callbacks.get(event);
     if (callbacks) {
-      callbacks.forEach(callback => callback(data));
+      callbacks.forEach((callback) => callback(data));
     }
   }
 }

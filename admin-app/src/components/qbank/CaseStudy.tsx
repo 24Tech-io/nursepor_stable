@@ -3,15 +3,45 @@
 import { useState } from 'react';
 
 const CJMM_STEPS = [
-  { step: 1, name: 'Recognize Cues', description: 'Pick relevant vs irrelevant data (often matrix or select-all)' },
-  { step: 2, name: 'Analyze Cues', description: 'Interpret meaning (e.g., ABGs, labs, assessment) - usually matrix/grid' },
-  { step: 3, name: 'Prioritize Hypotheses', description: 'Identify most likely condition(s) - often drag-drop ranking' },
-  { step: 4, name: 'Generate Solutions', description: 'Decide potential nursing actions - SATA or matrix format' },
-  { step: 5, name: 'Take Action', description: 'Choose best interventions - may include medications, safety, or escalation steps' },
-  { step: 6, name: 'Evaluate Outcomes', description: 'Expected vs unexpected outcomes - Improvement vs deterioration' },
+  {
+    step: 1,
+    name: 'Recognize Cues',
+    description: 'Pick relevant vs irrelevant data (often matrix or select-all)',
+  },
+  {
+    step: 2,
+    name: 'Analyze Cues',
+    description: 'Interpret meaning (e.g., ABGs, labs, assessment) - usually matrix/grid',
+  },
+  {
+    step: 3,
+    name: 'Prioritize Hypotheses',
+    description: 'Identify most likely condition(s) - often drag-drop ranking',
+  },
+  {
+    step: 4,
+    name: 'Generate Solutions',
+    description: 'Decide potential nursing actions - SATA or matrix format',
+  },
+  {
+    step: 5,
+    name: 'Take Action',
+    description: 'Choose best interventions - may include medications, safety, or escalation steps',
+  },
+  {
+    step: 6,
+    name: 'Evaluate Outcomes',
+    description: 'Expected vs unexpected outcomes - Improvement vs deterioration',
+  },
 ];
 
-export default function CaseStudy({ question, onChange }: { question: any; onChange: (q: any) => void }) {
+export default function CaseStudy({
+  question,
+  onChange,
+}: {
+  question: any;
+  onChange: (q: any) => void;
+}) {
   const [caseTitle, setCaseTitle] = useState(question.caseTitle || '');
   const [caseDescription, setCaseDescription] = useState(question.caseDescription || '');
   const [caseData, setCaseData] = useState(question.caseData || {});
@@ -33,7 +63,8 @@ export default function CaseStudy({ question, onChange }: { question: any; onCha
     <div className="space-y-4">
       <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4">
         <p className="text-sm text-blue-300">
-          <strong>Case Study (6-step CJMM):</strong> Each case has 6 sequential questions based on the Clinical Judgment Measurement Model (CJMM).
+          <strong>Case Study (6-step CJMM):</strong> Each case has 6 sequential questions based on
+          the Clinical Judgment Measurement Model (CJMM).
         </p>
       </div>
 
@@ -51,7 +82,9 @@ export default function CaseStudy({ question, onChange }: { question: any; onCha
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-slate-300 mb-2">Case Description / Patient Scenario</label>
+        <label className="block text-sm font-medium text-slate-300 mb-2">
+          Case Description / Patient Scenario
+        </label>
         <textarea
           value={caseDescription}
           onChange={(e) => {
@@ -90,7 +123,9 @@ export default function CaseStudy({ question, onChange }: { question: any; onCha
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-slate-300 mb-2">Question for Step {currentStep}</label>
+          <label className="block text-sm font-medium text-slate-300 mb-2">
+            Question for Step {currentStep}
+          </label>
           <textarea
             value={stepQuestions[currentStep]?.question || ''}
             onChange={(e) => {
@@ -107,23 +142,26 @@ export default function CaseStudy({ question, onChange }: { question: any; onCha
 
         <div className="mt-4">
           <label className="block text-sm font-medium text-slate-300 mb-2">Options</label>
-          {(stepQuestions[currentStep]?.options || ['', '', '', '']).map((opt: string, idx: number) => (
-            <input
-              key={idx}
-              value={opt}
-              onChange={(e) => {
-                const newSteps = { ...stepQuestions };
-                if (!newSteps[currentStep]) newSteps[currentStep] = { question: '', options: [], correctAnswer: 0 };
-                const newOptions = [...(newSteps[currentStep].options || ['', '', '', ''])];
-                newOptions[idx] = e.target.value;
-                newSteps[currentStep].options = newOptions;
-                setStepQuestions(newSteps);
-                updateCaseStudy(caseTitle, caseDescription, caseData, newSteps);
-              }}
-              placeholder={`Option ${idx + 1}`}
-              className="w-full mb-2 px-4 py-2 bg-[#11131a] border border-slate-700 rounded-lg text-slate-200 placeholder-slate-500 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-            />
-          ))}
+          {(stepQuestions[currentStep]?.options || ['', '', '', '']).map(
+            (opt: string, idx: number) => (
+              <input
+                key={idx}
+                value={opt}
+                onChange={(e) => {
+                  const newSteps = { ...stepQuestions };
+                  if (!newSteps[currentStep])
+                    newSteps[currentStep] = { question: '', options: [], correctAnswer: 0 };
+                  const newOptions = [...(newSteps[currentStep].options || ['', '', '', ''])];
+                  newOptions[idx] = e.target.value;
+                  newSteps[currentStep].options = newOptions;
+                  setStepQuestions(newSteps);
+                  updateCaseStudy(caseTitle, caseDescription, caseData, newSteps);
+                }}
+                placeholder={`Option ${idx + 1}`}
+                className="w-full mb-2 px-4 py-2 bg-[#11131a] border border-slate-700 rounded-lg text-slate-200 placeholder-slate-500 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+              />
+            )
+          )}
         </div>
 
         <div className="mt-4">
@@ -132,18 +170,21 @@ export default function CaseStudy({ question, onChange }: { question: any; onCha
             value={stepQuestions[currentStep]?.correctAnswer || 0}
             onChange={(e) => {
               const newSteps = { ...stepQuestions };
-              if (!newSteps[currentStep]) newSteps[currentStep] = { question: '', options: [], correctAnswer: 0 };
+              if (!newSteps[currentStep])
+                newSteps[currentStep] = { question: '', options: [], correctAnswer: 0 };
               newSteps[currentStep].correctAnswer = parseInt(e.target.value);
               setStepQuestions(newSteps);
               updateCaseStudy(caseTitle, caseDescription, caseData, newSteps);
             }}
             className="w-full px-4 py-2 bg-[#11131a] border border-slate-700 rounded-lg text-slate-200 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
           >
-            {(stepQuestions[currentStep]?.options || ['', '', '', '']).map((opt: string, idx: number) => (
-              <option key={idx} value={idx} className="bg-[#11131a] text-slate-200">
-                Option {idx + 1}: {opt || '(empty)'}
-              </option>
-            ))}
+            {(stepQuestions[currentStep]?.options || ['', '', '', '']).map(
+              (opt: string, idx: number) => (
+                <option key={idx} value={idx} className="bg-[#11131a] text-slate-200">
+                  Option {idx + 1}: {opt || '(empty)'}
+                </option>
+              )
+            )}
           </select>
         </div>
       </div>
@@ -156,4 +197,3 @@ export default function CaseStudy({ question, onChange }: { question: any; onCha
     </div>
   );
 }
-

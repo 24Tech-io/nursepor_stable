@@ -37,4 +37,3 @@ export interface SyncEvent {
   userId?: number;
   adminId?: number;
 }
-

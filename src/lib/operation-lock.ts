@@ -13,15 +13,15 @@ import { sql } from 'drizzle-orm';
 function generateLockKey(operation: string, ...params: (string | number)[]): number {
   // Create a hash from operation and params
   const keyString = `${operation}|${params.join('|')}`;
-  
+
   // Simple hash function to convert string to number
   let hash = 0;
   for (let i = 0; i < keyString.length; i++) {
     const char = keyString.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
+    hash = (hash << 5) - hash + char;
     hash = hash & hash; // Convert to 32bit integer
   }
-  
+
   // Use absolute value and ensure it's within PostgreSQL's bigint range
   // PostgreSQL advisory locks use signed 64-bit integers
   return Math.abs(hash) % Number.MAX_SAFE_INTEGER;
@@ -30,7 +30,7 @@ function generateLockKey(operation: string, ...params: (string | number)[]): num
 /**
  * Acquire an advisory lock for an operation
  * Returns true if lock was acquired, false if already locked
- * 
+ *
  * @param operation - Operation name (e.g., 'enroll_student')
  * @param params - Parameters that uniquely identify the operation
  * @param timeout - Maximum time to wait for lock (milliseconds), 0 = don't wait
@@ -47,19 +47,15 @@ export async function acquireLock(
     // Try to acquire lock (non-blocking if timeout is 0)
     if (timeout === 0) {
       // Try lock (non-blocking)
-      const result = await db.execute(
-        sql`SELECT pg_try_advisory_lock(${lockId}) as acquired`
-      );
-      
+      const result = await db.execute(sql`SELECT pg_try_advisory_lock(${lockId}) as acquired`);
+
       const acquired = result.rows[0]?.acquired === true;
       return { acquired, lockId };
     } else {
       // Acquire lock with timeout
       const timeoutSeconds = Math.ceil(timeout / 1000);
-      const result = await db.execute(
-        sql`SELECT pg_advisory_lock(${lockId}) as acquired`
-      );
-      
+      const result = await db.execute(sql`SELECT pg_advisory_lock(${lockId}) as acquired`);
+
       // Set a timeout to release lock if operation takes too long
       setTimeout(() => {
         releaseLock(lockId).catch((err) => {
@@ -137,7 +133,3 @@ export async function withRequestLock<T>(
 ): Promise<T> {
   return withLock('access_request', [studentId, courseId], executor, 5000);
 }
-
-
-
-

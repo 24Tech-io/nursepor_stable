@@ -3,7 +3,7 @@ export function getTokenFromCookie(): string | null {
   if (typeof document === 'undefined') return null;
   const token = document.cookie
     .split('; ')
-    .find(row => row.startsWith('adminToken='))
+    .find((row) => row.startsWith('adminToken='))
     ?.split('=')[1];
   return token || null;
 }
@@ -27,10 +27,10 @@ export function parseJWT(token: string): any {
 export function getAdminUser(): any {
   const token = getTokenFromCookie();
   if (!token) return null;
-  
+
   const decoded = parseJWT(token);
   if (!decoded || decoded.role !== 'admin') return null;
-  
+
   return {
     id: decoded.id,
     name: decoded.name,
@@ -39,4 +39,3 @@ export function getAdminUser(): any {
     isActive: decoded.isActive,
   };
 }
-

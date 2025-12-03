@@ -24,14 +24,14 @@ export class SyncClient {
    */
   start() {
     this.subscribers++;
-    
+
     if (this.isConnected) {
       console.log(`🔄 Sync client already connected (${this.subscribers} subscribers)`);
       return;
     }
 
     this.isConnected = true;
-    
+
     // Try SSE first
     if (this.useSSE && typeof EventSource !== 'undefined') {
       this.connectSSE();
@@ -70,7 +70,7 @@ export class SyncClient {
       this.eventSource.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
-          
+
           if (data.type === 'connected') {
             console.log('✅ SSE connection confirmed:', data);
           } else if (data.type === 'sync') {
@@ -87,13 +87,15 @@ export class SyncClient {
       this.eventSource.onerror = (error) => {
         console.error('❌ SSE connection error:', error);
         this.connectionState = 'disconnected';
-        
+
         // Try to reconnect
         if (this.reconnectAttempts < this.maxReconnectAttempts) {
           this.reconnectAttempts++;
           this.connectionState = 'reconnecting';
-          console.log(`🔄 Attempting SSE reconnect (${this.reconnectAttempts}/${this.maxReconnectAttempts})...`);
-          
+          console.log(
+            `🔄 Attempting SSE reconnect (${this.reconnectAttempts}/${this.maxReconnectAttempts})...`
+          );
+
           setTimeout(() => {
             if (this.isConnected) {
               this.connectSSE();
@@ -129,7 +131,7 @@ export class SyncClient {
    */
   private getToken(): string | null {
     if (typeof document === 'undefined') return null;
-    
+
     const cookies = document.cookie.split(';');
     for (const cookie of cookies) {
       const [name, value] = cookie.trim().split('=');
@@ -145,24 +147,26 @@ export class SyncClient {
    */
   stop() {
     this.subscribers = Math.max(0, this.subscribers - 1);
-    
+
     if (this.subscribers > 0) {
-      console.log(`🔄 Sync client has ${this.subscribers} remaining subscribers, keeping connection alive`);
+      console.log(
+        `🔄 Sync client has ${this.subscribers} remaining subscribers, keeping connection alive`
+      );
       return;
     }
-    
+
     // Close SSE connection
     if (this.eventSource) {
       this.eventSource.close();
       this.eventSource = null;
     }
-    
+
     // Stop polling
     if (this.intervalId) {
       clearInterval(this.intervalId);
       this.intervalId = null;
     }
-    
+
     this.isConnected = false;
     this.connectionState = 'disconnected';
     console.log('🛑 Sync client stopped (no subscribers)');
@@ -207,7 +211,7 @@ export class SyncClient {
         cache: 'no-store',
         headers: {
           'Cache-Control': 'no-cache, no-store, must-revalidate',
-        }
+        },
       });
 
       if (response.ok) {
@@ -294,11 +298,10 @@ export class SyncClient {
   private emit(event: string, data: any) {
     const callbacks = this.callbacks.get(event);
     if (callbacks) {
-      callbacks.forEach(callback => callback(data));
+      callbacks.forEach((callback) => callback(data));
     }
   }
 }
 
 // Export singleton instance
 export const syncClient = new SyncClient(5000); // Poll every 5 seconds for maximum sync speed
-

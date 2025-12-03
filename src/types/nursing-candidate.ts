@@ -65,4 +65,3 @@ export interface NursingCandidateFormPayload {
   referenceNumber?: string;
   documentChecklistAcknowledged: boolean;
 }
-

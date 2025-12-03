@@ -7,7 +7,7 @@ import { eq } from 'drizzle-orm';
 function safeJsonParse(value: any, fallback: any = null) {
   if (!value) return fallback;
   if (typeof value !== 'string') return value;
-  
+
   try {
     return JSON.parse(value);
   } catch {
@@ -19,24 +19,21 @@ function safeJsonParse(value: any, fallback: any = null) {
 // Get human-readable label for question type
 function getQuestionTypeLabel(type: string): string {
   const labels: Record<string, string> = {
-    'multiple_choice': 'Single Best Answer',
-    'sata': 'SATA (Classic)',
-    'ngn_case_study': 'Case Study',
-    'unfolding_ngn': 'Unfolding NGN',
-    'bowtie': 'Bow-Tie',
-    'casestudy': 'Case Study',
-    'matrix': 'Matrix',
-    'trend': 'Trend',
-    'standard': 'Single Best Answer',
-    'sata_classic': 'SATA (Classic)',
+    multiple_choice: 'Single Best Answer',
+    sata: 'SATA (Classic)',
+    ngn_case_study: 'Case Study',
+    unfolding_ngn: 'Unfolding NGN',
+    bowtie: 'Bow-Tie',
+    casestudy: 'Case Study',
+    matrix: 'Matrix',
+    trend: 'Trend',
+    standard: 'Single Best Answer',
+    sata_classic: 'SATA (Classic)',
   };
   return labels[type] || type;
 }
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { courseId: string } }
-) {
+export async function GET(request: NextRequest, { params }: { params: { courseId: string } }) {
   try {
     const db = getDatabase();
     const courseId = parseInt(params.courseId);
@@ -60,7 +57,9 @@ export async function GET(
     return NextResponse.json({
       questions: allQuestions.map((q: any) => ({
         id: q.id.toString(),
-        stem: q.question ? (q.question.substring(0, 100) + (q.question.length > 100 ? '...' : '')) : 'No question text',
+        stem: q.question
+          ? q.question.substring(0, 100) + (q.question.length > 100 ? '...' : '')
+          : 'No question text',
         category: q.testType || 'classic',
         label: getQuestionTypeLabel(q.questionType),
         format: q.questionType || 'multiple_choice',
@@ -79,26 +78,23 @@ export async function GET(
   } catch (error: any) {
     console.error('Get questions error:', error);
     return NextResponse.json(
-      { message: 'Failed to get questions', error: process.env.NODE_ENV === 'development' ? error.message : undefined },
+      {
+        message: 'Failed to get questions',
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+      },
       { status: 500 }
     );
   }
 }
 
-export async function POST(
-  request: NextRequest,
-  { params }: { params: { courseId: string } }
-) {
+export async function POST(request: NextRequest, { params }: { params: { courseId: string } }) {
   try {
     const db = getDatabase();
     const courseId = parseInt(params.courseId);
     const { questions: questionsData } = await request.json();
 
     if (!Array.isArray(questionsData) || questionsData.length === 0) {
-      return NextResponse.json(
-        { message: 'Questions array is required' },
-        { status: 400 }
-      );
+      return NextResponse.json({ message: 'Questions array is required' }, { status: 400 });
     }
 
     // Get or create question bank
@@ -140,30 +136,38 @@ export async function POST(
       )
       .returning();
 
-    return NextResponse.json({
-      message: 'Questions created successfully',
-      questions: insertedQuestions.map((q: any) => ({
-        id: q.id.toString(),
-        stem: q.question ? (q.question.substring(0, 100) + (q.question.length > 100 ? '...' : '')) : 'No question text',
-        category: q.testType || 'classic',
-        label: getQuestionTypeLabel(q.questionType),
-        format: q.questionType,
-        question: q.question,
-        explanation: q.explanation,
-        points: q.points,
-        subject: q.subject,
-        difficulty: q.difficulty,
-        testType: q.testType,
-        data: {
-          options: safeJsonParse(q.options, []),
-          correctAnswer: safeJsonParse(q.correctAnswer, null),
-        },
-      })),
-    }, { status: 201 });
+    return NextResponse.json(
+      {
+        message: 'Questions created successfully',
+        questions: insertedQuestions.map((q: any) => ({
+          id: q.id.toString(),
+          stem: q.question
+            ? q.question.substring(0, 100) + (q.question.length > 100 ? '...' : '')
+            : 'No question text',
+          category: q.testType || 'classic',
+          label: getQuestionTypeLabel(q.questionType),
+          format: q.questionType,
+          question: q.question,
+          explanation: q.explanation,
+          points: q.points,
+          subject: q.subject,
+          difficulty: q.difficulty,
+          testType: q.testType,
+          data: {
+            options: safeJsonParse(q.options, []),
+            correctAnswer: safeJsonParse(q.correctAnswer, null),
+          },
+        })),
+      },
+      { status: 201 }
+    );
   } catch (error: any) {
     console.error('Create questions error:', error);
     return NextResponse.json(
-      { message: 'Failed to create questions', error: process.env.NODE_ENV === 'development' ? error.message : undefined },
+      {
+        message: 'Failed to create questions',
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+      },
       { status: 500 }
     );
   }

@@ -11,10 +11,7 @@ export async function GET(request: NextRequest) {
     const db = getDatabase();
 
     // Get ALL courses from database (no filtering)
-    const allCourses = await db
-      .select()
-      .from(courses)
-      .orderBy(courses.createdAt);
+    const allCourses = await db.select().from(courses).orderBy(courses.createdAt);
 
     // Categorize by status
     const byStatus = allCourses.reduce((acc: any, course: any) => {
@@ -58,19 +55,12 @@ export async function GET(request: NextRequest) {
   } catch (error: any) {
     console.error('Debug courses error:', error);
     return NextResponse.json(
-      { 
+      {
         success: false,
         message: 'Failed to fetch courses from database',
-        error: process.env.NODE_ENV === 'development' ? error.message : undefined
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined,
       },
       { status: 500 }
     );
   }
 }
-
-
-
-
-
-
-

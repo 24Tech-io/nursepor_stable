@@ -9,10 +9,7 @@ export async function GET(request: NextRequest) {
     const token = request.cookies.get('token')?.value;
 
     if (!token) {
-      return NextResponse.json(
-        { message: 'Not authenticated' },
-        { status: 401 }
-      );
+      return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });
     }
 
     let decoded = verifyToken(token);
@@ -25,16 +22,10 @@ export async function GET(request: NextRequest) {
           // Use the ID from the expired token to get user from database
           decoded = { id: payload.id } as any;
         } else {
-          return NextResponse.json(
-            { message: 'Invalid token' },
-            { status: 401 }
-          );
+          return NextResponse.json({ message: 'Invalid token' }, { status: 401 });
         }
       } catch (e) {
-        return NextResponse.json(
-          { message: 'Invalid token' },
-          { status: 401 }
-        );
+        return NextResponse.json({ message: 'Invalid token' }, { status: 401 });
       }
     }
 
@@ -45,9 +36,9 @@ export async function GET(request: NextRequest) {
     } catch (dbError: any) {
       console.error('Database connection error:', dbError);
       return NextResponse.json(
-        { 
+        {
           message: 'Database connection error. Please check your DATABASE_URL in .env.local',
-          error: process.env.NODE_ENV === 'development' ? dbError.message : undefined
+          error: process.env.NODE_ENV === 'development' ? dbError.message : undefined,
         },
         { status: 500 }
       );
@@ -61,16 +52,13 @@ export async function GET(request: NextRequest) {
       .limit(1);
 
     if (!user.length) {
-      return NextResponse.json(
-        { message: 'User not found' },
-        { status: 404 }
-      );
+      return NextResponse.json({ message: 'User not found' }, { status: 404 });
     }
 
     // Log user data for debugging
     const phoneValue = user[0].phone;
     const phoneString = phoneValue && String(phoneValue).trim() ? String(phoneValue).trim() : null;
-    
+
     console.log('🔍 /api/auth/me - Token decoded ID:', decoded?.id);
     console.log('🔍 /api/auth/me - User found in database:', {
       id: user[0].id,
@@ -118,38 +106,38 @@ export async function GET(request: NextRequest) {
     });
 
     // Handle database connection errors
-    if (error?.message?.includes('DATABASE_URL') || 
-        error?.message?.includes('Database is not available') ||
-        error?.message?.includes('connection') ||
-        error?.code === 'ECONNREFUSED') {
+    if (
+      error?.message?.includes('DATABASE_URL') ||
+      error?.message?.includes('Database is not available') ||
+      error?.message?.includes('connection') ||
+      error?.code === 'ECONNREFUSED'
+    ) {
       return NextResponse.json(
-        { 
+        {
           message: 'Database connection error. Please check your DATABASE_URL in .env.local',
-          error: process.env.NODE_ENV === 'development' ? error.message : undefined
+          error: process.env.NODE_ENV === 'development' ? error.message : undefined,
         },
         { status: 500 }
       );
     }
 
     // Handle table not found errors (migrations not run)
-    if (error?.message?.includes('does not exist') || 
-        error?.code === '42P01') {
+    if (error?.message?.includes('does not exist') || error?.code === '42P01') {
       return NextResponse.json(
-        { 
+        {
           message: 'Database tables not found. Please run migrations: npx drizzle-kit migrate',
-          error: process.env.NODE_ENV === 'development' ? error.message : undefined
+          error: process.env.NODE_ENV === 'development' ? error.message : undefined,
         },
         { status: 500 }
       );
     }
 
     return NextResponse.json(
-      { 
+      {
         message: 'Failed to get user',
-        error: process.env.NODE_ENV === 'development' ? error.message : undefined
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined,
       },
       { status: 500 }
     );
   }
 }
-

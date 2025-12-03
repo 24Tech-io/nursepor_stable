@@ -2,7 +2,13 @@
 
 import { useState } from 'react';
 
-export default function RankingItem({ question, onChange }: { question: any; onChange: (q: any) => void }) {
+export default function RankingItem({
+  question,
+  onChange,
+}: {
+  question: any;
+  onChange: (q: any) => void;
+}) {
   const [items, setItems] = useState(question.rankingData?.items || ['Item 1', 'Item 2', 'Item 3']);
   const [correctOrder, setCorrectOrder] = useState(question.rankingData?.correctOrder || [0, 1, 2]);
 
@@ -43,7 +49,10 @@ export default function RankingItem({ question, onChange }: { question: any; onC
                   const newOrder = [...correctOrder];
                   const currentPos = newOrder.indexOf(idx);
                   const prevPos = newOrder.indexOf(idx - 1);
-                  [newOrder[currentPos], newOrder[prevPos]] = [newOrder[prevPos], newOrder[currentPos]];
+                  [newOrder[currentPos], newOrder[prevPos]] = [
+                    newOrder[prevPos],
+                    newOrder[currentPos],
+                  ];
                   setCorrectOrder(newOrder);
                   updateRanking(items, newOrder);
                 }
@@ -59,7 +68,10 @@ export default function RankingItem({ question, onChange }: { question: any; onC
                   const newOrder = [...correctOrder];
                   const currentPos = newOrder.indexOf(idx);
                   const nextPos = newOrder.indexOf(idx + 1);
-                  [newOrder[currentPos], newOrder[nextPos]] = [newOrder[nextPos], newOrder[currentPos]];
+                  [newOrder[currentPos], newOrder[nextPos]] = [
+                    newOrder[nextPos],
+                    newOrder[currentPos],
+                  ];
                   setCorrectOrder(newOrder);
                   updateRanking(items, newOrder);
                 }
@@ -93,4 +105,3 @@ export default function RankingItem({ question, onChange }: { question: any; onC
     </div>
   );
 }
-

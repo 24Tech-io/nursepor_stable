@@ -2,13 +2,26 @@
 
 import { useState } from 'react';
 
-export default function ExtendedMultipleResponse({ question, onChange }: { question: any; onChange: (q: any) => void }) {
+export default function ExtendedMultipleResponse({
+  question,
+  onChange,
+}: {
+  question: any;
+  onChange: (q: any) => void;
+}) {
   const [options, setOptions] = useState(question.options || ['', '', '']);
-  const [correctAnswers, setCorrectAnswers] = useState(Array.isArray(question.correctAnswer) ? question.correctAnswer : []);
+  const [correctAnswers, setCorrectAnswers] = useState(
+    Array.isArray(question.correctAnswer) ? question.correctAnswer : []
+  );
   const [highlightText, setHighlightText] = useState(question.highlightData?.text || '');
   const [highlights, setHighlights] = useState(question.highlightData?.highlights || []);
 
-  const updateQuestion = (newOptions: string[], newCorrect: number[], newText: string, newHighlights: any[]) => {
+  const updateQuestion = (
+    newOptions: string[],
+    newCorrect: number[],
+    newText: string,
+    newHighlights: any[]
+  ) => {
     onChange({
       ...question,
       options: newOptions,
@@ -21,12 +34,15 @@ export default function ExtendedMultipleResponse({ question, onChange }: { quest
     <div className="space-y-4">
       <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4">
         <p className="text-sm text-blue-300">
-          <strong>Extended Multiple Response:</strong> May include mini drop-down responses or highlight text options.
+          <strong>Extended Multiple Response:</strong> May include mini drop-down responses or
+          highlight text options.
         </p>
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-slate-300 mb-2">Question Text with Highlightable Areas</label>
+        <label className="block text-sm font-medium text-slate-300 mb-2">
+          Question Text with Highlightable Areas
+        </label>
         <textarea
           value={highlightText}
           onChange={(e) => {
@@ -51,7 +67,7 @@ export default function ExtendedMultipleResponse({ question, onChange }: { quest
                 if (e.target.checked) {
                   newCorrect.push(idx);
                 } else {
-                  newCorrect = newCorrect.filter(i => i !== idx);
+                  newCorrect = newCorrect.filter((i) => i !== idx);
                 }
                 setCorrectAnswers(newCorrect);
                 updateQuestion(options, newCorrect, highlightText, highlights);
@@ -85,4 +101,3 @@ export default function ExtendedMultipleResponse({ question, onChange }: { quest
     </div>
   );
 }
-

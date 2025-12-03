@@ -28,46 +28,36 @@ export async function GET(request: NextRequest) {
 
     // IMPORTANT: Get pending request course IDs to exclude from enrolled count
     const pendingRequests = await db
-        .select({
-          courseId: accessRequests.courseId,
-        })
-        .from(accessRequests)
-        .where(
-          and(
-            eq(accessRequests.studentId, userId),
-            eq(accessRequests.status, 'pending')
-        )
-    );
+      .select({
+        courseId: accessRequests.courseId,
+      })
+      .from(accessRequests)
+      .where(and(eq(accessRequests.studentId, userId), eq(accessRequests.status, 'pending')));
 
     const pendingRequestCourseIds = pendingRequests.map((r: any) => r.courseId);
 
     // Get all enrolled courses from BOTH tables
     const [allEnrolledProgress, allEnrolledRecords] = await Promise.all([
-        db
-          .select({
-            courseId: studentProgress.courseId,
-          })
-          .from(studentProgress)
-          .innerJoin(courses, eq(studentProgress.courseId, courses.id))
-          .where(
-            and(
-              eq(studentProgress.studentId, userId),
-              getPublishedCourseFilter()
+      db
+        .select({
+          courseId: studentProgress.courseId,
+        })
+        .from(studentProgress)
+        .innerJoin(courses, eq(studentProgress.courseId, courses.id))
+        .where(and(eq(studentProgress.studentId, userId), getPublishedCourseFilter())),
+      db
+        .select({
+          courseId: enrollments.courseId,
+        })
+        .from(enrollments)
+        .innerJoin(courses, eq(enrollments.courseId, courses.id))
+        .where(
+          and(
+            eq(enrollments.userId, userId),
+            eq(enrollments.status, 'active'),
+            getPublishedCourseFilter()
           )
-      ),
-        db
-          .select({
-            courseId: enrollments.courseId,
-          })
-          .from(enrollments)
-          .innerJoin(courses, eq(enrollments.courseId, courses.id))
-          .where(
-            and(
-              eq(enrollments.userId, userId),
-              eq(enrollments.status, 'active'),
-              getPublishedCourseFilter()
-          )
-      ),
+        ),
     ]);
 
     // Merge course IDs from both tables
@@ -86,35 +76,35 @@ export async function GET(request: NextRequest) {
 
     // Get completed courses (progress >= 100) from BOTH tables - exclude courses with pending requests
     const [allCompletedProgress, allCompletedEnrollments] = await Promise.all([
-        db
-          .select({
-            courseId: studentProgress.courseId,
-            totalProgress: studentProgress.totalProgress,
-          })
-          .from(studentProgress)
-          .innerJoin(courses, eq(studentProgress.courseId, courses.id))
-          .where(
-            and(
-              eq(studentProgress.studentId, userId),
-              getPublishedCourseFilter(),
-              sql`${studentProgress.totalProgress} >= 100`
+      db
+        .select({
+          courseId: studentProgress.courseId,
+          totalProgress: studentProgress.totalProgress,
+        })
+        .from(studentProgress)
+        .innerJoin(courses, eq(studentProgress.courseId, courses.id))
+        .where(
+          and(
+            eq(studentProgress.studentId, userId),
+            getPublishedCourseFilter(),
+            sql`${studentProgress.totalProgress} >= 100`
           )
-      ),
-        db
-          .select({
-            courseId: enrollments.courseId,
-            progress: enrollments.progress,
-          })
-          .from(enrollments)
-          .innerJoin(courses, eq(enrollments.courseId, courses.id))
-          .where(
-            and(
-              eq(enrollments.userId, userId),
-              eq(enrollments.status, 'active'),
-              getPublishedCourseFilter(),
-              sql`${enrollments.progress} >= 100`
+        ),
+      db
+        .select({
+          courseId: enrollments.courseId,
+          progress: enrollments.progress,
+        })
+        .from(enrollments)
+        .innerJoin(courses, eq(enrollments.courseId, courses.id))
+        .where(
+          and(
+            eq(enrollments.userId, userId),
+            eq(enrollments.status, 'active'),
+            getPublishedCourseFilter(),
+            sql`${enrollments.progress} >= 100`
           )
-      ),
+        ),
     ]);
 
     // Merge completed course IDs from both tables
@@ -133,47 +123,42 @@ export async function GET(request: NextRequest) {
     // Calculate total hours learned (sum of progress from both tables)
     // Prefer enrollments.progress, fallback to studentProgress.totalProgress
     const [progressSum, enrollmentSum] = await Promise.all([
-        db
-          .select({
-            totalProgress: sql<number>`coalesce(sum(${studentProgress.totalProgress}), 0)`,
-          })
-          .from(studentProgress)
+      db
+        .select({
+          totalProgress: sql<number>`coalesce(sum(${studentProgress.totalProgress}), 0)`,
+        })
+        .from(studentProgress)
         .where(eq(studentProgress.studentId, userId)),
-        db
-          .select({
-            totalProgress: sql<number>`coalesce(sum(${enrollments.progress}), 0)`,
-          })
-          .from(enrollments)
-          .where(
-            and(
-              eq(enrollments.userId, userId),
-              eq(enrollments.status, 'active')
-          )
-      ),
+      db
+        .select({
+          totalProgress: sql<number>`coalesce(sum(${enrollments.progress}), 0)`,
+        })
+        .from(enrollments)
+        .where(and(eq(enrollments.userId, userId), eq(enrollments.status, 'active'))),
     ]);
 
     // Use enrollments.progress as primary source, fallback to studentProgress
-    const totalProgress = Number(enrollmentSum[0]?.totalProgress || progressSum[0]?.totalProgress || 0);
-    
+    const totalProgress = Number(
+      enrollmentSum[0]?.totalProgress || progressSum[0]?.totalProgress || 0
+    );
+
     // Estimate: assume average course is 10 hours, multiply by progress percentage
     // Average 10 hours per course, calculate based on progress
-    const estimatedHours = coursesEnrolled > 0 
-      ? Math.round((totalProgress / coursesEnrolled / 100) * 10 * 10) / 10 
-      : 0;
+    const estimatedHours =
+      coursesEnrolled > 0 ? Math.round((totalProgress / coursesEnrolled / 100) * 10 * 10) / 10 : 0;
 
     // Get quizzes completed count
     // For now, we'll estimate based on progress (assume 1 quiz per 20% progress)
     // In a real system, you'd have a quizAttempts table
-    const quizzesCompleted = coursesEnrolled > 0 
-      ? Math.floor(totalProgress / coursesEnrolled / 20) 
-      : 0;
+    const quizzesCompleted =
+      coursesEnrolled > 0 ? Math.floor(totalProgress / coursesEnrolled / 20) : 0;
 
     // Calculate login streak
     // Get user's last login dates and calculate consecutive days
     const user = await db
-        .select({ lastLogin: users.lastLogin })
-        .from(users)
-        .where(eq(users.id, userId))
+      .select({ lastLogin: users.lastLogin })
+      .from(users)
+      .where(eq(users.id, userId))
       .limit(1);
 
     let currentStreak = 0;
@@ -183,10 +168,10 @@ export async function GET(request: NextRequest) {
       today.setHours(0, 0, 0, 0);
       const lastLoginDate = new Date(lastLogin);
       lastLoginDate.setHours(0, 0, 0, 0);
-      
+
       const diffTime = today.getTime() - lastLoginDate.getTime();
       const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-      
+
       // If logged in today or yesterday, streak is at least 1
       if (diffDays <= 1) {
         currentStreak = 1; // Simplified - in real system, track daily logins
@@ -196,7 +181,7 @@ export async function GET(request: NextRequest) {
     // Calculate total points
     // Points = (courses completed * 100) + (quizzes completed * 10)
     // Streak does not contribute to points to avoid initial points confusion
-    const totalPoints = (coursesCompleted * 100) + (quizzesCompleted * 10);
+    const totalPoints = coursesCompleted * 100 + quizzesCompleted * 10;
 
     return NextResponse.json({
       stats: {
@@ -213,4 +198,3 @@ export async function GET(request: NextRequest) {
     return createErrorResponse(error, 'Failed to get student stats');
   }
 }
-

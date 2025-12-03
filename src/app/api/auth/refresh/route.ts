@@ -12,10 +12,7 @@ export async function POST(request: NextRequest) {
 
     if (!token) {
       console.log('❌ Token refresh failed - No token provided');
-      return NextResponse.json(
-        { message: 'No token provided' },
-        { status: 401 }
-      );
+      return NextResponse.json({ message: 'No token provided' }, { status: 401 });
     }
 
     // Try to verify the token
@@ -35,12 +32,8 @@ export async function POST(request: NextRequest) {
         const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
         if (payload.id) {
           const db = getDatabase();
-          const userResult = await db
-            .select()
-            .from(users)
-            .where(eq(users.id, payload.id))
-            .limit(1);
-          
+          const userResult = await db.select().from(users).where(eq(users.id, payload.id)).limit(1);
+
           if (userResult.length > 0 && userResult[0].isActive) {
             user = {
               id: userResult[0].id,
@@ -67,16 +60,17 @@ export async function POST(request: NextRequest) {
     // If we have a user, check if they're accessing admin routes and have an admin account
     if (user && shouldRefresh) {
       // Check if this is an admin route request
-      const isAdminRoute = request.nextUrl.pathname.startsWith('/api/admin') || 
-                          request.headers.get('referer')?.includes('/admin');
-      
+      const isAdminRoute =
+        request.nextUrl.pathname.startsWith('/api/admin') ||
+        request.headers.get('referer')?.includes('/admin');
+
       // If accessing admin routes and user is not admin, check for admin account
       if (isAdminRoute && user.role !== 'admin') {
         try {
           const { getUserAccounts } = await import('@/lib/auth');
           const accounts = await getUserAccounts(user.email);
-          const adminAccount = accounts.find(acc => acc.role === 'admin' && acc.isActive);
-          
+          const adminAccount = accounts.find((acc) => acc.role === 'admin' && acc.isActive);
+
           if (adminAccount) {
             console.log('🔄 Token refresh - Switching to admin account for admin route access');
             user = {
@@ -135,12 +129,11 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     console.error('Token refresh error:', error);
     return NextResponse.json(
-      { 
+      {
         message: 'Failed to refresh token',
-        error: process.env.NODE_ENV === 'development' ? error.message : undefined
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined,
       },
       { status: 500 }
     );
   }
 }
-

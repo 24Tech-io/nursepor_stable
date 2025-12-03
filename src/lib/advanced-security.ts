@@ -43,47 +43,47 @@ export function detectAdvancedSQLInjection(input: string): boolean {
     /create\s+(table|database|schema)/i,
     /alter\s+table/i,
     /truncate\s+table/i,
-    
+
     // SQL comments
     /--/,
     /\/\*.*\*\//,
     /#/,
-    
+
     // SQL functions
     /exec(\s|\+)+(s|x)p\w+/i,
     /execute(\s|\+)+immediate/i,
     /xp_cmdshell/i,
-    
+
     // Stacked queries
     /;\s*(select|insert|update|delete|drop|create|alter)/i,
-    
+
     // Time-based blind injection
     /sleep\s*\(/i,
     /benchmark\s*\(/i,
     /waitfor\s+delay/i,
-    
+
     // Boolean-based blind injection
     /'?\s*(or|and)\s+'?1'?\s*='?1/i,
     /'?\s*(or|and)\s+'?[a-z]+'?\s*='?[a-z]+/i,
-    
+
     // UNION-based injection
     /\bUNION\b.*\bSELECT\b/i,
-    
+
     // Database fingerprinting
     /@@version/i,
     /version\(\)/i,
     /database\(\)/i,
     /user\(\)/i,
-    
+
     // Hex encoding attempts
     /0x[0-9a-f]+/i,
-    
+
     // Load file attempts
     /load_file\s*\(/i,
     /into\s+outfile/i,
   ];
 
-  return sqlPatterns.some(pattern => pattern.test(input));
+  return sqlPatterns.some((pattern) => pattern.test(input));
 }
 
 /**
@@ -94,47 +94,47 @@ export function detectAdvancedXSS(input: string): boolean {
     // Script tags
     /<script[\s\S]*?>[\s\S]*?<\/script>/gi,
     /<script.*?>/gi,
-    
+
     // Event handlers
     /on\w+\s*=\s*["'][^"']*["']/gi,
     /on(error|load|click|mouse|focus|blur|change|submit|key)/gi,
-    
+
     // JavaScript protocol
     /javascript\s*:/gi,
     /vbscript\s*:/gi,
     /data\s*:\s*text\/html/gi,
-    
+
     // iframe injection
     /<iframe[\s\S]*?>/gi,
-    
+
     // object/embed tags
     /<(object|embed|applet)[\s\S]*?>/gi,
-    
+
     // meta refresh
     /<meta[\s\S]*?http-equiv[\s\S]*?refresh[\s\S]*?>/gi,
-    
+
     // form tags
     /<form[\s\S]*?>/gi,
-    
+
     // base tag
     /<base[\s\S]*?>/gi,
-    
+
     // link with javascript
     /<link[\s\S]*?href[\s\S]*?javascript[\s\S]*?>/gi,
-    
+
     // img with onerror
     /<img[\s\S]*?onerror[\s\S]*?>/gi,
-    
+
     // SVG with script
     /<svg[\s\S]*?onload[\s\S]*?>/gi,
-    
+
     // HTML entities
     /&#x?\w+;/gi,
-    
+
     // Expression in CSS
     /expression\s*\(/gi,
     /-moz-binding/gi,
-    
+
     // Eval and similar
     /eval\s*\(/gi,
     /setTimeout\s*\(/gi,
@@ -142,7 +142,7 @@ export function detectAdvancedXSS(input: string): boolean {
     /Function\s*\(/gi,
   ];
 
-  return xssPatterns.some(pattern => pattern.test(input));
+  return xssPatterns.some((pattern) => pattern.test(input));
 }
 
 /**
@@ -157,44 +157,24 @@ export function detectLDAPInjection(input: string): boolean {
  * Detect XML/XXE injection
  */
 export function detectXXE(input: string): boolean {
-  const xxePatterns = [
-    /<!ENTITY/i,
-    /<!DOCTYPE/i,
-    /SYSTEM/i,
-    /PUBLIC/i,
-  ];
-  return xxePatterns.some(pattern => pattern.test(input));
+  const xxePatterns = [/<!ENTITY/i, /<!DOCTYPE/i, /SYSTEM/i, /PUBLIC/i];
+  return xxePatterns.some((pattern) => pattern.test(input));
 }
 
 /**
  * Detect command injection
  */
 export function detectCommandInjection(input: string): boolean {
-  const cmdPatterns = [
-    /[;&|`$]/,
-    /\$\(/,
-    /\${/,
-    /\|\|/,
-    /&&/,
-    />\s*&/,
-    /<\s*&/,
-  ];
-  return cmdPatterns.some(pattern => pattern.test(input));
+  const cmdPatterns = [/[;&|`$]/, /\$\(/, /\${/, /\|\|/, /&&/, />\s*&/, /<\s*&/];
+  return cmdPatterns.some((pattern) => pattern.test(input));
 }
 
 /**
  * Detect path traversal
  */
 export function detectPathTraversal(input: string): boolean {
-  const pathPatterns = [
-    /\.\.\//,
-    /\.\.\\/,
-    /%2e%2e%2f/i,
-    /%2e%2e\\/i,
-    /\.\.%2f/i,
-    /\.\.%5c/i,
-  ];
-  return pathPatterns.some(pattern => pattern.test(input));
+  const pathPatterns = [/\.\.\//, /\.\.\\/, /%2e%2e%2f/i, /%2e%2e\\/i, /\.\.%2f/i, /\.\.%5c/i];
+  return pathPatterns.some((pattern) => pattern.test(input));
 }
 
 /**
@@ -203,15 +183,15 @@ export function detectPathTraversal(input: string): boolean {
 export function detectSSRF(url: string): boolean {
   try {
     const urlObj = new URL(url);
-    
+
     // Block local/private IP addresses
     const hostname = urlObj.hostname.toLowerCase();
-    
+
     // localhost variations
     if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1') {
       return true;
     }
-    
+
     // Private IP ranges
     const ipv4Patterns = [
       /^10\./,
@@ -219,22 +199,22 @@ export function detectSSRF(url: string): boolean {
       /^192\.168\./,
       /^169\.254\./, // link-local
     ];
-    
-    if (ipv4Patterns.some(pattern => pattern.test(hostname))) {
+
+    if (ipv4Patterns.some((pattern) => pattern.test(hostname))) {
       return true;
     }
-    
+
     // Block cloud metadata endpoints
     const dangerousHosts = [
       '169.254.169.254', // AWS, Azure, GCP metadata
       'metadata.google.internal',
       'instance-data',
     ];
-    
+
     if (dangerousHosts.includes(hostname)) {
       return true;
     }
-    
+
     return false;
   } catch {
     return true; // Invalid URL
@@ -265,37 +245,37 @@ export function validatePasswordStrength(password: string): {
   errors: string[];
 } {
   const errors: string[] = [];
-  
+
   if (password.length < 8) {
     errors.push('Password must be at least 8 characters long');
   }
-  
+
   if (password.length > 128) {
     errors.push('Password must not exceed 128 characters');
   }
-  
+
   if (!/[a-z]/.test(password)) {
     errors.push('Password must contain at least one lowercase letter');
   }
-  
+
   if (!/[A-Z]/.test(password)) {
     errors.push('Password must contain at least one uppercase letter');
   }
-  
+
   if (!/\d/.test(password)) {
     errors.push('Password must contain at least one number');
   }
-  
+
   if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) {
     errors.push('Password must contain at least one special character');
   }
-  
+
   // Check for common passwords
   const commonPasswords = ['password', '12345678', 'qwerty', 'abc123', 'password123'];
-  if (commonPasswords.some(common => password.toLowerCase().includes(common))) {
+  if (commonPasswords.some((common) => password.toLowerCase().includes(common))) {
     errors.push('Password is too common');
   }
-  
+
   return {
     valid: errors.length === 0,
     errors,
@@ -330,10 +310,7 @@ export function createHMAC(data: string, secret: string): string {
  */
 export function verifyHMAC(data: string, signature: string, secret: string): boolean {
   const expectedSignature = createHMAC(data, secret);
-  return crypto.timingSafeEqual(
-    Buffer.from(signature),
-    Buffer.from(expectedSignature)
-  );
+  return crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expectedSignature));
 }
 
 // ============= Security Headers =============
@@ -354,7 +331,7 @@ export function generateCSP(): string {
     "base-uri 'self'",
     "form-action 'self'",
     "frame-ancestors 'none'",
-    "upgrade-insecure-requests",
+    'upgrade-insecure-requests',
   ].join('; ');
 }
 
@@ -368,7 +345,7 @@ export function validateRequestBody(body: any): {
   threats: string[];
 } {
   const threats: string[] = [];
-  
+
   const checkValue = (value: any, path: string = ''): void => {
     if (typeof value === 'string') {
       if (detectAdvancedSQLInjection(value)) {
@@ -395,9 +372,9 @@ export function validateRequestBody(body: any): {
       });
     }
   };
-  
+
   checkValue(body);
-  
+
   return {
     safe: threats.length === 0,
     threats,
@@ -411,11 +388,11 @@ export function sanitizeObject(obj: any): any {
   if (typeof obj === 'string') {
     return sanitizeHTML(obj);
   }
-  
+
   if (Array.isArray(obj)) {
-    return obj.map(item => sanitizeObject(item));
+    return obj.map((item) => sanitizeObject(item));
   }
-  
+
   if (typeof obj === 'object' && obj !== null) {
     const sanitized: any = {};
     for (const [key, value] of Object.entries(obj)) {
@@ -423,7 +400,6 @@ export function sanitizeObject(obj: any): any {
     }
     return sanitized;
   }
-  
+
   return obj;
 }
-

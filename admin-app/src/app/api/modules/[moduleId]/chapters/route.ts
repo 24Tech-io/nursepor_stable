@@ -6,10 +6,7 @@ import { eq, desc } from 'drizzle-orm';
 import { parseVideoUrl } from '@/lib/video-utils';
 
 // GET - Fetch all chapters for a module
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { moduleId: string } }
-) {
+export async function GET(request: NextRequest, { params }: { params: { moduleId: string } }) {
   try {
     const token = request.cookies.get('adminToken')?.value;
     if (!token) {
@@ -41,10 +38,7 @@ export async function GET(
 }
 
 // POST - Create new chapter
-export async function POST(
-  request: NextRequest,
-  { params }: { params: { moduleId: string } }
-) {
+export async function POST(request: NextRequest, { params }: { params: { moduleId: string } }) {
   try {
     const token = request.cookies.get('adminToken')?.value;
     if (!token) {
@@ -57,9 +51,9 @@ export async function POST(
     }
 
     const body = await request.json();
-    const { 
-      title, 
-      description, 
+    const {
+      title,
+      description,
       type,
       order,
       isPublished,
@@ -73,14 +67,11 @@ export async function POST(
       readingTime,
       mcqData,
       documentUrl,
-      documentType
+      documentType,
     } = body;
 
     if (!title || !type) {
-      return NextResponse.json(
-        { message: 'Title and type are required' },
-        { status: 400 }
-      );
+      return NextResponse.json({ message: 'Title and type are required' }, { status: 400 });
     }
 
     const db = getDatabase();
@@ -95,14 +86,14 @@ export async function POST(
         .where(eq(chapters.moduleId, moduleId))
         .orderBy(desc(chapters.order))
         .limit(1);
-      
+
       chapterOrder = existingChapters.length > 0 ? existingChapters[0].order + 1 : 0;
     }
 
     // Convert video URL to embed format if provided (hides branding)
     let finalVideoUrl = videoUrl || null;
     let finalVideoProvider = videoProvider || null;
-    
+
     if (finalVideoUrl && type === 'video') {
       const parsed = parseVideoUrl(finalVideoUrl);
       finalVideoUrl = parsed.embedUrl; // Use embed URL with privacy settings
@@ -142,4 +133,3 @@ export async function POST(
     );
   }
 }
-

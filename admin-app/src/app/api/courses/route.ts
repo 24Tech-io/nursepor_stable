@@ -16,12 +16,12 @@ export async function GET(request: NextRequest) {
     } catch (dbError: any) {
       console.error('❌ Database initialization error:', dbError);
       return NextResponse.json(
-        { 
+        {
           message: 'Database connection failed',
           error: dbError.message || 'Database is not available',
           hint: 'Please check your DATABASE_URL in .env.local',
           courses: [],
-          count: 0
+          count: 0,
         },
         { status: 500 }
       );
@@ -29,18 +29,13 @@ export async function GET(request: NextRequest) {
 
     // ⚡ PERFORMANCE: If only count is needed, use efficient COUNT query
     if (countOnly) {
-      const [result] = await db
-        .select({ count: sql<number>`count(*)::int` })
-        .from(courses);
-      
+      const [result] = await db.select({ count: sql<number>`count(*)::int` }).from(courses);
+
       console.log(`⚡ [Admin API] Fast count: ${result.count} courses`);
       return NextResponse.json({ count: result.count });
     }
 
-    const allCourses = await db
-      .select()
-      .from(courses)
-      .orderBy(desc(courses.createdAt));
+    const allCourses = await db.select().from(courses).orderBy(desc(courses.createdAt));
 
     console.log(`📚 [Admin API] Found ${allCourses.length} total courses`);
 
@@ -66,25 +61,27 @@ export async function GET(request: NextRequest) {
       stack: error.stack,
       name: error.name,
     });
-    
+
     // Check if it's a database connection error
-    if (error.message?.includes('Database is not available') || 
-        error.message?.includes('DATABASE_URL')) {
+    if (
+      error.message?.includes('Database is not available') ||
+      error.message?.includes('DATABASE_URL')
+    ) {
       return NextResponse.json(
-        { 
-          message: 'Database connection failed', 
+        {
+          message: 'Database connection failed',
           error: 'Database is not available. Please check your DATABASE_URL in .env.local',
-          courses: [] // Return empty array instead of failing
+          courses: [], // Return empty array instead of failing
         },
         { status: 500 }
       );
     }
-    
+
     return NextResponse.json(
-      { 
-        message: 'Failed to get courses', 
+      {
+        message: 'Failed to get courses',
         error: process.env.NODE_ENV === 'development' ? error.message : undefined,
-        courses: [] // Return empty array instead of failing
+        courses: [], // Return empty array instead of failing
       },
       { status: 500 }
     );
@@ -105,19 +102,33 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    console.log('📝 [POST /api/courses] Request received:', { 
-      title: body.title, 
-      description: body.description?.substring(0, 50) + '...', 
+    console.log('📝 [POST /api/courses] Request received:', {
+      title: body.title,
+      description: body.description?.substring(0, 50) + '...',
       instructor: body.instructor,
       hasTitle: !!body.title,
       hasDescription: !!body.description,
-      hasInstructor: !!body.instructor
+      hasInstructor: !!body.instructor,
     });
 
-    const { title, description, instructor, thumbnail, pricing, status, isRequestable, isDefaultUnlocked, isPublic } = body;
+    const {
+      title,
+      description,
+      instructor,
+      thumbnail,
+      pricing,
+      status,
+      isRequestable,
+      isDefaultUnlocked,
+      isPublic,
+    } = body;
 
     if (!title || !description || !instructor) {
-      console.error('❌ Validation failed:', { title: !!title, description: !!description, instructor: !!instructor });
+      console.error('❌ Validation failed:', {
+        title: !!title,
+        description: !!description,
+        instructor: !!instructor,
+      });
       return NextResponse.json(
         { message: 'Title, description, and instructor are required' },
         { status: 400 }
@@ -125,7 +136,7 @@ export async function POST(request: NextRequest) {
     }
 
     const db = getDatabase();
-    
+
     // Default to 'published' so courses are immediately visible to students
     // Admin can change to 'draft' if they want to work on it before publishing
     // Normalize status: "Active" or "active" -> "published" for consistency
@@ -134,9 +145,9 @@ export async function POST(request: NextRequest) {
       courseStatus = 'published';
       console.log(`🔄 Normalizing status: "${status}" → "published"`);
     }
-    
+
     console.log(`📝 Creating course: ${title} with status: ${courseStatus}`);
-    
+
     const [newCourse] = await db
       .insert(courses)
       .values({
@@ -151,8 +162,10 @@ export async function POST(request: NextRequest) {
         isPublic: isPublic !== undefined ? isPublic : false,
       })
       .returning();
-    
-    console.log(`✅ Course created successfully: ${newCourse.title} (ID: ${newCourse.id}, Status: ${newCourse.status})`);
+
+    console.log(
+      `✅ Course created successfully: ${newCourse.title} (ID: ${newCourse.id}, Status: ${newCourse.status})`
+    );
 
     // Log activity
     await logActivity({
@@ -175,24 +188,30 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    return NextResponse.json({
-      course: {
-        id: newCourse.id.toString(),
-        title: newCourse.title,
-        description: newCourse.description,
-        instructor: newCourse.instructor,
-        thumbnail: newCourse.thumbnail,
-        pricing: newCourse.pricing || 0,
-        status: newCourse.status,
-        isRequestable: newCourse.isRequestable,
-        createdAt: newCourse.createdAt?.toISOString(),
-        updatedAt: newCourse.updatedAt?.toISOString(),
+    return NextResponse.json(
+      {
+        course: {
+          id: newCourse.id.toString(),
+          title: newCourse.title,
+          description: newCourse.description,
+          instructor: newCourse.instructor,
+          thumbnail: newCourse.thumbnail,
+          pricing: newCourse.pricing || 0,
+          status: newCourse.status,
+          isRequestable: newCourse.isRequestable,
+          createdAt: newCourse.createdAt?.toISOString(),
+          updatedAt: newCourse.updatedAt?.toISOString(),
+        },
       },
-    }, { status: 201 });
+      { status: 201 }
+    );
   } catch (error: any) {
     console.error('Create course error:', error);
     return NextResponse.json(
-      { message: 'Failed to create course', error: process.env.NODE_ENV === 'development' ? error.message : undefined },
+      {
+        message: 'Failed to create course',
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+      },
       { status: 500 }
     );
   }

@@ -6,7 +6,12 @@
 import { dataManager } from '../core';
 import { EnrollmentOperations } from '../operations/enrollment';
 import { EnrollmentValidator } from '../validators/enrollment-validator';
-import { EnrollmentParams, UnenrollmentParams, OperationResult, DualTableSyncResult } from '../types';
+import {
+  EnrollmentParams,
+  UnenrollmentParams,
+  OperationResult,
+  DualTableSyncResult,
+} from '../types';
 
 /**
  * Enroll a student in a course
@@ -54,4 +59,3 @@ export async function syncEnrollmentState(
     retryable: false, // Sync operations shouldn't retry
   });
 }
-

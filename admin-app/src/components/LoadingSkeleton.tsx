@@ -14,8 +14,11 @@ export const StatCardSkeleton = () => (
 
 export const ActivityLogSkeleton = () => (
   <div className="space-y-3 animate-pulse">
-    {[1, 2, 3, 4, 5].map(i => (
-      <div key={i} className="flex items-center gap-3 p-3 bg-[#161922] rounded-lg border border-slate-800/60">
+    {[1, 2, 3, 4, 5].map((i) => (
+      <div
+        key={i}
+        className="flex items-center gap-3 p-3 bg-[#161922] rounded-lg border border-slate-800/60"
+      >
         <div className="w-8 h-8 bg-slate-700/50 rounded-full"></div>
         <div className="flex-1 space-y-2">
           <div className="h-3 bg-slate-700/50 rounded w-3/4"></div>
@@ -80,8 +83,11 @@ export const ModuleSkeleton = () => (
       <div className="h-6 bg-slate-700/50 rounded w-48"></div>
     </div>
     <div className="p-4 space-y-2">
-      {[1, 2, 3].map(i => (
-        <div key={i} className="flex items-center p-3 bg-[#13151d] border border-slate-800/50 rounded-lg">
+      {[1, 2, 3].map((i) => (
+        <div
+          key={i}
+          className="flex items-center p-3 bg-[#13151d] border border-slate-800/50 rounded-lg"
+        >
           <div className="w-8 h-8 bg-slate-700/50 rounded-lg mr-3"></div>
           <div className="flex-1 h-4 bg-slate-700/50 rounded"></div>
           <div className="w-16 h-8 bg-slate-700/50 rounded"></div>
@@ -90,4 +96,3 @@ export const ModuleSkeleton = () => (
     </div>
   </div>
 );
-

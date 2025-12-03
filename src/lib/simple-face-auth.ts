@@ -94,7 +94,7 @@ export async function detectFaceInImage(imageData: string): Promise<boolean> {
 
     for (let i = 0; i < data.length; i += 4) {
       const brightness = (data[i] + data[i + 1] + data[i + 2]) / 3;
-      
+
       if (brightness < 85) {
         darkPixels++;
       } else if (brightness > 170) {
@@ -105,12 +105,14 @@ export async function detectFaceInImage(imageData: string): Promise<boolean> {
     }
 
     const totalPixels = data.length / 4;
-    
+
     // A face typically has good contrast (not too dark, not too bright)
-    const hasGoodContrast = 
-      (darkPixels / totalPixels > 0.1 && darkPixels / totalPixels < 0.4) &&
-      (lightPixels / totalPixels > 0.1 && lightPixels / totalPixels < 0.4) &&
-      (midPixels / totalPixels > 0.3);
+    const hasGoodContrast =
+      darkPixels / totalPixels > 0.1 &&
+      darkPixels / totalPixels < 0.4 &&
+      lightPixels / totalPixels > 0.1 &&
+      lightPixels / totalPixels < 0.4 &&
+      midPixels / totalPixels > 0.3;
 
     return hasGoodContrast;
   } catch (error) {
@@ -149,11 +151,8 @@ export async function extractFaceFeatures(imageData: string): Promise<number[] |
 
     // Sample every 4th pixel to create a compact feature vector
     for (let i = 0; i < imageData128.data.length; i += 16) {
-      const brightness = (
-        imageData128.data[i] +
-        imageData128.data[i + 1] +
-        imageData128.data[i + 2]
-      ) / 3;
+      const brightness =
+        (imageData128.data[i] + imageData128.data[i + 1] + imageData128.data[i + 2]) / 3;
       features.push(brightness / 255); // Normalize to 0-1
     }
 
@@ -184,7 +183,7 @@ export function compareFaceFeatures(features1: number[], features2: number[]): n
   const maxDistance = Math.sqrt(features1.length); // Maximum possible distance
 
   // Convert to similarity (0-1, higher is better)
-  const similarity = 1 - (distance / maxDistance);
+  const similarity = 1 - distance / maxDistance;
 
   return similarity;
 }
@@ -211,7 +210,10 @@ export async function enrollFace(
     // Detect face
     const hasFace = await detectFaceInImage(imageData);
     if (!hasFace) {
-      return { success: false, error: 'No face detected. Please ensure good lighting and face the camera.' };
+      return {
+        success: false,
+        error: 'No face detected. Please ensure good lighting and face the camera.',
+      };
     }
 
     // Extract features
@@ -304,4 +306,3 @@ export async function initializeCamera(): Promise<MediaStream | null> {
 export function stopCamera(stream: MediaStream): void {
   stream.getTracks().forEach((track) => track.stop());
 }
-

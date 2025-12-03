@@ -2,7 +2,13 @@
 
 import { useState } from 'react';
 
-export default function SelectN({ question, onChange }: { question: any; onChange: (q: any) => void }) {
+export default function SelectN({
+  question,
+  onChange,
+}: {
+  question: any;
+  onChange: (q: any) => void;
+}) {
   const [selectNCount, setSelectNCount] = useState(question.selectNCount || 3);
   const [options, setOptions] = useState(question.options || ['', '', '', '']);
   const [correctAnswers, setCorrectAnswers] = useState(question.correctAnswer || []);
@@ -20,12 +26,15 @@ export default function SelectN({ question, onChange }: { question: any; onChang
     <div className="space-y-4">
       <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4">
         <p className="text-sm text-blue-300">
-          <strong>Select N:</strong> Students must select exactly N options. Example: "Select 3 responses."
+          <strong>Select N:</strong> Students must select exactly N options. Example: "Select 3
+          responses."
         </p>
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-slate-300 mb-2">Number of Options to Select (N)</label>
+        <label className="block text-sm font-medium text-slate-300 mb-2">
+          Number of Options to Select (N)
+        </label>
         <input
           type="number"
           min="1"
@@ -54,7 +63,7 @@ export default function SelectN({ question, onChange }: { question: any; onChang
                     newCorrect.push(idx);
                   }
                 } else {
-                  newCorrect = newCorrect.filter(i => i !== idx);
+                  newCorrect = newCorrect.filter((i) => i !== idx);
                 }
                 setCorrectAnswers(newCorrect);
                 updateQuestion(selectNCount, options, newCorrect);
@@ -95,4 +104,3 @@ export default function SelectN({ question, onChange }: { question: any; onChang
     </div>
   );
 }
-

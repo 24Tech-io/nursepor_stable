@@ -10,10 +10,7 @@ import { verifyToken } from '@/lib/auth';
 import { eq, desc } from 'drizzle-orm';
 
 // GET - Get questions for a course
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { courseId: string } }
-) {
+export async function GET(request: NextRequest, { params }: { params: { courseId: string } }) {
   try {
     const courseId = parseInt(params.courseId);
 
@@ -51,10 +48,7 @@ export async function GET(
 }
 
 // POST - Create a question
-export async function POST(
-  request: NextRequest,
-  { params }: { params: { courseId: string } }
-) {
+export async function POST(request: NextRequest, { params }: { params: { courseId: string } }) {
   try {
     const token = request.cookies.get('token')?.value;
     if (!token) {
@@ -76,16 +70,18 @@ export async function POST(
       );
     }
 
-    const [newQuestion] = await db.insert(courseQuestions).values({
-      courseId,
-      chapterId: chapterId || null,
-      userId: user.id,
-      question: question.trim(),
-    }).returning();
+    const [newQuestion] = await db
+      .insert(courseQuestions)
+      .values({
+        courseId,
+        chapterId: chapterId || null,
+        userId: user.id,
+        question: question.trim(),
+      })
+      .returning();
 
     return NextResponse.json({ success: true, question: newQuestion });
   } catch (error) {
     return NextResponse.json({ error: 'Failed to create question' }, { status: 500 });
   }
 }
-

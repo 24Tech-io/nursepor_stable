@@ -80,7 +80,7 @@ export default function CourseReviews({ courseId }: CourseReviewsProps) {
           >
             <svg
               className={`w-6 h-6 ${
-                star <= (interactive ? (hoverRating || rating) : count)
+                star <= (interactive ? hoverRating || rating : count)
                   ? 'text-yellow-400 fill-current'
                   : 'text-gray-300'
               }`}
@@ -123,7 +123,9 @@ export default function CourseReviews({ courseId }: CourseReviewsProps) {
                       }}
                     />
                   </div>
-                  <span className="text-sm text-gray-600 w-12">{summary.ratingDistribution[star]}</span>
+                  <span className="text-sm text-gray-600 w-12">
+                    {summary.ratingDistribution[star]}
+                  </span>
                 </div>
               ))}
             </div>
@@ -142,12 +144,10 @@ export default function CourseReviews({ courseId }: CourseReviewsProps) {
       {showReviewForm && (
         <div className="bg-white rounded-xl p-6 shadow-md animate-[fadeInDown_0.3s_ease-out]">
           <h3 className="text-xl font-bold mb-4">Write a Review</h3>
-          
+
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Your Rating
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Your Rating</label>
               {renderStars(rating, true)}
             </div>
 
@@ -215,9 +215,7 @@ export default function CourseReviews({ courseId }: CourseReviewsProps) {
                   </span>
                 </div>
 
-                {review.review && (
-                  <p className="text-gray-700 mt-2">{review.review}</p>
-                )}
+                {review.review && <p className="text-gray-700 mt-2">{review.review}</p>}
 
                 <button className="mt-3 text-sm text-gray-600 hover:text-purple-600 transition-colors">
                   Helpful ({review.helpful})
@@ -230,4 +228,3 @@ export default function CourseReviews({ courseId }: CourseReviewsProps) {
     </div>
   );
 }
-

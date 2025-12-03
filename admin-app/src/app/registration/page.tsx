@@ -68,7 +68,10 @@ export default function RegistrationPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-4">
-              <Link href="/dashboard" className="text-xl font-bold text-gray-900 hover:text-purple-600 transition">
+              <Link
+                href="/dashboard"
+                className="text-xl font-bold text-gray-900 hover:text-purple-600 transition"
+              >
                 ← Dashboard
               </Link>
               <span className="text-gray-400">/</span>
@@ -88,8 +91,18 @@ export default function RegistrationPage() {
         {registrations.length === 0 ? (
           <div className="bg-white rounded-2xl shadow-lg p-16 text-center border border-gray-200">
             <div className="inline-flex items-center justify-center w-24 h-24 bg-gradient-to-br from-green-100 to-emerald-100 rounded-3xl mb-6">
-              <svg className="h-12 w-12 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              <svg
+                className="h-12 w-12 text-green-600"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                />
               </svg>
             </div>
             <h3 className="text-2xl font-bold text-gray-900 mb-3">No registrations yet</h3>
@@ -128,13 +141,15 @@ export default function RegistrationPage() {
                         {new Date(reg.submittedAt).toLocaleDateString()}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                          reg.status === 'approved'
-                            ? 'bg-green-100 text-green-800'
-                            : reg.status === 'rejected'
-                            ? 'bg-red-100 text-red-800'
-                            : 'bg-yellow-100 text-yellow-800'
-                        }`}>
+                        <span
+                          className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                            reg.status === 'approved'
+                              ? 'bg-green-100 text-green-800'
+                              : reg.status === 'rejected'
+                                ? 'bg-red-100 text-red-800'
+                                : 'bg-yellow-100 text-yellow-800'
+                          }`}
+                        >
                           {reg.status}
                         </span>
                       </td>

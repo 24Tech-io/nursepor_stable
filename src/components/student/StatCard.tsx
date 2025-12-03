@@ -10,26 +10,19 @@ interface StatCardProps {
   };
 }
 
-export default function StatCard({
-  icon,
-  label,
-  value,
-  bgColor,
-  textColor,
-  trend,
-}: StatCardProps) {
+export default function StatCard({ icon, label, value, bgColor, textColor, trend }: StatCardProps) {
   return (
     <div className="bg-white rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300 p-6 border border-gray-100">
       <div className="flex items-center justify-between">
-        <div className={`w-14 h-14 ${bgColor} rounded-xl flex items-center justify-center shadow-sm`}>
+        <div
+          className={`w-14 h-14 ${bgColor} rounded-xl flex items-center justify-center shadow-sm`}
+        >
           <div className={textColor}>{icon}</div>
         </div>
         {trend && (
           <span
             className={`text-xs font-semibold px-2 py-1 rounded-full ${
-              trend.isPositive
-                ? 'bg-green-50 text-green-600'
-                : 'bg-red-50 text-red-600'
+              trend.isPositive ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'
             }`}
           >
             {trend.isPositive ? '↑' : '↓'} {trend.value}

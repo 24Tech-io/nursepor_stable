@@ -2,9 +2,17 @@
 
 import { useState } from 'react';
 
-export default function SATA({ question, onChange }: { question: any; onChange: (q: any) => void }) {
+export default function SATA({
+  question,
+  onChange,
+}: {
+  question: any;
+  onChange: (q: any) => void;
+}) {
   const [options, setOptions] = useState(question.options || ['', '', '', '']);
-  const [correctAnswers, setCorrectAnswers] = useState(Array.isArray(question.correctAnswer) ? question.correctAnswer : []);
+  const [correctAnswers, setCorrectAnswers] = useState(
+    Array.isArray(question.correctAnswer) ? question.correctAnswer : []
+  );
 
   const updateQuestion = (newOptions: string[], newCorrect: number[]) => {
     onChange({
@@ -18,7 +26,8 @@ export default function SATA({ question, onChange }: { question: any; onChange: 
     <div className="space-y-4">
       <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4">
         <p className="text-sm text-blue-300">
-          <strong>Select All That Apply (SATA):</strong> Traditional SATA format. Students select all correct options. No predetermined number of correct answers.
+          <strong>Select All That Apply (SATA):</strong> Traditional SATA format. Students select
+          all correct options. No predetermined number of correct answers.
         </p>
       </div>
 
@@ -34,7 +43,7 @@ export default function SATA({ question, onChange }: { question: any; onChange: 
                 if (e.target.checked) {
                   newCorrect.push(idx);
                 } else {
-                  newCorrect = newCorrect.filter(i => i !== idx);
+                  newCorrect = newCorrect.filter((i) => i !== idx);
                 }
                 setCorrectAnswers(newCorrect);
                 updateQuestion(options, newCorrect);
@@ -74,4 +83,3 @@ export default function SATA({ question, onChange }: { question: any; onChange: 
     </div>
   );
 }
-

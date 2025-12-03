@@ -70,7 +70,9 @@ export class ProgressValidator {
             .limit(1);
 
           if (module.length === 0 || module[0].courseId !== params.courseId) {
-            errors.push(`Chapter ${params.metadata.chapterId} does not belong to course ${params.courseId}`);
+            errors.push(
+              `Chapter ${params.metadata.chapterId} does not belong to course ${params.courseId}`
+            );
           }
         }
       }
@@ -87,4 +89,3 @@ export class ProgressValidator {
     }
   }
 }
-

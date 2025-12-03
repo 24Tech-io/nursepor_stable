@@ -5,10 +5,7 @@ import { dailyVideos } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 
 // GET - Fetch single daily video
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     const token = request.cookies.get('token')?.value;
     if (!token) {
@@ -23,23 +20,16 @@ export async function GET(
     const db = getDatabase();
     const id = parseInt(params.id);
 
-    const video = await db
-      .select()
-      .from(dailyVideos)
-      .where(eq(dailyVideos.id, id))
-      .limit(1);
+    const video = await db.select().from(dailyVideos).where(eq(dailyVideos.id, id)).limit(1);
 
     if (video.length === 0) {
-      return NextResponse.json(
-        { message: 'Daily video not found' },
-        { status: 404 }
-      );
+      return NextResponse.json({ message: 'Daily video not found' }, { status: 404 });
     }
 
     // Parse metadata
     let parsedDesc = video[0].description;
     let metadataObj = {};
-    
+
     try {
       parsedDesc = JSON.parse(video[0].description || '{}');
       metadataObj = parsedDesc.metadata || {};
@@ -69,10 +59,7 @@ export async function GET(
 }
 
 // PUT - Update daily video
-export async function PUT(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     const token = request.cookies.get('token')?.value;
     if (!token) {
@@ -89,23 +76,16 @@ export async function PUT(
     const data = await request.json();
 
     // Check if video exists
-    const existing = await db
-      .select()
-      .from(dailyVideos)
-      .where(eq(dailyVideos.id, id))
-      .limit(1);
+    const existing = await db.select().from(dailyVideos).where(eq(dailyVideos.id, id)).limit(1);
 
     if (existing.length === 0) {
-      return NextResponse.json(
-        { message: 'Daily video not found' },
-        { status: 404 }
-      );
+      return NextResponse.json({ message: 'Daily video not found' }, { status: 404 });
     }
 
     // Parse existing description/metadata
     let existingDesc = existing[0].description;
     let existingMetadata = {};
-    
+
     try {
       const parsed = JSON.parse(existing[0].description || '{}');
       existingDesc = parsed.description || existing[0].description || '';
@@ -122,21 +102,36 @@ export async function PUT(
     if (data.isActive !== undefined) updateData.isActive = data.isActive;
 
     // Update description and metadata
-    if (data.description !== undefined || 
-        data.videoUrl !== undefined || 
-        data.videoProvider !== undefined ||
-        data.videoDuration !== undefined ||
-        data.thumbnail !== undefined ||
-        data.scheduledDate !== undefined ||
-        data.priority !== undefined) {
-      
+    if (
+      data.description !== undefined ||
+      data.videoUrl !== undefined ||
+      data.videoProvider !== undefined ||
+      data.videoDuration !== undefined ||
+      data.thumbnail !== undefined ||
+      data.scheduledDate !== undefined ||
+      data.priority !== undefined
+    ) {
       const metadata = {
-        videoUrl: data.videoUrl !== undefined ? data.videoUrl : (existingMetadata as any).videoUrl || null,
-        videoProvider: data.videoProvider !== undefined ? data.videoProvider : (existingMetadata as any).videoProvider || 'youtube',
-        videoDuration: data.videoDuration !== undefined ? data.videoDuration : (existingMetadata as any).videoDuration || null,
-        thumbnail: data.thumbnail !== undefined ? data.thumbnail : (existingMetadata as any).thumbnail || null,
-        scheduledDate: data.scheduledDate !== undefined ? data.scheduledDate : (existingMetadata as any).scheduledDate || null,
-        priority: data.priority !== undefined ? data.priority : (existingMetadata as any).priority || 0,
+        videoUrl:
+          data.videoUrl !== undefined ? data.videoUrl : (existingMetadata as any).videoUrl || null,
+        videoProvider:
+          data.videoProvider !== undefined
+            ? data.videoProvider
+            : (existingMetadata as any).videoProvider || 'youtube',
+        videoDuration:
+          data.videoDuration !== undefined
+            ? data.videoDuration
+            : (existingMetadata as any).videoDuration || null,
+        thumbnail:
+          data.thumbnail !== undefined
+            ? data.thumbnail
+            : (existingMetadata as any).thumbnail || null,
+        scheduledDate:
+          data.scheduledDate !== undefined
+            ? data.scheduledDate
+            : (existingMetadata as any).scheduledDate || null,
+        priority:
+          data.priority !== undefined ? data.priority : (existingMetadata as any).priority || 0,
       };
 
       const enhancedDescription = {
@@ -156,7 +151,7 @@ export async function PUT(
     // Parse and return with metadata
     let parsedDesc = updated[0].description;
     let metadataObj = {};
-    
+
     try {
       parsedDesc = JSON.parse(updated[0].description || '{}');
       metadataObj = parsedDesc.metadata || {};
@@ -186,10 +181,7 @@ export async function PUT(
 }
 
 // DELETE - Delete daily video
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     const token = request.cookies.get('token')?.value;
     if (!token) {
@@ -215,13 +207,3 @@ export async function DELETE(
     );
   }
 }
-
-
-
-
-
-
-
-
-
-

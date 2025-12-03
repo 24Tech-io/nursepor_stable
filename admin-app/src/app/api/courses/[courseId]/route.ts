@@ -5,25 +5,15 @@ import { courses } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { logActivity } from '@/lib/activity-log';
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { courseId: string } }
-) {
+export async function GET(request: NextRequest, { params }: { params: { courseId: string } }) {
   try {
     const db = getDatabase();
     const courseId = parseInt(params.courseId);
 
-    const [course] = await db
-      .select()
-      .from(courses)
-      .where(eq(courses.id, courseId))
-      .limit(1);
+    const [course] = await db.select().from(courses).where(eq(courses.id, courseId)).limit(1);
 
     if (!course) {
-      return NextResponse.json(
-        { message: 'Course not found' },
-        { status: 404 }
-      );
+      return NextResponse.json({ message: 'Course not found' }, { status: 404 });
     }
 
     return NextResponse.json({
@@ -45,28 +35,38 @@ export async function GET(
   } catch (error: any) {
     console.error('Get course error:', error);
     return NextResponse.json(
-      { message: 'Failed to get course', error: process.env.NODE_ENV === 'development' ? error.message : undefined },
+      {
+        message: 'Failed to get course',
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+      },
       { status: 500 }
     );
   }
 }
 
-export async function PUT(
-  request: NextRequest,
-  { params }: { params: { courseId: string } }
-) {
+export async function PUT(request: NextRequest, { params }: { params: { courseId: string } }) {
   try {
     const db = getDatabase();
     const courseId = parseInt(params.courseId);
     const body = await request.json();
-    console.log('📝 [PUT /api/courses/:id] Request received:', { 
+    console.log('📝 [PUT /api/courses/:id] Request received:', {
       courseId,
-      title: body.title, 
-      description: body.description?.substring(0, 50) + '...', 
-      instructor: body.instructor 
+      title: body.title,
+      description: body.description?.substring(0, 50) + '...',
+      instructor: body.instructor,
     });
 
-    const { title, description, instructor, thumbnail, pricing, status, isRequestable, isDefaultUnlocked, isPublic } = body;
+    const {
+      title,
+      description,
+      instructor,
+      thumbnail,
+      pricing,
+      status,
+      isRequestable,
+      isDefaultUnlocked,
+      isPublic,
+    } = body;
 
     // Check if course exists
     const [existingCourse] = await db
@@ -76,25 +76,22 @@ export async function PUT(
       .limit(1);
 
     if (!existingCourse) {
-      return NextResponse.json(
-        { message: 'Course not found' },
-        { status: 404 }
-      );
+      return NextResponse.json({ message: 'Course not found' }, { status: 404 });
     }
 
     // Update course (any admin can edit any course)
     // Normalize status: "Active" or "active" -> "published" for consistency
     let newStatus = status !== undefined ? status : existingCourse.status;
-    
+
     // Normalize status values to ensure consistency
     if (newStatus === 'Active' || newStatus === 'active' || newStatus === 'ACTIVE') {
       newStatus = 'published';
       console.log(`🔄 Normalizing status: "${status}" → "published"`);
     }
-    
+
     console.log(`📝 Updating course ID ${courseId}: ${existingCourse.title}`);
     console.log(`📝 Status change: ${existingCourse.status} → ${newStatus}`);
-    
+
     const [updatedCourse] = await db
       .update(courses)
       .set({
@@ -102,21 +99,23 @@ export async function PUT(
         description: description || existingCourse.description,
         instructor: instructor || existingCourse.instructor,
         thumbnail: thumbnail !== undefined ? thumbnail : existingCourse.thumbnail,
-        pricing: pricing !== undefined ? (pricing ? parseFloat(pricing) : null) : existingCourse.pricing,
+        pricing:
+          pricing !== undefined ? (pricing ? parseFloat(pricing) : null) : existingCourse.pricing,
         status: newStatus,
         isRequestable: isRequestable !== undefined ? isRequestable : existingCourse.isRequestable,
-        isDefaultUnlocked: isDefaultUnlocked !== undefined ? isDefaultUnlocked : existingCourse.isDefaultUnlocked,
+        isDefaultUnlocked:
+          isDefaultUnlocked !== undefined ? isDefaultUnlocked : existingCourse.isDefaultUnlocked,
         isPublic: isPublic !== undefined ? isPublic : existingCourse.isPublic,
         updatedAt: new Date(),
       })
       .where(eq(courses.id, courseId))
       .returning();
-    
+
     console.log(`✅ Course updated: ${updatedCourse.title} (Status: ${updatedCourse.status})`);
-    
+
     if (newStatus === 'published' && existingCourse.status !== 'published') {
       console.log(`📢 Course "${updatedCourse.title}" is now published and visible to students!`);
-      
+
       // Notify all students about the newly published course
       try {
         const { notifyNewCoursePublished } = await import('@/lib/sync-service');
@@ -141,10 +140,16 @@ export async function PUT(
           entityName: updatedCourse.title,
           details: {
             changes: {
-              title: title !== existingCourse.title ? { from: existingCourse.title, to: title } : undefined,
-              status: status !== existingCourse.status ? { from: existingCourse.status, to: status } : undefined,
-            }
-          }
+              title:
+                title !== existingCourse.title
+                  ? { from: existingCourse.title, to: title }
+                  : undefined,
+              status:
+                status !== existingCourse.status
+                  ? { from: existingCourse.status, to: status }
+                  : undefined,
+            },
+          },
         });
       }
     }
@@ -166,16 +171,16 @@ export async function PUT(
   } catch (error: any) {
     console.error('Update course error:', error);
     return NextResponse.json(
-      { message: 'Failed to update course', error: process.env.NODE_ENV === 'development' ? error.message : undefined },
+      {
+        message: 'Failed to update course',
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+      },
       { status: 500 }
     );
   }
 }
 
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: { courseId: string } }
-) {
+export async function DELETE(request: NextRequest, { params }: { params: { courseId: string } }) {
   try {
     const token = request.cookies.get('adminToken')?.value;
 
@@ -195,10 +200,7 @@ export async function DELETE(
 
     if (isNaN(courseId)) {
       console.error('Delete course: Invalid course ID', params.courseId);
-      return NextResponse.json(
-        { message: 'Invalid course ID' },
-        { status: 400 }
-      );
+      return NextResponse.json({ message: 'Invalid course ID' }, { status: 400 });
     }
 
     console.log(`Attempting to delete course with ID: ${courseId}`);
@@ -212,18 +214,13 @@ export async function DELETE(
 
     if (!existingCourse) {
       console.error('Delete course: Course not found', courseId);
-      return NextResponse.json(
-        { message: 'Course not found' },
-        { status: 404 }
-      );
+      return NextResponse.json({ message: 'Course not found' }, { status: 404 });
     }
 
     console.log(`Deleting course: ${existingCourse.title} (ID: ${courseId})`);
 
     // Delete course (any admin can delete any course)
-    await db
-      .delete(courses)
-      .where(eq(courses.id, courseId));
+    await db.delete(courses).where(eq(courses.id, courseId));
 
     console.log(`Successfully deleted course with ID: ${courseId}`);
 
@@ -249,10 +246,10 @@ export async function DELETE(
       name: error.name,
     });
     return NextResponse.json(
-      { 
-        message: 'Failed to delete course', 
+      {
+        message: 'Failed to delete course',
         error: process.env.NODE_ENV === 'development' ? error.message : undefined,
-        details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        details: process.env.NODE_ENV === 'development' ? error.stack : undefined,
       },
       { status: 500 }
     );
@@ -260,10 +257,6 @@ export async function DELETE(
 }
 
 // PATCH handler (alias for PUT for compatibility with admin UI)
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: { courseId: string } }
-) {
+export async function PATCH(request: NextRequest, { params }: { params: { courseId: string } }) {
   return PUT(request, { params });
 }
-

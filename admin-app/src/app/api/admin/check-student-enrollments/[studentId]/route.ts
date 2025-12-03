@@ -8,10 +8,7 @@ import { eq, and, or } from 'drizzle-orm';
  * Debug endpoint to check a specific student's enrollments
  * Shows all progress entries, including orphaned ones
  */
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { studentId: string } }
-) {
+export async function GET(request: NextRequest, { params }: { params: { studentId: string } }) {
   try {
     const token = request.cookies.get('adminToken')?.value;
 
@@ -28,11 +25,7 @@ export async function GET(
     const studentId = parseInt(params.studentId);
 
     // Get student info
-    const [student] = await db
-      .select()
-      .from(users)
-      .where(eq(users.id, studentId))
-      .limit(1);
+    const [student] = await db.select().from(users).where(eq(users.id, studentId)).limit(1);
 
     if (!student) {
       return NextResponse.json({ message: 'Student not found' }, { status: 404 });
@@ -69,8 +62,8 @@ export async function GET(
       })
     );
 
-    const validEnrollments = enrollmentDetails.filter(e => e.isValid);
-    const orphanedEnrollments = enrollmentDetails.filter(e => !e.isValid);
+    const validEnrollments = enrollmentDetails.filter((e) => e.isValid);
+    const orphanedEnrollments = enrollmentDetails.filter((e) => !e.isValid);
 
     return NextResponse.json({
       student: {
@@ -83,30 +76,20 @@ export async function GET(
       orphanedEnrollments: orphanedEnrollments.length,
       details: enrollmentDetails,
       orphaned: orphanedEnrollments,
-      message: orphanedEnrollments.length > 0
-        ? `Found ${orphanedEnrollments.length} orphaned enrollment(s). Use /api/admin/cleanup-orphaned-enrollments to remove them.`
-        : 'All enrollments are valid',
+      message:
+        orphanedEnrollments.length > 0
+          ? `Found ${orphanedEnrollments.length} orphaned enrollment(s). Use /api/admin/cleanup-orphaned-enrollments to remove them.`
+          : 'All enrollments are valid',
     });
   } catch (error: any) {
     console.error('Check student enrollments error:', error);
     return NextResponse.json(
-      { 
+      {
         success: false,
         message: 'Failed to check enrollments',
-        error: process.env.NODE_ENV === 'development' ? error.message : undefined
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined,
       },
       { status: 500 }
     );
   }
 }
-
-
-
-
-
-
-
-
-
-
-

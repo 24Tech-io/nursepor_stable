@@ -39,10 +39,7 @@ export async function POST(request: NextRequest) {
       const buffer = Buffer.from(float32Array.buffer);
       finalTemplate = buffer.toString('base64');
     } else {
-      return NextResponse.json(
-        { error: 'Invalid face data format' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'Invalid face data format' }, { status: 400 });
     }
 
     // Update admin user with face template
@@ -63,7 +60,7 @@ export async function POST(request: NextRequest) {
       entityType: 'admin',
       entityId: decoded.id,
       entityName: 'Face ID Enrollment',
-      details: { action: 'Face ID enrolled successfully' }
+      details: { action: 'Face ID enrolled successfully' },
     });
 
     return NextResponse.json({
@@ -81,15 +78,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-
-
-
-
-
-
-
-
-
-
-
-

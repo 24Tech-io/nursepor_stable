@@ -8,28 +8,28 @@ export enum EventType {
   ENROLLMENT_CREATED = 'enrollment:created',
   ENROLLMENT_REMOVED = 'enrollment:removed',
   ENROLLMENT_UPDATED = 'enrollment:updated',
-  
+
   // Progress Events
   PROGRESS_UPDATED = 'progress:updated',
   CHAPTER_COMPLETED = 'chapter:completed',
   VIDEO_COMPLETED = 'video:completed',
   QUIZ_SUBMITTED = 'quiz:submitted',
-  
+
   // Request Events
   REQUEST_CREATED = 'request:created',
   REQUEST_APPROVED = 'request:approved',
   REQUEST_REJECTED = 'request:rejected',
   REQUEST_DELETED = 'request:deleted',
-  
+
   // Payment Events
   PAYMENT_COMPLETED = 'payment:completed',
   PAYMENT_FAILED = 'payment:failed',
-  
+
   // Course Events
   COURSE_CREATED = 'course:created',
   COURSE_UPDATED = 'course:updated',
   COURSE_DELETED = 'course:deleted',
-  
+
   // User Events
   USER_CREATED = 'user:created',
   USER_UPDATED = 'user:updated',
@@ -52,7 +52,11 @@ export interface EnrollmentEvent extends BaseEvent {
 }
 
 export interface ProgressEvent extends BaseEvent {
-  type: EventType.PROGRESS_UPDATED | EventType.CHAPTER_COMPLETED | EventType.VIDEO_COMPLETED | EventType.QUIZ_SUBMITTED;
+  type:
+    | EventType.PROGRESS_UPDATED
+    | EventType.CHAPTER_COMPLETED
+    | EventType.VIDEO_COMPLETED
+    | EventType.QUIZ_SUBMITTED;
   studentId: number;
   courseId: number;
   progress: number;
@@ -60,7 +64,11 @@ export interface ProgressEvent extends BaseEvent {
 }
 
 export interface RequestEvent extends BaseEvent {
-  type: EventType.REQUEST_CREATED | EventType.REQUEST_APPROVED | EventType.REQUEST_REJECTED | EventType.REQUEST_DELETED;
+  type:
+    | EventType.REQUEST_CREATED
+    | EventType.REQUEST_APPROVED
+    | EventType.REQUEST_REJECTED
+    | EventType.REQUEST_DELETED;
   requestId: number;
   studentId: number;
   courseId: number;
@@ -68,4 +76,3 @@ export interface RequestEvent extends BaseEvent {
 }
 
 export type DataManagerEvent = EnrollmentEvent | ProgressEvent | RequestEvent | BaseEvent;
-

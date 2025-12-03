@@ -13,18 +13,12 @@ export async function GET(request: NextRequest) {
     const token = request.cookies.get('token')?.value;
 
     if (!token) {
-      return NextResponse.json(
-        { message: 'Not authenticated' },
-        { status: 401 }
-      );
+      return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });
     }
 
     const decoded = verifyToken(token);
     if (!decoded || decoded.role !== 'admin') {
-      return NextResponse.json(
-        { message: 'Admin access required' },
-        { status: 403 }
-      );
+      return NextResponse.json({ message: 'Admin access required' }, { status: 403 });
     }
 
     let db;
@@ -77,7 +71,7 @@ export async function GET(request: NextRequest) {
       summary: {
         totalCourses: allCourses.length,
         visibleToStudents: visibleCourses.length,
-        byStatus: Object.keys(byStatus).map(status => ({
+        byStatus: Object.keys(byStatus).map((status) => ({
           status,
           count: byStatus[status].length,
           courses: byStatus[status].map((c: any) => ({
@@ -108,13 +102,14 @@ export async function GET(request: NextRequest) {
           foundStatuses: Object.keys(byStatus),
           expectedStatuses: ['published', 'active', 'draft'],
         },
-        recommendations: visibleCourses.length === 0 && allCourses.length > 0
-          ? [
-              `Found ${allCourses.length} courses but none are visible to students.`,
-              `Update course status to "published" or "active" in admin panel.`,
-              `Current statuses found: ${Object.keys(byStatus).join(', ')}`,
-            ]
-          : [],
+        recommendations:
+          visibleCourses.length === 0 && allCourses.length > 0
+            ? [
+                `Found ${allCourses.length} courses but none are visible to students.`,
+                `Update course status to "published" or "active" in admin panel.`,
+                `Current statuses found: ${Object.keys(byStatus).join(', ')}`,
+              ]
+            : [],
       },
     });
   } catch (error: any) {
@@ -129,14 +124,3 @@ export async function GET(request: NextRequest) {
     );
   }
 }
-
-
-
-
-
-
-
-
-
-
-

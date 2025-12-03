@@ -6,10 +6,10 @@ export async function GET(request: NextRequest) {
   try {
     // Test database connection
     const db = getDatabase();
-    
+
     // Try a simple query using Drizzle
     const result = await db.execute(sql`SELECT 1 as test`);
-    
+
     return NextResponse.json({
       status: 'ok',
       database: 'connected',
@@ -29,4 +29,3 @@ export async function GET(request: NextRequest) {
     );
   }
 }
-

@@ -5,10 +5,7 @@ import { chapters } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 
 // PATCH - Update chapter
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: { chapterId: string } }
-) {
+export async function PATCH(request: NextRequest, { params }: { params: { chapterId: string } }) {
   try {
     const token = request.cookies.get('token')?.value;
     if (!token) {
@@ -46,10 +43,7 @@ export async function PATCH(
 }
 
 // DELETE - Delete chapter
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: { chapterId: string } }
-) {
+export async function DELETE(request: NextRequest, { params }: { params: { chapterId: string } }) {
   try {
     const token = request.cookies.get('token')?.value;
     if (!token) {
@@ -77,4 +71,3 @@ export async function DELETE(
     );
   }
 }
-

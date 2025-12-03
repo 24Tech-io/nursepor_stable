@@ -25,10 +25,7 @@ export async function POST(request: NextRequest) {
     const { courseId } = await request.json();
 
     if (!courseId) {
-      return NextResponse.json(
-        { message: 'Course ID is required' },
-        { status: 400 }
-      );
+      return NextResponse.json({ message: 'Course ID is required' }, { status: 400 });
     }
 
     const db = getDatabase();
@@ -36,11 +33,7 @@ export async function POST(request: NextRequest) {
     const studentId = decoded.id;
 
     // Get course details
-    const courseData = await db
-      .select()
-      .from(courses)
-      .where(eq(courses.id, courseIdNum))
-      .limit(1);
+    const courseData = await db.select().from(courses).where(eq(courses.id, courseIdNum)).limit(1);
 
     if (courseData.length === 0) {
       return NextResponse.json({ message: 'Course not found' }, { status: 404 });
@@ -61,7 +54,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           message: 'This course requires admin approval. Please use the request access feature.',
-          requiresApproval: true
+          requiresApproval: true,
         },
         { status: 403 }
       );
@@ -97,11 +90,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         message: 'Failed to enroll in course',
-        error: error.message
+        error: error.message,
       },
       { status: 500 }
     );
   }
 }
-
-

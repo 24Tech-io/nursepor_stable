@@ -70,15 +70,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: 'Admin access required' }, { status: 403 });
     }
 
-    const {
-      chapterId,
-      title,
-      passMark,
-      timeLimit,
-      showAnswers,
-      maxAttempts,
-      questions,
-    } = await request.json();
+    const { chapterId, title, passMark, timeLimit, showAnswers, maxAttempts, questions } =
+      await request.json();
 
     if (!chapterId || !title || !questions || questions.length === 0) {
       return NextResponse.json(
@@ -90,15 +83,18 @@ export async function POST(request: NextRequest) {
     const db = getDatabase();
 
     // Create quiz
-    const quiz = await db.insert(quizzes).values({
-      chapterId: parseInt(chapterId),
-      title,
-      passMark: passMark || 70,
-      timeLimit: timeLimit || null,
-      showAnswers: showAnswers !== false,
-      maxAttempts: maxAttempts || 3,
-      isPublished: true,
-    }).returning();
+    const quiz = await db
+      .insert(quizzes)
+      .values({
+        chapterId: parseInt(chapterId),
+        title,
+        passMark: passMark || 70,
+        timeLimit: timeLimit || null,
+        showAnswers: showAnswers !== false,
+        maxAttempts: maxAttempts || 3,
+        isPublished: true,
+      })
+      .returning();
 
     // Create questions
     await Promise.all(
@@ -125,4 +121,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-

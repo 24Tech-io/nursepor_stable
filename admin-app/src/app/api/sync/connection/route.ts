@@ -73,17 +73,12 @@ export async function GET(request: NextRequest) {
   } catch (error: any) {
     console.error('Sync connection error:', error);
     return NextResponse.json(
-      { 
+      {
         success: false,
         message: 'Failed to establish sync connection',
-        error: process.env.NODE_ENV === 'development' ? error.message : undefined
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined,
       },
       { status: 500 }
     );
   }
 }
-
-
-
-
-

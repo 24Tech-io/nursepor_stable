@@ -8,7 +8,7 @@ import { eq, sql } from 'drizzle-orm';
 function safeJsonParse(value: any, fallback: any = null) {
   if (!value) return fallback;
   if (typeof value !== 'string') return value;
-  
+
   try {
     return JSON.parse(value);
   } catch {
@@ -20,16 +20,16 @@ function safeJsonParse(value: any, fallback: any = null) {
 // Get human-readable label for question type
 function getQuestionTypeLabel(type: string): string {
   const labels: Record<string, string> = {
-    'multiple_choice': 'Single Best Answer',
-    'sata': 'SATA (Classic)',
-    'ngn_case_study': 'Case Study',
-    'unfolding_ngn': 'Unfolding NGN',
-    'bowtie': 'Bow-Tie',
-    'casestudy': 'Case Study',
-    'matrix': 'Matrix',
-    'trend': 'Trend',
-    'standard': 'Single Best Answer',
-    'sata_classic': 'SATA (Classic)',
+    multiple_choice: 'Single Best Answer',
+    sata: 'SATA (Classic)',
+    ngn_case_study: 'Case Study',
+    unfolding_ngn: 'Unfolding NGN',
+    bowtie: 'Bow-Tie',
+    casestudy: 'Case Study',
+    matrix: 'Matrix',
+    trend: 'Trend',
+    standard: 'Single Best Answer',
+    sata_classic: 'SATA (Classic)',
   };
   return labels[type] || type;
 }
@@ -101,7 +101,9 @@ export async function GET(request: NextRequest) {
       questions: questions.map((q: any) => ({
         id: q.id.toString(),
         categoryId: q.categoryId, // ✅ FIXED: Include categoryId for folder display
-        stem: q.question ? (q.question.substring(0, 100) + (q.question.length > 100 ? '...' : '')) : 'No question text',
+        stem: q.question
+          ? q.question.substring(0, 100) + (q.question.length > 100 ? '...' : '')
+          : 'No question text',
         category: q.testType || 'classic',
         label: getQuestionTypeLabel(q.questionType),
         format: q.questionType || 'multiple_choice',
@@ -152,10 +154,7 @@ export async function POST(request: NextRequest) {
     const questionsData = Array.isArray(body) ? body : [body];
 
     if (questionsData.length === 0) {
-      return NextResponse.json(
-        { message: 'At least one question is required' },
-        { status: 400 }
-      );
+      return NextResponse.json({ message: 'At least one question is required' }, { status: 400 });
     }
 
     // Get or create a general Q-Bank (courseId can be null for standalone questions)
@@ -184,12 +183,21 @@ export async function POST(request: NextRequest) {
       .values(
         questionsData.map((q: any) => ({
           questionBankId: qbank.id,
-          questionType: q.type || q.questionType || q.format || q.questionFormat || 'multiple_choice',
+          questionType:
+            q.type || q.questionType || q.format || q.questionFormat || 'multiple_choice',
           question: q.question || q.questionStem || '',
           explanation: q.explanation || q.rationale || null,
           points: q.points || 1,
-          options: q.options ? (typeof q.options === 'string' ? q.options : JSON.stringify(q.options)) : '[]',
-          correctAnswer: q.correctAnswer ? (typeof q.correctAnswer === 'string' ? q.correctAnswer : JSON.stringify(q.correctAnswer)) : '{}',
+          options: q.options
+            ? typeof q.options === 'string'
+              ? q.options
+              : JSON.stringify(q.options)
+            : '[]',
+          correctAnswer: q.correctAnswer
+            ? typeof q.correctAnswer === 'string'
+              ? q.correctAnswer
+              : JSON.stringify(q.correctAnswer)
+            : '{}',
           subject: q.subject || null,
           lesson: q.lesson || null,
           clientNeedArea: q.clientNeedArea || null,
@@ -202,32 +210,37 @@ export async function POST(request: NextRequest) {
 
     console.log('Questions inserted:', insertedQuestions.length);
 
-    return NextResponse.json({
-      message: 'Questions created successfully',
-      questions: insertedQuestions.map((q: any) => ({
-        id: q.id.toString(),
-        stem: q.question ? (q.question.substring(0, 100) + (q.question.length > 100 ? '...' : '')) : 'No question text',
-        category: q.testType || 'classic',
-        label: getQuestionTypeLabel(q.questionType),
-        format: q.questionType,
-        question: q.question,
-        explanation: q.explanation,
-        points: q.points,
-        subject: q.subject,
-        difficulty: q.difficulty,
-        data: {
-          options: safeJsonParse(q.options, []),
-          correctAnswer: safeJsonParse(q.correctAnswer, null),
-        },
-      })),
-    }, { status: 201 });
+    return NextResponse.json(
+      {
+        message: 'Questions created successfully',
+        questions: insertedQuestions.map((q: any) => ({
+          id: q.id.toString(),
+          stem: q.question
+            ? q.question.substring(0, 100) + (q.question.length > 100 ? '...' : '')
+            : 'No question text',
+          category: q.testType || 'classic',
+          label: getQuestionTypeLabel(q.questionType),
+          format: q.questionType,
+          question: q.question,
+          explanation: q.explanation,
+          points: q.points,
+          subject: q.subject,
+          difficulty: q.difficulty,
+          data: {
+            options: safeJsonParse(q.options, []),
+            correctAnswer: safeJsonParse(q.correctAnswer, null),
+          },
+        })),
+      },
+      { status: 201 }
+    );
   } catch (error: any) {
     console.error('Create Q-bank questions error:', error);
     console.error('Error stack:', error.stack);
     return NextResponse.json(
       {
         message: 'Failed to create questions',
-        error: process.env.NODE_ENV === 'development' ? error.message : undefined
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined,
       },
       { status: 500 }
     );
@@ -251,17 +264,14 @@ export async function PATCH(request: NextRequest) {
     const { questionId, categoryId } = body;
 
     if (!questionId) {
-      return NextResponse.json(
-        { message: 'Question ID is required' },
-        { status: 400 }
-      );
+      return NextResponse.json({ message: 'Question ID is required' }, { status: 400 });
     }
 
     const db = getDatabase();
 
     // ✅ FIXED: Properly handle categoryId updates (including null)
     const updateData: any = { updatedAt: new Date() };
-    
+
     if ('categoryId' in body) {
       updateData.categoryId = categoryId; // Can be null, number, or undefined
     }
@@ -273,17 +283,14 @@ export async function PATCH(request: NextRequest) {
       .returning();
 
     if (!updatedQuestion) {
-      return NextResponse.json(
-        { message: 'Question not found' },
-        { status: 404 }
-      );
+      return NextResponse.json({ message: 'Question not found' }, { status: 404 });
     }
 
     console.log(`✅ Question ${questionId} updated: categoryId = ${categoryId}`);
 
-    return NextResponse.json({ 
+    return NextResponse.json({
       message: 'Question updated successfully',
-      question: updatedQuestion 
+      question: updatedQuestion,
     });
   } catch (error: any) {
     console.error('Update question error:', error);

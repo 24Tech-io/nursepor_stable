@@ -34,12 +34,16 @@ export default function CourseQBankPage({ params }: { params: { courseId: string
   };
 
   const handleAnswerChange = (questionId: number, answer: any) => {
-    setAnswers(prev => ({ ...prev, [questionId]: answer }));
+    setAnswers((prev) => ({ ...prev, [questionId]: answer }));
   };
 
   const handleSubmit = async () => {
     if (Object.keys(answers).length < questions.length) {
-      if (!confirm(`You've only answered ${Object.keys(answers).length} out of ${questions.length} questions. Submit anyway?`)) {
+      if (
+        !confirm(
+          `You've only answered ${Object.keys(answers).length} out of ${questions.length} questions. Submit anyway?`
+        )
+      ) {
         return;
       }
     }
@@ -97,7 +101,9 @@ export default function CourseQBankPage({ params }: { params: { courseId: string
           <div className="bg-slate-800/50 border border-slate-700 rounded-2xl p-12 text-center">
             <div className="text-6xl mb-4">📝</div>
             <h2 className="text-2xl font-bold text-white mb-2">No Practice Questions Yet</h2>
-            <p className="text-slate-400">Your instructor hasn't added Q-Bank questions to this course yet.</p>
+            <p className="text-slate-400">
+              Your instructor hasn't added Q-Bank questions to this course yet.
+            </p>
           </div>
         </div>
       </div>
@@ -110,16 +116,20 @@ export default function CourseQBankPage({ params }: { params: { courseId: string
         <div className="max-w-4xl mx-auto">
           <div className="bg-slate-800/50 border border-slate-700 rounded-2xl p-8 mb-6">
             <div className="text-center mb-8">
-              <div className={`inline-flex items-center justify-center w-20 h-20 rounded-full mb-4 ${
-                results.passed ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'
-              }`}>
+              <div
+                className={`inline-flex items-center justify-center w-20 h-20 rounded-full mb-4 ${
+                  results.passed ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'
+                }`}
+              >
                 {results.passed ? <CheckCircle size={40} /> : <XCircle size={40} />}
               </div>
               <h2 className="text-3xl font-bold text-white mb-2">
                 {results.passed ? 'Congratulations!' : 'Keep Practicing!'}
               </h2>
               <p className="text-slate-400">
-                {results.passed ? 'You passed the practice test!' : 'Review the explanations and try again.'}
+                {results.passed
+                  ? 'You passed the practice test!'
+                  : 'Review the explanations and try again.'}
               </p>
             </div>
 
@@ -129,18 +139,26 @@ export default function CourseQBankPage({ params }: { params: { courseId: string
                 <div className="text-sm text-slate-400 mt-1">Score</div>
               </div>
               <div className="bg-slate-900/50 rounded-xl p-4 text-center">
-                <div className="text-4xl font-bold text-green-400">{results.correctCount}/{results.totalQuestions}</div>
+                <div className="text-4xl font-bold text-green-400">
+                  {results.correctCount}/{results.totalQuestions}
+                </div>
                 <div className="text-sm text-slate-400 mt-1">Correct</div>
               </div>
               <div className="bg-slate-900/50 rounded-xl p-4 text-center">
-                <div className="text-4xl font-bold text-blue-400">{results.earnedPoints}/{results.totalPoints}</div>
+                <div className="text-4xl font-bold text-blue-400">
+                  {results.earnedPoints}/{results.totalPoints}
+                </div>
                 <div className="text-sm text-slate-400 mt-1">Points</div>
               </div>
             </div>
 
             <div className="flex gap-4">
               <button
-                onClick={() => { setResults(null); setAnswers({}); setShowExplanations(false); }}
+                onClick={() => {
+                  setResults(null);
+                  setAnswers({});
+                  setShowExplanations(false);
+                }}
                 className="flex-1 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white px-6 py-3 rounded-xl font-bold transition"
               >
                 Try Again
@@ -162,25 +180,39 @@ export default function CourseQBankPage({ params }: { params: { courseId: string
                 const result = results.results.find((r: any) => r.questionId === q.id);
                 const options = safeJsonParse(q.options, []);
                 return (
-                  <div key={q.id} className={`bg-slate-800/50 border rounded-xl p-6 ${
-                    result?.isCorrect ? 'border-green-500/30' : 'border-red-500/30'
-                  }`}>
+                  <div
+                    key={q.id}
+                    className={`bg-slate-800/50 border rounded-xl p-6 ${
+                      result?.isCorrect ? 'border-green-500/30' : 'border-red-500/30'
+                    }`}
+                  >
                     <div className="flex items-start gap-3 mb-4">
-                      <div className={`mt-1 ${result?.isCorrect ? 'text-green-400' : 'text-red-400'}`}>
+                      <div
+                        className={`mt-1 ${result?.isCorrect ? 'text-green-400' : 'text-red-400'}`}
+                      >
                         {result?.isCorrect ? <CheckCircle size={24} /> : <XCircle size={24} />}
                       </div>
                       <div className="flex-1">
                         <div className="text-sm text-slate-400 mb-2">Question {idx + 1}</div>
                         <div className="text-white font-medium mb-4">{q.question}</div>
-                        
+
                         {options.map((opt: any) => (
-                          <div key={opt.id} className={`p-3 rounded-lg mb-2 ${
-                            opt.id === result?.correctAnswer ? 'bg-green-500/20 border border-green-500/30' :
-                            opt.id === answers[q.id] && !result?.isCorrect ? 'bg-red-500/20 border border-red-500/30' :
-                            'bg-slate-900/50'
-                          }`}>
-                            <span className="text-slate-300">{opt.id}) {opt.text}</span>
-                            {opt.id === result?.correctAnswer && <span className="ml-2 text-green-400 text-sm">✓ Correct</span>}
+                          <div
+                            key={opt.id}
+                            className={`p-3 rounded-lg mb-2 ${
+                              opt.id === result?.correctAnswer
+                                ? 'bg-green-500/20 border border-green-500/30'
+                                : opt.id === answers[q.id] && !result?.isCorrect
+                                  ? 'bg-red-500/20 border border-red-500/30'
+                                  : 'bg-slate-900/50'
+                            }`}
+                          >
+                            <span className="text-slate-300">
+                              {opt.id}) {opt.text}
+                            </span>
+                            {opt.id === result?.correctAnswer && (
+                              <span className="ml-2 text-green-400 text-sm">✓ Correct</span>
+                            )}
                           </div>
                         ))}
 
@@ -231,7 +263,7 @@ export default function CourseQBankPage({ params }: { params: { courseId: string
                   </div>
                   <div className="flex-1">
                     <div className="text-white font-medium mb-4">{q.question}</div>
-                    
+
                     <div className="space-y-2">
                       {options.map((opt: any) => (
                         <label
@@ -249,7 +281,9 @@ export default function CourseQBankPage({ params }: { params: { courseId: string
                             onChange={() => handleAnswerChange(q.id, opt.id)}
                             className="mr-3"
                           />
-                          <span className="text-slate-300">{opt.id}) {opt.text}</span>
+                          <span className="text-slate-300">
+                            {opt.id}) {opt.text}
+                          </span>
                         </label>
                       ))}
                     </div>

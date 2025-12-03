@@ -34,7 +34,8 @@ export async function markChapterComplete(
   return await dataManager.executeOperation({
     type: 'mark_chapter_complete',
     params: { userId, courseId, chapterId },
-    executor: async (tx) => await ProgressOperations.markChapterComplete(tx, userId, courseId, chapterId),
+    executor: async (tx) =>
+      await ProgressOperations.markChapterComplete(tx, userId, courseId, chapterId),
     retryable: false,
   });
 }
@@ -53,8 +54,8 @@ export async function submitQuiz(
   return await dataManager.executeOperation({
     type: 'submit_quiz',
     params: { userId, courseId, chapterId, quizId, score, passed },
-    executor: async (tx) => await ProgressOperations.submitQuiz(tx, userId, courseId, chapterId, quizId, score, passed),
+    executor: async (tx) =>
+      await ProgressOperations.submitQuiz(tx, userId, courseId, chapterId, quizId, score, passed),
     retryable: false,
   });
 }
-

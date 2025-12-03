@@ -28,61 +28,39 @@ export async function POST(request: NextRequest) {
     // Validate request body size
     const body = await request.text();
     if (!validateBodySize(body, 512)) {
-      return NextResponse.json(
-        { error: 'Request body too large' },
-        { status: 413 }
-      );
+      return NextResponse.json({ error: 'Request body too large' }, { status: 413 });
     }
 
     let data;
     try {
       data = JSON.parse(body);
     } catch (e) {
-      return NextResponse.json(
-        { error: 'Invalid JSON in request body' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'Invalid JSON in request body' }, { status: 400 });
     }
     const { courseId, userId } = data;
 
     // Validate inputs
     if (!courseId || !userId) {
-      return NextResponse.json(
-        { error: 'Course ID and User ID are required' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'Course ID and User ID are required' }, { status: 400 });
     }
 
     // Ensure user can only create checkout for themselves
     if (parseInt(userId) !== user.id) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 403 }
-      );
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
     }
 
     // Sanitize courseId
     const sanitizedCourseId = sanitizeString(String(courseId), 20);
     const courseIdNum = parseInt(sanitizedCourseId);
     if (isNaN(courseIdNum) || courseIdNum <= 0) {
-      return NextResponse.json(
-        { error: 'Invalid course ID' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'Invalid course ID' }, { status: 400 });
     }
 
     // Get course details
-    const course = await db
-      .select()
-      .from(courses)
-      .where(eq(courses.id, courseIdNum))
-      .limit(1);
+    const course = await db.select().from(courses).where(eq(courses.id, courseIdNum)).limit(1);
 
     if (!course.length) {
-      return NextResponse.json(
-        { error: 'Course not found' },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: 'Course not found' }, { status: 404 });
     }
 
     const courseData = course[0];
@@ -158,7 +136,6 @@ export async function POST(request: NextRequest) {
       sessionId: session.id,
       url: session.url,
     });
-
   } catch (error: any) {
     console.error('Payment checkout error:', error);
     return NextResponse.json(
@@ -170,4 +147,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-

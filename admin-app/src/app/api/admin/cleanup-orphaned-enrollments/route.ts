@@ -54,16 +54,16 @@ export async function POST(request: NextRequest) {
 
       if (!student || !course) {
         orphanedEntries.push(progress);
-        console.log(`⚠️ Orphaned entry found: Progress ID ${progress.id}, Student ID ${progress.studentId}, Course ID ${progress.courseId}`);
+        console.log(
+          `⚠️ Orphaned entry found: Progress ID ${progress.id}, Student ID ${progress.studentId}, Course ID ${progress.courseId}`
+        );
       }
     }
 
     // Delete orphaned entries
     let deletedCount = 0;
     for (const orphaned of orphanedEntries) {
-      await db
-        .delete(studentProgress)
-        .where(eq(studentProgress.id, orphaned.id));
+      await db.delete(studentProgress).where(eq(studentProgress.id, orphaned.id));
       deletedCount++;
       console.log(`✅ Deleted orphaned progress entry ID: ${orphaned.id}`);
     }
@@ -77,12 +77,7 @@ export async function POST(request: NextRequest) {
       })
       .from(studentProgress)
       .innerJoin(courses, eq(studentProgress.courseId, courses.id))
-      .where(
-        and(
-          sql`${courses.status} != 'published'`,
-          sql`${courses.status} != 'active'`
-        )
-      );
+      .where(and(sql`${courses.status} != 'published'`, sql`${courses.status} != 'active'`));
 
     console.log(`🔍 Found ${unpublishedProgress.length} progress entries for unpublished courses`);
 
@@ -97,7 +92,7 @@ export async function POST(request: NextRequest) {
       success: true,
       message: `Cleanup complete. Found ${orphanedEntries.length} orphaned entries, deleted ${deletedCount}`,
       deletedCount,
-      orphanedEntries: orphanedEntries.map(e => ({
+      orphanedEntries: orphanedEntries.map((e) => ({
         id: e.id,
         studentId: e.studentId,
         courseId: e.courseId,
@@ -107,23 +102,12 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     console.error('Cleanup error:', error);
     return NextResponse.json(
-      { 
+      {
         success: false,
         message: 'Failed to cleanup orphaned enrollments',
-        error: process.env.NODE_ENV === 'development' ? error.message : undefined
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined,
       },
       { status: 500 }
     );
   }
 }
-
-
-
-
-
-
-
-
-
-
-

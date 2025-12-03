@@ -3,10 +3,7 @@ import { verifyToken } from '@/lib/auth';
 import { getDatabase } from '@/lib/db';
 import { chapters, quizzes } from '@/lib/db/schema';
 
-export async function POST(
-  request: NextRequest,
-  { params }: { params: { moduleId: string } }
-) {
+export async function POST(request: NextRequest, { params }: { params: { moduleId: string } }) {
   try {
     const token = request.cookies.get('adminToken')?.value;
 
@@ -52,20 +49,23 @@ export async function POST(
 
     console.log(`✅ Quiz created: ${title} (Chapter ID: ${chapter.id}, Quiz ID: ${quiz.id})`);
 
-    return NextResponse.json({
-      chapter: {
-        id: chapter.id,
-        title: chapter.title,
-        type: chapter.type,
-        order: chapter.order,
+    return NextResponse.json(
+      {
+        chapter: {
+          id: chapter.id,
+          title: chapter.title,
+          type: chapter.type,
+          order: chapter.order,
+        },
+        quiz: {
+          id: quiz.id,
+          title: quiz.title,
+          passMark: quiz.passMark,
+          maxAttempts: quiz.maxAttempts,
+        },
       },
-      quiz: {
-        id: quiz.id,
-        title: quiz.title,
-        passMark: quiz.passMark,
-        maxAttempts: quiz.maxAttempts,
-      },
-    }, { status: 201 });
+      { status: 201 }
+    );
   } catch (error: any) {
     console.error('Create quiz error:', error);
     return NextResponse.json(

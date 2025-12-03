@@ -67,12 +67,7 @@ export async function GET(request: NextRequest) {
       const pendingRequests = await db
         .select({ courseId: accessRequests.courseId })
         .from(accessRequests)
-        .where(
-          and(
-            eq(accessRequests.studentId, userId),
-            eq(accessRequests.status, 'pending')
-          )
-        );
+        .where(and(eq(accessRequests.studentId, userId), eq(accessRequests.status, 'pending')));
 
       const pendingRequestCourseIds = new Set(pendingRequests.map((r: any) => r.courseId));
 
@@ -93,8 +88,8 @@ export async function GET(request: NextRequest) {
         );
 
       // Filter out courses with pending requests
-      const actualEnrolled = allEnrolledProgress.filter((p: any) => 
-        !pendingRequestCourseIds.has(p.courseId)
+      const actualEnrolled = allEnrolledProgress.filter(
+        (p: any) => !pendingRequestCourseIds.has(p.courseId)
       );
 
       const enrolledCount = actualEnrolled.length;
@@ -102,22 +97,12 @@ export async function GET(request: NextRequest) {
       const [unreadNotificationsCount] = await db
         .select({ count: sql<number>`count(*)` })
         .from(notifications)
-        .where(
-          and(
-            eq(notifications.userId, userId),
-            eq(notifications.isRead, false)
-          )
-        );
+        .where(and(eq(notifications.userId, userId), eq(notifications.isRead, false)));
 
       const [pendingRequestsCount] = await db
         .select({ count: sql<number>`count(*)` })
         .from(accessRequests)
-        .where(
-          and(
-            eq(accessRequests.studentId, userId),
-            eq(accessRequests.status, 'pending')
-          )
-        );
+        .where(and(eq(accessRequests.studentId, userId), eq(accessRequests.status, 'pending')));
 
       syncData.student = {
         enrolledCourses: Number(enrolledCount?.count || 0),
@@ -134,13 +119,12 @@ export async function GET(request: NextRequest) {
   } catch (error: any) {
     console.error('Sync connection error:', error);
     return NextResponse.json(
-      { 
+      {
         success: false,
         message: 'Failed to establish sync connection',
-        error: process.env.NODE_ENV === 'development' ? error.message : undefined
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined,
       },
       { status: 500 }
     );
   }
 }
-

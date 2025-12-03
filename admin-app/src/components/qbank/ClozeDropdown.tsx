@@ -2,7 +2,13 @@
 
 import { useState } from 'react';
 
-export default function ClozeDropdown({ question, onChange }: { question: any; onChange: (q: any) => void }) {
+export default function ClozeDropdown({
+  question,
+  onChange,
+}: {
+  question: any;
+  onChange: (q: any) => void;
+}) {
   const [text, setText] = useState(question.clozeData?.text || '');
   const [dropdowns, setDropdowns] = useState(question.clozeData?.dropdowns || []);
 
@@ -12,7 +18,10 @@ export default function ClozeDropdown({ question, onChange }: { question: any; o
   };
 
   const addDropdown = (position: number) => {
-    const newDropdowns = [...dropdowns, { position, options: ['Option 1', 'Option 2', 'Option 3'], correct: 0 }];
+    const newDropdowns = [
+      ...dropdowns,
+      { position, options: ['Option 1', 'Option 2', 'Option 3'], correct: 0 },
+    ];
     setDropdowns(newDropdowns);
     updateCloze(text, newDropdowns);
   };
@@ -21,7 +30,8 @@ export default function ClozeDropdown({ question, onChange }: { question: any; o
     <div className="space-y-4">
       <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4">
         <p className="text-sm text-blue-300">
-          <strong>Cloze / Drop-Down:</strong> Text with embedded drop-downs. Each drop-down has 3-5 answer choices. Used for medication calculation, nursing judgment, or lab interpretation.
+          <strong>Cloze / Drop-Down:</strong> Text with embedded drop-downs. Each drop-down has 3-5
+          answer choices. Used for medication calculation, nursing judgment, or lab interpretation.
         </p>
       </div>
 
@@ -37,7 +47,9 @@ export default function ClozeDropdown({ question, onChange }: { question: any; o
           className="w-full px-4 py-2 bg-[#11131a] border border-slate-700 rounded-lg text-slate-200 placeholder-slate-500 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
           placeholder="Enter text. Use [DROPDOWN] to mark where drop-downs should appear."
         />
-        <p className="mt-1 text-xs text-slate-400">Use [DROPDOWN] in your text to mark drop-down positions</p>
+        <p className="mt-1 text-xs text-slate-400">
+          Use [DROPDOWN] in your text to mark drop-down positions
+        </p>
       </div>
 
       <div>
@@ -109,4 +121,3 @@ export default function ClozeDropdown({ question, onChange }: { question: any; o
     </div>
   );
 }
-

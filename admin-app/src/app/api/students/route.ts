@@ -27,12 +27,12 @@ export async function GET(request: NextRequest) {
     } catch (dbError: any) {
       console.error('❌ Database initialization error:', dbError);
       return NextResponse.json(
-        { 
+        {
           message: 'Database connection failed',
           error: dbError.message || 'Database is not available',
           hint: 'Please check your DATABASE_URL in .env.local',
           students: [],
-          count: 0
+          count: 0,
         },
         { status: 500 }
       );
@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
         .select({ count: sql<number>`count(*)::int` })
         .from(users)
         .where(eq(users.role, 'student'));
-      
+
       console.log(`⚡ [Admin API] Fast count: ${result.count} students`);
       return NextResponse.json({ count: result.count });
     }
@@ -83,7 +83,7 @@ export async function GET(request: NextRequest) {
                   eq(courses.status, 'published'),
                   eq(courses.status, 'active'),
                   eq(courses.status, 'Published'), // Case-insensitive
-                  eq(courses.status, 'Active')     // Case-insensitive
+                  eq(courses.status, 'Active') // Case-insensitive
                 )
               )
             ),
@@ -114,10 +114,7 @@ export async function GET(request: NextRequest) {
           })
           .from(accessRequests)
           .where(
-            and(
-              eq(accessRequests.studentId, student.id),
-              eq(accessRequests.status, 'pending')
-            )
+            and(eq(accessRequests.studentId, student.id), eq(accessRequests.status, 'pending'))
           );
 
         // Merge course IDs from both tables
@@ -161,14 +158,17 @@ export async function GET(request: NextRequest) {
       enrolledCourses: Number(student.enrolledCourses || 0),
     }));
 
-    console.log('📊 Students with enrollment counts:', result.map((s: any) => ({
-      name: s.name,
-      email: s.email,
-      enrolledCourses: s.enrolledCourses
-    })));
+    console.log(
+      '📊 Students with enrollment counts:',
+      result.map((s: any) => ({
+        name: s.name,
+        email: s.email,
+        enrolledCourses: s.enrolledCourses,
+      }))
+    );
 
-    return NextResponse.json({ 
-      students: result
+    return NextResponse.json({
+      students: result,
     });
   } catch (error: any) {
     console.error('❌ Get students error:', error);
@@ -177,28 +177,29 @@ export async function GET(request: NextRequest) {
       stack: error.stack,
       name: error.name,
     });
-    
+
     // Check if it's a database connection error
-    if (error.message?.includes('Database is not available') || 
-        error.message?.includes('DATABASE_URL')) {
+    if (
+      error.message?.includes('Database is not available') ||
+      error.message?.includes('DATABASE_URL')
+    ) {
       return NextResponse.json(
-        { 
-          message: 'Database connection failed', 
+        {
+          message: 'Database connection failed',
           error: 'Database is not available. Please check your DATABASE_URL in .env.local',
-          students: [] // Return empty array instead of failing
+          students: [], // Return empty array instead of failing
         },
         { status: 500 }
       );
     }
-    
+
     return NextResponse.json(
-      { 
-        message: 'Failed to fetch students', 
+      {
+        message: 'Failed to fetch students',
         error: error.message,
-        students: [] // Return empty array instead of failing
+        students: [], // Return empty array instead of failing
       },
       { status: 500 }
     );
   }
 }
-

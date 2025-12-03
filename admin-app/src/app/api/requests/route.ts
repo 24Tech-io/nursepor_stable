@@ -25,17 +25,19 @@ export async function GET(request: NextRequest) {
     // STEP 1: Clean up ALL processed requests FIRST
     // Delete: 1) All approved/rejected requests, 2) Any request with reviewedAt set (inconsistent state)
     try {
-      console.log('🧹 [GET /api/requests] Cleaning up processed requests (approved/rejected/inconsistent)...');
-      
+      console.log(
+        '🧹 [GET /api/requests] Cleaning up processed requests (approved/rejected/inconsistent)...'
+      );
+
       // Get all requests to check their state
       const allRequestsCheck = await db
         .select({
           id: accessRequests.id,
           status: accessRequests.status,
-          reviewedAt: accessRequests.reviewedAt
+          reviewedAt: accessRequests.reviewedAt,
         })
         .from(accessRequests);
-      
+
       // Delete requests with reviewedAt set OR status is approved/rejected
       // Check reviewedAt properly (it could be null, undefined, or a Date object)
       const requestsToDelete = allRequestsCheck.filter((req: any) => {
@@ -43,18 +45,24 @@ export async function GET(request: NextRequest) {
         const isProcessed = req.status === 'approved' || req.status === 'rejected';
         return hasReviewedAt || isProcessed;
       });
-      
+
       if (requestsToDelete.length > 0) {
-        console.log(`🧹 [GET /api/requests] Found ${requestsToDelete.length} processed/inconsistent requests to delete`);
+        console.log(
+          `🧹 [GET /api/requests] Found ${requestsToDelete.length} processed/inconsistent requests to delete`
+        );
         for (const req of requestsToDelete) {
           try {
             await db.delete(accessRequests).where(eq(accessRequests.id, req.id));
-            console.log(`🗑️ [GET /api/requests] Deleted request #${req.id} (status: ${req.status}, has reviewedAt: ${req.reviewedAt !== null})`);
+            console.log(
+              `🗑️ [GET /api/requests] Deleted request #${req.id} (status: ${req.status}, has reviewedAt: ${req.reviewedAt !== null})`
+            );
           } catch (err: any) {
             console.error(`❌ [GET /api/requests] Error deleting request #${req.id}:`, err);
           }
         }
-        console.log(`✅ [GET /api/requests] Cleaned up ${requestsToDelete.length} processed/inconsistent requests`);
+        console.log(
+          `✅ [GET /api/requests] Cleaned up ${requestsToDelete.length} processed/inconsistent requests`
+        );
       } else {
         console.log('ℹ️ [GET /api/requests] No processed requests to clean up');
       }
@@ -67,7 +75,7 @@ export async function GET(request: NextRequest) {
     // This ensures we only get pending requests from the database
     // Also exclude any requests with reviewedAt set (these are processed)
     console.log('📊 [GET /api/requests] Fetching pending requests from database...');
-    
+
     // First, get all pending requests
     const allPendingRequests = await db
       .select({
@@ -87,13 +95,15 @@ export async function GET(request: NextRequest) {
       .innerJoin(courses, eq(accessRequests.courseId, courses.id))
       .where(eq(accessRequests.status, 'pending')) // Database-level filter
       .orderBy(desc(accessRequests.requestedAt));
-    
+
     // STEP 2.5: Clean up requests where student is already enrolled
     // This fixes the critical issue where approved requests weren't properly deleted
     const requestsToDeleteForEnrollment: number[] = [];
     try {
-      console.log('🧹 [GET /api/requests] Checking for requests where students are already enrolled...');
-      
+      console.log(
+        '🧹 [GET /api/requests] Checking for requests where students are already enrolled...'
+      );
+
       if (allPendingRequests.length > 0) {
         const enrollments = await db
           .select({
@@ -102,35 +112,42 @@ export async function GET(request: NextRequest) {
           })
           .from(studentProgress)
           .limit(10000);
-        
-        const enrollmentSet = new Set(
-          enrollments.map((e: any) => `${e.studentId}-${e.courseId}`)
-        );
-        
+
+        const enrollmentSet = new Set(enrollments.map((e: any) => `${e.studentId}-${e.courseId}`));
+
         allPendingRequests.forEach((req: any) => {
           const key = `${req.studentId}-${req.courseId}`;
           if (enrollmentSet.has(key)) {
-            console.warn(`⚠️ [GET /api/requests] Student ${req.studentId} already enrolled in course ${req.courseId} (${req.courseTitle || 'Unknown'}) - deleting stale request #${req.id}`);
+            console.warn(
+              `⚠️ [GET /api/requests] Student ${req.studentId} already enrolled in course ${req.courseId} (${req.courseTitle || 'Unknown'}) - deleting stale request #${req.id}`
+            );
             requestsToDeleteForEnrollment.push(req.id);
           }
         });
-        
+
         if (requestsToDeleteForEnrollment.length > 0) {
           for (const id of requestsToDeleteForEnrollment) {
             try {
               await db.delete(accessRequests).where(eq(accessRequests.id, id));
-              console.log(`🗑️ [GET /api/requests] Deleted stale request #${id} (student already enrolled)`);
+              console.log(
+                `🗑️ [GET /api/requests] Deleted stale request #${id} (student already enrolled)`
+              );
             } catch (err: any) {
               console.error(`❌ [GET /api/requests] Error deleting stale request #${id}:`, err);
             }
           }
-          console.log(`✅ [GET /api/requests] Cleaned up ${requestsToDeleteForEnrollment.length} stale requests`);
+          console.log(
+            `✅ [GET /api/requests] Cleaned up ${requestsToDeleteForEnrollment.length} stale requests`
+          );
         }
       }
     } catch (enrollmentCleanupError: any) {
-      console.error('❌ [GET /api/requests] Error during enrollment cleanup:', enrollmentCleanupError);
+      console.error(
+        '❌ [GET /api/requests] Error during enrollment cleanup:',
+        enrollmentCleanupError
+      );
     }
-    
+
     // Filter out any requests with reviewedAt set (these were processed but status wasn't updated)
     // Also filter out requests that were deleted during enrollment cleanup
     const inconsistentIds: number[] = [];
@@ -139,25 +156,32 @@ export async function GET(request: NextRequest) {
       if (requestsToDeleteForEnrollment.includes(req.id)) {
         return false;
       }
-      
+
       // Check properly for null/undefined
       if (req.reviewedAt !== null && req.reviewedAt !== undefined) {
-        console.warn(`⚠️ [GET /api/requests] Found request #${req.id} with status='pending' but reviewedAt is set - will delete`);
+        console.warn(
+          `⚠️ [GET /api/requests] Found request #${req.id} with status='pending' but reviewedAt is set - will delete`
+        );
         inconsistentIds.push(req.id);
         return false;
       }
       return true;
     });
-    
+
     // Delete inconsistent requests synchronously
     if (inconsistentIds.length > 0) {
-      console.log(`🧹 [GET /api/requests] Deleting ${inconsistentIds.length} requests with reviewedAt set...`);
+      console.log(
+        `🧹 [GET /api/requests] Deleting ${inconsistentIds.length} requests with reviewedAt set...`
+      );
       for (const id of inconsistentIds) {
         try {
           await db.delete(accessRequests).where(eq(accessRequests.id, id));
           console.log(`🗑️ [GET /api/requests] Deleted inconsistent request #${id}`);
         } catch (err: any) {
-          console.error(`❌ [GET /api/requests] Failed to delete inconsistent request #${id}:`, err);
+          console.error(
+            `❌ [GET /api/requests] Failed to delete inconsistent request #${id}:`,
+            err
+          );
         }
       }
     }
@@ -170,52 +194,68 @@ export async function GET(request: NextRequest) {
       if (requestsToDeleteForEnrollment.includes(req.id)) {
         return false;
       }
-      
+
       // Handle orphaned requests (deleted user or course) - delete them
       if (!req.studentName || !req.studentEmail) {
-        console.warn(`⚠️ [GET /api/requests] Orphaned request #${req.id} - user not found (studentId: ${req.studentId}). Deleting...`);
+        console.warn(
+          `⚠️ [GET /api/requests] Orphaned request #${req.id} - user not found (studentId: ${req.studentId}). Deleting...`
+        );
         inconsistentRequestIds.push(req.id);
         return false;
       }
       if (!req.courseTitle || !req.courseId) {
-        console.warn(`⚠️ [GET /api/requests] Orphaned request #${req.id} - course not found (courseId: ${req.courseId}). Deleting...`);
+        console.warn(
+          `⚠️ [GET /api/requests] Orphaned request #${req.id} - course not found (courseId: ${req.courseId}). Deleting...`
+        );
         inconsistentRequestIds.push(req.id);
         return false;
       }
-      
+
       // CRITICAL: If reviewedAt is set, this request was already processed - don't show it
       // Check properly for null/undefined (shouldn't happen after cleanup, but double-check)
       if (req.reviewedAt !== null && req.reviewedAt !== undefined) {
-        console.warn(`⚠️ [GET /api/requests] CRITICAL: Request #${req.id} has reviewedAt but passed filter! Will delete...`);
+        console.warn(
+          `⚠️ [GET /api/requests] CRITICAL: Request #${req.id} has reviewedAt but passed filter! Will delete...`
+        );
         inconsistentRequestIds.push(req.id);
         return false; // Don't return inconsistent requests
       }
-      
+
       // CRITICAL: If status is not pending, don't show it
       if (req.status !== 'pending') {
-        console.warn(`⚠️ [GET /api/requests] CRITICAL: Request #${req.id} has status '${req.status}' but passed filter! Will delete...`);
+        console.warn(
+          `⚠️ [GET /api/requests] CRITICAL: Request #${req.id} has status '${req.status}' but passed filter! Will delete...`
+        );
         inconsistentRequestIds.push(req.id);
         return false; // Don't return non-pending requests
       }
-      
+
       return true;
     });
-    
+
     // Delete any inconsistent requests that somehow passed the filter
     if (inconsistentRequestIds.length > 0) {
-      console.log(`🧹 [GET /api/requests] Deleting ${inconsistentRequestIds.length} inconsistent requests that passed filter...`);
+      console.log(
+        `🧹 [GET /api/requests] Deleting ${inconsistentRequestIds.length} inconsistent requests that passed filter...`
+      );
       for (const id of inconsistentRequestIds) {
         try {
           await db.delete(accessRequests).where(eq(accessRequests.id, id));
           console.log(`🗑️ [GET /api/requests] Deleted inconsistent request #${id}`);
         } catch (err: any) {
-          console.error(`❌ [GET /api/requests] Failed to delete inconsistent request #${id}:`, err);
+          console.error(
+            `❌ [GET /api/requests] Failed to delete inconsistent request #${id}:`,
+            err
+          );
         }
       }
     }
 
     console.log(`✅ [GET /api/requests] Returning ${validatedRequests.length} pending requests`);
-    console.log(`📋 [GET /api/requests] Pending request IDs:`, validatedRequests.map((r: any) => r.id));
+    console.log(
+      `📋 [GET /api/requests] Pending request IDs:`,
+      validatedRequests.map((r: any) => r.id)
+    );
 
     return NextResponse.json({ requests: validatedRequests });
   } catch (error: any) {
@@ -226,4 +266,3 @@ export async function GET(request: NextRequest) {
     );
   }
 }
-

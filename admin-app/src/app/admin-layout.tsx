@@ -94,7 +94,9 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Sidebar */}
-      <div className={`fixed inset-y-0 left-0 z-50 w-64 bg-gradient-to-b from-emerald-900 to-teal-900 text-white transform transition-transform duration-300 ease-in-out ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0`}>
+      <div
+        className={`fixed inset-y-0 left-0 z-50 w-64 bg-gradient-to-b from-emerald-900 to-teal-900 text-white transform transition-transform duration-300 ease-in-out ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0`}
+      >
         <div className="flex flex-col h-full">
           {/* Logo */}
           <div className="flex items-center justify-between h-16 px-6 border-b border-emerald-800">
@@ -109,7 +111,12 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
               className="lg:hidden text-emerald-200 hover:text-white"
             >
               <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
+                />
               </svg>
             </button>
           </div>
@@ -133,10 +140,11 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
               <Link
                 key={item.name}
                 href={item.href}
-                className={`flex items-center space-x-3 px-4 py-3 rounded-xl transition-all ${isActive(item.href)
-                  ? 'bg-white text-emerald-900 shadow-lg'
-                  : 'text-emerald-100 hover:bg-emerald-800 hover:text-white'
-                  }`}
+                className={`flex items-center space-x-3 px-4 py-3 rounded-xl transition-all ${
+                  isActive(item.href)
+                    ? 'bg-white text-emerald-900 shadow-lg'
+                    : 'text-emerald-100 hover:bg-emerald-800 hover:text-white'
+                }`}
               >
                 <span className="text-xl">{item.icon}</span>
                 <span className="font-medium">{item.name}</span>
@@ -179,7 +187,12 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
               className="text-gray-600 hover:text-gray-900"
             >
               <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M4 6h16M4 12h16M4 18h16"
+                />
               </svg>
             </button>
             <span className="text-lg font-bold text-gray-900">Admin Portal</span>
@@ -193,4 +206,3 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     </div>
   );
 }
-

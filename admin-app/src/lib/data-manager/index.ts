@@ -18,4 +18,3 @@ export * from './events/event-types';
 export { enrollStudent, unenrollStudent, syncEnrollmentState } from './helpers/enrollment-helper';
 export { updateProgress, markChapterComplete, submitQuiz } from './helpers/progress-helper';
 export { approveRequest, rejectRequest, createRequest } from './helpers/request-helper';
-

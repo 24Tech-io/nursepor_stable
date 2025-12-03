@@ -57,10 +57,7 @@ export async function GET(request: NextRequest) {
 
     // Try to query courses table
     try {
-      const courseCount = await db
-        .select({ count: courses.id })
-        .from(courses)
-        .limit(1);
+      const courseCount = await db.select({ count: courses.id }).from(courses).limit(1);
 
       const allCourses = await db
         .select({
@@ -100,14 +97,3 @@ export async function GET(request: NextRequest) {
     );
   }
 }
-
-
-
-
-
-
-
-
-
-
-

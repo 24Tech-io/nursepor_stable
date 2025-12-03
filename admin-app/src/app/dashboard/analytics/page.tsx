@@ -19,14 +19,3 @@ export default function AnalyticsPage() {
     </NotificationProvider>
   );
 }
-
-
-
-
-
-
-
-
-
-
-

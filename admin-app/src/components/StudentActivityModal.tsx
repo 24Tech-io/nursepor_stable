@@ -1,7 +1,20 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { X, Activity, LogIn, LogOut, BookOpen, Video, FileText, ClipboardCheck, Award, Clock, Search, Filter } from 'lucide-react';
+import {
+  X,
+  Activity,
+  LogIn,
+  LogOut,
+  BookOpen,
+  Video,
+  FileText,
+  ClipboardCheck,
+  Award,
+  Clock,
+  Search,
+  Filter,
+} from 'lucide-react';
 
 interface Activity {
   id: number;
@@ -20,7 +33,11 @@ interface StudentActivityModalProps {
   onClose: () => void;
 }
 
-export default function StudentActivityModal({ studentId, studentName, onClose }: StudentActivityModalProps) {
+export default function StudentActivityModal({
+  studentId,
+  studentName,
+  onClose,
+}: StudentActivityModalProps) {
   const [activities, setActivities] = useState<Activity[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [filter, setFilter] = useState<string>('all');
@@ -103,13 +120,18 @@ export default function StudentActivityModal({ studentId, studentName, onClose }
     if (diffMins < 60) return `${diffMins} minute${diffMins > 1 ? 's' : ''} ago`;
     if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
     if (diffDays < 7) return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
-    
-    return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+    return (
+      date.toLocaleDateString() +
+      ' ' +
+      date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    );
   };
 
-  const filteredActivities = activities.filter(activity => {
+  const filteredActivities = activities.filter((activity) => {
     const matchesFilter = filter === 'all' || activity.activityType === filter;
-    const matchesSearch = searchTerm === '' || 
+    const matchesSearch =
+      searchTerm === '' ||
       activity.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       activity.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       activity.metadata?.courseTitle?.toLowerCase().includes(searchTerm.toLowerCase());
@@ -166,8 +188,10 @@ export default function StudentActivityModal({ studentId, studentName, onClose }
               onChange={(e) => setFilter(e.target.value)}
               className="px-3 py-2 bg-[#1a1d26] border border-slate-800 rounded-lg text-white text-sm focus:outline-none focus:border-purple-500"
             >
-              {activityTypes.map(type => (
-                <option key={type.value} value={type.value}>{type.label}</option>
+              {activityTypes.map((type) => (
+                <option key={type.value} value={type.value}>
+                  {type.label}
+                </option>
               ))}
             </select>
           </div>
@@ -204,26 +228,50 @@ export default function StudentActivityModal({ studentId, studentName, onClose }
                         {activity.metadata && (
                           <div className="text-xs text-slate-500 space-y-1">
                             {activity.metadata.courseTitle && (
-                              <p>Course: <span className="text-slate-300">{activity.metadata.courseTitle}</span></p>
+                              <p>
+                                Course:{' '}
+                                <span className="text-slate-300">
+                                  {activity.metadata.courseTitle}
+                                </span>
+                              </p>
                             )}
                             {activity.metadata.moduleTitle && (
-                              <p>Module: <span className="text-slate-300">{activity.metadata.moduleTitle}</span></p>
+                              <p>
+                                Module:{' '}
+                                <span className="text-slate-300">
+                                  {activity.metadata.moduleTitle}
+                                </span>
+                              </p>
                             )}
                             {activity.metadata.chapterTitle && (
-                              <p>Chapter: <span className="text-slate-300">{activity.metadata.chapterTitle}</span></p>
+                              <p>
+                                Chapter:{' '}
+                                <span className="text-slate-300">
+                                  {activity.metadata.chapterTitle}
+                                </span>
+                              </p>
                             )}
                             {activity.metadata.quizTitle && (
-                              <p>Quiz: <span className="text-slate-300">{activity.metadata.quizTitle}</span></p>
+                              <p>
+                                Quiz:{' '}
+                                <span className="text-slate-300">
+                                  {activity.metadata.quizTitle}
+                                </span>
+                              </p>
                             )}
                             {activity.metadata.score !== undefined && (
                               <div className="flex items-center gap-4 mt-2">
                                 <span className="flex items-center gap-1">
                                   <Award size={14} className="text-yellow-400" />
-                                  Score: <span className="text-yellow-400 font-bold">{activity.metadata.score}%</span>
+                                  Score:{' '}
+                                  <span className="text-yellow-400 font-bold">
+                                    {activity.metadata.score}%
+                                  </span>
                                 </span>
                                 {activity.metadata.totalQuestions && (
                                   <span className="text-slate-400">
-                                    {activity.metadata.score >= (activity.metadata.passMark || 70) ? (
+                                    {activity.metadata.score >=
+                                    (activity.metadata.passMark || 70) ? (
                                       <span className="text-green-400">✓ Passed</span>
                                     ) : (
                                       <span className="text-red-400">✗ Failed</span>
@@ -233,7 +281,8 @@ export default function StudentActivityModal({ studentId, studentName, onClose }
                                 {activity.metadata.timeSpent && (
                                   <span className="flex items-center gap-1 text-slate-400">
                                     <Clock size={14} />
-                                    {Math.floor(activity.metadata.timeSpent / 60)}m {activity.metadata.timeSpent % 60}s
+                                    {Math.floor(activity.metadata.timeSpent / 60)}m{' '}
+                                    {activity.metadata.timeSpent % 60}s
                                   </span>
                                 )}
                               </div>
@@ -255,14 +304,3 @@ export default function StudentActivityModal({ studentId, studentName, onClose }
     </div>
   );
 }
-
-
-
-
-
-
-
-
-
-
-

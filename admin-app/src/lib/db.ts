@@ -9,7 +9,9 @@ function initializeDatabase() {
   if (!process.env.DATABASE_URL) {
     console.error('⚠️ DATABASE_URL is not set');
     console.error('   Please set DATABASE_URL in .env.local (root) or admin-app/.env.local');
-    console.error('   Example: DATABASE_URL="postgresql://user:pass@host.neon.tech/dbname?sslmode=require"');
+    console.error(
+      '   Example: DATABASE_URL="postgresql://user:pass@host.neon.tech/dbname?sslmode=require"'
+    );
     return null;
   }
 
@@ -21,7 +23,9 @@ function initializeDatabase() {
     return db;
   } catch (error: any) {
     console.error('❌ Failed to initialize database:', error?.message || error);
-    console.error('   Database features will be disabled until DATABASE_URL is properly configured');
+    console.error(
+      '   Database features will be disabled until DATABASE_URL is properly configured'
+    );
     return null;
   }
 }
@@ -35,10 +39,14 @@ export function getDatabase() {
   if (!db) {
     // Try to reinitialize if it failed before
     console.log('🔄 Attempting to reinitialize database connection...');
-    console.log('🔍 DATABASE_URL check:', process.env.DATABASE_URL ? `Set (length: ${process.env.DATABASE_URL.length})` : 'NOT SET');
+    console.log(
+      '🔍 DATABASE_URL check:',
+      process.env.DATABASE_URL ? `Set (length: ${process.env.DATABASE_URL.length})` : 'NOT SET'
+    );
     db = initializeDatabase();
     if (!db) {
-      const errorMsg = 'Database is not available. Please check your DATABASE_URL in .env.local (root) or admin-app/.env.local';
+      const errorMsg =
+        'Database is not available. Please check your DATABASE_URL in .env.local (root) or admin-app/.env.local';
       console.error('❌', errorMsg);
       throw new Error(errorMsg);
     }

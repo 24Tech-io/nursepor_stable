@@ -6,10 +6,7 @@ import { eq } from 'drizzle-orm';
 import { parseVideoUrl } from '@/lib/video-utils';
 
 // PATCH - Update chapter
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: { chapterId: string } }
-) {
+export async function PATCH(request: NextRequest, { params }: { params: { chapterId: string } }) {
   try {
     const token = request.cookies.get('adminToken')?.value;
     if (!token) {
@@ -56,10 +53,7 @@ export async function PATCH(
 }
 
 // DELETE - Delete chapter
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: { chapterId: string } }
-) {
+export async function DELETE(request: NextRequest, { params }: { params: { chapterId: string } }) {
   try {
     const token = request.cookies.get('adminToken')?.value;
     if (!token) {
@@ -87,4 +81,3 @@ export async function DELETE(
     );
   }
 }
-

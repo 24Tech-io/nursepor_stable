@@ -75,17 +75,22 @@ export async function POST(request: NextRequest) {
 
     // Check if already enrolled (any source)
     const [existingEnrollment, existingProgress] = await Promise.all([
-      db.select().from(enrollments)
-        .where(and(
-          eq(enrollments.userId, decoded.id),
-          eq(enrollments.courseId, courseIdNum),
-          eq(enrollments.status, 'active')
-        )),
-      db.select().from(studentProgress)
-        .where(and(
-          eq(studentProgress.studentId, decoded.id),
-          eq(studentProgress.courseId, courseIdNum)
-        ))
+      db
+        .select()
+        .from(enrollments)
+        .where(
+          and(
+            eq(enrollments.userId, decoded.id),
+            eq(enrollments.courseId, courseIdNum),
+            eq(enrollments.status, 'active')
+          )
+        ),
+      db
+        .select()
+        .from(studentProgress)
+        .where(
+          and(eq(studentProgress.studentId, decoded.id), eq(studentProgress.courseId, courseIdNum))
+        ),
     ]);
 
     if (existingEnrollment.length > 0 || existingProgress.length > 0) {
@@ -100,10 +105,7 @@ export async function POST(request: NextRequest) {
       .select()
       .from(accessRequests)
       .where(
-        and(
-          eq(accessRequests.studentId, decoded.id),
-          eq(accessRequests.courseId, courseIdNum)
-        )
+        and(eq(accessRequests.studentId, decoded.id), eq(accessRequests.courseId, courseIdNum))
       );
 
     if (existing.length > 0) {
@@ -125,11 +127,13 @@ export async function POST(request: NextRequest) {
             )
           )
           .limit(1);
-        
+
         if (enrollmentCheck.length > 0) {
           // Student is enrolled, delete the old approved request
           await db.delete(accessRequests).where(eq(accessRequests.id, existing[0].id));
-          console.log(`🗑️ Deleted old approved request #${existing[0].id} - student is already enrolled`);
+          console.log(
+            `🗑️ Deleted old approved request #${existing[0].id} - student is already enrolled`
+          );
           return NextResponse.json(
             { message: 'You are already enrolled in this course' },
             { status: 400 }
@@ -137,7 +141,9 @@ export async function POST(request: NextRequest) {
         } else {
           // Approved but not enrolled - delete old request and allow new one
           await db.delete(accessRequests).where(eq(accessRequests.id, existing[0].id));
-          console.log(`🗑️ Deleted old approved request #${existing[0].id} - student not enrolled, allowing new request`);
+          console.log(
+            `🗑️ Deleted old approved request #${existing[0].id} - student not enrolled, allowing new request`
+          );
         }
       } else if (status === 'rejected') {
         // Allow re-request for rejected courses after deleting old request
@@ -155,10 +161,7 @@ export async function POST(request: NextRequest) {
 
     if (!course) {
       console.error('❌ Course not found:', courseId);
-      return NextResponse.json(
-        { message: 'Course not found' },
-        { status: 404 }
-      );
+      return NextResponse.json({ message: 'Course not found' }, { status: 404 });
     }
 
     console.log('📝 Creating access request:', {
@@ -166,23 +169,26 @@ export async function POST(request: NextRequest) {
       studentEmail: decoded.email,
       courseId: parseInt(courseId),
       courseTitle: course.title,
-      reason: reason || 'Requesting access to this course'
+      reason: reason || 'Requesting access to this course',
     });
 
     // Create new request
-    const result = await db.insert(accessRequests).values({
-      studentId: decoded.id,
-      courseId: parseInt(courseId),
-      reason: reason || 'Requesting access to this course',
-      status: 'pending',
-    }).returning();
+    const result = await db
+      .insert(accessRequests)
+      .values({
+        studentId: decoded.id,
+        courseId: parseInt(courseId),
+        reason: reason || 'Requesting access to this course',
+        status: 'pending',
+      })
+      .returning();
 
     console.log('✅ Access request created successfully:', {
       id: result[0].id,
       studentId: result[0].studentId,
       courseId: result[0].courseId,
       status: result[0].status,
-      requestedAt: result[0].requestedAt
+      requestedAt: result[0].requestedAt,
     });
 
     // Verify the request was actually created and is queryable
@@ -191,7 +197,7 @@ export async function POST(request: NextRequest) {
       .from(accessRequests)
       .where(eq(accessRequests.id, result[0].id))
       .limit(1);
-    
+
     if (verifyRequest.length === 0) {
       console.error('❌ CRITICAL: Request was created but cannot be queried!');
       return NextResponse.json(
@@ -199,7 +205,7 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       );
     }
-    
+
     console.log('✅ Request verification passed - request is queryable with ID:', result[0].id);
 
     return NextResponse.json({
@@ -214,4 +220,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-

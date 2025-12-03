@@ -15,8 +15,16 @@ const educationSections = [
   { key: 'postBasic', label: 'Post Basic BSc Nursing', programType: 'Post Basic BSc Nursing' },
   { key: 'msc', label: 'MSc Nursing', programType: 'MSc Nursing' },
   { key: 'plusTwo', label: 'Plus Two / 12th Grade', programType: 'Plus Two / 12th Grade' },
-  { key: 'tenthGrade', label: '10th Grade / Secondary School', programType: '10th Grade / Secondary School' },
-  { key: 'primaryHighSchool', label: 'Primary and High School (Grades 1–10)', programType: 'Primary & High School' },
+  {
+    key: 'tenthGrade',
+    label: '10th Grade / Secondary School',
+    programType: '10th Grade / Secondary School',
+  },
+  {
+    key: 'primaryHighSchool',
+    label: 'Primary and High School (Grades 1–10)',
+    programType: 'Primary & High School',
+  },
 ] as const;
 
 const defaultEducationEntry = (programType: string): NursingEducationEntry => ({
@@ -41,16 +49,15 @@ const normalizeDateRange = (value: unknown): DateRange => {
   }
 
   if (typeof value === 'string') {
-    const delimiter =
-      value.includes(' to ')
-        ? ' to '
-        : value.includes(' - ')
-          ? ' - '
-          : value.includes(' – ')
-            ? ' – '
-            : value.includes(' — ')
-              ? ' — '
-              : null;
+    const delimiter = value.includes(' to ')
+      ? ' to '
+      : value.includes(' - ')
+        ? ' - '
+        : value.includes(' – ')
+          ? ' – '
+          : value.includes(' — ')
+            ? ' — '
+            : null;
     if (delimiter) {
       const [fromPart, toPart] = value.split(delimiter).map((part) => part?.trim());
       return {
@@ -112,7 +119,9 @@ export function normalizeNursingCandidatePayload(payload: any): NursingCandidate
     motherMaidenName: cleanString(personalPayload.motherMaidenName),
     dateOfBirth: cleanString(personalPayload.dateOfBirth),
     placeOfBirth: cleanString(personalPayload.placeOfBirth),
-    gender: ['Male', 'Female', 'Other'].includes(personalPayload.gender) ? personalPayload.gender : 'Other',
+    gender: ['Male', 'Female', 'Other'].includes(personalPayload.gender)
+      ? personalPayload.gender
+      : 'Other',
     address: cleanString(personalPayload.address, 'N/A', 2048),
     phoneNumber,
     email,
@@ -120,18 +129,25 @@ export function normalizeNursingCandidatePayload(payload: any): NursingCandidate
   };
 
   const educationSource = payload.educationDetails || {};
-  const educationDetails = educationSections.reduce((acc, section) => {
-    const sectionPayload = educationSource[section.key] || {};
-    acc[section.key] = {
-      institutionName: cleanString(sectionPayload.institutionName),
-      address: cleanString(sectionPayload.address),
-      programType: cleanString(sectionPayload.programType || section.programType),
-      studyPeriod: normalizeDateRange(sectionPayload.studyPeriod),
-    };
-    return acc;
-  }, {} as NursingCandidateFormPayload['educationDetails']);
+  const educationDetails = educationSections.reduce(
+    (acc, section) => {
+      const sectionPayload = educationSource[section.key] || {};
+      acc[section.key] = {
+        institutionName: cleanString(sectionPayload.institutionName),
+        address: cleanString(sectionPayload.address),
+        programType: cleanString(sectionPayload.programType || section.programType),
+        studyPeriod: normalizeDateRange(sectionPayload.studyPeriod),
+      };
+      return acc;
+    },
+    {} as NursingCandidateFormPayload['educationDetails']
+  );
 
-  const registrationEntries: NursingRegistrationEntry[] = (payload.registrationDetails?.entries || payload.registrationEntries || [])
+  const registrationEntries: NursingRegistrationEntry[] = (
+    payload.registrationDetails?.entries ||
+    payload.registrationEntries ||
+    []
+  )
     .slice(0, 3)
     .map((entry: any) => ({
       councilName: cleanString(entry?.councilName),
@@ -156,7 +172,11 @@ export function normalizeNursingCandidatePayload(payload: any): NursingCandidate
     dates: normalizeDateRange(entry?.dates),
   });
 
-  const employmentHistory: NursingExperienceEntry[] = (payload.employmentHistory || payload.employmentDetails || [])
+  const employmentHistory: NursingExperienceEntry[] = (
+    payload.employmentHistory ||
+    payload.employmentDetails ||
+    []
+  )
     .slice(0, 3)
     .map(buildExperience);
   while (employmentHistory.length < 3) {
@@ -165,11 +185,15 @@ export function normalizeNursingCandidatePayload(payload: any): NursingCandidate
 
   const buildCanadaExperience = (entry: any): NursingCanadaExperienceEntry => ({
     ...buildExperience(entry),
-    employmentType: cleanString(entry?.employmentType) as NursingCanadaExperienceEntry['employmentType'],
+    employmentType: cleanString(
+      entry?.employmentType
+    ) as NursingCanadaExperienceEntry['employmentType'],
     hoursPerMonth: cleanString(entry?.hoursPerMonth),
   });
 
-  const canadaEmploymentHistory: NursingCanadaExperienceEntry[] = (payload.canadaEmploymentHistory || [])
+  const canadaEmploymentHistory: NursingCanadaExperienceEntry[] = (
+    payload.canadaEmploymentHistory || []
+  )
     .slice(0, 3)
     .map(buildCanadaExperience);
   while (canadaEmploymentHistory.length < 3) {
@@ -181,9 +205,7 @@ export function normalizeNursingCandidatePayload(payload: any): NursingCandidate
     educationDetails,
     registrationDetails: {
       hasDisciplinaryAction: getYesNo(
-        payload.registrationDetails?.hasDisciplinaryAction ??
-          payload.hasDisciplinaryAction ??
-          'No'
+        payload.registrationDetails?.hasDisciplinaryAction ?? payload.hasDisciplinaryAction ?? 'No'
       ),
       entries: registrationEntries,
     },
@@ -226,9 +248,7 @@ export function formatNursingCandidateDocument(data: NursingCandidateFormPayload
   });
 
   lines.push('Section 3: Registration / License Details');
-  lines.push(
-    `• Disciplinary action history: ${data.registrationDetails.hasDisciplinaryAction}`
-  );
+  lines.push(`• Disciplinary action history: ${data.registrationDetails.hasDisciplinaryAction}`);
   data.registrationDetails.entries.forEach((entry, index) => {
     lines.push(`Nursing Registration ${index + 1}`);
     lines.push(`  • Council or licensing body name: ${entry.councilName}`);
@@ -268,4 +288,3 @@ export function formatNursingCandidateDocument(data: NursingCandidateFormPayload
 
   return lines.join('\n');
 }
-

@@ -2,15 +2,23 @@
 
 import { useState } from 'react';
 
-export default function TrendItem({ question, onChange }: { question: any; onChange: (q: any) => void }) {
-  const [tabs, setTabs] = useState(question.trendTabs || {
-    vitals: {},
-    notes: {},
-    labs: {},
-    intakeOutput: {},
-    mar: {},
-    imaging: {},
-  });
+export default function TrendItem({
+  question,
+  onChange,
+}: {
+  question: any;
+  onChange: (q: any) => void;
+}) {
+  const [tabs, setTabs] = useState(
+    question.trendTabs || {
+      vitals: {},
+      notes: {},
+      labs: {},
+      intakeOutput: {},
+      mar: {},
+      imaging: {},
+    }
+  );
 
   const updateTabs = (newTabs: any) => {
     onChange({ ...question, trendTabs: newTabs, correctAnswer: newTabs });
@@ -29,7 +37,8 @@ export default function TrendItem({ question, onChange }: { question: any; onCha
     <div className="space-y-4">
       <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4">
         <p className="text-sm text-blue-300">
-          <strong>Trend Item:</strong> Multi-tab chart review. Students review several tabs (vitals, notes, labs, intake/output, MAR, imaging) and decide nursing priorities.
+          <strong>Trend Item:</strong> Multi-tab chart review. Students review several tabs (vitals,
+          notes, labs, intake/output, MAR, imaging) and decide nursing priorities.
         </p>
       </div>
 
@@ -40,7 +49,11 @@ export default function TrendItem({ question, onChange }: { question: any; onCha
             <div key={tab.key} className="border border-slate-700 rounded-lg p-4 bg-slate-800">
               <h4 className="font-semibold text-slate-200 mb-2">{tab.label}</h4>
               <textarea
-                value={typeof tabs[tab.key] === 'string' ? tabs[tab.key] : JSON.stringify(tabs[tab.key] || {}, null, 2)}
+                value={
+                  typeof tabs[tab.key] === 'string'
+                    ? tabs[tab.key]
+                    : JSON.stringify(tabs[tab.key] || {}, null, 2)
+                }
                 onChange={(e) => {
                   const newTabs = { ...tabs };
                   try {
@@ -61,7 +74,9 @@ export default function TrendItem({ question, onChange }: { question: any; onCha
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-slate-300 mb-2">Nursing Priority Question</label>
+        <label className="block text-sm font-medium text-slate-300 mb-2">
+          Nursing Priority Question
+        </label>
         <textarea
           value={question.question || ''}
           onChange={(e) => onChange({ ...question, question: e.target.value, trendTabs: tabs })}
@@ -73,4 +88,3 @@ export default function TrendItem({ question, onChange }: { question: any; onCha
     </div>
   );
 }
-

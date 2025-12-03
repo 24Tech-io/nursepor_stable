@@ -52,10 +52,7 @@ export async function POST(request: NextRequest) {
 
     // Check if already in wishlist
     const existing = await db.query.wishlist.findFirst({
-      where: and(
-        eq(wishlist.userId, user.id),
-        eq(wishlist.courseId, courseId)
-      ),
+      where: and(eq(wishlist.userId, user.id), eq(wishlist.courseId, courseId)),
     });
 
     if (existing) {
@@ -88,16 +85,12 @@ export async function DELETE(request: NextRequest) {
 
     const { courseId } = await request.json();
 
-    await db.delete(wishlist).where(
-      and(
-        eq(wishlist.userId, user.id),
-        eq(wishlist.courseId, courseId)
-      )
-    );
+    await db
+      .delete(wishlist)
+      .where(and(eq(wishlist.userId, user.id), eq(wishlist.courseId, courseId)));
 
     return NextResponse.json({ success: true, message: 'Removed from wishlist' });
   } catch (error) {
     return NextResponse.json({ error: 'Failed to remove from wishlist' }, { status: 500 });
   }
 }
-

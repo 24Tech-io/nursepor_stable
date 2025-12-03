@@ -27,25 +27,21 @@ export async function POST(request: NextRequest) {
     const existingCourses = await db
       .select()
       .from(courses)
-      .where(
-        or(
-          eq(courses.title, 'Nurse Pro'),
-          eq(courses.title, 'Q-Bank')
-        )
-      );
+      .where(or(eq(courses.title, 'Nurse Pro'), eq(courses.title, 'Q-Bank')));
 
     let course;
-    
+
     if (existingCourses.length > 0) {
       // Use the first existing course
       course = existingCourses[0];
-      
+
       // Update it to ensure it's correct
       await db
         .update(courses)
         .set({
           title: 'Nurse Pro',
-          description: 'Comprehensive nursing education platform with Q-Bank, live reviews, notes, and cheat sheets. Master nursing concepts and prepare for your exams.',
+          description:
+            'Comprehensive nursing education platform with Q-Bank, live reviews, notes, and cheat sheets. Master nursing concepts and prepare for your exams.',
           instructor: 'Nurse Pro Academy',
           pricing: 0, // Free
           status: 'published',
@@ -53,7 +49,7 @@ export async function POST(request: NextRequest) {
           isDefaultUnlocked: false,
         })
         .where(eq(courses.id, course.id));
-      
+
       course = {
         ...course,
         title: 'Nurse Pro',
@@ -66,7 +62,8 @@ export async function POST(request: NextRequest) {
         .insert(courses)
         .values({
           title: 'Nurse Pro',
-          description: 'Comprehensive nursing education platform with Q-Bank, live reviews, notes, and cheat sheets. Master nursing concepts and prepare for your exams.',
+          description:
+            'Comprehensive nursing education platform with Q-Bank, live reviews, notes, and cheat sheets. Master nursing concepts and prepare for your exams.',
           instructor: 'Nurse Pro Academy',
           thumbnail: null,
           pricing: 0, // Free enrollment
@@ -100,11 +97,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Verify the course is in the database and fetch fresh data
-    const verifyCourse = await db
-      .select()
-      .from(courses)
-      .where(eq(courses.id, course.id))
-      .limit(1);
+    const verifyCourse = await db.select().from(courses).where(eq(courses.id, course.id)).limit(1);
 
     // Get all published courses to verify
     const allPublishedCourses = await db
@@ -132,18 +125,23 @@ export async function POST(request: NextRequest) {
       },
       verified: verifyCourse.length > 0,
       publishedCoursesCount: allPublishedCourses.length,
-      allPublishedCourses: allPublishedCourses.map(c => ({
+      allPublishedCourses: allPublishedCourses.map((c) => ({
         id: c.id.toString(),
         title: c.title,
         pricing: c.pricing,
         status: c.status,
       })),
-      allCourses: await db.select().from(courses).then(cs => cs.map(c => ({
-        id: c.id.toString(),
-        title: c.title,
-        pricing: c.pricing,
-        status: c.status,
-      }))),
+      allCourses: await db
+        .select()
+        .from(courses)
+        .then((cs) =>
+          cs.map((c) => ({
+            id: c.id.toString(),
+            title: c.title,
+            pricing: c.pricing,
+            status: c.status,
+          }))
+        ),
     });
   } catch (error: any) {
     console.error('Fix Nurse Pro course error:', error);
@@ -158,13 +156,15 @@ export async function POST(request: NextRequest) {
         message: 'Failed to fix Nurse Pro course',
         error: process.env.NODE_ENV === 'development' ? error.message : undefined,
         stack: process.env.NODE_ENV === 'development' ? error.stack : undefined,
-        details: process.env.NODE_ENV === 'development' ? {
-          name: error.name,
-          code: error.code,
-        } : undefined,
+        details:
+          process.env.NODE_ENV === 'development'
+            ? {
+                name: error.name,
+                code: error.code,
+              }
+            : undefined,
       },
       { status: 500 }
     );
   }
 }
-

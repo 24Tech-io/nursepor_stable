@@ -23,7 +23,9 @@ type Course = {
 
 // Calculate real progress from enrolled courses data
 function calculateRealProgress(courseId: string, enrolledCourses: any[]): number {
-  const enrolledCourse = enrolledCourses.find((ec: any) => String(ec.courseId) === String(courseId));
+  const enrolledCourse = enrolledCourses.find(
+    (ec: any) => String(ec.courseId) === String(courseId)
+  );
   if (enrolledCourse && enrolledCourse.progress !== undefined) {
     return enrolledCourse.progress;
   }
@@ -73,7 +75,7 @@ export default function CoursesPage() {
 
       try {
         setIsLoading(true);
-        
+
         // Fetch courses, enrolled courses with progress, and requests in parallel
         const [coursesResponse, enrolledResponse, requestsResponse] = await Promise.all([
           fetch('/api/student/courses', {
@@ -92,13 +94,13 @@ export default function CoursesPage() {
             cache: 'no-store',
           }),
         ]);
-        
+
         if (!isMounted) return;
-        
+
         if (coursesResponse.ok) {
           const coursesData = await coursesResponse.json();
           setCourses(coursesData.courses || []);
-          
+
           // Extract enrolled course IDs
           const enrolledIds = (coursesData.courses || [])
             .filter((c: Course) => c.isEnrolled)
@@ -134,9 +136,9 @@ export default function CoursesPage() {
         }
       }
     };
-    
+
     fetchData();
-    
+
     // Start sync client for auto-updates with proper cleanup
     const handleSync = (syncData: any) => {
       if (isMounted) {
@@ -147,7 +149,7 @@ export default function CoursesPage() {
 
     syncClient.start();
     syncClient.on('sync', handleSync);
-    
+
     return () => {
       isMounted = false;
       abortController.abort();
@@ -156,27 +158,33 @@ export default function CoursesPage() {
     };
   }, []);
 
-
   const filtered = useMemo(() => {
     const q = query.toLowerCase();
-    return courses.filter(c => [c.title, c.description, c.instructor].some(v => v?.toLowerCase().includes(q)));
+    return courses.filter((c) =>
+      [c.title, c.description, c.instructor].some((v) => v?.toLowerCase().includes(q))
+    );
   }, [courses, query]);
 
-  const enrolled = filtered.filter(c => {
+  const enrolled = filtered.filter((c) => {
     const statusLower = c.status?.toLowerCase();
     return c.isEnrolled && (statusLower === 'published' || statusLower === 'active');
   });
 
-  const requested = filtered.filter(c => {
+  const requested = filtered.filter((c) => {
     const statusLower = c.status?.toLowerCase();
-    return pendingRequestCourseIds.includes(c.id) && (statusLower === 'published' || statusLower === 'active');
+    return (
+      pendingRequestCourseIds.includes(c.id) &&
+      (statusLower === 'published' || statusLower === 'active')
+    );
   });
 
-  const locked = filtered.filter(c => {
+  const locked = filtered.filter((c) => {
     const statusLower = c.status?.toLowerCase();
-    return !c.isEnrolled && 
-           (statusLower === 'published' || statusLower === 'active') &&
-           !pendingRequestCourseIds.includes(c.id);  // Exclude courses with pending requests
+    return (
+      !c.isEnrolled &&
+      (statusLower === 'published' || statusLower === 'active') &&
+      !pendingRequestCourseIds.includes(c.id)
+    ); // Exclude courses with pending requests
   });
 
   function requestAccess(courseId: string) {
@@ -239,11 +247,11 @@ export default function CoursesPage() {
           <p className="mt-2 text-gray-600">Continue where you left off, or explore more.</p>
         </div>
         <div className="w-full max-w-md">
-          <input 
-            value={query} 
-            onChange={e => setQuery(e.target.value)} 
-            placeholder="Search courses" 
-            className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-900 bg-white" 
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search courses"
+            className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-900 bg-white"
           />
         </div>
       </div>
@@ -255,9 +263,10 @@ export default function CoursesPage() {
             onClick={() => setActiveTab('enrolled')}
             className={`
               py-4 px-1 border-b-2 font-medium text-sm transition-colors
-              ${activeTab === 'enrolled'
-                ? 'border-purple-600 text-purple-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              ${
+                activeTab === 'enrolled'
+                  ? 'border-purple-600 text-purple-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               }
             `}
           >
@@ -268,14 +277,15 @@ export default function CoursesPage() {
               </span>
             )}
           </button>
-          
+
           <button
             onClick={() => setActiveTab('requested')}
             className={`
               py-4 px-1 border-b-2 font-medium text-sm transition-colors
-              ${activeTab === 'requested'
-                ? 'border-purple-600 text-purple-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              ${
+                activeTab === 'requested'
+                  ? 'border-purple-600 text-purple-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               }
             `}
           >
@@ -286,14 +296,15 @@ export default function CoursesPage() {
               </span>
             )}
           </button>
-          
+
           <button
             onClick={() => setActiveTab('available')}
             className={`
               py-4 px-1 border-b-2 font-medium text-sm transition-colors
-              ${activeTab === 'available'
-                ? 'border-purple-600 text-purple-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              ${
+                activeTab === 'available'
+                  ? 'border-purple-600 text-purple-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               }
             `}
           >
@@ -310,27 +321,43 @@ export default function CoursesPage() {
       {/* Tab Content */}
       <div className="min-h-[400px]">
         {activeTab === 'enrolled' && (
-      <div>
+          <div>
             <h2 className="text-xl font-bold text-gray-900 mb-4">Enrolled Courses</h2>
-        {enrolled.length ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {enrolled.map(c => (
-                  <CourseCard 
-                    key={c.id} 
-                    course={{...c, modules: c.modules || [], status: c.status as 'draft' | 'published'}} 
-                    isLocked={false} 
-                    progress={calculateRealProgress(c.id, enrolledCoursesData)} 
+            {enrolled.length ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {enrolled.map((c) => (
+                  <CourseCard
+                    key={c.id}
+                    course={{
+                      ...c,
+                      modules: c.modules || [],
+                      status: c.status as 'draft' | 'published',
+                    }}
+                    isLocked={false}
+                    progress={calculateRealProgress(c.id, enrolledCoursesData)}
                   />
-            ))}
-          </div>
-        ) : (
+                ))}
+              </div>
+            ) : (
               <div className="bg-white rounded-2xl shadow-sm p-12 text-center border border-gray-100">
                 <div className="w-20 h-20 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <svg className="w-10 h-10 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                  <svg
+                    className="w-10 h-10 text-purple-600"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
+                    />
                   </svg>
                 </div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">No enrolled courses yet</h3>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                  No enrolled courses yet
+                </h3>
                 <p className="text-gray-600">Check out the available courses to get started!</p>
               </div>
             )}
@@ -342,10 +369,14 @@ export default function CoursesPage() {
             <h2 className="text-xl font-bold text-gray-900 mb-4">Requested Courses</h2>
             {requested.length ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {requested.map(c => (
-                  <CourseCard 
-                    key={c.id} 
-                    course={{...c, modules: c.modules || [], status: c.status as 'draft' | 'published'}} 
+                {requested.map((c) => (
+                  <CourseCard
+                    key={c.id}
+                    course={{
+                      ...c,
+                      modules: c.modules || [],
+                      status: c.status as 'draft' | 'published',
+                    }}
                     isLocked={true}
                     userId={user?.id || undefined}
                     hasPendingRequest={true}
@@ -357,43 +388,67 @@ export default function CoursesPage() {
             ) : (
               <div className="bg-white rounded-2xl shadow-sm p-12 text-center border border-gray-100">
                 <div className="w-20 h-20 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <svg className="w-10 h-10 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  <svg
+                    className="w-10 h-10 text-orange-600"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
                   </svg>
                 </div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">No pending requests</h3>
                 <p className="text-gray-600">Request access to courses from the Available tab</p>
               </div>
-        )}
-      </div>
+            )}
+          </div>
         )}
 
         {activeTab === 'available' && (
-      <div>
+          <div>
             <h2 className="text-xl font-bold text-gray-900 mb-4">Available Courses</h2>
-        {locked.length ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {locked.map(c => (
-              <CourseCard 
-                key={c.id} 
-                course={{...c, modules: c.modules || [], status: c.status as 'draft' | 'published'}} 
-                isLocked={!c.isEnrolled}
-                userId={user?.id || undefined}
-                hasPendingRequest={pendingRequestCourseIds.includes(c.id)}
-                hasApprovedRequest={c.hasApprovedRequest || false}
-                isPublic={c.isPublic || false}
-                onRequestAccess={() => {
-                  // Refresh data after enrollment/request
-                  window.location.reload();
-                }} 
-              />
-            ))}
-          </div>
-        ) : (
+            {locked.length ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {locked.map((c) => (
+                  <CourseCard
+                    key={c.id}
+                    course={{
+                      ...c,
+                      modules: c.modules || [],
+                      status: c.status as 'draft' | 'published',
+                    }}
+                    isLocked={!c.isEnrolled}
+                    userId={user?.id || undefined}
+                    hasPendingRequest={pendingRequestCourseIds.includes(c.id)}
+                    hasApprovedRequest={c.hasApprovedRequest || false}
+                    isPublic={c.isPublic || false}
+                    onRequestAccess={() => {
+                      // Refresh data after enrollment/request
+                      window.location.reload();
+                    }}
+                  />
+                ))}
+              </div>
+            ) : (
               <div className="bg-white rounded-2xl shadow-sm p-12 text-center border border-gray-100">
                 <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <svg className="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  <svg
+                    className="w-10 h-10 text-gray-400"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
                   </svg>
                 </div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">All caught up!</h3>
@@ -409,10 +464,29 @@ export default function CoursesPage() {
           <div className="bg-white rounded-2xl w-full max-w-md p-6 shadow-2xl">
             <h3 className="text-2xl font-bold text-gray-900 mb-2">Request Access</h3>
             <p className="text-gray-600 mb-4">Optionally add a note for the admin.</p>
-            <textarea value={note} onChange={e=>setNote(e.target.value)} rows={4} className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-900 bg-white" placeholder="I'd like to join this course because..." />
+            <textarea
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              rows={4}
+              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-900 bg-white"
+              placeholder="I'd like to join this course because..."
+            />
             <div className="mt-4 flex justify-end gap-3">
-              <button onClick={()=>{setRequestingId(null); setNote('');}} className="px-5 py-3 bg-gray-200 text-gray-700 rounded-xl font-semibold hover:bg-gray-300">Cancel</button>
-              <button onClick={submitRequest} className="px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl font-semibold hover:from-purple-700 hover:to-blue-700">Submit</button>
+              <button
+                onClick={() => {
+                  setRequestingId(null);
+                  setNote('');
+                }}
+                className="px-5 py-3 bg-gray-200 text-gray-700 rounded-xl font-semibold hover:bg-gray-300"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={submitRequest}
+                className="px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl font-semibold hover:from-purple-700 hover:to-blue-700"
+              >
+                Submit
+              </button>
             </div>
           </div>
         </div>

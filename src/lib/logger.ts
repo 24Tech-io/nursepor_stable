@@ -47,10 +47,7 @@ export const logger = winston.createLogger({
   transports: [
     // Console transport
     new winston.transports.Console({
-      format: winston.format.combine(
-        winston.format.colorize(),
-        winston.format.simple()
-      ),
+      format: winston.format.combine(winston.format.colorize(), winston.format.simple()),
     }),
     // Error file transport
     new winston.transports.File({
@@ -145,4 +142,3 @@ export const logPerformance = (operation: string, duration: number, metadata?: a
 };
 
 export default logger;
-

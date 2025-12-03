@@ -28,14 +28,14 @@ export default function AdminDashboard() {
     async function checkAuth() {
       try {
         console.log('🔐 [Dashboard] Starting auth check...');
-        
+
         // Check if we have a redirect flag from login
         const shouldRetry = sessionStorage.getItem('shouldRedirect') === 'true';
         if (shouldRetry) {
           sessionStorage.removeItem('shouldRedirect');
           console.log('✅ [Dashboard] Redirect flag found, waiting for cookie to be set...');
           // Wait a bit for cookie to be set
-          await new Promise(resolve => setTimeout(resolve, 800));
+          await new Promise((resolve) => setTimeout(resolve, 800));
         }
 
         console.log('📍 [Dashboard] Attempt 1: Checking /api/auth/me...');
@@ -45,7 +45,7 @@ export default function AdminDashboard() {
           cache: 'no-store',
           headers: {
             'Content-Type': 'application/json',
-          }
+          },
         });
 
         console.log(`📡 [Dashboard] Attempt 1 response status: ${response.status}`);
@@ -75,8 +75,8 @@ export default function AdminDashboard() {
         // Not authenticated - retry if we just logged in
         if (shouldRetry) {
           console.log('⏳ [Dashboard] First attempt failed, retrying after additional delay...');
-          await new Promise(resolve => setTimeout(resolve, 1500));
-          
+          await new Promise((resolve) => setTimeout(resolve, 1500));
+
           console.log('📍 [Dashboard] Attempt 2: Checking /api/auth/me...');
           const retryResponse = await fetch('/api/auth/me', {
             method: 'GET',
@@ -84,11 +84,11 @@ export default function AdminDashboard() {
             cache: 'no-store',
             headers: {
               'Content-Type': 'application/json',
-            }
+            },
           });
-          
+
           console.log(`📡 [Dashboard] Attempt 2 response status: ${retryResponse.status}`);
-          
+
           if (retryResponse.ok) {
             const retryData = await retryResponse.json();
             console.log('✅ [Dashboard] Retry auth check passed:', retryData.user);
@@ -98,7 +98,10 @@ export default function AdminDashboard() {
               return;
             }
           } else {
-            console.log('❌ [Dashboard] Retry auth check failed with status:', retryResponse.status);
+            console.log(
+              '❌ [Dashboard] Retry auth check failed with status:',
+              retryResponse.status
+            );
             try {
               const errorData = await retryResponse.json();
               console.log('❌ [Dashboard] Error details:', errorData);

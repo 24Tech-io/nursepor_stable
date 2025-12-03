@@ -25,10 +25,7 @@ export async function POST(request: NextRequest) {
     const { questionId, targetCategoryId } = body;
 
     if (!questionId) {
-      return NextResponse.json(
-        { message: 'Question ID is required' },
-        { status: 400 }
-      );
+      return NextResponse.json({ message: 'Question ID is required' }, { status: 400 });
     }
 
     const db = getDatabase();
@@ -41,10 +38,7 @@ export async function POST(request: NextRequest) {
       .limit(1);
 
     if (!originalQuestion) {
-      return NextResponse.json(
-        { message: 'Question not found' },
-        { status: 404 }
-      );
+      return NextResponse.json({ message: 'Question not found' }, { status: 404 });
     }
 
     // Create a clone with new categoryId
@@ -68,7 +62,9 @@ export async function POST(request: NextRequest) {
       })
       .returning();
 
-    console.log(`✅ Question ${questionId} cloned to category ${targetCategoryId || 'Uncategorized'} (New ID: ${clonedQuestion.id})`);
+    console.log(
+      `✅ Question ${questionId} cloned to category ${targetCategoryId || 'Uncategorized'} (New ID: ${clonedQuestion.id})`
+    );
 
     return NextResponse.json({
       message: 'Question cloned successfully',
@@ -86,4 +82,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-

@@ -54,9 +54,6 @@ export async function reviewCode(code: string) {
  * Chat with Gemini about coding questions
  */
 export async function chatWithGemini(question: string, context?: string) {
-  const prompt = context 
-    ? `Context:\n${context}\n\nQuestion:\n${question}`
-    : question;
+  const prompt = context ? `Context:\n${context}\n\nQuestion:\n${question}` : question;
   return getCodeSuggestion(prompt);
 }
-

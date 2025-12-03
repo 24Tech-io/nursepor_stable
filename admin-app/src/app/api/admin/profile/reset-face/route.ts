@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
       entityType: 'admin',
       entityId: decoded.id,
       entityName: 'Face ID Reset',
-      details: { action: 'Face ID enrollment reset' }
+      details: { action: 'Face ID enrollment reset' },
     });
 
     return NextResponse.json({
@@ -56,15 +56,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-
-
-
-
-
-
-
-
-
-
-
-

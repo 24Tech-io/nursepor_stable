@@ -19,17 +19,14 @@ export const VALID_COURSE_STATUSES = ['published', 'active'] as const;
  * Can be used in queries to filter for published/active courses
  */
 export function getPublishedCourseFilter() {
-  return or(
-    eq(courses.status, 'published'),
-    eq(courses.status, 'active')
-  );
+  return or(eq(courses.status, 'published'), eq(courses.status, 'active'));
 }
 
 /**
  * Get enrollment count for a student
  * Queries both studentProgress and enrollments tables
  * Excludes courses with pending requests
- * 
+ *
  * @param studentId - The student's user ID
  * @returns The count of enrolled courses (excluding pending requests)
  */
@@ -43,12 +40,7 @@ export async function getStudentEnrollmentCount(studentId: number): Promise<numb
         courseId: accessRequests.courseId,
       })
       .from(accessRequests)
-      .where(
-        and(
-          eq(accessRequests.studentId, studentId),
-          eq(accessRequests.status, 'pending')
-        )
-      );
+      .where(and(eq(accessRequests.studentId, studentId), eq(accessRequests.status, 'pending')));
 
     const pendingRequestCourseIds = pendingRequests.map((r: any) => r.courseId);
 
@@ -60,12 +52,7 @@ export async function getStudentEnrollmentCount(studentId: number): Promise<numb
         })
         .from(studentProgress)
         .innerJoin(courses, eq(studentProgress.courseId, courses.id))
-        .where(
-          and(
-            eq(studentProgress.studentId, studentId),
-            getPublishedCourseFilter()
-          )
-        ),
+        .where(and(eq(studentProgress.studentId, studentId), getPublishedCourseFilter())),
       db
         .select({
           courseId: enrollments.courseId,
@@ -102,23 +89,25 @@ export async function getStudentEnrollmentCount(studentId: number): Promise<numb
 /**
  * Get enrollment status for all courses for a student
  * Returns enrolled/requested/available status for each course
- * 
+ *
  * @param studentId - The student's user ID
  * @returns Array of enrollment status objects for all courses
  */
-export async function getStudentEnrollmentStatus(studentId: number): Promise<Array<{
-  courseId: number;
-  course: {
-    id: number;
-    title: string;
-    description: string;
-    status: string;
-  };
-  enrollmentStatus: 'enrolled' | 'requested' | 'available';
-  progress: number;
-  lastAccessed: Date | null;
-  requestedAt: Date | null;
-}>> {
+export async function getStudentEnrollmentStatus(studentId: number): Promise<
+  Array<{
+    courseId: number;
+    course: {
+      id: number;
+      title: string;
+      description: string;
+      status: string;
+    };
+    enrollmentStatus: 'enrolled' | 'requested' | 'available';
+    progress: number;
+    lastAccessed: Date | null;
+    requestedAt: Date | null;
+  }>
+> {
   try {
     const db = getDatabase();
 
@@ -150,29 +139,19 @@ export async function getStudentEnrollmentStatus(studentId: number): Promise<Arr
           lastAccessed: enrollments.updatedAt,
         })
         .from(enrollments)
-        .where(
-          and(
-            eq(enrollments.userId, studentId),
-            eq(enrollments.status, 'active')
-          )
-        ),
+        .where(and(eq(enrollments.userId, studentId), eq(enrollments.status, 'active'))),
       db
         .select({
           courseId: accessRequests.courseId,
           requestedAt: accessRequests.requestedAt,
         })
         .from(accessRequests)
-        .where(
-          and(
-            eq(accessRequests.studentId, studentId),
-            eq(accessRequests.status, 'pending')
-          )
-        ),
+        .where(and(eq(accessRequests.studentId, studentId), eq(accessRequests.status, 'pending'))),
     ]);
 
     // Merge enrollment data (prefer enrollments table)
     const enrollmentMap = new Map<number, { progress: number; lastAccessed: Date | null }>();
-    
+
     // Add from enrollments table (preferred source)
     enrolledRecords.forEach((e: any) => {
       enrollmentMap.set(e.courseId, {
@@ -210,12 +189,7 @@ export async function getStudentEnrollmentStatus(studentId: number): Promise<Arr
         requestedAt: accessRequests.requestedAt,
       })
       .from(accessRequests)
-      .where(
-        and(
-          eq(accessRequests.studentId, studentId),
-          eq(accessRequests.status, 'approved')
-        )
-      );
+      .where(and(eq(accessRequests.studentId, studentId), eq(accessRequests.status, 'approved')));
 
     const approvedRequestMap = new Map<number, Date>();
     approvedRequests.forEach((r: any) => {
@@ -256,9 +230,11 @@ export async function getStudentEnrollmentStatus(studentId: number): Promise<Arr
         enrollmentStatus: status,
         progress: progressData?.progress || 0,
         lastAccessed: progressData?.lastAccessed || null,
-        requestedAt: hasPendingRequest 
-          ? pendingRequestMap.get(courseId) || null 
-          : (hasApprovedRequest ? approvedRequestMap.get(courseId) || null : null),
+        requestedAt: hasPendingRequest
+          ? pendingRequestMap.get(courseId) || null
+          : hasApprovedRequest
+            ? approvedRequestMap.get(courseId) || null
+            : null,
       };
     });
 
@@ -271,7 +247,7 @@ export async function getStudentEnrollmentStatus(studentId: number): Promise<Arr
 
 /**
  * Get pending request course IDs for a student
- * 
+ *
  * @param studentId - The student's user ID
  * @returns Array of course IDs with pending requests
  */
@@ -284,12 +260,7 @@ export async function getPendingRequestCourseIds(studentId: number): Promise<num
         courseId: accessRequests.courseId,
       })
       .from(accessRequests)
-      .where(
-        and(
-          eq(accessRequests.studentId, studentId),
-          eq(accessRequests.status, 'pending')
-        )
-      );
+      .where(and(eq(accessRequests.studentId, studentId), eq(accessRequests.status, 'pending')));
 
     return pendingRequests.map((r: any) => r.courseId);
   } catch (error: any) {
@@ -301,7 +272,7 @@ export async function getPendingRequestCourseIds(studentId: number): Promise<num
 /**
  * Get enrolled course IDs for a student (from both tables)
  * Excludes courses with pending requests
- * 
+ *
  * @param studentId - The student's user ID
  * @returns Array of enrolled course IDs
  */
@@ -320,12 +291,7 @@ export async function getEnrolledCourseIds(studentId: number): Promise<number[]>
         })
         .from(studentProgress)
         .innerJoin(courses, eq(studentProgress.courseId, courses.id))
-        .where(
-          and(
-            eq(studentProgress.studentId, studentId),
-            getPublishedCourseFilter()
-          )
-        ),
+        .where(and(eq(studentProgress.studentId, studentId), getPublishedCourseFilter())),
       db
         .select({
           courseId: enrollments.courseId,
@@ -358,4 +324,3 @@ export async function getEnrolledCourseIds(studentId: number): Promise<number[]>
     return [];
   }
 }
-

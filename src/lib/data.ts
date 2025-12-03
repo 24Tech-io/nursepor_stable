@@ -1,4 +1,13 @@
-import { User, Course, BlogPost, AccessRequest, StudentProgress, Achievement, DailyVideo, Notification } from './types'
+import {
+  User,
+  Course,
+  BlogPost,
+  AccessRequest,
+  StudentProgress,
+  Achievement,
+  DailyVideo,
+  Notification,
+} from './types';
 
 export const mockUsers: User[] = [
   {
@@ -10,7 +19,7 @@ export const mockUsers: User[] = [
     isActive: true,
     joinedDate: new Date('2024-01-15'),
     faceIdEnrolled: true,
-    bio: 'Passionate learner exploring web development and design.'
+    bio: 'Passionate learner exploring web development and design.',
   },
   {
     id: '2',
@@ -20,7 +29,7 @@ export const mockUsers: User[] = [
     phone: '+91-9876543211',
     isActive: true,
     joinedDate: new Date('2023-12-01'),
-    faceIdEnrolled: false
+    faceIdEnrolled: false,
   },
   {
     id: '3',
@@ -31,7 +40,7 @@ export const mockUsers: User[] = [
     isActive: true,
     joinedDate: new Date('2024-02-01'),
     faceIdEnrolled: false,
-    bio: 'Full-stack developer with 5 years of experience.'
+    bio: 'Full-stack developer with 5 years of experience.',
   },
   {
     id: '4',
@@ -42,7 +51,7 @@ export const mockUsers: User[] = [
     isActive: false,
     joinedDate: new Date('2024-01-20'),
     faceIdEnrolled: true,
-    bio: 'Data scientist and machine learning enthusiast.'
+    bio: 'Data scientist and machine learning enthusiast.',
   },
   {
     id: '5',
@@ -53,15 +62,16 @@ export const mockUsers: User[] = [
     isActive: true,
     joinedDate: new Date('2024-02-10'),
     faceIdEnrolled: false,
-    bio: 'UI/UX designer passionate about creating beautiful interfaces.'
-  }
-]
+    bio: 'UI/UX designer passionate about creating beautiful interfaces.',
+  },
+];
 
 export const mockCourses: Course[] = [
   {
     id: 'course-1',
     title: 'Introduction to React',
-    description: 'Learn the fundamentals of React, including components, props, state, and hooks. Build your first interactive web applications.',
+    description:
+      'Learn the fundamentals of React, including components, props, state, and hooks. Build your first interactive web applications.',
     instructor: 'Alice Johnson',
     thumbnail: 'https://images.unsplash.com/photo-1633356122544-f134324a6cee?w=400&h=250&fit=crop',
     modules: [
@@ -76,8 +86,8 @@ export const mockCourses: Course[] = [
             url: 'https://www.youtube.com/embed/dQw4w9WgXcQ',
             provider: 'youtube',
             duration: 15,
-            watchedTime: 0
-          }
+            watchedTime: 0,
+          },
         ],
         quizzes: [
           {
@@ -91,30 +101,32 @@ export const mockCourses: Course[] = [
                   a: 'A JavaScript library for building user interfaces',
                   b: 'A programming language',
                   c: 'A database management system',
-                  d: 'A web server'
+                  d: 'A web server',
                 },
                 correctAnswer: 'a',
-                explanation: 'React is a JavaScript library for building user interfaces, particularly for web applications.'
-              }
+                explanation:
+                  'React is a JavaScript library for building user interfaces, particularly for web applications.',
+              },
             ],
             passMark: 70,
             timeLimit: 10,
-            showAnswers: true
-          }
+            showAnswers: true,
+          },
         ],
-        duration: 45
-      }
+        duration: 45,
+      },
     ],
     pricing: 4999,
     status: 'published',
     isRequestable: false,
     createdAt: new Date('2024-01-01'),
-    updatedAt: new Date('2024-02-15')
+    updatedAt: new Date('2024-02-15'),
   },
   {
     id: 'course-2',
     title: 'Advanced TypeScript',
-    description: 'Master TypeScript with advanced concepts like generics, decorators, and type manipulation.',
+    description:
+      'Master TypeScript with advanced concepts like generics, decorators, and type manipulation.',
     instructor: 'Bob Wilson',
     thumbnail: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=400&h=250&fit=crop',
     modules: [
@@ -129,18 +141,18 @@ export const mockCourses: Course[] = [
             url: 'https://www.youtube.com/embed/dQw4w9WgXcQ',
             provider: 'youtube',
             duration: 20,
-            watchedTime: 0
-          }
+            watchedTime: 0,
+          },
         ],
         quizzes: [],
-        duration: 60
-      }
+        duration: 60,
+      },
     ],
     pricing: 7999,
     status: 'published',
     isRequestable: true,
     createdAt: new Date('2024-01-15'),
-    updatedAt: new Date('2024-02-20')
+    updatedAt: new Date('2024-02-20'),
   },
   {
     id: 'course-3',
@@ -153,9 +165,9 @@ export const mockCourses: Course[] = [
     status: 'published',
     isRequestable: true,
     createdAt: new Date('2024-02-01'),
-    updatedAt: new Date('2024-02-25')
-  }
-]
+    updatedAt: new Date('2024-02-25'),
+  },
+];
 
 export const mockBlogPosts: BlogPost[] = [
   {
@@ -195,7 +207,7 @@ export const mockBlogPosts: BlogPost[] = [
     tags: ['nextjs', 'react', 'javascript', 'web-development'],
     status: 'published',
     createdAt: new Date('2024-02-01'),
-    updatedAt: new Date('2024-02-15')
+    updatedAt: new Date('2024-02-15'),
   },
   {
     id: '2',
@@ -231,7 +243,7 @@ export const mockBlogPosts: BlogPost[] = [
     tags: ['css', 'grid', 'layout', 'frontend'],
     status: 'published',
     createdAt: new Date('2024-02-05'),
-    updatedAt: new Date('2024-02-20')
+    updatedAt: new Date('2024-02-20'),
   },
   {
     id: '3',
@@ -269,7 +281,7 @@ closure(); // Logs: "I am from outer scope"</code></pre>
     tags: ['javascript', 'closures', 'programming', 'advanced'],
     status: 'published',
     createdAt: new Date('2024-02-10'),
-    updatedAt: new Date('2024-02-25')
+    updatedAt: new Date('2024-02-25'),
   },
   {
     id: '4',
@@ -308,7 +320,7 @@ app.listen(3000, () => {
     tags: ['nodejs', 'express', 'api', 'backend'],
     status: 'published',
     createdAt: new Date('2024-02-15'),
-    updatedAt: new Date('2024-02-28')
+    updatedAt: new Date('2024-02-28'),
   },
   {
     id: '5',
@@ -346,9 +358,9 @@ app.listen(3000, () => {
     tags: ['machine-learning', 'ai', 'python', 'data-science'],
     status: 'published',
     createdAt: new Date('2024-02-20'),
-    updatedAt: new Date('2024-03-01')
-  }
-]
+    updatedAt: new Date('2024-03-01'),
+  },
+];
 
 export const mockAccessRequests: AccessRequest[] = [
   {
@@ -357,9 +369,10 @@ export const mockAccessRequests: AccessRequest[] = [
     studentName: 'John Doe',
     courseId: 'course-2',
     courseTitle: 'Advanced TypeScript',
-    reason: 'I need this course for my current project at work. I have basic TypeScript knowledge and want to advance my skills.',
+    reason:
+      'I need this course for my current project at work. I have basic TypeScript knowledge and want to advance my skills.',
     status: 'pending',
-    requestedAt: new Date('2024-02-25')
+    requestedAt: new Date('2024-02-25'),
   },
   {
     id: 'req-2',
@@ -371,7 +384,7 @@ export const mockAccessRequests: AccessRequest[] = [
     status: 'approved',
     requestedAt: new Date('2024-02-20'),
     reviewedAt: new Date('2024-02-22'),
-    reviewedBy: 'Jane Smith'
+    reviewedBy: 'Jane Smith',
   },
   {
     id: 'req-3',
@@ -383,9 +396,9 @@ export const mockAccessRequests: AccessRequest[] = [
     status: 'rejected',
     requestedAt: new Date('2024-02-18'),
     reviewedAt: new Date('2024-02-19'),
-    reviewedBy: 'Jane Smith'
-  }
-]
+    reviewedBy: 'Jane Smith',
+  },
+];
 
 export const mockStudentProgress: StudentProgress[] = [
   {
@@ -396,7 +409,7 @@ export const mockStudentProgress: StudentProgress[] = [
     watchedVideos: ['video-1'],
     quizScores: { 'quiz-1': 85 },
     totalProgress: 100,
-    lastAccessed: new Date('2024-02-28')
+    lastAccessed: new Date('2024-02-28'),
   },
   {
     studentId: '3',
@@ -406,9 +419,9 @@ export const mockStudentProgress: StudentProgress[] = [
     watchedVideos: ['video-1'],
     quizScores: {},
     totalProgress: 33,
-    lastAccessed: new Date('2024-02-27')
-  }
-]
+    lastAccessed: new Date('2024-02-27'),
+  },
+];
 
 export const mockAchievements: Achievement[] = [
   {
@@ -417,7 +430,7 @@ export const mockAchievements: Achievement[] = [
     description: 'Completed your first course on the platform',
     icon: '🎓',
     color: 'bg-blue-100 text-blue-600',
-    unlockedAt: new Date('2024-02-01')
+    unlockedAt: new Date('2024-02-01'),
   },
   {
     id: 'ach-2',
@@ -425,7 +438,7 @@ export const mockAchievements: Achievement[] = [
     description: 'Logged in for 5 consecutive days',
     icon: '🔥',
     color: 'bg-orange-100 text-orange-600',
-    unlockedAt: new Date('2024-02-10')
+    unlockedAt: new Date('2024-02-10'),
   },
   {
     id: 'ach-3',
@@ -433,7 +446,7 @@ export const mockAchievements: Achievement[] = [
     description: 'Scored 90% or higher on a quiz',
     icon: '🏆',
     color: 'bg-yellow-100 text-yellow-600',
-    unlockedAt: new Date('2024-02-15')
+    unlockedAt: new Date('2024-02-15'),
   },
   {
     id: 'ach-4',
@@ -441,9 +454,9 @@ export const mockAchievements: Achievement[] = [
     description: 'Completed a daily video before 8 AM',
     icon: '🌅',
     color: 'bg-purple-100 text-purple-600',
-    unlockedAt: new Date('2024-02-05')
-  }
-]
+    unlockedAt: new Date('2024-02-05'),
+  },
+];
 
 export const mockDailyVideos: DailyVideo[] = [
   {
@@ -455,7 +468,7 @@ export const mockDailyVideos: DailyVideo[] = [
     duration: 15,
     day: 1,
     isCompleted: true,
-    completedAt: new Date('2024-02-26')
+    completedAt: new Date('2024-02-26'),
   },
   {
     id: 'daily-2',
@@ -465,9 +478,9 @@ export const mockDailyVideos: DailyVideo[] = [
     provider: 'youtube',
     duration: 12,
     day: 2,
-    isCompleted: false
-  }
-]
+    isCompleted: false,
+  },
+];
 
 export const mockNotifications: Notification[] = [
   {
@@ -476,7 +489,7 @@ export const mockNotifications: Notification[] = [
     message: 'Advanced TypeScript course is now available for enrollment',
     type: 'info',
     read: false,
-    createdAt: new Date('2024-02-25')
+    createdAt: new Date('2024-02-25'),
   },
   {
     id: 'notif-2',
@@ -484,16 +497,17 @@ export const mockNotifications: Notification[] = [
     message: 'Congratulations! You earned the "Quiz Master" achievement',
     type: 'success',
     read: true,
-    createdAt: new Date('2024-02-15')
-  }
-]
+    createdAt: new Date('2024-02-15'),
+  },
+];
 
 // Helper functions
-export const getCourses = () => mockCourses
-export const getStudents = () => mockUsers.filter(user => user.role === 'student')
-export const getBlogPosts = () => mockBlogPosts
-export const getAccessRequests = () => mockAccessRequests
-export const getStudentProgress = (studentId: string) => mockStudentProgress.filter(p => p.studentId === studentId)
-export const getAchievements = () => mockAchievements
-export const getDailyVideos = () => mockDailyVideos
-export const getNotifications = () => mockNotifications
+export const getCourses = () => mockCourses;
+export const getStudents = () => mockUsers.filter((user) => user.role === 'student');
+export const getBlogPosts = () => mockBlogPosts;
+export const getAccessRequests = () => mockAccessRequests;
+export const getStudentProgress = (studentId: string) =>
+  mockStudentProgress.filter((p) => p.studentId === studentId);
+export const getAchievements = () => mockAchievements;
+export const getDailyVideos = () => mockDailyVideos;
+export const getNotifications = () => mockNotifications;

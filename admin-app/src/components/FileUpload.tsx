@@ -18,7 +18,7 @@ export default function FileUpload({
   currentUrl,
   accept,
   maxSizeMB = 10,
-  label
+  label,
 }: FileUploadProps) {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -57,7 +57,7 @@ export default function FileUpload({
     if (!file) return;
 
     setError('');
-    
+
     // Validate file size
     const maxSize = maxSizeMB * 1024 * 1024;
     if (file.size > maxSize) {
@@ -119,10 +119,8 @@ export default function FileUpload({
 
   return (
     <div className="space-y-2">
-      {label && (
-        <label className="block text-xs font-bold text-slate-400 mb-1">{label}</label>
-      )}
-      
+      {label && <label className="block text-xs font-bold text-slate-400 mb-1">{label}</label>}
+
       <div className="relative">
         {preview && type === 'thumbnail' ? (
           <div className="relative group">
@@ -143,11 +141,12 @@ export default function FileUpload({
             onClick={() => fileInputRef.current?.click()}
             className={`
               border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-all
-              ${isUploading
-                ? 'border-purple-500 bg-purple-500/10'
-                : preview
-                ? 'border-slate-700 bg-slate-800/50'
-                : 'border-slate-700 hover:border-purple-500 hover:bg-slate-800/50'
+              ${
+                isUploading
+                  ? 'border-purple-500 bg-purple-500/10'
+                  : preview
+                    ? 'border-slate-700 bg-slate-800/50'
+                    : 'border-slate-700 hover:border-purple-500 hover:bg-slate-800/50'
               }
             `}
           >
@@ -159,7 +158,7 @@ export default function FileUpload({
               className="hidden"
               disabled={isUploading}
             />
-            
+
             {isUploading ? (
               <div className="flex flex-col items-center gap-2">
                 <Loader2 className="animate-spin text-purple-400" size={24} />
@@ -183,7 +182,8 @@ export default function FileUpload({
               <div className="flex flex-col items-center gap-2">
                 {getIcon()}
                 <p className="text-sm text-slate-400">
-                  Click to upload {type === 'thumbnail' ? 'image' : type === 'video' ? 'video' : 'document'}
+                  Click to upload{' '}
+                  {type === 'thumbnail' ? 'image' : type === 'video' ? 'video' : 'document'}
                 </p>
                 <p className="text-xs text-slate-500">Max size: {maxSizeMB}MB</p>
               </div>
@@ -192,20 +192,7 @@ export default function FileUpload({
         )}
       </div>
 
-      {error && (
-        <p className="text-xs text-red-400">{error}</p>
-      )}
+      {error && <p className="text-xs text-red-400">{error}</p>}
     </div>
   );
 }
-
-
-
-
-
-
-
-
-
-
-

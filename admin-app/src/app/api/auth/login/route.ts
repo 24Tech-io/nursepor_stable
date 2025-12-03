@@ -13,9 +13,9 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-    
+
     const { email, password, role } = body;
-    
+
     // Ensure we're authenticating as admin
     if (role && role !== 'admin') {
       return NextResponse.json(
@@ -25,10 +25,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (!email || !password) {
-      return NextResponse.json(
-        { message: 'Email and password are required' },
-        { status: 400 }
-      );
+      return NextResponse.json({ message: 'Email and password are required' }, { status: 400 });
     }
 
     // Check if database is available
@@ -44,7 +41,11 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      console.log('✅ Admin login successful:', { id: user.id, email: user.email, role: user.role });
+      console.log('✅ Admin login successful:', {
+        id: user.id,
+        email: user.email,
+        role: user.role,
+      });
 
       // Generate token with error handling
       let token;
@@ -54,10 +55,10 @@ export async function POST(request: NextRequest) {
       } catch (tokenError: any) {
         console.error('❌ Error generating token:', tokenError);
         return NextResponse.json(
-          { 
+          {
             message: 'Failed to generate authentication token',
             error: process.env.NODE_ENV === 'development' ? tokenError.message : undefined,
-            hint: 'Please check JWT_SECRET configuration'
+            hint: 'Please check JWT_SECRET configuration',
           },
           { status: 500 }
         );
@@ -98,9 +99,9 @@ export async function POST(request: NextRequest) {
       } catch (responseError: any) {
         console.error('❌ Error creating response:', responseError);
         return NextResponse.json(
-          { 
+          {
             message: 'Failed to create login response',
-            error: process.env.NODE_ENV === 'development' ? responseError.message : undefined
+            error: process.env.NODE_ENV === 'development' ? responseError.message : undefined,
           },
           { status: 500 }
         );
@@ -113,10 +114,10 @@ export async function POST(request: NextRequest) {
         hasDatabaseUrl: !!process.env.DATABASE_URL,
       });
       return NextResponse.json(
-        { 
-          message: 'Database connection error', 
+        {
+          message: 'Database connection error',
           error: process.env.NODE_ENV === 'development' ? dbError.message : undefined,
-          hint: 'Please check DATABASE_URL in admin-app/.env.local'
+          hint: 'Please check DATABASE_URL in admin-app/.env.local',
         },
         { status: 500 }
       );
@@ -129,7 +130,7 @@ export async function POST(request: NextRequest) {
       name: error.name,
       hasDatabaseUrl: !!process.env.DATABASE_URL,
     });
-    
+
     // Provide more helpful error messages
     let errorMessage = 'Internal server error';
     if (error.message?.includes('DATABASE_URL') || error.message?.includes('Database')) {
@@ -137,12 +138,12 @@ export async function POST(request: NextRequest) {
     } else if (error.message) {
       errorMessage = error.message;
     }
-    
+
     return NextResponse.json(
-      { 
+      {
         message: errorMessage,
         error: process.env.NODE_ENV === 'development' ? error.message : undefined,
-        hint: process.env.NODE_ENV === 'development' ? 'Check server logs for details' : undefined
+        hint: process.env.NODE_ENV === 'development' ? 'Check server logs for details' : undefined,
       },
       { status: 500 }
     );

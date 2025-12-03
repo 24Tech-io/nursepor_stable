@@ -31,12 +31,7 @@ export class ProgressOperations {
         id: studentProgress.id,
       })
       .from(studentProgress)
-      .where(
-        and(
-          eq(studentProgress.studentId, userId),
-          eq(studentProgress.courseId, courseId)
-        )
-      )
+      .where(and(eq(studentProgress.studentId, userId), eq(studentProgress.courseId, courseId)))
       .limit(1);
 
     if (currentProgress.length === 0) {
@@ -58,12 +53,7 @@ export class ProgressOperations {
     const enrollment = await tx
       .select({ id: enrollments.id, progress: enrollments.progress })
       .from(enrollments)
-      .where(
-        and(
-          eq(enrollments.userId, userId),
-          eq(enrollments.courseId, courseId)
-        )
-      )
+      .where(and(eq(enrollments.userId, userId), eq(enrollments.courseId, courseId)))
       .limit(1);
 
     if (enrollment.length > 0) {
@@ -122,12 +112,7 @@ export class ProgressOperations {
     const progressRecord = await tx
       .select()
       .from(studentProgress)
-      .where(
-        and(
-          eq(studentProgress.studentId, userId),
-          eq(studentProgress.courseId, courseId)
-        )
-      )
+      .where(and(eq(studentProgress.studentId, userId), eq(studentProgress.courseId, courseId)))
       .limit(1);
 
     if (progressRecord.length === 0) {
@@ -155,9 +140,8 @@ export class ProgressOperations {
       .where(eq(modules.courseId, courseId));
 
     const totalChapters = Number(totalChaptersResult[0]?.count || 0);
-    const newProgress = totalChapters > 0
-      ? Math.round((completedChapters.length / totalChapters) * 100)
-      : 0;
+    const newProgress =
+      totalChapters > 0 ? Math.round((completedChapters.length / totalChapters) * 100) : 0;
 
     // Update studentProgress
     await tx
@@ -173,12 +157,7 @@ export class ProgressOperations {
     const enrollment = await tx
       .select({ id: enrollments.id })
       .from(enrollments)
-      .where(
-        and(
-          eq(enrollments.userId, userId),
-          eq(enrollments.courseId, courseId)
-        )
-      )
+      .where(and(eq(enrollments.userId, userId), eq(enrollments.courseId, courseId)))
       .limit(1);
 
     if (enrollment.length > 0) {
@@ -229,12 +208,7 @@ export class ProgressOperations {
     const progressRecord = await tx
       .select()
       .from(studentProgress)
-      .where(
-        and(
-          eq(studentProgress.studentId, userId),
-          eq(studentProgress.courseId, courseId)
-        )
-      )
+      .where(and(eq(studentProgress.studentId, userId), eq(studentProgress.courseId, courseId)))
       .limit(1);
 
     if (progressRecord.length === 0) {
@@ -296,12 +270,7 @@ export class ProgressOperations {
     const progressRecord = await tx
       .select()
       .from(studentProgress)
-      .where(
-        and(
-          eq(studentProgress.studentId, userId),
-          eq(studentProgress.courseId, courseId)
-        )
-      )
+      .where(and(eq(studentProgress.studentId, userId), eq(studentProgress.courseId, courseId)))
       .limit(1);
 
     if (progressRecord.length === 0) {
@@ -333,7 +302,7 @@ export class ProgressOperations {
       .where(eq(modules.courseId, courseId));
 
     const totalChapters = Number(totalChaptersResult[0]?.count || 0);
-    
+
     // Calculate progress based on completed chapters
     let completedChapters: number[] = [];
     try {
@@ -347,9 +316,8 @@ export class ProgressOperations {
       completedChapters.push(chapterId);
     }
 
-    const newProgress = totalChapters > 0
-      ? Math.round((completedChapters.length / totalChapters) * 100)
-      : 0;
+    const newProgress =
+      totalChapters > 0 ? Math.round((completedChapters.length / totalChapters) * 100) : 0;
 
     // Update studentProgress
     await tx
@@ -366,12 +334,7 @@ export class ProgressOperations {
     const enrollment = await tx
       .select({ id: enrollments.id })
       .from(enrollments)
-      .where(
-        and(
-          eq(enrollments.userId, userId),
-          eq(enrollments.courseId, courseId)
-        )
-      )
+      .where(and(eq(enrollments.userId, userId), eq(enrollments.courseId, courseId)))
       .limit(1);
 
     if (enrollment.length > 0) {
@@ -409,4 +372,3 @@ export class ProgressOperations {
     };
   }
 }
-

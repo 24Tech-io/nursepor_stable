@@ -2,7 +2,13 @@
 
 import { useState } from 'react';
 
-export default function MatrixMultipleResponse({ question, onChange }: { question: any; onChange: (q: any) => void }) {
+export default function MatrixMultipleResponse({
+  question,
+  onChange,
+}: {
+  question: any;
+  onChange: (q: any) => void;
+}) {
   const [rows, setRows] = useState(question.matrixData?.rows || ['Option 1', 'Option 2']);
   const [columns, setColumns] = useState(question.matrixData?.columns || ['Yes', 'No']);
   const [responses, setResponses] = useState(question.matrixData?.responses || {});
@@ -16,12 +22,15 @@ export default function MatrixMultipleResponse({ question, onChange }: { questio
     <div className="space-y-4">
       <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4">
         <p className="text-sm text-blue-300">
-          <strong>Matrix Multiple Response:</strong> Create a grid where rows are options and columns are response choices (e.g., Yes/No, Appropriate/Inappropriate).
+          <strong>Matrix Multiple Response:</strong> Create a grid where rows are options and
+          columns are response choices (e.g., Yes/No, Appropriate/Inappropriate).
         </p>
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-slate-300 mb-2">Row Options (Items to evaluate)</label>
+        <label className="block text-sm font-medium text-slate-300 mb-2">
+          Row Options (Items to evaluate)
+        </label>
         {rows.map((row: string, idx: number) => (
           <input
             key={idx}
@@ -77,14 +86,21 @@ export default function MatrixMultipleResponse({ question, onChange }: { questio
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-slate-300 mb-2">Matrix Preview & Correct Answers</label>
+        <label className="block text-sm font-medium text-slate-300 mb-2">
+          Matrix Preview & Correct Answers
+        </label>
         <div className="border border-slate-700 rounded-lg overflow-hidden bg-[#11131a]">
           <table className="w-full">
             <thead>
               <tr className="bg-slate-800">
                 <th className="px-4 py-2 text-left text-sm font-medium text-slate-300">Item</th>
                 {columns.map((col: string, idx: number) => (
-                  <th key={idx} className="px-4 py-2 text-center text-sm font-medium text-slate-300">{col}</th>
+                  <th
+                    key={idx}
+                    className="px-4 py-2 text-center text-sm font-medium text-slate-300"
+                  >
+                    {col}
+                  </th>
                 ))}
               </tr>
             </thead>
@@ -119,4 +135,3 @@ export default function MatrixMultipleResponse({ question, onChange }: { questio
     </div>
   );
 }
-

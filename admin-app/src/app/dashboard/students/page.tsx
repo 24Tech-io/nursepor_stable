@@ -14,14 +14,3 @@ export default function StudentsPage() {
     </NotificationProvider>
   );
 }
-
-
-
-
-
-
-
-
-
-
-

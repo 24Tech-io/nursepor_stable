@@ -10,14 +10,3 @@ export default function CoursesPage() {
     </NotificationProvider>
   );
 }
-
-
-
-
-
-
-
-
-
-
-

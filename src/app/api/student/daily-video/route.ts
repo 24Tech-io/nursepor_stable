@@ -35,33 +35,28 @@ export async function GET(request: NextRequest) {
         chapterTitle: chapters.title,
         chapterVideoUrl: chapters.videoUrl,
         chapterVideoProvider: chapters.videoProvider,
-        chapterVideoDuration: chapters.videoDuration
+        chapterVideoDuration: chapters.videoDuration,
       })
       .from(dailyVideos)
       .innerJoin(chapters, eq(dailyVideos.chapterId, chapters.id))
-      .where(
-        and(
-          eq(dailyVideos.day, dayOfYear),
-          eq(dailyVideos.isActive, true)
-        )
-      )
+      .where(and(eq(dailyVideos.day, dayOfYear), eq(dailyVideos.isActive, true)))
       .limit(1);
 
     if (todayVideo.length === 0) {
       return NextResponse.json({
         message: 'No daily video available for today',
-        video: null
+        video: null,
       });
     }
 
     const videoData = todayVideo[0];
-    
+
     // Parse metadata from description (stored as JSON)
     let videoUrl = videoData.chapterVideoUrl;
     let videoProvider = videoData.chapterVideoProvider || 'youtube';
     let videoDuration = videoData.chapterVideoDuration;
     let description = videoData.description || '';
-    
+
     try {
       const parsedDesc = JSON.parse(videoData.description || '{}');
       if (parsedDesc.metadata) {
@@ -81,7 +76,7 @@ export async function GET(request: NextRequest) {
       videoUrl,
       videoProvider,
       videoDuration,
-      description
+      description,
     };
 
     // Check if user has watched it
@@ -89,10 +84,7 @@ export async function GET(request: NextRequest) {
       .select()
       .from(videoProgress)
       .where(
-        and(
-          eq(videoProgress.userId, decoded.id),
-          eq(videoProgress.chapterId, video.chapterId)
-        )
+        and(eq(videoProgress.userId, decoded.id), eq(videoProgress.chapterId, video.chapterId))
       )
       .limit(1);
 
@@ -106,15 +98,18 @@ export async function GET(request: NextRequest) {
         completed: progress.length > 0 ? progress[0].completed : false,
         watchedPercentage: progress.length > 0 ? progress[0].watchedPercentage : 0,
         availableUntil: endOfDay.toISOString(),
-        hoursRemaining: Math.ceil((endOfDay.getTime() - today.getTime()) / (1000 * 60 * 60))
-      }
+        hoursRemaining: Math.ceil((endOfDay.getTime() - today.getTime()) / (1000 * 60 * 60)),
+      },
     });
   } catch (error) {
     console.error('Get daily video error:', error);
-    return NextResponse.json({
-      message: 'Internal server error',
-      error: process.env.NODE_ENV === 'development' ? String(error) : undefined
-    }, { status: 500 });
+    return NextResponse.json(
+      {
+        message: 'Internal server error',
+        error: process.env.NODE_ENV === 'development' ? String(error) : undefined,
+      },
+      { status: 500 }
+    );
   }
 }
 
@@ -143,10 +138,7 @@ export async function POST(request: NextRequest) {
       .select()
       .from(videoProgress)
       .where(
-        and(
-          eq(videoProgress.userId, decoded.id),
-          eq(videoProgress.chapterId, parseInt(chapterId))
-        )
+        and(eq(videoProgress.userId, decoded.id), eq(videoProgress.chapterId, parseInt(chapterId)))
       )
       .limit(1);
 
@@ -156,7 +148,7 @@ export async function POST(request: NextRequest) {
         .set({
           completed: true,
           watchedPercentage: 100,
-          lastWatchedAt: new Date()
+          lastWatchedAt: new Date(),
         })
         .where(eq(videoProgress.id, existing[0].id));
     } else {
@@ -166,19 +158,22 @@ export async function POST(request: NextRequest) {
         currentTime: 0,
         duration: 0,
         watchedPercentage: 100,
-        completed: true
+        completed: true,
       });
     }
 
     return NextResponse.json({
       message: 'Daily video marked as complete',
-      completed: true
+      completed: true,
     });
   } catch (error) {
     console.error('Mark daily video complete error:', error);
-    return NextResponse.json({
-      message: 'Internal server error',
-      error: process.env.NODE_ENV === 'development' ? String(error) : undefined
-    }, { status: 500 });
+    return NextResponse.json(
+      {
+        message: 'Internal server error',
+        error: process.env.NODE_ENV === 'development' ? String(error) : undefined,
+      },
+      { status: 500 }
+    );
   }
 }

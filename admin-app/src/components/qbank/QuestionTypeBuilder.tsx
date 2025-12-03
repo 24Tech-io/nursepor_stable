@@ -12,7 +12,7 @@ import TrendItem from './TrendItem';
 import RankingItem from './RankingItem';
 import CaseStudy from './CaseStudy';
 
-type QuestionFormat = 
+type QuestionFormat =
   | 'matrix_multiple_response'
   | 'select_n'
   | 'sata'
@@ -31,7 +31,11 @@ interface QuestionTypeBuilderProps {
   onChange: (question: any) => void;
 }
 
-export default function QuestionTypeBuilder({ format, question, onChange }: QuestionTypeBuilderProps) {
+export default function QuestionTypeBuilder({
+  format,
+  question,
+  onChange,
+}: QuestionTypeBuilderProps) {
   switch (format) {
     case 'matrix_multiple_response':
       return <MatrixMultipleResponse question={question} onChange={onChange} />;
@@ -76,7 +80,10 @@ function MultipleChoice({ question, onChange }: { question: any; onChange: (q: a
         </label>
         <div className="space-y-3">
           {options.map((opt: string, idx: number) => (
-            <div key={idx} className="flex items-center gap-3 p-3 bg-[#11131a] border border-slate-800/50 rounded-lg hover:border-slate-700 transition-colors">
+            <div
+              key={idx}
+              className="flex items-center gap-3 p-3 bg-[#11131a] border border-slate-800/50 rounded-lg hover:border-slate-700 transition-colors"
+            >
               <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-600/20 to-pink-600/20 border border-purple-500/30 flex items-center justify-center text-xs font-bold text-purple-300">
                 {String.fromCharCode(65 + idx)}
               </div>
@@ -94,7 +101,12 @@ function MultipleChoice({ question, onChange }: { question: any; onChange: (q: a
                 <button
                   onClick={() => {
                     const newOptions = options.filter((_: string, i: number) => i !== idx);
-                    const newCorrect = idx === correctAnswer ? 0 : (idx < correctAnswer ? correctAnswer - 1 : correctAnswer);
+                    const newCorrect =
+                      idx === correctAnswer
+                        ? 0
+                        : idx < correctAnswer
+                          ? correctAnswer - 1
+                          : correctAnswer;
                     setCorrectAnswer(newCorrect);
                     setOptions(newOptions);
                     onChange({ ...question, options: newOptions, correctAnswer: newCorrect });
@@ -143,4 +155,3 @@ function MultipleChoice({ question, onChange }: { question: any; onChange: (q: a
     </div>
   );
 }
-

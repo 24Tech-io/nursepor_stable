@@ -107,9 +107,7 @@ export default function VideoUploadModal({ onClose, onSave }: VideoUploadModalPr
                   placeholder="https://www.youtube.com/watch?v=... or https://vimeo.com/..."
                   className="w-full px-4 py-2 bg-[#1a1d26] border border-slate-800 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-purple-500"
                 />
-                <p className="text-xs text-slate-500 mt-2">
-                  Supports YouTube and Vimeo URLs
-                </p>
+                <p className="text-xs text-slate-500 mt-2">Supports YouTube and Vimeo URLs</p>
               </div>
             ) : (
               <div>
@@ -142,11 +140,3 @@ export default function VideoUploadModal({ onClose, onSave }: VideoUploadModalPr
     </div>
   );
 }
-
-
-
-
-
-
-
-

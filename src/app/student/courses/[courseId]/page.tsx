@@ -45,19 +45,19 @@ export default function CourseDetailPage({ params }: { params: { courseId: strin
 
   const fetchProgress = async () => {
     try {
-      const response = await fetch('/api/student/progress', { 
+      const response = await fetch('/api/student/progress', {
         credentials: 'include',
         cache: 'no-store',
       });
       if (response.ok) {
         const data = await response.json();
         // Convert array of chapter IDs to Set of numbers
-        const chapterIds = Array.isArray(data.completedChapters) 
+        const chapterIds = Array.isArray(data.completedChapters)
           ? data.completedChapters.map((id: any) => Number(id))
           : [];
-        
+
         // Merge with existing state to avoid overwriting recent updates
-        setCompletedChapters(prev => {
+        setCompletedChapters((prev) => {
           const newSet = new Set(prev);
           chapterIds.forEach((id: number) => newSet.add(id));
           console.log('✅ Progress fetched and merged, completed chapters:', Array.from(newSet));
@@ -137,13 +137,21 @@ export default function CourseDetailPage({ params }: { params: { courseId: strin
       case 'mcq':
         return (
           <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-            <path fillRule="evenodd" d="M6 2a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V7.414A2 2 0 0015.414 6L12 2.586A2 2 0 0010.586 2H6zm5 6a1 1 0 10-2 0v3.586l-1.293-1.293a1 1 0 10-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 11.586V8z" clipRule="evenodd" />
+            <path
+              fillRule="evenodd"
+              d="M6 2a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V7.414A2 2 0 0015.414 6L12 2.586A2 2 0 0010.586 2H6zm5 6a1 1 0 10-2 0v3.586l-1.293-1.293a1 1 0 10-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 11.586V8z"
+              clipRule="evenodd"
+            />
           </svg>
         );
       default:
         return (
           <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-            <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clipRule="evenodd" />
+            <path
+              fillRule="evenodd"
+              d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z"
+              clipRule="evenodd"
+            />
           </svg>
         );
     }
@@ -162,7 +170,12 @@ export default function CourseDetailPage({ params }: { params: { courseId: strin
           className="text-purple-600 hover:text-purple-700 font-medium flex items-center gap-2 mb-4"
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M15 19l-7-7 7-7"
+            />
           </svg>
           Back to Courses
         </Link>
@@ -193,8 +206,18 @@ export default function CourseDetailPage({ params }: { params: { courseId: strin
       <div className="space-y-4">
         {modules.length === 0 ? (
           <div className="bg-white rounded-2xl shadow-sm p-12 text-center border border-gray-100">
-            <svg className="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            <svg
+              className="w-16 h-16 text-gray-400 mx-auto mb-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+              />
             </svg>
             <h3 className="text-xl font-semibold text-gray-900 mb-2">No modules yet</h3>
             <p className="text-gray-600">This course content is being prepared. Check back soon!</p>
@@ -226,13 +249,19 @@ export default function CourseDetailPage({ params }: { params: { courseId: strin
                   </div>
                 </div>
                 <svg
-                  className={`w-6 h-6 text-gray-400 transition-transform ${expandedModules.has(module.id) ? 'rotate-180' : ''
-                    }`}
+                  className={`w-6 h-6 text-gray-400 transition-transform ${
+                    expandedModules.has(module.id) ? 'rotate-180' : ''
+                  }`}
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
                 >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M19 9l-7 7-7-7"
+                  />
                 </svg>
               </button>
 
@@ -246,17 +275,17 @@ export default function CourseDetailPage({ params }: { params: { courseId: strin
                       // Ensure we compare numbers with numbers
                       const chapterIdNum = Number(chapter.id);
                       const isCompleted = completedChapters.has(chapterIdNum);
-                      
+
                       // Debug logging
                       if (chapterIndex === 0) {
                         console.log('🔍 Chapter check:', {
                           chapterId: chapter.id,
                           chapterIdNum,
                           completedChapters: Array.from(completedChapters),
-                          isCompleted
+                          isCompleted,
                         });
                       }
-                      
+
                       return (
                         <button
                           key={chapter.id}
@@ -280,8 +309,18 @@ export default function CourseDetailPage({ params }: { params: { courseId: strin
                             {getChapterIcon(chapter.type)}
                             {isCompleted && (
                               <div className="absolute -top-1 -right-1 w-5 h-5 bg-green-500 rounded-full flex items-center justify-center border-2 border-white shadow-lg">
-                                <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                <svg
+                                  className="w-3 h-3 text-white"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={3}
+                                    d="M5 13l4 4L19 7"
+                                  />
                                 </svg>
                               </div>
                             )}
@@ -291,8 +330,18 @@ export default function CourseDetailPage({ params }: { params: { courseId: strin
                               <h4 className="font-semibold text-gray-900">{chapter.title}</h4>
                               {isCompleted && (
                                 <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs font-semibold rounded-full flex items-center gap-1">
-                                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                  <svg
+                                    className="w-3 h-3"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth={2}
+                                      d="M5 13l4 4L19 7"
+                                    />
                                   </svg>
                                   Completed
                                 </span>
@@ -306,15 +355,29 @@ export default function CourseDetailPage({ params }: { params: { courseId: strin
                                 {chapter.type}
                               </span>
                               {chapter.videoDuration && (
-                                <span className="text-xs text-gray-500">{chapter.videoDuration} min</span>
+                                <span className="text-xs text-gray-500">
+                                  {chapter.videoDuration} min
+                                </span>
                               )}
                               {chapter.readingTime && (
-                                <span className="text-xs text-gray-500">{chapter.readingTime} min read</span>
+                                <span className="text-xs text-gray-500">
+                                  {chapter.readingTime} min read
+                                </span>
                               )}
                             </div>
                           </div>
-                          <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                          <svg
+                            className="w-5 h-5 text-gray-400"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M9 5l7 7-7 7"
+                            />
                           </svg>
                         </button>
                       );
@@ -338,8 +401,18 @@ export default function CourseDetailPage({ params }: { params: { courseId: strin
                 onClick={() => setSelectedChapter(null)}
                 className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
               >
-                <svg className="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                <svg
+                  className="w-6 h-6 text-gray-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
                 </svg>
               </button>
             </div>
@@ -384,9 +457,12 @@ export default function CourseDetailPage({ params }: { params: { courseId: strin
                   <button
                     onClick={async () => {
                       try {
-                        const response = await fetch(`/api/student/quizzes/chapter/${selectedChapter.id}`, {
-                          credentials: 'include',
-                        });
+                        const response = await fetch(
+                          `/api/student/quizzes/chapter/${selectedChapter.id}`,
+                          {
+                            credentials: 'include',
+                          }
+                        );
                         if (response.ok) {
                           const data = await response.json();
                           router.push(`/student/quizzes/${data.quiz.id}`);
@@ -414,7 +490,7 @@ export default function CourseDetailPage({ params }: { params: { courseId: strin
               <button
                 onClick={async () => {
                   if (!selectedChapter || !course) return;
-                  
+
                   try {
                     const response = await fetch('/api/student/chapters/complete', {
                       method: 'POST',
@@ -429,24 +505,24 @@ export default function CourseDetailPage({ params }: { params: { courseId: strin
                     if (response.ok) {
                       const result = await response.json();
                       console.log('✅ Chapter marked complete:', result);
-                      
+
                       // Update local state to show checkmark immediately
                       const chapterIdNum = Number(selectedChapter.id);
                       console.log('📝 Adding chapter ID to completed set:', chapterIdNum);
-                      
-                      setCompletedChapters(prev => {
+
+                      setCompletedChapters((prev) => {
                         const newSet = new Set(prev);
                         newSet.add(chapterIdNum);
                         console.log('✅ Updated completed chapters set:', Array.from(newSet));
                         return newSet;
                       });
-                      
+
                       // Close modal first so UI updates are visible
                       setSelectedChapter(null);
-                      
+
                       // Show success feedback
                       alert('Chapter marked as complete! ✓');
-                      
+
                       // Refresh progress data after a short delay to ensure sync
                       setTimeout(async () => {
                         console.log('🔄 Refreshing progress data...');
@@ -464,7 +540,12 @@ export default function CourseDetailPage({ params }: { params: { courseId: strin
                 className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white py-3 rounded-xl font-semibold hover:from-purple-700 hover:to-blue-700 transition-all flex items-center justify-center gap-2"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M5 13l4 4L19 7"
+                  />
                 </svg>
                 Mark as Complete & Continue
               </button>

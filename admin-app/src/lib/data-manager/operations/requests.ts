@@ -70,14 +70,16 @@ export class RequestOperations {
       courseId: requestData.courseId,
       reason,
       metadata: {
-        enrollmentCreated: enrollmentResult.studentProgressCreated || enrollmentResult.enrollmentCreated,
+        enrollmentCreated:
+          enrollmentResult.studentProgressCreated || enrollmentResult.enrollmentCreated,
       },
     };
     dataManager.emitEvent(event);
 
     return {
       approved: true,
-      enrollmentCreated: enrollmentResult.studentProgressCreated || enrollmentResult.enrollmentCreated,
+      enrollmentCreated:
+        enrollmentResult.studentProgressCreated || enrollmentResult.enrollmentCreated,
     };
   }
 
@@ -157,11 +159,7 @@ export class RequestOperations {
     }
 
     // Validate course exists
-    const course = await tx
-      .select()
-      .from(courses)
-      .where(eq(courses.id, courseId))
-      .limit(1);
+    const course = await tx.select().from(courses).where(eq(courses.id, courseId)).limit(1);
 
     if (course.length === 0) {
       throw new Error(`Course ${courseId} does not exist`);
@@ -181,7 +179,9 @@ export class RequestOperations {
       .limit(1);
 
     if (existingRequest.length > 0) {
-      throw new Error(`Pending request already exists for student ${studentId} and course ${courseId}`);
+      throw new Error(
+        `Pending request already exists for student ${studentId} and course ${courseId}`
+      );
     }
 
     // Create request
@@ -210,4 +210,3 @@ export class RequestOperations {
     return { requestId: newRequest.id };
   }
 }
-

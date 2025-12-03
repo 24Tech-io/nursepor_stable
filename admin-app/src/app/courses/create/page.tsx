@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { getAdminUser } from '@/lib/auth-client';
 import QuestionTypeBuilder from '@/components/qbank/QuestionTypeBuilder';
 
-type QuestionFormat = 
+type QuestionFormat =
   | 'matrix_multiple_response'
   | 'select_n'
   | 'sata'
@@ -34,7 +34,7 @@ export default function CreateCoursePage() {
   const [activeTab, setActiveTab] = useState<'course' | 'qbank'>('course');
   const [courseId, setCourseId] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
-  
+
   // Course form state
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -42,10 +42,11 @@ export default function CreateCoursePage() {
   const [thumbnail, setThumbnail] = useState('');
   const [pricing, setPricing] = useState('');
   const [status, setStatus] = useState('draft');
-  
+
   // Q-Bank state
   const [questions, setQuestions] = useState<Question[]>([]);
-  const [selectedQuestionFormat, setSelectedQuestionFormat] = useState<QuestionFormat>('multiple_choice');
+  const [selectedQuestionFormat, setSelectedQuestionFormat] =
+    useState<QuestionFormat>('multiple_choice');
   const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
 
   useEffect(() => {
@@ -117,14 +118,14 @@ export default function CreateCoursePage() {
   };
 
   const updateQuestion = (id: string, updates: Partial<Question>) => {
-    setQuestions(questions.map(q => q.id === id ? { ...q, ...updates } : q));
+    setQuestions(questions.map((q) => (q.id === id ? { ...q, ...updates } : q)));
     if (editingQuestion?.id === id) {
       setEditingQuestion({ ...editingQuestion, ...updates });
     }
   };
 
   const deleteQuestion = (id: string) => {
-    setQuestions(questions.filter(q => q.id !== id));
+    setQuestions(questions.filter((q) => q.id !== id));
     if (editingQuestion?.id === id) {
       setEditingQuestion(null);
     }
@@ -136,7 +137,7 @@ export default function CreateCoursePage() {
 
     try {
       let course;
-      
+
       if (isEditing && courseId) {
         // Update existing course
         const courseResponse = await fetch(`/api/courses/${courseId}`, {
@@ -206,7 +207,9 @@ export default function CreateCoursePage() {
 
       router.push('/courses');
     } catch (error: any) {
-      alert(`Failed to ${isEditing ? 'update' : 'create'} course: ` + (error.message || 'Unknown error'));
+      alert(
+        `Failed to ${isEditing ? 'update' : 'create'} course: ` + (error.message || 'Unknown error')
+      );
     } finally {
       setIsLoading(false);
     }
@@ -233,7 +236,10 @@ export default function CreateCoursePage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-4">
-              <Link href="/courses" className="text-xl font-bold text-gray-900 hover:text-purple-600 transition">
+              <Link
+                href="/courses"
+                className="text-xl font-bold text-gray-900 hover:text-purple-600 transition"
+              >
                 ← Back to Courses
               </Link>
             </div>
@@ -247,7 +253,9 @@ export default function CreateCoursePage() {
             {isEditing ? 'Edit Course' : 'Create New Course'}
           </h1>
           <p className="text-gray-600">
-            {isEditing ? 'Update course details and Q-Bank' : 'Build a course with integrated NGN Q-Bank'}
+            {isEditing
+              ? 'Update course details and Q-Bank'
+              : 'Build a course with integrated NGN Q-Bank'}
           </p>
         </div>
 
@@ -281,9 +289,7 @@ export default function CreateCoursePage() {
           {activeTab === 'course' && (
             <div className="bg-white rounded-2xl shadow-lg p-8 border border-gray-200 space-y-6">
               <div>
-                <label className="block text-sm font-bold text-gray-700 mb-2">
-                  Course Title *
-                </label>
+                <label className="block text-sm font-bold text-gray-700 mb-2">Course Title *</label>
                 <input
                   type="text"
                   required
@@ -295,9 +301,7 @@ export default function CreateCoursePage() {
               </div>
 
               <div>
-                <label className="block text-sm font-bold text-gray-700 mb-2">
-                  Description *
-                </label>
+                <label className="block text-sm font-bold text-gray-700 mb-2">Description *</label>
                 <textarea
                   required
                   value={description}
@@ -310,9 +314,7 @@ export default function CreateCoursePage() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-2">
-                    Instructor *
-                  </label>
+                  <label className="block text-sm font-bold text-gray-700 mb-2">Instructor *</label>
                   <input
                     type="text"
                     required
@@ -324,9 +326,7 @@ export default function CreateCoursePage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-2">
-                    Pricing (₹)
-                  </label>
+                  <label className="block text-sm font-bold text-gray-700 mb-2">Pricing (₹)</label>
                   <input
                     type="number"
                     value={pricing}
@@ -354,9 +354,7 @@ export default function CreateCoursePage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-2">
-                    Status
-                  </label>
+                  <label className="block text-sm font-bold text-gray-700 mb-2">Status</label>
                   <select
                     value={status}
                     onChange={(e) => setStatus(e.target.value)}
@@ -396,14 +394,16 @@ export default function CreateCoursePage() {
                   onClick={addQuestion}
                   className="px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl font-bold hover:from-purple-700 hover:to-pink-700 transition shadow-lg hover:shadow-xl transform hover:scale-105"
                 >
-                  + Add {questionFormats.find(f => f.value === selectedQuestionFormat)?.label}
+                  + Add {questionFormats.find((f) => f.value === selectedQuestionFormat)?.label}
                 </button>
               </div>
 
               {/* Questions List */}
               {questions.length > 0 && (
                 <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-200">
-                  <h3 className="text-xl font-bold text-gray-900 mb-4">Questions ({questions.length})</h3>
+                  <h3 className="text-xl font-bold text-gray-900 mb-4">
+                    Questions ({questions.length})
+                  </h3>
                   <div className="space-y-4">
                     {questions.map((q) => (
                       <div
@@ -417,16 +417,20 @@ export default function CreateCoursePage() {
                         <div className="flex items-start justify-between mb-2">
                           <div className="flex-1">
                             <span className="text-xs font-bold text-purple-600 bg-purple-100 px-2 py-1 rounded">
-                              {questionFormats.find(f => f.value === q.format)?.label}
+                              {questionFormats.find((f) => f.value === q.format)?.label}
                             </span>
                             {q.question && (
-                              <p className="mt-2 text-gray-900 font-medium line-clamp-2">{q.question}</p>
+                              <p className="mt-2 text-gray-900 font-medium line-clamp-2">
+                                {q.question}
+                              </p>
                             )}
                           </div>
                           <div className="flex space-x-2">
                             <button
                               type="button"
-                              onClick={() => setEditingQuestion(editingQuestion?.id === q.id ? null : q)}
+                              onClick={() =>
+                                setEditingQuestion(editingQuestion?.id === q.id ? null : q)
+                              }
                               className="px-3 py-1 text-sm font-medium text-purple-600 hover:bg-purple-100 rounded-lg transition"
                             >
                               {editingQuestion?.id === q.id ? 'Collapse' : 'Edit'}
@@ -444,20 +448,28 @@ export default function CreateCoursePage() {
                           <div className="mt-4 pt-4 border-t border-gray-200">
                             <div className="space-y-4">
                               <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">Question Text *</label>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                  Question Text *
+                                </label>
                                 <textarea
                                   value={editingQuestion.question}
-                                  onChange={(e) => updateQuestion(q.id, { question: e.target.value })}
+                                  onChange={(e) =>
+                                    updateQuestion(q.id, { question: e.target.value })
+                                  }
                                   rows={3}
                                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
                                   placeholder="Enter question text..."
                                 />
                               </div>
                               <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">Explanation</label>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                  Explanation
+                                </label>
                                 <textarea
                                   value={editingQuestion.explanation || ''}
-                                  onChange={(e) => updateQuestion(q.id, { explanation: e.target.value })}
+                                  onChange={(e) =>
+                                    updateQuestion(q.id, { explanation: e.target.value })
+                                  }
                                   rows={2}
                                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
                                   placeholder="Explanation for the answer..."
@@ -492,7 +504,13 @@ export default function CreateCoursePage() {
               disabled={isLoading || !title || !description || !instructor}
               className="px-8 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl font-bold hover:from-purple-700 hover:to-pink-700 transition shadow-lg hover:shadow-xl transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
             >
-              {isLoading ? (isEditing ? 'Updating...' : 'Creating...') : (isEditing ? 'Update Course' : 'Create Course')}
+              {isLoading
+                ? isEditing
+                  ? 'Updating...'
+                  : 'Creating...'
+                : isEditing
+                  ? 'Update Course'
+                  : 'Create Course'}
             </button>
           </div>
         </form>

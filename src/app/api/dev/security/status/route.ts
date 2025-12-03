@@ -46,10 +46,6 @@ export async function GET(request: NextRequest) {
       timestamp: new Date().toISOString(),
     });
   } catch (error) {
-    return NextResponse.json(
-      { error: 'Failed to retrieve security status' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Failed to retrieve security status' }, { status: 500 });
   }
 }
-

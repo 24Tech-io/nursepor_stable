@@ -83,4 +83,3 @@ export interface EventData {
   metadata?: any;
   timestamp: Date;
 }
-

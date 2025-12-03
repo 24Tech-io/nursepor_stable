@@ -4,10 +4,7 @@ import { getDatabase } from '@/lib/db';
 import { qbankCategories, qbankQuestions } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: { categoryId: string } }
-) {
+export async function PATCH(request: NextRequest, { params }: { params: { categoryId: string } }) {
   try {
     const token = request.cookies.get('adminToken')?.value;
 
@@ -40,10 +37,7 @@ export async function PATCH(
       .returning();
 
     if (!updatedCategory) {
-      return NextResponse.json(
-        { message: 'Category not found' },
-        { status: 404 }
-      );
+      return NextResponse.json({ message: 'Category not found' }, { status: 404 });
     }
 
     return NextResponse.json({ category: updatedCategory });
@@ -56,10 +50,7 @@ export async function PATCH(
   }
 }
 
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: { categoryId: string } }
-) {
+export async function DELETE(request: NextRequest, { params }: { params: { categoryId: string } }) {
   try {
     const token = request.cookies.get('adminToken')?.value;
 
@@ -83,17 +74,15 @@ export async function DELETE(
 
     if (questions.length > 0) {
       return NextResponse.json(
-        { 
+        {
           message: `Cannot delete category with ${questions.length} questions. Move or delete questions first.`,
-          questionCount: questions.length
+          questionCount: questions.length,
         },
         { status: 400 }
       );
     }
 
-    await db
-      .delete(qbankCategories)
-      .where(eq(qbankCategories.id, categoryId));
+    await db.delete(qbankCategories).where(eq(qbankCategories.id, categoryId));
 
     return NextResponse.json({ message: 'Category deleted successfully' });
   } catch (error: any) {
@@ -104,4 +93,3 @@ export async function DELETE(
     );
   }
 }
-

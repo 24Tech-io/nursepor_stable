@@ -1,6 +1,6 @@
 /**
  * Example implementations for logging student activities
- * 
+ *
  * Import and use these in your student app routes/components
  */
 
@@ -167,14 +167,3 @@ export async function logVideoWatch(
     userAgent,
   });
 }
-
-
-
-
-
-
-
-
-
-
-

@@ -48,16 +48,16 @@ export async function GET(request: NextRequest) {
       })
       .from(studentProgress);
 
-    const enrolledSet = new Set(
-      enrolledCourses.map((e: any) => `${e.studentId}-${e.courseId}`)
-    );
+    const enrolledSet = new Set(enrolledCourses.map((e: any) => `${e.studentId}-${e.courseId}`));
 
     // Filter requests: ONLY show pending requests
     // Approved/rejected requests should be deleted immediately, so we filter them out
     const filteredRequests = allRequests.filter((req: any) => {
       // Only show pending requests
       if (req.status !== 'pending') {
-        console.log(`🔍 Filtering out ${req.status} request #${req.id} - only showing pending requests`);
+        console.log(
+          `🔍 Filtering out ${req.status} request #${req.id} - only showing pending requests`
+        );
         return false;
       }
       return true;
@@ -73,12 +73,16 @@ export async function GET(request: NextRequest) {
         for (const id of deleteIds) {
           try {
             await db.delete(accessRequests).where(eq(accessRequests.id, id));
-            console.log(`🗑️ Cleaned up ${requestsToDelete.find((r: any) => r.id === id)?.status || 'processed'} request #${id}`);
+            console.log(
+              `🗑️ Cleaned up ${requestsToDelete.find((r: any) => r.id === id)?.status || 'processed'} request #${id}`
+            );
           } catch (err: any) {
             console.error(`Error cleaning up request #${id}:`, err);
           }
         }
-        console.log(`🧹 Cleaned up ${requestsToDelete.length} processed requests (approved/rejected)`);
+        console.log(
+          `🧹 Cleaned up ${requestsToDelete.length} processed requests (approved/rejected)`
+        );
       } catch (error: any) {
         console.error('Error during request cleanup:', error);
       }
@@ -122,8 +126,8 @@ export async function POST(request: NextRequest) {
       .from(accessRequests)
       .where(
         eq(accessRequests.studentId, decoded.id) &&
-        eq(accessRequests.courseId, courseId) &&
-        eq(accessRequests.status, 'pending')
+          eq(accessRequests.courseId, courseId) &&
+          eq(accessRequests.status, 'pending')
       );
 
     if (existing.length > 0) {
@@ -150,4 +154,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-

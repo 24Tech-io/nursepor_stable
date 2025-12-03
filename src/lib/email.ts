@@ -78,7 +78,9 @@ export async function sendPasswordResetEmail(email: string, resetToken: string):
     const resetUrl = `${process.env.NEXT_PUBLIC_APP_URL}/reset-password?email=${encodeURIComponent(email)}&token=${resetToken}`;
     console.log('📧 SMTP not configured - Password reset link (for development):');
     console.log(`   ${resetUrl}`);
-    throw new Error('SMTP is not configured. Please configure SMTP settings in .env.local to send emails. For development, check the server console for the reset link.');
+    throw new Error(
+      'SMTP is not configured. Please configure SMTP settings in .env.local to send emails. For development, check the server console for the reset link.'
+    );
   }
 
   const resetUrl = `${process.env.NEXT_PUBLIC_APP_URL}/reset-password?email=${encodeURIComponent(email)}&token=${resetToken}`;
@@ -119,7 +121,9 @@ export async function sendPasswordResetEmail(email: string, resetToken: string):
   } catch (error: any) {
     console.error('❌ Failed to send password reset email:', error.message);
     // Re-throw with more context
-    throw new Error(`Failed to send email: ${error.message}. Please check your SMTP configuration.`);
+    throw new Error(
+      `Failed to send email: ${error.message}. Please check your SMTP configuration.`
+    );
   }
 }
 
@@ -166,7 +170,11 @@ export async function sendWelcomeEmail(email: string, name: string): Promise<voi
   }
 }
 
-export async function sendAccessRequestNotification(adminEmail: string, studentName: string, courseTitle: string): Promise<void> {
+export async function sendAccessRequestNotification(
+  adminEmail: string,
+  studentName: string,
+  courseTitle: string
+): Promise<void> {
   // Recreate transporter if it doesn't exist
   if (!transporter) {
     transporter = createTransport();
@@ -218,7 +226,8 @@ export async function testEmailConnection(): Promise<{ success: boolean; message
   if (!transporter) {
     return {
       success: false,
-      message: 'SMTP is not configured. Please add SMTP_HOST, SMTP_USER, and SMTP_PASS to .env.local',
+      message:
+        'SMTP is not configured. Please add SMTP_HOST, SMTP_USER, and SMTP_PASS to .env.local',
     };
   }
 
@@ -332,7 +341,10 @@ export async function sendNursingCandidateSubmissionEmail(
     });
     return 'sent';
   } catch (error) {
-    console.error('❌ Failed to send nursing candidate submission email:', (error as any)?.message || error);
+    console.error(
+      '❌ Failed to send nursing candidate submission email:',
+      (error as any)?.message || error
+    );
     throw error;
   }
 }

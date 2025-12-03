@@ -63,12 +63,12 @@ export async function POST(request: NextRequest) {
           const currentEnrollment = existingEnrollment[0];
           const progressValue = progressEntry.totalProgress || 0;
           const currentProgress = currentEnrollment.progress || 0;
-          
+
           if (
             progressValue > currentProgress ||
-            (progressEntry.lastAccessed && 
-             currentEnrollment.updatedAt && 
-             progressEntry.lastAccessed > currentEnrollment.updatedAt)
+            (progressEntry.lastAccessed &&
+              currentEnrollment.updatedAt &&
+              progressEntry.lastAccessed > currentEnrollment.updatedAt)
           ) {
             await db
               .update(enrollments)
@@ -109,18 +109,13 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     console.error('❌ Migration failed:', error);
     return NextResponse.json(
-      { 
+      {
         success: false,
         message: 'Migration failed',
         error: error.message,
-        details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        details: process.env.NODE_ENV === 'development' ? error.stack : undefined,
       },
       { status: 500 }
     );
   }
 }
-
-
-
-
-

@@ -6,10 +6,7 @@ import { eq, and } from 'drizzle-orm';
 import { logActivity } from '@/lib/activity-log';
 
 // POST - Enroll student in a course
-export async function POST(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     const token = request.cookies.get('adminToken')?.value;
 
@@ -44,11 +41,7 @@ export async function POST(
     }
 
     // Verify course exists
-    const [course] = await db
-      .select()
-      .from(courses)
-      .where(eq(courses.id, courseId))
-      .limit(1);
+    const [course] = await db.select().from(courses).where(eq(courses.id, courseId)).limit(1);
 
     if (!course) {
       return NextResponse.json({ message: 'Course not found' }, { status: 404 });
@@ -58,14 +51,14 @@ export async function POST(
     const [existing] = await db
       .select()
       .from(studentProgress)
-      .where(and(
-        eq(studentProgress.studentId, studentId),
-        eq(studentProgress.courseId, courseId)
-      ))
+      .where(and(eq(studentProgress.studentId, studentId), eq(studentProgress.courseId, courseId)))
       .limit(1);
 
     if (existing) {
-      return NextResponse.json({ message: 'Student is already enrolled in this course' }, { status: 400 });
+      return NextResponse.json(
+        { message: 'Student is already enrolled in this course' },
+        { status: 400 }
+      );
     }
 
     // Enroll student
@@ -105,10 +98,7 @@ export async function POST(
 }
 
 // DELETE - Unenroll student from a course
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     const token = request.cookies.get('adminToken')?.value;
 
@@ -153,38 +143,51 @@ export async function DELETE(
     const [enrollment] = await db
       .select()
       .from(studentProgress)
-      .where(and(
-        eq(studentProgress.studentId, studentId),
-        eq(studentProgress.courseId, parseInt(courseId))
-      ))
+      .where(
+        and(
+          eq(studentProgress.studentId, studentId),
+          eq(studentProgress.courseId, parseInt(courseId))
+        )
+      )
       .limit(1);
 
     if (!enrollment) {
-      return NextResponse.json({ message: 'Student is not enrolled in this course' }, { status: 400 });
+      return NextResponse.json(
+        { message: 'Student is not enrolled in this course' },
+        { status: 400 }
+      );
     }
 
     // Unenroll student - Delete from studentProgress
     const deleteResult = await db
       .delete(studentProgress)
-      .where(and(
-        eq(studentProgress.studentId, studentId),
-        eq(studentProgress.courseId, parseInt(courseId))
-      ))
+      .where(
+        and(
+          eq(studentProgress.studentId, studentId),
+          eq(studentProgress.courseId, parseInt(courseId))
+        )
+      )
       .returning();
 
-    console.log(`✅ Unenrolled student ${studentId} from course ${courseId}. Deleted ${deleteResult.length} progress entry/entries.`);
+    console.log(
+      `✅ Unenrolled student ${studentId} from course ${courseId}. Deleted ${deleteResult.length} progress entry/entries.`
+    );
 
     // Verify deletion
     const verifyDeletion = await db
       .select()
       .from(studentProgress)
-      .where(and(
-        eq(studentProgress.studentId, studentId),
-        eq(studentProgress.courseId, parseInt(courseId))
-      ));
+      .where(
+        and(
+          eq(studentProgress.studentId, studentId),
+          eq(studentProgress.courseId, parseInt(courseId))
+        )
+      );
 
     if (verifyDeletion.length > 0) {
-      console.error(`⚠️ WARNING: Progress entry still exists after deletion! Student: ${studentId}, Course: ${courseId}`);
+      console.error(
+        `⚠️ WARNING: Progress entry still exists after deletion! Student: ${studentId}, Course: ${courseId}`
+      );
     } else {
       console.log(`✅ Verified: Progress entry successfully deleted.`);
     }
@@ -216,4 +219,3 @@ export async function DELETE(
     );
   }
 }
-

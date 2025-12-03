@@ -12,7 +12,7 @@ async function retryOperation<T>(operation: () => Promise<T>, retries = 3): Prom
     } catch (error: any) {
       if (i === retries - 1) throw error;
       console.warn(`Retry ${i + 1}/${retries} after error:`, error.message);
-      await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1)));
+      await new Promise((resolve) => setTimeout(resolve, 1000 * (i + 1)));
     }
   }
   throw new Error('Operation failed after retries');
@@ -24,10 +24,7 @@ export async function GET(request: NextRequest) {
 
     if (!token) {
       console.log('❌ No token found in cookies');
-      return NextResponse.json(
-        { message: 'Not authenticated' },
-        { status: 401 }
-      );
+      return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });
     }
 
     const decoded = verifyToken(token);
@@ -51,7 +48,7 @@ export async function GET(request: NextRequest) {
         {
           message: 'Database connection failed',
           error: dbError.message || 'Database is not available',
-          courses: []
+          courses: [],
         },
         { status: 500 }
       );
@@ -80,43 +77,40 @@ export async function GET(request: NextRequest) {
     }
 
     // Get enrollment status in parallel for better performance
-    const [enrolledProgress, purchasedCourses, enrolledRecords, pendingRequests] = await Promise.all([
-      retryOperation(async () =>
-        await db.select({ courseId: studentProgress.courseId })
-          .from(studentProgress)
-          .where(eq(studentProgress.studentId, decoded.id))
-      ),
-      retryOperation(async () =>
-        await db.select({ courseId: payments.courseId })
-          .from(payments)
-          .where(
-            and(
-              eq(payments.userId, decoded.id),
-              eq(payments.status, 'completed')
-            )
-          )
-      ),
-      retryOperation(async () =>
-        await db.select({ courseId: enrollments.courseId })
-          .from(enrollments)
-          .where(
-            and(
-              eq(enrollments.userId, decoded.id),
-              eq(enrollments.status, 'active')
-            )
-          )
-      ),
-      retryOperation(async () =>
-        await db.select({ 
-          courseId: accessRequests.courseId,
-          status: accessRequests.status 
-        })
-          .from(accessRequests)
-          .where(
-            eq(accessRequests.studentId, decoded.id)
-          )
-      )
-    ]);
+    const [enrolledProgress, purchasedCourses, enrolledRecords, pendingRequests] =
+      await Promise.all([
+        retryOperation(
+          async () =>
+            await db
+              .select({ courseId: studentProgress.courseId })
+              .from(studentProgress)
+              .where(eq(studentProgress.studentId, decoded.id))
+        ),
+        retryOperation(
+          async () =>
+            await db
+              .select({ courseId: payments.courseId })
+              .from(payments)
+              .where(and(eq(payments.userId, decoded.id), eq(payments.status, 'completed')))
+        ),
+        retryOperation(
+          async () =>
+            await db
+              .select({ courseId: enrollments.courseId })
+              .from(enrollments)
+              .where(and(eq(enrollments.userId, decoded.id), eq(enrollments.status, 'active')))
+        ),
+        retryOperation(
+          async () =>
+            await db
+              .select({
+                courseId: accessRequests.courseId,
+                status: accessRequests.status,
+              })
+              .from(accessRequests)
+              .where(eq(accessRequests.studentId, decoded.id))
+        ),
+      ]);
 
     const enrolledCourseIds = new Set([
       ...enrolledProgress.map((p: any) => p.courseId.toString()),
@@ -130,7 +124,7 @@ export async function GET(request: NextRequest) {
         .filter((r: any) => r.status === 'pending')
         .map((r: any) => r.courseId.toString())
     );
-    
+
     const approvedRequestCourseIds = new Set(
       pendingRequests
         .filter((r: any) => r.status === 'approved')
@@ -156,7 +150,7 @@ export async function GET(request: NextRequest) {
               courseId: course.id,
               status: 'active',
               progress: 0,
-            })
+            }),
           ]);
 
           enrolledCourseIds.add(course.id.toString());
@@ -179,15 +173,18 @@ export async function GET(request: NextRequest) {
       // - Approved requests should also be treated as enrolled (enrollment sync may be in progress)
       const hasApprovedRequest = approvedRequestCourseIds.has(courseIdStr);
       const isEnrolled = hasEnrollment || hasApprovedRequest;
-      
+
       // If enrolled, pending request is stale - treat as enrolled
       // If not enrolled but has pending request, show as requested
       const finalIsEnrolled = isEnrolled;
 
       // Normalize status to lowercase for consistent frontend handling
-      const normalizedStatus = course.status?.toLowerCase() === 'active' ? 'active' : 
-                              course.status?.toLowerCase() === 'published' ? 'published' : 
-                              course.status;
+      const normalizedStatus =
+        course.status?.toLowerCase() === 'active'
+          ? 'active'
+          : course.status?.toLowerCase() === 'published'
+            ? 'published'
+            : course.status;
 
       return {
         id: courseIdStr,
@@ -210,7 +207,9 @@ export async function GET(request: NextRequest) {
 
     console.log(`✅ Returning ${coursesList.length} courses to student ${decoded.id}`);
     coursesList.forEach((c, idx) => {
-      console.log(`  ${idx + 1}. "${c.title}" (ID: ${c.id}, Status: ${c.status}, Enrolled: ${c.isEnrolled})`);
+      console.log(
+        `  ${idx + 1}. "${c.title}" (ID: ${c.id}, Status: ${c.status}, Enrolled: ${c.isEnrolled})`
+      );
     });
 
     return NextResponse.json({

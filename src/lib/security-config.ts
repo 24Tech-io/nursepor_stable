@@ -85,20 +85,11 @@ export const SecurityConfig = {
   csp: {
     directives: {
       defaultSrc: ["'self'"],
-      scriptSrc: [
-        "'self'",
-        "'unsafe-inline'",
-        "'unsafe-eval'",
-        'https://js.stripe.com',
-      ],
+      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", 'https://js.stripe.com'],
       styleSrc: ["'self'", "'unsafe-inline'"],
       imgSrc: ["'self'", 'data:', 'https:', 'blob:'],
       fontSrc: ["'self'", 'data:'],
-      connectSrc: [
-        "'self'",
-        'https://api.stripe.com',
-        'https://*.neon.tech',
-      ],
+      connectSrc: ["'self'", 'https://api.stripe.com', 'https://*.neon.tech'],
       frameSrc: ['https://js.stripe.com', 'https://hooks.stripe.com'],
       objectSrc: ["'none'"],
       baseUri: ["'self'"],
@@ -184,11 +175,17 @@ export function validateSecurityConfig(): { valid: boolean; errors: string[] } {
       errors.push('JWT_SECRET must be changed from default value in production');
     }
 
-    if (!process.env.CSRF_SECRET || process.env.CSRF_SECRET === 'change-this-csrf-secret-in-production') {
+    if (
+      !process.env.CSRF_SECRET ||
+      process.env.CSRF_SECRET === 'change-this-csrf-secret-in-production'
+    ) {
       errors.push('CSRF_SECRET must be changed from default value in production');
     }
 
-    if (!process.env.SESSION_SECRET || process.env.SESSION_SECRET === 'change-this-session-secret-in-production') {
+    if (
+      !process.env.SESSION_SECRET ||
+      process.env.SESSION_SECRET === 'change-this-session-secret-in-production'
+    ) {
       errors.push('SESSION_SECRET must be changed from default value in production');
     }
 
@@ -220,9 +217,8 @@ if (typeof window === 'undefined') {
   const validation = validateSecurityConfig();
   if (!validation.valid) {
     console.warn('⚠️  Security Configuration Warnings:');
-    validation.errors.forEach(error => console.warn(`   - ${error}`));
+    validation.errors.forEach((error) => console.warn(`   - ${error}`));
   }
 }
 
 export default SecurityConfig;
-

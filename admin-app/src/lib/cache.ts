@@ -16,7 +16,7 @@ class SimpleCache {
    */
   get<T>(key: string): T | null {
     const entry = this.cache.get(key);
-    
+
     if (!entry) {
       return null;
     }
@@ -77,9 +77,12 @@ const cache = new SimpleCache();
 
 // Clean up expired entries every 5 minutes
 if (typeof setInterval !== 'undefined') {
-  setInterval(() => {
-    cache.cleanup();
-  }, 5 * 60 * 1000); // 5 minutes
+  setInterval(
+    () => {
+      cache.cleanup();
+    },
+    5 * 60 * 1000
+  ); // 5 minutes
 }
 
 export default cache;
@@ -93,13 +96,7 @@ export const CacheKeys = {
 
 // TTL constants (in milliseconds)
 export const CacheTTL = {
-  courses: 5 * 60 * 1000,      // 5 minutes
-  analytics: 1 * 60 * 1000,    // 1 minute
+  courses: 5 * 60 * 1000, // 5 minutes
+  analytics: 1 * 60 * 1000, // 1 minute
   studentStats: 2 * 60 * 1000, // 2 minutes
 };
-
-
-
-
-
-

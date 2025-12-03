@@ -29,7 +29,10 @@ export async function GET(request: NextRequest) {
         id: users.id,
         name: users.name,
         email: users.email,
-        enrolledCoursesCount: sql<number>`COALESCE(COUNT(DISTINCT ${studentProgress.courseId}), 0)`.as('enrolledCoursesCount'),
+        enrolledCoursesCount:
+          sql<number>`COALESCE(COUNT(DISTINCT ${studentProgress.courseId}), 0)`.as(
+            'enrolledCoursesCount'
+          ),
       })
       .from(users)
       .leftJoin(studentProgress, eq(users.id, studentProgress.studentId))
@@ -42,7 +45,9 @@ export async function GET(request: NextRequest) {
         id: courses.id,
         title: courses.title,
         status: courses.status,
-        enrollmentCount: sql<number>`COALESCE(COUNT(DISTINCT ${studentProgress.studentId}), 0)`.as('enrollmentCount'),
+        enrollmentCount: sql<number>`COALESCE(COUNT(DISTINCT ${studentProgress.studentId}), 0)`.as(
+          'enrollmentCount'
+        ),
       })
       .from(courses)
       .leftJoin(studentProgress, eq(courses.id, studentProgress.courseId))
@@ -132,23 +137,12 @@ export async function GET(request: NextRequest) {
   } catch (error: any) {
     console.error('Sync verify error:', error);
     return NextResponse.json(
-      { 
+      {
         success: false,
         message: 'Failed to verify sync',
-        error: process.env.NODE_ENV === 'development' ? error.message : undefined
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined,
       },
       { status: 500 }
     );
   }
 }
-
-
-
-
-
-
-
-
-
-
-

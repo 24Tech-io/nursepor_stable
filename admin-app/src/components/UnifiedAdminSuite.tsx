@@ -5,13 +5,54 @@ import { useRouter } from 'next/navigation';
 import { useNotification } from './NotificationProvider';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  Layout, Database, Users, Settings, Plus, Save, ArrowLeft, Layers,
-  Activity, FileText, Video, CheckCircle, Grid, Monitor, ChevronRight,
-  Trash2, Edit3, BarChart, BookOpen, Search, Flag, AlertTriangle, X,
-  Filter, Zap, Book, MoreHorizontal, Image as ImageIcon, List,
-  MousePointer, Highlighter, Type, Divide, GripVertical, CheckSquare, AlignLeft,
-  User, Shield, Download, Calendar, TrendingUp, TrendingDown, Clock, Award, Target, FileDown,
-  Eye, UserX
+  Layout,
+  Database,
+  Users,
+  Settings,
+  Plus,
+  Save,
+  ArrowLeft,
+  Layers,
+  Activity,
+  FileText,
+  Video,
+  CheckCircle,
+  Grid,
+  Monitor,
+  ChevronRight,
+  Trash2,
+  Edit3,
+  BarChart,
+  BookOpen,
+  Search,
+  Flag,
+  AlertTriangle,
+  X,
+  Filter,
+  Zap,
+  Book,
+  MoreHorizontal,
+  Image as ImageIcon,
+  List,
+  MousePointer,
+  Highlighter,
+  Type,
+  Divide,
+  GripVertical,
+  CheckSquare,
+  AlignLeft,
+  User,
+  Shield,
+  Download,
+  Calendar,
+  TrendingUp,
+  TrendingDown,
+  Clock,
+  Award,
+  Target,
+  FileDown,
+  Eye,
+  UserX,
 } from 'lucide-react';
 import FileUpload from './FileUpload';
 import VideoUploadModal from './VideoUploadModal';
@@ -19,7 +60,14 @@ import DocumentUploadModal from './DocumentUploadModal';
 import StudentActivityModal from './StudentActivityModal';
 import { Upload, Link as LinkIcon } from 'lucide-react';
 import { convertToEmbedUrl, parseVideoUrl } from '@/lib/video-utils';
-import { StatCardSkeleton, ActivityLogSkeleton, TableSkeleton, CourseCardSkeleton, QuestionRowSkeleton, ModuleSkeleton } from './LoadingSkeleton';
+import {
+  StatCardSkeleton,
+  ActivityLogSkeleton,
+  TableSkeleton,
+  CourseCardSkeleton,
+  QuestionRowSkeleton,
+  ModuleSkeleton,
+} from './LoadingSkeleton';
 
 // --- DATA CONSTANTS ---
 const QUESTION_MODES = {
@@ -31,8 +79,8 @@ const QUESTION_MODES = {
       { id: 'standard', label: 'Single Best Answer (Multiple Choice)' },
       { id: 'sata_classic', label: 'Select All That Apply (Traditional)' },
       { id: 'ordering', label: 'Ordered Response' },
-      { id: 'calculation', label: 'Dosage Calculation' }
-    ]
+      { id: 'calculation', label: 'Dosage Calculation' },
+    ],
   },
   NGN: {
     id: 'ngn',
@@ -46,36 +94,44 @@ const QUESTION_MODES = {
       { id: 'drag_drop', label: 'Extended Drag & Drop' },
       { id: 'highlight', label: 'Highlight Text' },
       { id: 'cloze', label: 'Cloze (Drop-Down)' },
-    ]
-  }
+    ],
+  },
 };
 
 const CJMM_STEPS = [
-  { step: 1, label: "Recognize Cues" },
-  { step: 2, label: "Analyze Cues" },
-  { step: 3, label: "Prioritize Hypotheses" },
-  { step: 4, label: "Generate Solutions" },
-  { step: 5, label: "Take Action" },
-  { step: 6, label: "Evaluate Outcomes" }
+  { step: 1, label: 'Recognize Cues' },
+  { step: 2, label: 'Analyze Cues' },
+  { step: 3, label: 'Prioritize Hypotheses' },
+  { step: 4, label: 'Generate Solutions' },
+  { step: 5, label: 'Take Action' },
+  { step: 6, label: 'Evaluate Outcomes' },
 ];
 
 // ⚡ PERFORMANCE: Lazy load heavy components for code splitting
 import dynamic from 'next/dynamic';
 
 const StudentProfile = dynamic(() => import('./admin/StudentProfile'), {
-  loading: () => <div className="flex items-center justify-center h-screen"><div className="animate-spin rounded-full h-12 w-12 border-4 border-purple-600 border-t-transparent"></div></div>
+  loading: () => (
+    <div className="flex items-center justify-center h-screen">
+      <div className="animate-spin rounded-full h-12 w-12 border-4 border-purple-600 border-t-transparent"></div>
+    </div>
+  ),
 });
 
 const QuestionTypeBuilder = dynamic(() => import('./qbank/QuestionTypeBuilder'), {
-  loading: () => <div className="flex items-center justify-center h-screen"><div className="animate-spin rounded-full h-12 w-12 border-4 border-purple-600 border-t-transparent"></div></div>
+  loading: () => (
+    <div className="flex items-center justify-center h-screen">
+      <div className="animate-spin rounded-full h-12 w-12 border-4 border-purple-600 border-t-transparent"></div>
+    </div>
+  ),
 });
 
 // --- ROOT COMPONENT ---
-export default function NurseProAdminUltimate({ 
+export default function NurseProAdminUltimate({
   initialModule = 'dashboard',
   initialStudentId,
   initialCourse,
-}: { 
+}: {
   initialModule?: string;
   initialStudentId?: number;
   initialCourse?: any;
@@ -91,7 +147,7 @@ export default function NurseProAdminUltimate({
   React.useEffect(() => {
     if (typeof window !== 'undefined') {
       const path = window.location.pathname;
-      
+
       // Map paths to modules
       const pathToModule: Record<string, string> = {
         '/dashboard': 'dashboard',
@@ -105,7 +161,7 @@ export default function NurseProAdminUltimate({
         '/dashboard/blogs': 'blogs',
         '/dashboard/quizzes': 'quizzes',
       };
-      
+
       // Check if it's a student profile route
       const studentProfileMatch = path.match(/^\/dashboard\/students\/(\d+)$/);
       if (studentProfileMatch) {
@@ -118,15 +174,15 @@ export default function NurseProAdminUltimate({
         }
         return;
       }
-      
+
       // Check if it's a course editor route
       const courseEditorMatch = path.match(/^\/dashboard\/courses\/(\d+)$/);
       if (courseEditorMatch) {
         const courseId = parseInt(courseEditorMatch[1]);
         // Fetch course data and set as activeItem
         fetch(`/api/courses/${courseId}`, { credentials: 'include' })
-          .then(res => res.json())
-          .then(data => {
+          .then((res) => res.json())
+          .then((data) => {
             if (data.course) {
               setActiveItem(data.course);
               setCurrentModule('course_editor');
@@ -135,15 +191,15 @@ export default function NurseProAdminUltimate({
           .catch(() => setCurrentModule('courses'));
         return;
       }
-      
+
       // Check if it's a qbank editor route
       const qbankEditorMatch = path.match(/^\/dashboard\/qbank\/(\d+)$/);
       if (qbankEditorMatch) {
         const questionId = parseInt(qbankEditorMatch[1]);
         // Fetch question data and set as activeItem
         fetch(`/api/qbank/${questionId}`, { credentials: 'include' })
-          .then(res => res.json())
-          .then(data => {
+          .then((res) => res.json())
+          .then((data) => {
             if (data.question) {
               setActiveItem(data.question);
               setCurrentModule('qbank_editor');
@@ -152,7 +208,7 @@ export default function NurseProAdminUltimate({
           .catch(() => setCurrentModule('qbank'));
         return;
       }
-      
+
       // Default path mapping
       const module = pathToModule[path] || initialModule;
       if (module !== currentModule) {
@@ -164,23 +220,23 @@ export default function NurseProAdminUltimate({
   const nav = (mod: string, id?: number) => {
     // Update state immediately for instant UI response
     setCurrentModule(mod);
-    
+
     // Update URL with proper routing
     if (typeof window !== 'undefined') {
       const routeMap: Record<string, string> = {
-        'dashboard': '/dashboard',
-        'analytics': '/dashboard/analytics',
-        'students': '/dashboard/students',
-        'student_profile': id ? `/dashboard/students/${id}` : '/dashboard/students',
-        'requests': '/dashboard/requests',
-        'courses': '/dashboard/courses',
-        'course_editor': id ? `/dashboard/courses/${id}` : '/dashboard/courses',
-        'qbank': '/dashboard/qbank',
-        'qbank_editor': id ? `/dashboard/qbank/${id}` : '/dashboard/qbank',
-        'admin_profile': '/dashboard/profile',
-        'daily_videos': '/dashboard/daily-videos',
-        'blogs': '/dashboard/blogs',
-        'quizzes': '/dashboard/quizzes',
+        dashboard: '/dashboard',
+        analytics: '/dashboard/analytics',
+        students: '/dashboard/students',
+        student_profile: id ? `/dashboard/students/${id}` : '/dashboard/students',
+        requests: '/dashboard/requests',
+        courses: '/dashboard/courses',
+        course_editor: id ? `/dashboard/courses/${id}` : '/dashboard/courses',
+        qbank: '/dashboard/qbank',
+        qbank_editor: id ? `/dashboard/qbank/${id}` : '/dashboard/qbank',
+        admin_profile: '/dashboard/profile',
+        daily_videos: '/dashboard/daily-videos',
+        blogs: '/dashboard/blogs',
+        quizzes: '/dashboard/quizzes',
       };
       const newUrl = routeMap[mod] || '/dashboard';
       // Use pushState to update URL and allow browser back/forward
@@ -217,25 +273,75 @@ export default function NurseProAdminUltimate({
             </div>
             NursePro
           </h1>
-          <p className="text-[10px] text-slate-500 mt-2 font-bold uppercase tracking-widest ml-1">Academy Command v3.1</p>
+          <p className="text-[10px] text-slate-500 mt-2 font-bold uppercase tracking-widest ml-1">
+            Academy Command v3.1
+          </p>
         </div>
 
         <nav className="flex-1 px-4 space-y-8 overflow-y-auto custom-scrollbar">
           <NavSection title="Overview">
-            <NavItem icon={<Layout size={18} />} label="Dashboard" active={currentModule === 'dashboard'} onClick={() => nav('dashboard')} badge={undefined} />
-            <NavItem icon={<BarChart size={18} />} label="Analytics" active={currentModule === 'analytics'} onClick={() => nav('analytics')} badge={undefined} />
+            <NavItem
+              icon={<Layout size={18} />}
+              label="Dashboard"
+              active={currentModule === 'dashboard'}
+              onClick={() => nav('dashboard')}
+              badge={undefined}
+            />
+            <NavItem
+              icon={<BarChart size={18} />}
+              label="Analytics"
+              active={currentModule === 'analytics'}
+              onClick={() => nav('analytics')}
+              badge={undefined}
+            />
           </NavSection>
 
           <NavSection title="User Management">
-            <NavItem icon={<Users size={18} />} label="Students" active={currentModule === 'students'} onClick={() => nav('students')} badge={undefined} />
-            <NavItem icon={<Flag size={18} />} label="Access Requests" active={currentModule === 'requests'} onClick={() => nav('requests')} badge={undefined} />
+            <NavItem
+              icon={<Users size={18} />}
+              label="Students"
+              active={currentModule === 'students'}
+              onClick={() => nav('students')}
+              badge={undefined}
+            />
+            <NavItem
+              icon={<Flag size={18} />}
+              label="Access Requests"
+              active={currentModule === 'requests'}
+              onClick={() => nav('requests')}
+              badge={undefined}
+            />
           </NavSection>
 
           <NavSection title="Content Engine">
-            <NavItem icon={<BookOpen size={18} />} label="Course Builder" active={currentModule.includes('course')} onClick={() => nav('courses')} badge={undefined} />
-            <NavItem icon={<Database size={18} />} label="Q-Bank Manager" active={currentModule.includes('qbank')} onClick={() => nav('qbank')} badge={undefined} />
-            <NavItem icon={<FileText size={18} />} label="Blog Manager" active={currentModule === 'blogs'} onClick={() => nav('blogs')} badge={undefined} />
-            <NavItem icon={<Video size={18} />} label="Daily Videos" active={currentModule === 'daily_videos'} onClick={() => nav('daily_videos')} badge={undefined} />
+            <NavItem
+              icon={<BookOpen size={18} />}
+              label="Course Builder"
+              active={currentModule.includes('course')}
+              onClick={() => nav('courses')}
+              badge={undefined}
+            />
+            <NavItem
+              icon={<Database size={18} />}
+              label="Q-Bank Manager"
+              active={currentModule.includes('qbank')}
+              onClick={() => nav('qbank')}
+              badge={undefined}
+            />
+            <NavItem
+              icon={<FileText size={18} />}
+              label="Blog Manager"
+              active={currentModule === 'blogs'}
+              onClick={() => nav('blogs')}
+              badge={undefined}
+            />
+            <NavItem
+              icon={<Video size={18} />}
+              label="Daily Videos"
+              active={currentModule === 'daily_videos'}
+              onClick={() => nav('daily_videos')}
+              badge={undefined}
+            />
           </NavSection>
         </nav>
 
@@ -245,15 +351,27 @@ export default function NurseProAdminUltimate({
             className="w-full flex items-center gap-3 px-4 py-3 bg-[#161922] rounded-xl border border-slate-800/50 hover:border-purple-500/50 hover:bg-purple-900/10 transition-all group"
           >
             <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-600 to-pink-500 flex items-center justify-center text-sm font-bold text-white shadow-lg shadow-purple-500/20 flex-shrink-0">
-              {adminUser?.name ? adminUser.name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2) : 'AD'}
+              {adminUser?.name
+                ? adminUser.name
+                    .split(' ')
+                    .map((n: string) => n[0])
+                    .join('')
+                    .toUpperCase()
+                    .slice(0, 2)
+                : 'AD'}
             </div>
             <div className="text-left flex-1 min-w-0">
               <p className="text-sm font-bold text-white group-hover:text-purple-300 transition-colors truncate">
                 {adminUser?.name || 'Admin User'}
               </p>
-              <p className="text-[10px] text-slate-500 truncate">{adminUser?.email || 'Loading...'}</p>
+              <p className="text-[10px] text-slate-500 truncate">
+                {adminUser?.email || 'Loading...'}
+              </p>
             </div>
-            <ChevronRight size={16} className="text-slate-500 group-hover:text-purple-400 transition-colors flex-shrink-0" />
+            <ChevronRight
+              size={16}
+              className="text-slate-500 group-hover:text-purple-400 transition-colors flex-shrink-0"
+            />
           </button>
           <button
             onClick={async () => {
@@ -280,26 +398,28 @@ export default function NurseProAdminUltimate({
       {/* MAIN CANVAS */}
       <main className="flex-1 flex flex-col relative overflow-hidden bg-gradient-to-br from-[#0b0d12] via-[#0f1117] to-[#0b0d12]">
         {currentModule === 'dashboard' && <Dashboard nav={nav} />}
-        {currentModule === 'students' && <StudentsList 
-          nav={nav} 
-          onSelectStudent={(id) => { 
-            setActiveStudentId(id); 
-            nav('student_profile', id); 
-          }}
-          refreshTrigger={refreshCounter}
-        />}
+        {currentModule === 'students' && (
+          <StudentsList
+            nav={nav}
+            onSelectStudent={(id) => {
+              setActiveStudentId(id);
+              nav('student_profile', id);
+            }}
+            refreshTrigger={refreshCounter}
+          />
+        )}
         {currentModule === 'student_profile' && activeStudentId && (
-          <StudentProfile 
-            studentId={activeStudentId} 
+          <StudentProfile
+            studentId={activeStudentId}
             back={() => {
               setActiveStudentId(null);
               nav('students');
               // Refresh student list when going back
-              setRefreshCounter(prev => prev + 1);
+              setRefreshCounter((prev) => prev + 1);
             }}
             onEnrollmentChange={() => {
               // Trigger refresh of student list
-              setRefreshCounter(prev => prev + 1);
+              setRefreshCounter((prev) => prev + 1);
             }}
           />
         )}
@@ -309,9 +429,13 @@ export default function NurseProAdminUltimate({
         {currentModule === 'blogs' && <BlogManager nav={nav} />}
         {currentModule === 'quizzes' && <QuizManager nav={nav} />}
         {currentModule === 'courses' && <CourseList nav={nav} setActive={setActiveItem} />}
-        {currentModule === 'course_editor' && <CourseBuilder course={activeItem} back={() => nav('courses')} />}
+        {currentModule === 'course_editor' && (
+          <CourseBuilder course={activeItem} back={() => nav('courses')} />
+        )}
         {currentModule === 'qbank' && <QBankList nav={nav} setActive={setActiveItem} />}
-        {currentModule === 'qbank_editor' && <UniversalQuestionEditor question={activeItem} back={() => nav('qbank')} />}
+        {currentModule === 'qbank_editor' && (
+          <UniversalQuestionEditor question={activeItem} back={() => nav('qbank')} />
+        )}
         {currentModule === 'admin_profile' && <AdminProfile nav={nav} adminUser={adminUser} />}
       </main>
     </div>
@@ -328,17 +452,17 @@ const Dashboard = ({ nav }: { nav: (mod: string) => void }) => {
       const [coursesRes, questionsRes, studentsRes] = await Promise.all([
         fetch('/api/courses?countOnly=true', { credentials: 'include' }),
         fetch('/api/qbank?countOnly=true', { credentials: 'include' }),
-        fetch('/api/students?countOnly=true', { credentials: 'include' })
+        fetch('/api/students?countOnly=true', { credentials: 'include' }),
       ]);
 
       const [courses, questions, students] = await Promise.all([
         coursesRes.json(),
         questionsRes.json(),
-        studentsRes.json()
+        studentsRes.json(),
       ]);
 
       console.log('⚡ Dashboard stats loaded from optimized count queries');
-      
+
       return {
         courses: courses.count || 0,
         questions: questions.count || questions.totalCount || 0,
@@ -369,7 +493,10 @@ const Dashboard = ({ nav }: { nav: (mod: string) => void }) => {
           <h2 className="text-3xl font-bold text-white tracking-tight">Command Center</h2>
           <p className="text-slate-400 mt-2 text-sm">Welcome to NursePro Academy Admin Dashboard</p>
         </div>
-        <button onClick={() => nav('course_editor')} className="bg-white text-slate-900 px-5 py-2.5 rounded-lg font-bold text-sm hover:bg-purple-50 transition-colors">
+        <button
+          onClick={() => nav('course_editor')}
+          className="bg-white text-slate-900 px-5 py-2.5 rounded-lg font-bold text-sm hover:bg-purple-50 transition-colors"
+        >
           Create Course
         </button>
       </header>
@@ -383,9 +510,24 @@ const Dashboard = ({ nav }: { nav: (mod: string) => void }) => {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-          <MetricCard title="Total Courses" value={stats?.courses?.toString() || '0'} trend="Active" color="blue" />
-          <MetricCard title="Total Questions" value={stats?.questions?.toString() || '0'} trend="In Q-Bank" color="green" />
-          <MetricCard title="Total Students" value={stats?.students?.toString() || '0'} trend="Registered" color="purple" />
+          <MetricCard
+            title="Total Courses"
+            value={stats?.courses?.toString() || '0'}
+            trend="Active"
+            color="blue"
+          />
+          <MetricCard
+            title="Total Questions"
+            value={stats?.questions?.toString() || '0'}
+            trend="In Q-Bank"
+            color="green"
+          />
+          <MetricCard
+            title="Total Students"
+            value={stats?.students?.toString() || '0'}
+            trend="Registered"
+            color="purple"
+          />
         </div>
       )}
 
@@ -393,9 +535,14 @@ const Dashboard = ({ nav }: { nav: (mod: string) => void }) => {
         <div className="lg:col-span-2 bg-[#161922] border border-slate-800/60 rounded-2xl p-6">
           <h3 className="font-bold text-white mb-6">Quick Actions</h3>
           <div className="space-y-4">
-            <button onClick={() => nav('courses')} className="w-full flex items-center justify-between p-4 bg-[#1a1d26] rounded-xl border border-slate-800/40 hover:border-purple-500/50 transition-colors">
+            <button
+              onClick={() => nav('courses')}
+              className="w-full flex items-center justify-between p-4 bg-[#1a1d26] rounded-xl border border-slate-800/40 hover:border-purple-500/50 transition-colors"
+            >
               <div className="flex items-center gap-4">
-                <div className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center text-slate-400"><BookOpen size={18} /></div>
+                <div className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center text-slate-400">
+                  <BookOpen size={18} />
+                </div>
                 <div>
                   <p className="text-sm font-semibold text-white">Manage Courses</p>
                   <p className="text-xs text-slate-500">Create, edit, or delete courses</p>
@@ -403,9 +550,14 @@ const Dashboard = ({ nav }: { nav: (mod: string) => void }) => {
               </div>
               <ChevronRight size={18} className="text-slate-500" />
             </button>
-            <button onClick={() => nav('qbank')} className="w-full flex items-center justify-between p-4 bg-[#1a1d26] rounded-xl border border-slate-800/40 hover:border-purple-500/50 transition-colors">
+            <button
+              onClick={() => nav('qbank')}
+              className="w-full flex items-center justify-between p-4 bg-[#1a1d26] rounded-xl border border-slate-800/40 hover:border-purple-500/50 transition-colors"
+            >
               <div className="flex items-center gap-4">
-                <div className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center text-slate-400"><Database size={18} /></div>
+                <div className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center text-slate-400">
+                  <Database size={18} />
+                </div>
                 <div>
                   <p className="text-sm font-semibold text-white">Q-Bank Manager</p>
                   <p className="text-xs text-slate-500">Add and manage questions</p>
@@ -427,71 +579,88 @@ const Dashboard = ({ nav }: { nav: (mod: string) => void }) => {
                 <p className="text-slate-500 text-sm text-center py-4">No recent activity</p>
               ) : (
                 activityLogs.map((log) => {
-                const getActionIcon = () => {
-                  switch (log.action) {
-                    case 'created': return <Plus size={14} className="text-green-400" />;
-                    case 'updated': return <Edit3 size={14} className="text-blue-400" />;
-                    case 'deleted': return <Trash2 size={14} className="text-red-400" />;
-                    case 'activated': return <CheckCircle size={14} className="text-green-400" />;
-                    case 'deactivated': return <X size={14} className="text-red-400" />;
-                    default: return <Activity size={14} className="text-purple-400" />;
-                  }
-                };
-
-                const getActionColor = () => {
-                  switch (log.action) {
-                    case 'created': return 'text-green-400';
-                    case 'updated': return 'text-blue-400';
-                    case 'deleted': return 'text-red-400';
-                    case 'activated': return 'text-green-400';
-                    case 'deactivated': return 'text-red-400';
-                    default: return 'text-purple-400';
-                  }
-                };
-
-                const formatTime = (dateString: string) => {
-                  const date = new Date(dateString);
-                  const now = new Date();
-                  const diffMs = now.getTime() - date.getTime();
-                  const diffMins = Math.floor(diffMs / 60000);
-                  const diffHours = Math.floor(diffMs / 3600000);
-                  const diffDays = Math.floor(diffMs / 86400000);
-
-                  if (diffMins < 1) return 'Just now';
-                  if (diffMins < 60) return `${diffMins}m ago`;
-                  if (diffHours < 24) return `${diffHours}h ago`;
-                  if (diffDays < 7) return `${diffDays}d ago`;
-                  return date.toLocaleDateString();
-                };
-
-                const getActionText = () => {
-                  return log.action;
-                };
-
-                const getEntityDisplay = () => {
-                  const entityMap: Record<string, string> = {
-                    access_request: 'access request',
-                    blog: 'blog post',
+                  const getActionIcon = () => {
+                    switch (log.action) {
+                      case 'created':
+                        return <Plus size={14} className="text-green-400" />;
+                      case 'updated':
+                        return <Edit3 size={14} className="text-blue-400" />;
+                      case 'deleted':
+                        return <Trash2 size={14} className="text-red-400" />;
+                      case 'activated':
+                        return <CheckCircle size={14} className="text-green-400" />;
+                      case 'deactivated':
+                        return <X size={14} className="text-red-400" />;
+                      default:
+                        return <Activity size={14} className="text-purple-400" />;
+                    }
                   };
-                  return entityMap[log.entityType] || log.entityType;
-                };
 
-                return (
-                  <div key={log.id} className="flex items-start gap-3 p-3 bg-[#1a1d26] rounded-lg border border-slate-800/40 hover:border-slate-700 transition-colors">
-                    <div className="mt-0.5">{getActionIcon()}</div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs text-slate-300 leading-relaxed">
-                        <span className="font-semibold text-white">{log.adminName}</span>{' '}
-                        <span className={getActionColor()}>{getActionText()}</span>{' '}
-                        <span className="text-slate-400">{getEntityDisplay()}</span>
-                        {log.entityName && (
-                          <span className="text-slate-200 font-medium"> "{log.entityName}"</span>
-                        )}
-                      </p>
-                      <p className="text-[10px] text-slate-500 mt-1">{formatTime(log.createdAt)}</p>
+                  const getActionColor = () => {
+                    switch (log.action) {
+                      case 'created':
+                        return 'text-green-400';
+                      case 'updated':
+                        return 'text-blue-400';
+                      case 'deleted':
+                        return 'text-red-400';
+                      case 'activated':
+                        return 'text-green-400';
+                      case 'deactivated':
+                        return 'text-red-400';
+                      default:
+                        return 'text-purple-400';
+                    }
+                  };
+
+                  const formatTime = (dateString: string) => {
+                    const date = new Date(dateString);
+                    const now = new Date();
+                    const diffMs = now.getTime() - date.getTime();
+                    const diffMins = Math.floor(diffMs / 60000);
+                    const diffHours = Math.floor(diffMs / 3600000);
+                    const diffDays = Math.floor(diffMs / 86400000);
+
+                    if (diffMins < 1) return 'Just now';
+                    if (diffMins < 60) return `${diffMins}m ago`;
+                    if (diffHours < 24) return `${diffHours}h ago`;
+                    if (diffDays < 7) return `${diffDays}d ago`;
+                    return date.toLocaleDateString();
+                  };
+
+                  const getActionText = () => {
+                    return log.action;
+                  };
+
+                  const getEntityDisplay = () => {
+                    const entityMap: Record<string, string> = {
+                      access_request: 'access request',
+                      blog: 'blog post',
+                    };
+                    return entityMap[log.entityType] || log.entityType;
+                  };
+
+                  return (
+                    <div
+                      key={log.id}
+                      className="flex items-start gap-3 p-3 bg-[#1a1d26] rounded-lg border border-slate-800/40 hover:border-slate-700 transition-colors"
+                    >
+                      <div className="mt-0.5">{getActionIcon()}</div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs text-slate-300 leading-relaxed">
+                          <span className="font-semibold text-white">{log.adminName}</span>{' '}
+                          <span className={getActionColor()}>{getActionText()}</span>{' '}
+                          <span className="text-slate-400">{getEntityDisplay()}</span>
+                          {log.entityName && (
+                            <span className="text-slate-200 font-medium"> "{log.entityName}"</span>
+                          )}
+                        </p>
+                        <p className="text-[10px] text-slate-500 mt-1">
+                          {formatTime(log.createdAt)}
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                );
+                  );
                 })
               )}
             </div>
@@ -519,13 +688,13 @@ const RequestsInbox = ({ nav }: { nav: (mod: string) => void }) => {
     setIsLoading(true);
     try {
       const timestamp = Date.now(); // Add timestamp to bust cache
-      const response = await fetch(`/api/requests?t=${timestamp}`, { 
+      const response = await fetch(`/api/requests?t=${timestamp}`, {
         credentials: 'include',
         cache: 'no-store',
         headers: {
           'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'Pragma': 'no-cache',
-        }
+          Pragma: 'no-cache',
+        },
       });
       if (response.ok) {
         const data = await response.json();
@@ -554,28 +723,30 @@ const RequestsInbox = ({ nav }: { nav: (mod: string) => void }) => {
 
       if (response.ok) {
         const data = await response.json();
-        
+
         // The PATCH endpoint always deletes requests after processing
         // So we should always refresh, but with a small delay to ensure DB transaction is committed
         console.log(`✅ [Frontend] Request ${requestId} ${action}d, refreshing list...`);
-        
+
         // Refresh immediately (optimistic update)
         await fetchRequests();
-        
+
         // Also refresh after a short delay to ensure database transaction is fully committed
         // This handles any race conditions where the GET request might run before deletion completes
         setTimeout(async () => {
           console.log(`🔄 [Frontend] Secondary refresh for request ${requestId}...`);
           await fetchRequests();
         }, 300);
-        
+
         // Show success message
         const message = data.message || `Request ${action}d and removed successfully`;
         notification.showSuccess(message);
-        
+
         // If approved, the enrollment sync utility will handle enrollment automatically
         if (action === 'approve') {
-          console.log(`✅ [Frontend] Request ${requestId} approved - enrollment will be synced automatically`);
+          console.log(
+            `✅ [Frontend] Request ${requestId} approved - enrollment will be synced automatically`
+          );
         }
       } else {
         // Try to get error message from response
@@ -588,7 +759,7 @@ const RequestsInbox = ({ nav }: { nav: (mod: string) => void }) => {
           console.error('Failed to parse error response. Status:', response.status);
           errorMessage = `Failed to ${action} request (Status: ${response.status})`;
         }
-        
+
         notification.showError(`Failed to ${action} request`, errorMessage);
       }
     } catch (error: any) {
@@ -602,36 +773,47 @@ const RequestsInbox = ({ nav }: { nav: (mod: string) => void }) => {
 
   // Filter requests - only show truly pending requests
   // Also filter out any requests that have reviewedAt set (they should be deleted)
-  const pendingRequests = requests.filter(r => {
+  const pendingRequests = requests.filter((r) => {
     const isPending = r.status === 'pending';
     const hasReviewedAt = r.reviewedAt;
-    
+
     // If it has reviewedAt but status is pending, it's inconsistent - don't show it
     if (hasReviewedAt && isPending) {
-      console.warn(`⚠️ Request ${r.id} has reviewedAt but status is 'pending' - data inconsistency!`, r);
+      console.warn(
+        `⚠️ Request ${r.id} has reviewedAt but status is 'pending' - data inconsistency!`,
+        r
+      );
       return false;
     }
-    
+
     // If status is not pending, don't show it
     if (!isPending) {
       return false;
     }
-    
+
     return true;
   });
-  
-  const reviewedRequests = requests.filter(r => r.status !== 'pending' && r.status !== null && r.status !== undefined);
-  
+
+  const reviewedRequests = requests.filter(
+    (r) => r.status !== 'pending' && r.status !== null && r.status !== undefined
+  );
+
   // Validate request data consistency
   React.useEffect(() => {
     // Log any requests that should be reviewed but aren't
     requests.forEach((r: any) => {
       if (r.reviewedAt && r.status === 'pending') {
-        console.warn(`⚠️ Request ${r.id} has reviewedAt but status is still 'pending'! This should be deleted.`, r);
+        console.warn(
+          `⚠️ Request ${r.id} has reviewedAt but status is still 'pending'! This should be deleted.`,
+          r
+        );
       }
       // Log approved/rejected requests that shouldn't be in the list
       if (r.status === 'approved' || r.status === 'rejected') {
-        console.warn(`⚠️ Request ${r.id} has status '${r.status}' but is still in database - should be deleted!`, r);
+        console.warn(
+          `⚠️ Request ${r.id} has status '${r.status}' but is still in database - should be deleted!`,
+          r
+        );
       }
     });
   }, [requests]);
@@ -641,15 +823,27 @@ const RequestsInbox = ({ nav }: { nav: (mod: string) => void }) => {
       <header className="mb-10 flex items-center justify-between">
         <div>
           <h2 className="text-3xl font-bold text-white tracking-tight">Course Access Requests</h2>
-          <p className="text-slate-400 mt-2 text-sm">Review and manage student course access requests</p>
+          <p className="text-slate-400 mt-2 text-sm">
+            Review and manage student course access requests
+          </p>
         </div>
         <button
           onClick={fetchRequests}
           disabled={isLoading}
           className="px-4 py-2 bg-purple-600 text-white rounded-lg font-semibold hover:bg-purple-700 disabled:opacity-50 transition-colors flex items-center gap-2"
         >
-          <svg className={`w-5 h-5 ${isLoading ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          <svg
+            className={`w-5 h-5 ${isLoading ? 'animate-spin' : ''}`}
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+            />
           </svg>
           Refresh
         </button>
@@ -663,15 +857,20 @@ const RequestsInbox = ({ nav }: { nav: (mod: string) => void }) => {
         <div className="space-y-6">
           {/* Pending Requests */}
           <div>
-            <h3 className="text-lg font-bold text-white mb-4">Pending ({pendingRequests.length})</h3>
+            <h3 className="text-lg font-bold text-white mb-4">
+              Pending ({pendingRequests.length})
+            </h3>
             {pendingRequests.length === 0 ? (
               <div className="bg-[#161922] border border-slate-800/60 rounded-2xl p-8 text-center">
                 <p className="text-slate-400">No pending requests</p>
               </div>
             ) : (
               <div className="space-y-3">
-                {pendingRequests.map(req => (
-                  <div key={req.id} className="bg-[#161922] border border-slate-800/60 rounded-2xl p-6">
+                {pendingRequests.map((req) => (
+                  <div
+                    key={req.id}
+                    className="bg-[#161922] border border-slate-800/60 rounded-2xl p-6"
+                  >
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
                         <div className="flex items-center gap-3 mb-2">
@@ -685,7 +884,8 @@ const RequestsInbox = ({ nav }: { nav: (mod: string) => void }) => {
                         </div>
                         <div className="mt-3">
                           <p className="text-sm text-slate-300">
-                            Requesting access to: <span className="font-semibold text-purple-400">{req.courseTitle}</span>
+                            Requesting access to:{' '}
+                            <span className="font-semibold text-purple-400">{req.courseTitle}</span>
                           </p>
                           {req.reason && (
                             <p className="text-sm text-slate-400 mt-2 italic">"{req.reason}"</p>
@@ -721,15 +921,23 @@ const RequestsInbox = ({ nav }: { nav: (mod: string) => void }) => {
           {/* Reviewed Requests */}
           {reviewedRequests.length > 0 && (
             <div>
-              <h3 className="text-lg font-bold text-white mb-4">Reviewed ({reviewedRequests.length})</h3>
+              <h3 className="text-lg font-bold text-white mb-4">
+                Reviewed ({reviewedRequests.length})
+              </h3>
               <div className="space-y-3">
-                {reviewedRequests.slice(0, 10).map(req => (
-                  <div key={req.id} className="bg-[#161922] border border-slate-800/60 rounded-2xl p-4 opacity-60">
+                {reviewedRequests.slice(0, 10).map((req) => (
+                  <div
+                    key={req.id}
+                    className="bg-[#161922] border border-slate-800/60 rounded-2xl p-4 opacity-60"
+                  >
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-sm text-white">{req.studentName} → {req.courseTitle}</p>
+                        <p className="text-sm text-white">
+                          {req.studentName} → {req.courseTitle}
+                        </p>
                         <p className="text-xs text-slate-500">
-                          {req.status === 'approved' ? '✅ Approved' : '❌ Denied'} on {new Date(req.reviewedAt).toLocaleDateString()}
+                          {req.status === 'approved' ? '✅ Approved' : '❌ Denied'} on{' '}
+                          {new Date(req.reviewedAt).toLocaleDateString()}
                         </p>
                       </div>
                     </div>
@@ -745,7 +953,15 @@ const RequestsInbox = ({ nav }: { nav: (mod: string) => void }) => {
 };
 
 // --- STUDENTS LIST MODULE ---
-const StudentsList = ({ nav, onSelectStudent, refreshTrigger }: { nav: (mod: string) => void, onSelectStudent: (id: number) => void, refreshTrigger?: number }) => {
+const StudentsList = ({
+  nav,
+  onSelectStudent,
+  refreshTrigger,
+}: {
+  nav: (mod: string) => void;
+  onSelectStudent: (id: number) => void;
+  refreshTrigger?: number;
+}) => {
   const notification = useNotification();
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = React.useState('');
@@ -753,7 +969,11 @@ const StudentsList = ({ nav, onSelectStudent, refreshTrigger }: { nav: (mod: str
   const [activityStudentId, setActivityStudentId] = React.useState<number | null>(null);
 
   // ⚡ PERFORMANCE: Use React Query for students data with caching
-  const { data: students = [], isLoading, refetch } = useQuery({
+  const {
+    data: students = [],
+    isLoading,
+    refetch,
+  } = useQuery({
     queryKey: ['students', refreshTrigger],
     queryFn: async () => {
       const response = await fetch('/api/students', { credentials: 'include' });
@@ -814,9 +1034,10 @@ const StudentsList = ({ nav, onSelectStudent, refreshTrigger }: { nav: (mod: str
     );
   };
 
-  const filteredStudents = students.filter(s =>
-    s.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    s.email?.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredStudents = students.filter(
+    (s) =>
+      s.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      s.email?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
@@ -865,7 +1086,7 @@ const StudentsList = ({ nav, onSelectStudent, refreshTrigger }: { nav: (mod: str
                   </td>
                 </tr>
               ) : (
-                filteredStudents.map(student => (
+                filteredStudents.map((student) => (
                   <tr
                     key={student.id}
                     className="hover:bg-[#1a1d26] transition-colors cursor-pointer"
@@ -895,9 +1116,7 @@ const StudentsList = ({ nav, onSelectStudent, refreshTrigger }: { nav: (mod: str
                     </td>
                     <td className="p-4">
                       <p className="text-slate-300 text-sm">{student.email}</p>
-                      {student.phone && (
-                        <p className="text-slate-500 text-xs">{student.phone}</p>
-                      )}
+                      {student.phone && <p className="text-slate-500 text-xs">{student.phone}</p>}
                     </td>
                     <td className="p-4 text-center">
                       <div className="flex flex-col items-center gap-1">
@@ -911,10 +1130,10 @@ const StudentsList = ({ nav, onSelectStudent, refreshTrigger }: { nav: (mod: str
                             {student.pendingRequests} Requested
                           </span>
                         )}
-                        {(!student.enrolledCourses || student.enrolledCourses === 0) && 
-                         (!student.pendingRequests || student.pendingRequests === 0) && (
-                          <span className="text-slate-500 text-xs">No activity</span>
-                        )}
+                        {(!student.enrolledCourses || student.enrolledCourses === 0) &&
+                          (!student.pendingRequests || student.pendingRequests === 0) && (
+                            <span className="text-slate-500 text-xs">No activity</span>
+                          )}
                       </div>
                     </td>
                     <td className="p-4 text-center">
@@ -927,10 +1146,11 @@ const StudentsList = ({ nav, onSelectStudent, refreshTrigger }: { nav: (mod: str
                     <td className="p-4 text-center">
                       <button
                         onClick={(e) => toggleActive(student.id, e)}
-                        className={`px-3 py-1 rounded-full text-xs font-bold ${student.isActive
-                          ? 'bg-green-500/10 text-green-400'
-                          : 'bg-slate-700/30 text-slate-400'
-                          }`}
+                        className={`px-3 py-1 rounded-full text-xs font-bold ${
+                          student.isActive
+                            ? 'bg-green-500/10 text-green-400'
+                            : 'bg-slate-700/30 text-slate-400'
+                        }`}
                       >
                         {student.isActive ? 'Active' : 'Inactive'}
                       </button>
@@ -975,7 +1195,7 @@ const StudentsList = ({ nav, onSelectStudent, refreshTrigger }: { nav: (mod: str
       {showActivityModal && activityStudentId && (
         <StudentActivityModal
           studentId={activityStudentId}
-          studentName={students.find(s => s.id === activityStudentId)?.name || 'Student'}
+          studentName={students.find((s) => s.id === activityStudentId)?.name || 'Student'}
           onClose={() => {
             setShowActivityModal(false);
             setActivityStudentId(null);
@@ -1002,7 +1222,9 @@ const Analytics = ({ nav }: { nav: (mod: string) => void }) => {
   const [courseStats, setCourseStats] = React.useState<any[]>([]);
   const [studentEngagement, setStudentEngagement] = React.useState<any[]>([]);
   const [dateRange, setDateRange] = React.useState<'7d' | '30d' | '90d' | 'all'>('30d');
-  const [reportType, setReportType] = React.useState<'summary' | 'detailed' | 'courses' | 'students'>('summary');
+  const [reportType, setReportType] = React.useState<
+    'summary' | 'detailed' | 'courses' | 'students'
+  >('summary');
   const [isLoading, setIsLoading] = React.useState(true);
   const [isGeneratingReport, setIsGeneratingReport] = React.useState(false);
 
@@ -1015,12 +1237,12 @@ const Analytics = ({ nav }: { nav: (mod: string) => void }) => {
   const fetchAnalytics = async () => {
     try {
       setIsLoading(true);
-      
+
       // Fetch basic stats in parallel (fast)
       const [studentsRes, coursesRes, questionsRes] = await Promise.all([
         fetch('/api/students', { credentials: 'include' }),
         fetch('/api/courses', { credentials: 'include' }),
-        fetch('/api/qbank?countOnly=true', { credentials: 'include' })
+        fetch('/api/qbank?countOnly=true', { credentials: 'include' }),
       ]);
 
       // Parse responses
@@ -1030,13 +1252,17 @@ const Analytics = ({ nav }: { nav: (mod: string) => void }) => {
 
       const students = studentsData.students || [];
       const courses = coursesData.courses || [];
-      const totalEnrollments = students.reduce((sum: number, s: any) => sum + (s.enrolledCourses || 0), 0);
-      
+      const totalEnrollments = students.reduce(
+        (sum: number, s: any) => sum + (s.enrolledCourses || 0),
+        0
+      );
+
       // Calculate date-based metrics
       const now = new Date();
-      const daysAgo = dateRange === '7d' ? 7 : dateRange === '30d' ? 30 : dateRange === '90d' ? 90 : Infinity;
+      const daysAgo =
+        dateRange === '7d' ? 7 : dateRange === '30d' ? 30 : dateRange === '90d' ? 90 : Infinity;
       const cutoffDate = new Date(now.getTime() - daysAgo * 24 * 60 * 60 * 1000);
-      
+
       const newStudentsThisMonth = students.filter((s: any) => {
         const joinedDate = new Date(s.joinedDate);
         return joinedDate >= cutoffDate;
@@ -1056,52 +1282,65 @@ const Analytics = ({ nav }: { nav: (mod: string) => void }) => {
       });
 
       // Set basic course stats immediately
-      setCourseStats(courses.map((course: any) => ({
-        ...course,
-        enrollments: 0,
-        averageProgress: 0,
-      })));
+      setCourseStats(
+        courses.map((course: any) => ({
+          ...course,
+          enrollments: 0,
+          averageProgress: 0,
+        }))
+      );
 
       // Fetch detailed enrollment data in parallel (only for students with enrollments)
       const studentsWithEnrollments = students.filter((s: any) => s.enrolledCourses > 0);
-      
+
       if (studentsWithEnrollments.length > 0) {
         // Fetch all student details in parallel (much faster than sequential)
         const studentDetailPromises = studentsWithEnrollments.map((student: any) =>
           fetch(`/api/students/${student.id}`, { credentials: 'include' })
-            .then(res => res.ok ? res.json() : null)
+            .then((res) => (res.ok ? res.json() : null))
             .catch(() => null)
         );
 
         const studentDetails = await Promise.all(studentDetailPromises);
-        
+
         let totalProgress = 0;
         let enrollmentCount = 0;
         const engagementData: any[] = [];
-        
+
         console.log(`📊 [Analytics] Processing ${studentDetails.length} students with enrollments`);
         studentDetails.forEach((detailData, index) => {
           if (detailData?.student) {
             const student = studentsWithEnrollments[index];
             const enrollments = detailData.student.enrollments || [];
-            console.log(`📊 [Analytics] Student ${student.name} (ID: ${student.id}) has ${enrollments.length} enrollments`);
-            
+            console.log(
+              `📊 [Analytics] Student ${student.name} (ID: ${student.id}) has ${enrollments.length} enrollments`
+            );
+
             if (enrollments.length === 0) {
-              console.warn(`⚠️ [Analytics] Student ${student.name} has 0 enrollments but enrolledCourses > 0`);
+              console.warn(
+                `⚠️ [Analytics] Student ${student.name} has 0 enrollments but enrolledCourses > 0`
+              );
             }
-            
+
             enrollments.forEach((e: any) => {
               // Ensure progress is always a number - use totalProgress if progress is missing
-              const progress = typeof e.progress === 'number' && e.progress >= 0 
-                ? e.progress 
-                : (typeof e.totalProgress === 'number' && e.totalProgress >= 0 ? e.totalProgress : 0);
-              
-              console.log(`📊 [Analytics] Course: ${e.course?.title || 'Unknown'}, Progress: ${progress}%, CourseId: ${e.courseId}, e.progress=${e.progress}, e.totalProgress=${e.totalProgress}`);
-              
+              const progress =
+                typeof e.progress === 'number' && e.progress >= 0
+                  ? e.progress
+                  : typeof e.totalProgress === 'number' && e.totalProgress >= 0
+                    ? e.totalProgress
+                    : 0;
+
+              console.log(
+                `📊 [Analytics] Course: ${e.course?.title || 'Unknown'}, Progress: ${progress}%, CourseId: ${e.courseId}, e.progress=${e.progress}, e.totalProgress=${e.totalProgress}`
+              );
+
               if (progress === 0 && e.course?.title) {
-                console.warn(`⚠️ [Analytics] Student ${student.name} has 0% progress in ${e.course.title}`);
+                console.warn(
+                  `⚠️ [Analytics] Student ${student.name} has 0% progress in ${e.course.title}`
+                );
               }
-              
+
               totalProgress += progress;
               enrollmentCount++;
               engagementData.push({
@@ -1116,15 +1355,19 @@ const Analytics = ({ nav }: { nav: (mod: string) => void }) => {
             console.warn(`⚠️ [Analytics] Student detail data is missing for index ${index}`);
           }
         });
-        
-        console.log(`📊 [Analytics] Total engagement data items: ${engagementData.length}, Total progress sum: ${totalProgress}, Enrollment count: ${enrollmentCount}`);
 
-        const averageProgress = enrollmentCount > 0 ? Math.round(totalProgress / enrollmentCount) : 0;
+        console.log(
+          `📊 [Analytics] Total engagement data items: ${engagementData.length}, Total progress sum: ${totalProgress}, Enrollment count: ${enrollmentCount}`
+        );
+
+        const averageProgress =
+          enrollmentCount > 0 ? Math.round(totalProgress / enrollmentCount) : 0;
         const completedCount = engagementData.filter((e: any) => (e.progress || 0) >= 100).length;
-        const completionRate = enrollmentCount > 0 ? Math.round((completedCount / enrollmentCount) * 100) : 0;
+        const completionRate =
+          enrollmentCount > 0 ? Math.round((completedCount / enrollmentCount) * 100) : 0;
 
         // Update stats with calculated values
-        setStats(prev => ({
+        setStats((prev) => ({
           ...prev,
           averageProgress,
           completionRate,
@@ -1134,17 +1377,19 @@ const Analytics = ({ nav }: { nav: (mod: string) => void }) => {
         // Update course stats with enrollment data
         // Match by courseId (preferred) or title (fallback) for accuracy
         const courseStatsData = courses.map((course: any) => {
-          const courseEnrollments = engagementData.filter(e => {
+          const courseEnrollments = engagementData.filter((e) => {
             // Prefer courseId matching (more reliable)
-            const courseIdMatch = e.courseId && course.id && 
-              e.courseId.toString() === course.id.toString();
+            const courseIdMatch =
+              e.courseId && course.id && e.courseId.toString() === course.id.toString();
             // Fallback to title matching (for legacy data)
             const titleMatch = e.courseTitle === course.title;
             return courseIdMatch || titleMatch;
           });
           const enrollments = courseEnrollments.length;
-          const totalProgress = courseEnrollments.reduce((sum: number, e: any) => 
-            sum + (e.progress || 0), 0);
+          const totalProgress = courseEnrollments.reduce(
+            (sum: number, e: any) => sum + (e.progress || 0),
+            0
+          );
           return {
             ...course,
             enrollments,
@@ -1188,10 +1433,10 @@ const Analytics = ({ nav }: { nav: (mod: string) => void }) => {
         csv += `Average Progress,${stats.averageProgress}%\n`;
         csv += `Completion Rate,${stats.completionRate}%\n`;
         csv += `New Students (Period),${stats.newStudentsThisMonth}\n\n`;
-        
+
         csv += 'Course Performance\n';
         csv += 'Course Title,Enrollments,Average Progress\n';
-        courseStats.forEach(course => {
+        courseStats.forEach((course) => {
           csv += `"${course.title}",${course.enrollments},${course.averageProgress}%\n`;
         });
 
@@ -1268,8 +1513,11 @@ const Analytics = ({ nav }: { nav: (mod: string) => void }) => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           {isLoading ? (
             <>
-              {[1, 2, 3, 4].map(i => (
-                <div key={i} className="bg-[#161922] border border-slate-800/60 rounded-2xl p-6 animate-pulse">
+              {[1, 2, 3, 4].map((i) => (
+                <div
+                  key={i}
+                  className="bg-[#161922] border border-slate-800/60 rounded-2xl p-6 animate-pulse"
+                >
                   <div className="h-3 bg-slate-700 rounded w-24 mb-4"></div>
                   <div className="h-8 bg-slate-700 rounded w-16"></div>
                 </div>
@@ -1277,10 +1525,34 @@ const Analytics = ({ nav }: { nav: (mod: string) => void }) => {
             </>
           ) : (
             <>
-              <MetricCard title="Total Students" value={stats.totalStudents.toString()} trend="Registered" color="blue" icon={<Users size={20} />} />
-              <MetricCard title="Active Students" value={stats.activeStudents.toString()} trend="Currently Active" color="green" icon={<Activity size={20} />} />
-              <MetricCard title="Total Courses" value={stats.totalCourses.toString()} trend="Available" color="purple" icon={<BookOpen size={20} />} />
-              <MetricCard title="Total Enrollments" value={stats.totalEnrollments.toString()} trend="All Time" color="pink" icon={<Target size={20} />} />
+              <MetricCard
+                title="Total Students"
+                value={stats.totalStudents.toString()}
+                trend="Registered"
+                color="blue"
+                icon={<Users size={20} />}
+              />
+              <MetricCard
+                title="Active Students"
+                value={stats.activeStudents.toString()}
+                trend="Currently Active"
+                color="green"
+                icon={<Activity size={20} />}
+              />
+              <MetricCard
+                title="Total Courses"
+                value={stats.totalCourses.toString()}
+                trend="Available"
+                color="purple"
+                icon={<BookOpen size={20} />}
+              />
+              <MetricCard
+                title="Total Enrollments"
+                value={stats.totalEnrollments.toString()}
+                trend="All Time"
+                color="pink"
+                icon={<Target size={20} />}
+              />
             </>
           )}
         </div>
@@ -1288,8 +1560,11 @@ const Analytics = ({ nav }: { nav: (mod: string) => void }) => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           {isLoading ? (
             <>
-              {[1, 2, 3, 4].map(i => (
-                <div key={i} className="bg-[#161922] border border-slate-800/60 rounded-2xl p-6 animate-pulse">
+              {[1, 2, 3, 4].map((i) => (
+                <div
+                  key={i}
+                  className="bg-[#161922] border border-slate-800/60 rounded-2xl p-6 animate-pulse"
+                >
                   <div className="h-3 bg-slate-700 rounded w-24 mb-4"></div>
                   <div className="h-8 bg-slate-700 rounded w-16"></div>
                 </div>
@@ -1297,184 +1572,234 @@ const Analytics = ({ nav }: { nav: (mod: string) => void }) => {
             </>
           ) : (
             <>
-              <MetricCard title="Total Questions" value={stats.totalQuestions.toString()} trend="In Q-Bank" color="blue" icon={<Database size={20} />} />
-              <MetricCard title="Average Progress" value={stats.averageProgress + '%'} trend="Across All" color="orange" icon={<TrendingUp size={20} />} />
-              <MetricCard title="Completion Rate" value={stats.completionRate + '%'} trend="Finished" color="green" icon={<Award size={20} />} />
-              <MetricCard title="New Students" value={stats.newStudentsThisMonth.toString()} trend={`Last ${dateRange === 'all' ? 'Period' : dateRange}`} color="purple" icon={<TrendingUp size={20} />} />
+              <MetricCard
+                title="Total Questions"
+                value={stats.totalQuestions.toString()}
+                trend="In Q-Bank"
+                color="blue"
+                icon={<Database size={20} />}
+              />
+              <MetricCard
+                title="Average Progress"
+                value={stats.averageProgress + '%'}
+                trend="Across All"
+                color="orange"
+                icon={<TrendingUp size={20} />}
+              />
+              <MetricCard
+                title="Completion Rate"
+                value={stats.completionRate + '%'}
+                trend="Finished"
+                color="green"
+                icon={<Award size={20} />}
+              />
+              <MetricCard
+                title="New Students"
+                value={stats.newStudentsThisMonth.toString()}
+                trend={`Last ${dateRange === 'all' ? 'Period' : dateRange}`}
+                color="purple"
+                icon={<TrendingUp size={20} />}
+              />
             </>
           )}
         </div>
 
-          {/* Course Performance */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-            <div className="bg-[#161922] border border-slate-800/60 rounded-2xl p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-xl font-bold text-white flex items-center gap-2">
-                  <BarChart size={20} className="text-purple-400" />
-                  Course Performance
-                </h3>
-              </div>
-              <div className="space-y-4 max-h-96 overflow-y-auto">
-                {isLoading ? (
-                  <div className="space-y-3">
-                    {[1, 2, 3].map(i => (
-                      <div key={i} className="p-4 bg-[#1a1d26] rounded-xl border border-slate-800/40 animate-pulse">
-                        <div className="h-4 bg-slate-700 rounded w-3/4 mb-2"></div>
-                        <div className="h-2 bg-slate-700 rounded"></div>
+        {/* Course Performance */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+          <div className="bg-[#161922] border border-slate-800/60 rounded-2xl p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                <BarChart size={20} className="text-purple-400" />
+                Course Performance
+              </h3>
+            </div>
+            <div className="space-y-4 max-h-96 overflow-y-auto">
+              {isLoading ? (
+                <div className="space-y-3">
+                  {[1, 2, 3].map((i) => (
+                    <div
+                      key={i}
+                      className="p-4 bg-[#1a1d26] rounded-xl border border-slate-800/40 animate-pulse"
+                    >
+                      <div className="h-4 bg-slate-700 rounded w-3/4 mb-2"></div>
+                      <div className="h-2 bg-slate-700 rounded"></div>
+                    </div>
+                  ))}
+                </div>
+              ) : courseStats.length > 0 ? (
+                courseStats.map((course, idx) => (
+                  <div key={idx} className="p-4 bg-[#1a1d26] rounded-xl border border-slate-800/40">
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="font-bold text-white text-sm">{course.title}</h4>
+                      <span className="text-xs text-slate-400">{course.enrollments} enrolled</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 h-2 bg-slate-800 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-gradient-to-r from-purple-600 to-pink-600 transition-all"
+                          style={{ width: `${course.averageProgress}%` }}
+                        />
                       </div>
-                    ))}
+                      <span className="text-xs font-bold text-purple-400">
+                        {course.averageProgress}%
+                      </span>
+                    </div>
                   </div>
-                ) : courseStats.length > 0 ? (
-                  courseStats.map((course, idx) => (
-                    <div key={idx} className="p-4 bg-[#1a1d26] rounded-xl border border-slate-800/40">
-                      <div className="flex items-center justify-between mb-2">
-                        <h4 className="font-bold text-white text-sm">{course.title}</h4>
-                        <span className="text-xs text-slate-400">{course.enrollments} enrolled</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className="flex-1 h-2 bg-slate-800 rounded-full overflow-hidden">
+                ))
+              ) : (
+                <p className="text-slate-400 text-center py-8">No course data available</p>
+              )}
+            </div>
+          </div>
+
+          {/* Student Engagement */}
+          <div className="bg-[#161922] border border-slate-800/60 rounded-2xl p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                <Activity size={20} className="text-green-400" />
+                Top Student Engagement
+              </h3>
+            </div>
+            <div className="space-y-3 max-h-96 overflow-y-auto">
+              {isLoading ? (
+                <div className="space-y-3">
+                  {[1, 2, 3, 4, 5].map((i) => (
+                    <div
+                      key={i}
+                      className="p-3 bg-[#1a1d26] rounded-xl border border-slate-800/40 animate-pulse"
+                    >
+                      <div className="h-4 bg-slate-700 rounded w-2/3 mb-2"></div>
+                      <div className="h-2 bg-slate-700 rounded"></div>
+                    </div>
+                  ))}
+                </div>
+              ) : studentEngagement.length > 0 ? (
+                studentEngagement
+                  .sort((a, b) => (b.progress || 0) - (a.progress || 0))
+                  .slice(0, 10)
+                  .map((engagement, idx) => {
+                    const progress = Math.max(0, Math.min(100, engagement.progress || 0)); // Clamp between 0-100
+                    return (
+                      <div
+                        key={idx}
+                        className="p-3 bg-[#1a1d26] rounded-xl border border-slate-800/40"
+                      >
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-sm font-semibold text-white">
+                            {engagement.studentName}
+                          </span>
+                          <span className="text-xs text-slate-400">{progress}%</span>
+                        </div>
+                        <p className="text-xs text-slate-500 mb-2">{engagement.courseTitle}</p>
+                        <div className="h-1.5 bg-slate-800 rounded-full overflow-hidden">
                           <div
-                            className="h-full bg-gradient-to-r from-purple-600 to-pink-600 transition-all"
-                            style={{ width: `${course.averageProgress}%` }}
+                            className="h-full bg-gradient-to-r from-green-600 to-emerald-600"
+                            style={{ width: `${progress}%` }}
                           />
                         </div>
-                        <span className="text-xs font-bold text-purple-400">{course.averageProgress}%</span>
                       </div>
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-slate-400 text-center py-8">No course data available</p>
-                )}
-              </div>
+                    );
+                  })
+              ) : (
+                <p className="text-slate-400 text-center py-8">No engagement data available</p>
+              )}
             </div>
+          </div>
+        </div>
 
-            {/* Student Engagement */}
-            <div className="bg-[#161922] border border-slate-800/60 rounded-2xl p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-xl font-bold text-white flex items-center gap-2">
-                  <Activity size={20} className="text-green-400" />
-                  Top Student Engagement
-                </h3>
+        {/* Additional Statistics */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="bg-[#161922] border border-slate-800/60 rounded-2xl p-6">
+            <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+              <Clock size={18} className="text-blue-400" />
+              Activity Overview
+            </h3>
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <span className="text-slate-400 text-sm">Active Enrollments</span>
+                <span className="text-white font-bold">{stats.activeEnrollments}</span>
               </div>
-              <div className="space-y-3 max-h-96 overflow-y-auto">
-                {isLoading ? (
-                  <div className="space-y-3">
-                    {[1, 2, 3, 4, 5].map(i => (
-                      <div key={i} className="p-3 bg-[#1a1d26] rounded-xl border border-slate-800/40 animate-pulse">
-                        <div className="h-4 bg-slate-700 rounded w-2/3 mb-2"></div>
-                        <div className="h-2 bg-slate-700 rounded"></div>
-                      </div>
-                    ))}
-                  </div>
-                ) : studentEngagement.length > 0 ? (
-                  studentEngagement
-                    .sort((a, b) => (b.progress || 0) - (a.progress || 0))
-                    .slice(0, 10)
-                    .map((engagement, idx) => {
-                      const progress = Math.max(0, Math.min(100, engagement.progress || 0)); // Clamp between 0-100
-                      return (
-                        <div key={idx} className="p-3 bg-[#1a1d26] rounded-xl border border-slate-800/40">
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="text-sm font-semibold text-white">{engagement.studentName}</span>
-                            <span className="text-xs text-slate-400">{progress}%</span>
-                          </div>
-                          <p className="text-xs text-slate-500 mb-2">{engagement.courseTitle}</p>
-                          <div className="h-1.5 bg-slate-800 rounded-full overflow-hidden">
-                            <div
-                              className="h-full bg-gradient-to-r from-green-600 to-emerald-600"
-                              style={{ width: `${progress}%` }}
-                            />
-                          </div>
-                        </div>
-                      );
-                    })
-                ) : (
-                  <p className="text-slate-400 text-center py-8">No engagement data available</p>
-                )}
+              <div className="flex justify-between items-center">
+                <span className="text-slate-400 text-sm">Inactive Students</span>
+                <span className="text-white font-bold">
+                  {stats.totalStudents - stats.activeStudents}
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-slate-400 text-sm">Courses Published</span>
+                <span className="text-white font-bold">{stats.totalCourses}</span>
               </div>
             </div>
           </div>
 
-          {/* Additional Statistics */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <div className="bg-[#161922] border border-slate-800/60 rounded-2xl p-6">
-              <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-                <Clock size={18} className="text-blue-400" />
-                Activity Overview
-              </h3>
-              <div className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <span className="text-slate-400 text-sm">Active Enrollments</span>
-                  <span className="text-white font-bold">{stats.activeEnrollments}</span>
+          <div className="bg-[#161922] border border-slate-800/60 rounded-2xl p-6">
+            <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+              <Target size={18} className="text-purple-400" />
+              Performance Metrics
+            </h3>
+            <div className="space-y-4">
+              <div>
+                <div className="flex justify-between text-xs mb-2">
+                  <span className="text-slate-400">Engagement Rate</span>
+                  <span className="text-white font-bold">
+                    {stats.totalStudents > 0
+                      ? Math.round((stats.activeEnrollments / stats.totalStudents) * 100)
+                      : 0}
+                    %
+                  </span>
                 </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-slate-400 text-sm">Inactive Students</span>
-                  <span className="text-white font-bold">{stats.totalStudents - stats.activeStudents}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-slate-400 text-sm">Courses Published</span>
-                  <span className="text-white font-bold">{stats.totalCourses}</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-[#161922] border border-slate-800/60 rounded-2xl p-6">
-              <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-                <Target size={18} className="text-purple-400" />
-                Performance Metrics
-              </h3>
-              <div className="space-y-4">
-                <div>
-                  <div className="flex justify-between text-xs mb-2">
-                    <span className="text-slate-400">Engagement Rate</span>
-                    <span className="text-white font-bold">
-                      {stats.totalStudents > 0 ? Math.round((stats.activeEnrollments / stats.totalStudents) * 100) : 0}%
-                    </span>
-                  </div>
-                  <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-gradient-to-r from-purple-600 to-pink-600"
-                      style={{ width: `${stats.totalStudents > 0 ? Math.round((stats.activeEnrollments / stats.totalStudents) * 100) : 0}%` }}
-                    />
-                  </div>
-                </div>
-                <div>
-                  <div className="flex justify-between text-xs mb-2">
-                    <span className="text-slate-400">Course Utilization</span>
-                    <span className="text-white font-bold">
-                      {stats.totalCourses > 0 ? Math.round((stats.totalEnrollments / stats.totalCourses) * 10) / 10 : 0}
-                    </span>
-                  </div>
-                  <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-gradient-to-r from-blue-600 to-cyan-600"
-                      style={{ width: `${Math.min(100, stats.totalCourses > 0 ? (stats.totalEnrollments / stats.totalCourses) * 10 : 0)}%` }}
-                    />
-                  </div>
+                <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-gradient-to-r from-purple-600 to-pink-600"
+                    style={{
+                      width: `${stats.totalStudents > 0 ? Math.round((stats.activeEnrollments / stats.totalStudents) * 100) : 0}%`,
+                    }}
+                  />
                 </div>
               </div>
-            </div>
-
-            <div className="bg-[#161922] border border-slate-800/60 rounded-2xl p-6">
-              <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-                <Award size={18} className="text-orange-400" />
-                Quick Stats
-              </h3>
-              <div className="space-y-3">
-                <div className="p-3 bg-[#1a1d26] rounded-lg border border-slate-800/40">
-                  <p className="text-xs text-slate-500 mb-1">Avg. Courses per Student</p>
-                  <p className="text-lg font-bold text-white">
-                    {stats.totalStudents > 0 ? (stats.totalEnrollments / stats.totalStudents).toFixed(1) : '0.0'}
-                  </p>
+              <div>
+                <div className="flex justify-between text-xs mb-2">
+                  <span className="text-slate-400">Course Utilization</span>
+                  <span className="text-white font-bold">
+                    {stats.totalCourses > 0
+                      ? Math.round((stats.totalEnrollments / stats.totalCourses) * 10) / 10
+                      : 0}
+                  </span>
                 </div>
-                <div className="p-3 bg-[#1a1d26] rounded-lg border border-slate-800/40">
-                  <p className="text-xs text-slate-500 mb-1">Students with Progress</p>
-                  <p className="text-lg font-bold text-white">{stats.activeEnrollments}</p>
+                <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-gradient-to-r from-blue-600 to-cyan-600"
+                    style={{
+                      width: `${Math.min(100, stats.totalCourses > 0 ? (stats.totalEnrollments / stats.totalCourses) * 10 : 0)}%`,
+                    }}
+                  />
                 </div>
               </div>
             </div>
           </div>
-        </>
+
+          <div className="bg-[#161922] border border-slate-800/60 rounded-2xl p-6">
+            <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+              <Award size={18} className="text-orange-400" />
+              Quick Stats
+            </h3>
+            <div className="space-y-3">
+              <div className="p-3 bg-[#1a1d26] rounded-lg border border-slate-800/40">
+                <p className="text-xs text-slate-500 mb-1">Avg. Courses per Student</p>
+                <p className="text-lg font-bold text-white">
+                  {stats.totalStudents > 0
+                    ? (stats.totalEnrollments / stats.totalStudents).toFixed(1)
+                    : '0.0'}
+                </p>
+              </div>
+              <div className="p-3 bg-[#1a1d26] rounded-lg border border-slate-800/40">
+                <p className="text-xs text-slate-500 mb-1">Students with Progress</p>
+                <p className="text-lg font-bold text-white">{stats.activeEnrollments}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </>
     </div>
   );
 };
@@ -1523,7 +1848,7 @@ const DailyVideoManager = ({ nav }: { nav: (mod: string) => void }) => {
     try {
       const [videosRes, coursesRes] = await Promise.all([
         fetch('/api/daily-videos', { credentials: 'include' }),
-        fetch('/api/courses', { credentials: 'include' })
+        fetch('/api/courses', { credentials: 'include' }),
       ]);
 
       if (videosRes.ok) {
@@ -1572,13 +1897,15 @@ const DailyVideoManager = ({ nav }: { nav: (mod: string) => void }) => {
     if (!selectedChapter || !title) return;
 
     try {
-      const url = editingVideo ? `/api/admin/daily-videos/${editingVideo.id}` : '/api/admin/daily-videos';
+      const url = editingVideo
+        ? `/api/admin/daily-videos/${editingVideo.id}`
+        : '/api/admin/daily-videos';
       const method = editingVideo ? 'PUT' : 'POST';
 
       // Determine final video URL and provider based on source type
       let finalVideoUrl = '';
       let finalProvider = videoProvider;
-      
+
       if (videoSourceType === 'upload') {
         finalVideoUrl = uploadedVideoUrl;
         finalProvider = 'uploaded';
@@ -1618,7 +1945,9 @@ const DailyVideoManager = ({ nav }: { nav: (mod: string) => void }) => {
         fetchData(); // Refresh list
       } else {
         const error = await response.json();
-        alert(`Failed to ${editingVideo ? 'update' : 'configure'} daily video: ${error.message || 'Unknown error'}`);
+        alert(
+          `Failed to ${editingVideo ? 'update' : 'configure'} daily video: ${error.message || 'Unknown error'}`
+        );
       }
     } catch (error) {
       console.error('Error configuring daily video:', error);
@@ -1632,7 +1961,7 @@ const DailyVideoManager = ({ nav }: { nav: (mod: string) => void }) => {
     setTitle(video.title);
     setDescription(video.description || '');
     setDay(video.day);
-    
+
     // Determine source type based on provider
     const provider = video.videoProvider || 'youtube';
     if (provider === 'uploaded') {
@@ -1644,7 +1973,7 @@ const DailyVideoManager = ({ nav }: { nav: (mod: string) => void }) => {
       setVideoUrl(video.videoUrl || '');
       setUploadedVideoUrl('');
     }
-    
+
     setVideoProvider(provider);
     setVideoDuration(video.videoDuration || null);
     setThumbnail(video.thumbnail || '');
@@ -1697,16 +2026,23 @@ const DailyVideoManager = ({ nav }: { nav: (mod: string) => void }) => {
     <div className="p-8 overflow-y-auto h-full">
       <header className="mb-10">
         <h2 className="text-3xl font-bold text-white tracking-tight">Daily Video Manager</h2>
-        <p className="text-slate-400 mt-2 text-sm">Configure daily video rotation for active students</p>
+        <p className="text-slate-400 mt-2 text-sm">
+          Configure daily video rotation for active students
+        </p>
       </header>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Configuration Form */}
         <div className="lg:col-span-1 bg-[#161922] border border-slate-800/60 rounded-2xl p-6 h-fit">
           <div className="flex justify-between items-center mb-6">
-            <h3 className="font-bold text-white">{editingVideo ? 'Edit Daily Video' : 'Add New Daily Video'}</h3>
+            <h3 className="font-bold text-white">
+              {editingVideo ? 'Edit Daily Video' : 'Add New Daily Video'}
+            </h3>
             {editingVideo && (
-              <button onClick={resetForm} className="text-slate-400 hover:text-white text-xs font-bold">
+              <button
+                onClick={resetForm}
+                className="text-slate-400 hover:text-white text-xs font-bold"
+              >
                 Cancel
               </button>
             )}
@@ -1721,8 +2057,10 @@ const DailyVideoManager = ({ nav }: { nav: (mod: string) => void }) => {
                 required
               >
                 <option value="">Select a course...</option>
-                {courses.map(c => (
-                  <option key={c.id} value={c.id}>{c.title}</option>
+                {courses.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.title}
+                  </option>
                 ))}
               </select>
             </div>
@@ -1737,14 +2075,18 @@ const DailyVideoManager = ({ nav }: { nav: (mod: string) => void }) => {
                 required
               >
                 <option value="">Select a module...</option>
-                {modules.map(m => (
-                  <option key={m.id} value={m.id}>{m.title}</option>
+                {modules.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.title}
+                  </option>
                 ))}
               </select>
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-400 mb-1">Select Video Chapter</label>
+              <label className="block text-xs font-bold text-slate-400 mb-1">
+                Select Video Chapter
+              </label>
               <select
                 value={selectedChapter}
                 onChange={(e) => setSelectedChapter(e.target.value)}
@@ -1753,14 +2095,18 @@ const DailyVideoManager = ({ nav }: { nav: (mod: string) => void }) => {
                 required
               >
                 <option value="">Select a video chapter...</option>
-                {chapters.map(c => (
-                  <option key={c.id} value={c.id}>{c.title}</option>
+                {chapters.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.title}
+                  </option>
                 ))}
               </select>
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-400 mb-1">Day Number (0-365)</label>
+              <label className="block text-xs font-bold text-slate-400 mb-1">
+                Day Number (0-365)
+              </label>
               <input
                 type="number"
                 min="0"
@@ -1797,7 +2143,7 @@ const DailyVideoManager = ({ nav }: { nav: (mod: string) => void }) => {
 
             <div className="border-t border-slate-800 pt-4">
               <h4 className="text-xs font-bold text-slate-400 mb-3 uppercase">Video Settings</h4>
-              
+
               {/* Video Source Type Selector */}
               <div className="mb-4">
                 <label className="block text-xs font-bold text-slate-400 mb-2">Video Source</label>
@@ -1839,7 +2185,9 @@ const DailyVideoManager = ({ nav }: { nav: (mod: string) => void }) => {
                 {videoSourceType === 'url' ? (
                   <>
                     <div>
-                      <label className="block text-xs font-bold text-slate-400 mb-1">Video URL</label>
+                      <label className="block text-xs font-bold text-slate-400 mb-1">
+                        Video URL
+                      </label>
                       <input
                         type="url"
                         value={videoUrl}
@@ -1863,7 +2211,9 @@ const DailyVideoManager = ({ nav }: { nav: (mod: string) => void }) => {
                       </p>
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-slate-400 mb-1">Provider</label>
+                      <label className="block text-xs font-bold text-slate-400 mb-1">
+                        Provider
+                      </label>
                       <select
                         value={videoProvider}
                         onChange={(e) => setVideoProvider(e.target.value)}
@@ -1878,7 +2228,9 @@ const DailyVideoManager = ({ nav }: { nav: (mod: string) => void }) => {
                   </>
                 ) : (
                   <div>
-                    <label className="block text-xs font-bold text-slate-400 mb-1">Upload Video File</label>
+                    <label className="block text-xs font-bold text-slate-400 mb-1">
+                      Upload Video File
+                    </label>
                     <FileUpload
                       type="video"
                       onUploadComplete={(url) => {
@@ -1893,21 +2245,27 @@ const DailyVideoManager = ({ nav }: { nav: (mod: string) => void }) => {
                     </p>
                   </div>
                 )}
-                
+
                 <div>
-                  <label className="block text-xs font-bold text-slate-400 mb-1">Duration (min)</label>
+                  <label className="block text-xs font-bold text-slate-400 mb-1">
+                    Duration (min)
+                  </label>
                   <input
                     type="number"
                     min="1"
                     value={videoDuration || ''}
-                    onChange={(e) => setVideoDuration(e.target.value ? parseInt(e.target.value) : null)}
+                    onChange={(e) =>
+                      setVideoDuration(e.target.value ? parseInt(e.target.value) : null)
+                    }
                     className="w-full px-3 py-2 bg-[#1a1d26] border border-slate-800 rounded-lg text-white text-sm focus:outline-none focus:border-purple-500"
                     placeholder="e.g. 15"
                   />
                 </div>
-                
+
                 <div>
-                  <label className="block text-xs font-bold text-slate-400 mb-1">Thumbnail URL</label>
+                  <label className="block text-xs font-bold text-slate-400 mb-1">
+                    Thumbnail URL
+                  </label>
                   <input
                     type="url"
                     value={thumbnail}
@@ -1926,14 +2284,18 @@ const DailyVideoManager = ({ nav }: { nav: (mod: string) => void }) => {
               <h4 className="text-xs font-bold text-slate-400 mb-3 uppercase">Scheduling</h4>
               <div className="space-y-3">
                 <div>
-                  <label className="block text-xs font-bold text-slate-400 mb-1">Scheduled Date</label>
+                  <label className="block text-xs font-bold text-slate-400 mb-1">
+                    Scheduled Date
+                  </label>
                   <input
                     type="datetime-local"
                     value={scheduledDate}
                     onChange={(e) => setScheduledDate(e.target.value)}
                     className="w-full px-3 py-2 bg-[#1a1d26] border border-slate-800 rounded-lg text-white text-sm focus:outline-none focus:border-purple-500"
                   />
-                  <p className="text-[10px] text-slate-500 mt-1">Optional: Schedule when video should be active</p>
+                  <p className="text-[10px] text-slate-500 mt-1">
+                    Optional: Schedule when video should be active
+                  </p>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
@@ -2003,10 +2365,16 @@ const DailyVideoManager = ({ nav }: { nav: (mod: string) => void }) => {
                       <td className="p-4 font-mono text-purple-400">Day {video.day}</td>
                       <td className="p-4 font-medium text-white">{video.title}</td>
                       <td className="p-4 text-slate-400">{video.chapterTitle}</td>
-                      <td className="p-4 text-slate-400 text-xs uppercase">{video.videoProvider || 'youtube'}</td>
-                      <td className="p-4 text-center text-purple-400 font-bold">{video.priority || 0}</td>
+                      <td className="p-4 text-slate-400 text-xs uppercase">
+                        {video.videoProvider || 'youtube'}
+                      </td>
+                      <td className="p-4 text-center text-purple-400 font-bold">
+                        {video.priority || 0}
+                      </td>
                       <td className="p-4 text-center">
-                        <span className={`px-2 py-1 rounded text-xs font-bold ${video.isActive ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'}`}>
+                        <span
+                          className={`px-2 py-1 rounded text-xs font-bold ${video.isActive ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'}`}
+                        >
                           {video.isActive ? 'Active' : 'Inactive'}
                         </span>
                       </td>
@@ -2039,12 +2407,22 @@ const DailyVideoManager = ({ nav }: { nav: (mod: string) => void }) => {
 };
 
 // --- COURSE BUILDER MODULE ---
-const CourseList = ({ nav, setActive }: { nav: (mod: string, id?: number) => void; setActive: (item: any) => void }) => {
+const CourseList = ({
+  nav,
+  setActive,
+}: {
+  nav: (mod: string, id?: number) => void;
+  setActive: (item: any) => void;
+}) => {
   const notification = useNotification();
   const queryClient = useQueryClient();
 
   // ⚡ PERFORMANCE: Use React Query for courses with caching
-  const { data: coursesList = [], isLoading, refetch } = useQuery({
+  const {
+    data: coursesList = [],
+    isLoading,
+    refetch,
+  } = useQuery({
     queryKey: ['courses'],
     queryFn: async () => {
       const response = await fetch('/api/courses', { credentials: 'include' });
@@ -2053,7 +2431,7 @@ const CourseList = ({ nav, setActive }: { nav: (mod: string, id?: number) => voi
         const mappedCourses = (data.courses || []).map((c: any) => ({
           ...c,
           author: c.instructor,
-          status: c.status === 'published' ? 'Active' : 'Draft'
+          status: c.status === 'published' ? 'Active' : 'Draft',
         }));
         console.log('⚡ Courses loaded and cached');
         return mappedCourses;
@@ -2096,11 +2474,14 @@ const CourseList = ({ nav, setActive }: { nav: (mod: string, id?: number) => voi
           <h2 className="text-3xl font-bold text-white">Courses</h2>
           <p className="text-slate-400 mt-1 text-sm">Manage curriculum and learning paths.</p>
         </div>
-        <button onClick={() => { 
-          setActive(null); 
-          window.history.pushState({}, '', '/dashboard/courses/new');
-          nav('course_editor'); 
-        }} className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-2.5 rounded-lg font-bold text-sm shadow-lg shadow-purple-500/20 hover:shadow-purple-500/40 transition-all flex items-center gap-2">
+        <button
+          onClick={() => {
+            setActive(null);
+            window.history.pushState({}, '', '/dashboard/courses/new');
+            nav('course_editor');
+          }}
+          className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-2.5 rounded-lg font-bold text-sm shadow-lg shadow-purple-500/20 hover:shadow-purple-500/40 transition-all flex items-center gap-2"
+        >
           <Plus size={18} /> Create Course
         </button>
       </div>
@@ -2110,29 +2491,56 @@ const CourseList = ({ nav, setActive }: { nav: (mod: string, id?: number) => voi
         ) : (
           <table className="w-full text-left text-sm">
             <thead className="bg-[#1a1d26] text-slate-400 text-xs uppercase font-bold">
-              <tr><th className="p-6">Course Name</th><th className="p-6">Instructor</th><th className="p-6">Status</th><th className="p-6 text-right">Actions</th></tr>
+              <tr>
+                <th className="p-6">Course Name</th>
+                <th className="p-6">Instructor</th>
+                <th className="p-6">Status</th>
+                <th className="p-6 text-right">Actions</th>
+              </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/50 text-slate-300">
               {coursesList.map((c, i) => (
                 <tr key={i} className="hover:bg-[#1a1d26] transition-colors">
                   <td className="p-6 font-medium text-white flex items-center gap-3">
-                    <div className="w-8 h-8 rounded bg-slate-800 flex items-center justify-center text-slate-500"><BookOpen size={16} /></div>
+                    <div className="w-8 h-8 rounded bg-slate-800 flex items-center justify-center text-slate-500">
+                      <BookOpen size={16} />
+                    </div>
                     {c.title}
                   </td>
                   <td className="p-6">{c.author}</td>
-                  <td className="p-6"><span className={`px-2 py-1 rounded text-xs font-bold ${c.status === 'Active' ? 'bg-green-500/10 text-green-400' : 'bg-slate-700/30 text-slate-400'}`}>{c.status}</span></td>
+                  <td className="p-6">
+                    <span
+                      className={`px-2 py-1 rounded text-xs font-bold ${c.status === 'Active' ? 'bg-green-500/10 text-green-400' : 'bg-slate-700/30 text-slate-400'}`}
+                    >
+                      {c.status}
+                    </span>
+                  </td>
                   <td className="p-6 text-right">
-                    <button onClick={() => { 
-                      setActive(c); 
-                      window.history.pushState({}, '', `/dashboard/courses/${c.id}`);
-                      nav('course_editor', c.id); 
-                    }} className="text-purple-400 hover:text-purple-300 font-semibold mr-4">Edit</button>
-                    <button onClick={() => handleDelete(c.id)} className="text-red-400 hover:text-red-300 font-semibold">Delete</button>
+                    <button
+                      onClick={() => {
+                        setActive(c);
+                        window.history.pushState({}, '', `/dashboard/courses/${c.id}`);
+                        nav('course_editor', c.id);
+                      }}
+                      className="text-purple-400 hover:text-purple-300 font-semibold mr-4"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => handleDelete(c.id)}
+                      className="text-red-400 hover:text-red-300 font-semibold"
+                    >
+                      Delete
+                    </button>
                   </td>
                 </tr>
               ))}
               {coursesList.length === 0 && (
-                <tr><td colSpan={4} className="p-8 text-center text-slate-500">No courses found</td></tr>
+                <tr>
+                  <td colSpan={4} className="p-8 text-center text-slate-500">
+                    No courses found
+                  </td>
+                </tr>
               )}
             </tbody>
           </table>
@@ -2150,8 +2558,12 @@ const CourseBuilder = ({ course, back }: { course: any; back: () => void }) => {
   const [instructor, setInstructor] = React.useState(course?.instructor || 'Nurse Pro Academy');
   const [pricing, setPricing] = React.useState(course?.pricing || 0);
   const [thumbnail, setThumbnail] = React.useState(course?.thumbnail || '');
-  const [isPublished, setIsPublished] = React.useState(course?.status === 'published' || course?.status === 'Active');
-  const [isDefaultUnlocked, setIsDefaultUnlocked] = React.useState(course?.isDefaultUnlocked || false);
+  const [isPublished, setIsPublished] = React.useState(
+    course?.status === 'published' || course?.status === 'Active'
+  );
+  const [isDefaultUnlocked, setIsDefaultUnlocked] = React.useState(
+    course?.isDefaultUnlocked || false
+  );
   const [isRequestable, setIsRequestable] = React.useState(course?.isRequestable !== false);
   const [isPublic, setIsPublic] = React.useState(course?.isPublic !== false);
   // Get course ID from props or URL to ensure persistence
@@ -2207,11 +2619,15 @@ const CourseBuilder = ({ course, back }: { course: any; back: () => void }) => {
       const response = await fetch(`/api/courses/${id}/modules`, { credentials: 'include' });
       if (response.ok) {
         const data = await response.json();
-        const modulesWithChapters = await Promise.all(data.modules.map(async (m: any) => {
-          const chapRes = await fetch(`/api/modules/${m.id}/chapters`, { credentials: 'include' });
-          const chapData = await chapRes.json();
-          return { ...m, items: chapData.chapters || [] };
-        }));
+        const modulesWithChapters = await Promise.all(
+          data.modules.map(async (m: any) => {
+            const chapRes = await fetch(`/api/modules/${m.id}/chapters`, {
+              credentials: 'include',
+            });
+            const chapData = await chapRes.json();
+            return { ...m, items: chapData.chapters || [] };
+          })
+        );
         setModules(modulesWithChapters);
       }
     } catch (error) {
@@ -2221,11 +2637,12 @@ const CourseBuilder = ({ course, back }: { course: any; back: () => void }) => {
     }
   };
 
-
   const handleSaveCourse = async () => {
     // Validate required fields
     if (!title || !description || !instructor) {
-      notification.showError('Please fill in all required fields: Title, Description, and Instructor');
+      notification.showError(
+        'Please fill in all required fields: Title, Description, and Instructor'
+      );
       return;
     }
 
@@ -2272,7 +2689,9 @@ const CourseBuilder = ({ course, back }: { course: any; back: () => void }) => {
       }
     } catch (error) {
       console.error('Error saving course:', error);
-      notification.showError('Failed to save course: ' + (error instanceof Error ? error.message : 'Unknown error'));
+      notification.showError(
+        'Failed to save course: ' + (error instanceof Error ? error.message : 'Unknown error')
+      );
     }
   };
 
@@ -2342,9 +2761,16 @@ const CourseBuilder = ({ course, back }: { course: any; back: () => void }) => {
 
       if (response.ok) {
         const data = await response.json();
-        setModules(modules.map((m: any) => m.id === modId ? {
-          ...m, items: [...m.items, data.chapter]
-        } : m));
+        setModules(
+          modules.map((m: any) =>
+            m.id === modId
+              ? {
+                  ...m,
+                  items: [...m.items, data.chapter],
+                }
+              : m
+          )
+        );
       }
     } catch (error) {
       console.error('Error adding chapter:', error);
@@ -2353,20 +2779,33 @@ const CourseBuilder = ({ course, back }: { course: any; back: () => void }) => {
 
   const deleteItem = async (itemId: number, modId: number, itemType: string) => {
     // Determine the correct label based on item type
-    const itemTypeLabel = itemType === 'mcq' || itemType === 'qbank' || itemType === 'quiz' ? 'Quiz' :
-                         itemType === 'video' ? 'Video' :
-                         itemType === 'document' ? 'Document' :
-                         itemType === 'textbook' ? 'Reading' : 'Chapter';
-    
+    const itemTypeLabel =
+      itemType === 'mcq' || itemType === 'qbank' || itemType === 'quiz'
+        ? 'Quiz'
+        : itemType === 'video'
+          ? 'Video'
+          : itemType === 'document'
+            ? 'Document'
+            : itemType === 'textbook'
+              ? 'Reading'
+              : 'Chapter';
+
     notification.showConfirm(
       `Delete ${itemTypeLabel}`,
       `Are you sure you want to delete this ${itemTypeLabel.toLowerCase()}?`,
       async () => {
         try {
           await fetch(`/api/chapters/${itemId}`, { method: 'DELETE', credentials: 'include' });
-          setModules(modules.map((m: any) => m.id === modId ? {
-            ...m, items: m.items.filter((i: any) => i.id !== itemId)
-          } : m));
+          setModules(
+            modules.map((m: any) =>
+              m.id === modId
+                ? {
+                    ...m,
+                    items: m.items.filter((i: any) => i.id !== itemId),
+                  }
+                : m
+            )
+          );
           notification.showSuccess(`${itemTypeLabel} deleted successfully`);
         } catch (error) {
           console.error(`Error deleting ${itemTypeLabel.toLowerCase()}:`, error);
@@ -2380,10 +2819,20 @@ const CourseBuilder = ({ course, back }: { course: any; back: () => void }) => {
     <div className="flex flex-col h-full">
       <div className="h-16 bg-[#161922] border-b border-slate-800/60 flex items-center justify-between px-6">
         <div className="flex items-center gap-4">
-          <button onClick={back} className="p-2 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white"><ArrowLeft size={20} /></button>
-          <h3 className="font-bold text-white">{title || "New Course"}</h3>
+          <button
+            onClick={back}
+            className="p-2 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white"
+          >
+            <ArrowLeft size={20} />
+          </button>
+          <h3 className="font-bold text-white">{title || 'New Course'}</h3>
         </div>
-        <button onClick={handleSaveCourse} className="bg-white text-slate-900 px-4 py-1.5 rounded-lg text-xs font-bold">Save Changes</button>
+        <button
+          onClick={handleSaveCourse}
+          className="bg-white text-slate-900 px-4 py-1.5 rounded-lg text-xs font-bold"
+        >
+          Save Changes
+        </button>
       </div>
 
       <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
@@ -2394,15 +2843,27 @@ const CourseBuilder = ({ course, back }: { course: any; back: () => void }) => {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-bold text-slate-400 mb-1">Title</label>
-                <input value={title} onChange={e => setTitle(e.target.value)} className="w-full px-3 py-2 bg-[#1a1d26] border border-slate-800 rounded-lg text-white text-sm" />
+                <input
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  className="w-full px-3 py-2 bg-[#1a1d26] border border-slate-800 rounded-lg text-white text-sm"
+                />
               </div>
               <div>
                 <label className="block text-xs font-bold text-slate-400 mb-1">Instructor</label>
-                <input value={instructor} onChange={e => setInstructor(e.target.value)} className="w-full px-3 py-2 bg-[#1a1d26] border border-slate-800 rounded-lg text-white text-sm" />
+                <input
+                  value={instructor}
+                  onChange={(e) => setInstructor(e.target.value)}
+                  className="w-full px-3 py-2 bg-[#1a1d26] border border-slate-800 rounded-lg text-white text-sm"
+                />
               </div>
               <div className="col-span-2">
                 <label className="block text-xs font-bold text-slate-400 mb-1">Description</label>
-                <textarea value={description} onChange={e => setDescription(e.target.value)} className="w-full px-3 py-2 bg-[#1a1d26] border border-slate-800 rounded-lg text-white text-sm h-20" />
+                <textarea
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  className="w-full px-3 py-2 bg-[#1a1d26] border border-slate-800 rounded-lg text-white text-sm h-20"
+                />
               </div>
               <div className="col-span-2">
                 <FileUpload
@@ -2414,24 +2875,54 @@ const CourseBuilder = ({ course, back }: { course: any; back: () => void }) => {
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-400 mb-1">Pricing (0 for Free)</label>
-                <input type="number" value={pricing} onChange={e => setPricing(parseFloat(e.target.value))} className="w-full px-3 py-2 bg-[#1a1d26] border border-slate-800 rounded-lg text-white text-sm" />
+                <label className="block text-xs font-bold text-slate-400 mb-1">
+                  Pricing (0 for Free)
+                </label>
+                <input
+                  type="number"
+                  value={pricing}
+                  onChange={(e) => setPricing(parseFloat(e.target.value))}
+                  className="w-full px-3 py-2 bg-[#1a1d26] border border-slate-800 rounded-lg text-white text-sm"
+                />
               </div>
               <div className="flex items-center gap-4 mt-6 col-span-2">
                 <label className="flex items-center gap-2 cursor-pointer">
-                  <input type="checkbox" checked={isPublished} onChange={e => setIsPublished(e.target.checked)} className="rounded bg-slate-800 border-slate-600" />
+                  <input
+                    type="checkbox"
+                    checked={isPublished}
+                    onChange={(e) => setIsPublished(e.target.checked)}
+                    className="rounded bg-slate-800 border-slate-600"
+                  />
                   <span className="text-sm text-white">Published</span>
                 </label>
                 <label className="flex items-center gap-2 cursor-pointer">
-                  <input type="checkbox" checked={isDefaultUnlocked} onChange={e => setIsDefaultUnlocked(e.target.checked)} className="rounded bg-slate-800 border-slate-600" />
+                  <input
+                    type="checkbox"
+                    checked={isDefaultUnlocked}
+                    onChange={(e) => setIsDefaultUnlocked(e.target.checked)}
+                    className="rounded bg-slate-800 border-slate-600"
+                  />
                   <span className="text-sm text-white">Default Unlocked</span>
                 </label>
                 <label className="flex items-center gap-2 cursor-pointer">
-                  <input type="checkbox" checked={isRequestable} onChange={e => setIsRequestable(e.target.checked)} className="rounded bg-slate-800 border-slate-600" />
+                  <input
+                    type="checkbox"
+                    checked={isRequestable}
+                    onChange={(e) => setIsRequestable(e.target.checked)}
+                    className="rounded bg-slate-800 border-slate-600"
+                  />
                   <span className="text-sm text-white">Allow Requests</span>
                 </label>
-                <label className="flex items-center gap-2 cursor-pointer" title="Public courses allow direct enrollment. Private courses require admin approval.">
-                  <input type="checkbox" checked={isPublic} onChange={e => setIsPublic(e.target.checked)} className="rounded bg-slate-800 border-slate-600" />
+                <label
+                  className="flex items-center gap-2 cursor-pointer"
+                  title="Public courses allow direct enrollment. Private courses require admin approval."
+                >
+                  <input
+                    type="checkbox"
+                    checked={isPublic}
+                    onChange={(e) => setIsPublic(e.target.checked)}
+                    className="rounded bg-slate-800 border-slate-600"
+                  />
                   <span className="text-sm text-white">Public Course (Direct Enrollment)</span>
                 </label>
               </div>
@@ -2440,50 +2931,101 @@ const CourseBuilder = ({ course, back }: { course: any; back: () => void }) => {
 
           {/* Modules */}
           {modules.map((mod: any, i: number) => (
-              <div key={mod.id} className="bg-[#161922] border border-slate-800/60 rounded-xl overflow-hidden">
-                <div className="p-4 bg-[#1a1d26] border-b border-slate-800/60 flex justify-between items-center group">
-                  <div className="flex items-center gap-3">
-                    <GripVertical size={16} className="text-slate-600 cursor-grab" />
-                    <h4 className="font-bold text-white">Module {i + 1}: {mod.title}</h4>
-                  </div>
-                  <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button className="p-1.5 hover:bg-slate-700 rounded text-slate-400"><Edit3 size={14} /></button>
-                    <button className="p-1.5 hover:bg-slate-700 rounded text-red-400"><Trash2 size={14} /></button>
-                  </div>
+            <div
+              key={mod.id}
+              className="bg-[#161922] border border-slate-800/60 rounded-xl overflow-hidden"
+            >
+              <div className="p-4 bg-[#1a1d26] border-b border-slate-800/60 flex justify-between items-center group">
+                <div className="flex items-center gap-3">
+                  <GripVertical size={16} className="text-slate-600 cursor-grab" />
+                  <h4 className="font-bold text-white">
+                    Module {i + 1}: {mod.title}
+                  </h4>
                 </div>
-                <div className="p-4 space-y-2">
-                  {mod.items.length === 0 && <div className="text-center py-8 border-2 border-dashed border-slate-800 rounded-lg text-slate-500 text-sm">Drop videos/documents here</div>}
-                  {mod.items.map((item: any) => (
-                    <div key={item.id} className="flex items-center p-3 bg-[#13151d] border border-slate-800/50 rounded-lg hover:border-purple-500/30 transition-colors">
-                      <div className={`mr-3 p-2 rounded-lg ${
-                        item.type === 'mcq' || item.type === 'qbank' 
-                          ? 'bg-purple-500/10 text-purple-400' 
+                <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button className="p-1.5 hover:bg-slate-700 rounded text-slate-400">
+                    <Edit3 size={14} />
+                  </button>
+                  <button className="p-1.5 hover:bg-slate-700 rounded text-red-400">
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              </div>
+              <div className="p-4 space-y-2">
+                {mod.items.length === 0 && (
+                  <div className="text-center py-8 border-2 border-dashed border-slate-800 rounded-lg text-slate-500 text-sm">
+                    Drop videos/documents here
+                  </div>
+                )}
+                {mod.items.map((item: any) => (
+                  <div
+                    key={item.id}
+                    className="flex items-center p-3 bg-[#13151d] border border-slate-800/50 rounded-lg hover:border-purple-500/30 transition-colors"
+                  >
+                    <div
+                      className={`mr-3 p-2 rounded-lg ${
+                        item.type === 'mcq' || item.type === 'qbank'
+                          ? 'bg-purple-500/10 text-purple-400'
                           : item.type === 'document'
-                          ? 'bg-orange-500/10 text-orange-400'
-                          : 'bg-blue-500/10 text-blue-400'
-                      }`}>
-                        {item.type === 'video' ? <Video size={16} /> : 
-                         item.type === 'document' ? <FileText size={16} /> :
-                         item.type === 'mcq' || item.type === 'qbank' ? <Zap size={16} /> : 
-                         <FileText size={16} />}
-                      </div>
-                      <span className="text-sm font-medium text-slate-300">{item.title}</span>
-                      <div className="ml-auto flex items-center gap-2">
-                        <button onClick={() => deleteItem(item.id, mod.id, item.type)} className="p-1 text-slate-500 hover:text-red-400"><Trash2 size={14} /></button>
-                      </div>
+                            ? 'bg-orange-500/10 text-orange-400'
+                            : 'bg-blue-500/10 text-blue-400'
+                      }`}
+                    >
+                      {item.type === 'video' ? (
+                        <Video size={16} />
+                      ) : item.type === 'document' ? (
+                        <FileText size={16} />
+                      ) : item.type === 'mcq' || item.type === 'qbank' ? (
+                        <Zap size={16} />
+                      ) : (
+                        <FileText size={16} />
+                      )}
                     </div>
-                  ))}
+                    <span className="text-sm font-medium text-slate-300">{item.title}</span>
+                    <div className="ml-auto flex items-center gap-2">
+                      <button
+                        onClick={() => deleteItem(item.id, mod.id, item.type)}
+                        className="p-1 text-slate-500 hover:text-red-400"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
                 <div className="flex justify-center gap-3 pt-4 mt-2 border-t border-slate-800/50">
-                  <QuickAddBtn icon={<Video size={14} />} label="Video" onClick={() => addItem(mod.id, 'video')} active={false} />
-                  <QuickAddBtn icon={<FileText size={14} />} label="Reading" onClick={() => addItem(mod.id, 'textbook')} active={false} />
-                  <QuickAddBtn icon={<FileText size={14} />} label="Document" onClick={() => addItem(mod.id, 'document')} active={false} />
-                  <QuickAddBtn icon={<Zap size={14} />} label="Quiz" active={true} onClick={() => addItem(mod.id, 'mcq')} />
+                  <QuickAddBtn
+                    icon={<Video size={14} />}
+                    label="Video"
+                    onClick={() => addItem(mod.id, 'video')}
+                    active={false}
+                  />
+                  <QuickAddBtn
+                    icon={<FileText size={14} />}
+                    label="Reading"
+                    onClick={() => addItem(mod.id, 'textbook')}
+                    active={false}
+                  />
+                  <QuickAddBtn
+                    icon={<FileText size={14} />}
+                    label="Document"
+                    onClick={() => addItem(mod.id, 'document')}
+                    active={false}
+                  />
+                  <QuickAddBtn
+                    icon={<Zap size={14} />}
+                    label="Quiz"
+                    active={true}
+                    onClick={() => addItem(mod.id, 'mcq')}
+                  />
                 </div>
               </div>
             </div>
           ))}
 
-          <button onClick={addModule} className="w-full py-4 border-2 border-dashed border-slate-800 rounded-xl text-slate-500 font-bold hover:text-white hover:border-slate-600 transition-all flex flex-col items-center gap-2">
+          <button
+            onClick={addModule}
+            className="w-full py-4 border-2 border-dashed border-slate-800 rounded-xl text-slate-500 font-bold hover:text-white hover:border-slate-600 transition-all flex flex-col items-center gap-2"
+          >
             <Plus size={24} /> Add Module
           </button>
         </div>
@@ -2498,17 +3040,17 @@ const CourseBuilder = ({ course, back }: { course: any; back: () => void }) => {
           }}
           onSave={async (title: string, videoUrl: string, videoFile: string) => {
             if (!currentModuleId || !title) return;
-            
+
             // Convert video URL to embed format if provided (hides branding)
             let finalVideoUrl = videoUrl || videoFile;
             let finalProvider = 'uploaded';
-            
+
             if (videoUrl) {
               const parsed = parseVideoUrl(videoUrl);
               finalVideoUrl = parsed.embedUrl; // Use embed URL with privacy settings
               finalProvider = parsed.provider; // Auto-detect provider
             }
-            
+
             const contentData: any = {
               title,
               type: 'video',
@@ -2528,9 +3070,16 @@ const CourseBuilder = ({ course, back }: { course: any; back: () => void }) => {
 
               if (response.ok) {
                 const data = await response.json();
-                setModules(modules.map((m: any) => m.id === currentModuleId ? {
-                  ...m, items: [...m.items, data.chapter]
-                } : m));
+                setModules(
+                  modules.map((m: any) =>
+                    m.id === currentModuleId
+                      ? {
+                          ...m,
+                          items: [...m.items, data.chapter],
+                        }
+                      : m
+                  )
+                );
                 setShowVideoModal(false);
                 setCurrentModuleId(null);
               }
@@ -2543,8 +3092,14 @@ const CourseBuilder = ({ course, back }: { course: any; back: () => void }) => {
 
       {/* Quiz Creation Modal */}
       {showQuizModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowQuizModal(false)}>
-          <div className="bg-[#161922] border border-slate-800 rounded-2xl p-6 w-[500px]" onClick={(e) => e.stopPropagation()}>
+        <div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+          onClick={() => setShowQuizModal(false)}
+        >
+          <div
+            className="bg-[#161922] border border-slate-800 rounded-2xl p-6 w-[500px]"
+            onClick={(e) => e.stopPropagation()}
+          >
             <h3 className="text-xl font-bold text-white mb-4">Create Quiz</h3>
             <div className="space-y-4">
               <div>
@@ -2586,7 +3141,10 @@ const CourseBuilder = ({ course, back }: { course: any; back: () => void }) => {
               </div>
               <div className="flex gap-3 pt-4">
                 <button
-                  onClick={() => { setShowQuizModal(false); setCurrentModuleId(null); }}
+                  onClick={() => {
+                    setShowQuizModal(false);
+                    setCurrentModuleId(null);
+                  }}
                   className="flex-1 px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg font-bold transition"
                 >
                   Cancel
@@ -2594,11 +3152,15 @@ const CourseBuilder = ({ course, back }: { course: any; back: () => void }) => {
                 <button
                   onClick={async () => {
                     const title = (document.getElementById('quizTitle') as HTMLInputElement)?.value;
-                    const passMark = parseInt((document.getElementById('quizPassMark') as HTMLInputElement)?.value || '70');
-                    const maxAttempts = parseInt((document.getElementById('quizMaxAttempts') as HTMLInputElement)?.value || '3');
-                    
+                    const passMark = parseInt(
+                      (document.getElementById('quizPassMark') as HTMLInputElement)?.value || '70'
+                    );
+                    const maxAttempts = parseInt(
+                      (document.getElementById('quizMaxAttempts') as HTMLInputElement)?.value || '3'
+                    );
+
                     if (!title || !currentModuleId) return;
-                    
+
                     try {
                       const response = await fetch(`/api/modules/${currentModuleId}/quizzes`, {
                         method: 'POST',
@@ -2609,13 +3171,23 @@ const CourseBuilder = ({ course, back }: { course: any; back: () => void }) => {
 
                       if (response.ok) {
                         const data = await response.json();
-                        setModules(modules.map((m: any) => m.id === currentModuleId ? {
-                          ...m, items: [...m.items, { ...data.chapter, quiz: data.quiz }]
-                        } : m));
+                        setModules(
+                          modules.map((m: any) =>
+                            m.id === currentModuleId
+                              ? {
+                                  ...m,
+                                  items: [...m.items, { ...data.chapter, quiz: data.quiz }],
+                                }
+                              : m
+                          )
+                        );
                         setShowQuizModal(false);
                         setCurrentModuleId(null);
                         setCurrentQuizId(data.quiz.id);
-                        notification.showSuccess('Quiz created!', 'Go to Q-Bank Manager to add questions.');
+                        notification.showSuccess(
+                          'Quiz created!',
+                          'Go to Q-Bank Manager to add questions.'
+                        );
                       } else {
                         notification.showError('Failed to create quiz');
                       }
@@ -2643,7 +3215,7 @@ const CourseBuilder = ({ course, back }: { course: any; back: () => void }) => {
           }}
           onSave={async (title: string, documentUrl: string) => {
             if (!currentModuleId || !title || !documentUrl) return;
-            
+
             const contentData: any = {
               title,
               type: 'document',
@@ -2663,9 +3235,16 @@ const CourseBuilder = ({ course, back }: { course: any; back: () => void }) => {
 
               if (response.ok) {
                 const data = await response.json();
-                setModules(modules.map((m: any) => m.id === currentModuleId ? {
-                  ...m, items: [...m.items, data.chapter]
-                } : m));
+                setModules(
+                  modules.map((m: any) =>
+                    m.id === currentModuleId
+                      ? {
+                          ...m,
+                          items: [...m.items, data.chapter],
+                        }
+                      : m
+                  )
+                );
                 setShowDocumentModal(false);
                 setCurrentModuleId(null);
               }
@@ -2680,7 +3259,13 @@ const CourseBuilder = ({ course, back }: { course: any; back: () => void }) => {
 };
 
 // --- Q-BANK LIST (MAIN) ---
-const QBankList = ({ nav, setActive }: { nav: (mod: string, id?: number) => void; setActive: (item: any) => void }) => {
+const QBankList = ({
+  nav,
+  setActive,
+}: {
+  nav: (mod: string, id?: number) => void;
+  setActive: (item: any) => void;
+}) => {
   const notification = useNotification();
   const queryClient = useQueryClient();
   const [selectedCategory, setSelectedCategory] = React.useState<number | null>(null);
@@ -2711,10 +3296,14 @@ const QBankList = ({ nav, setActive }: { nav: (mod: string, id?: number) => void
   });
 
   // ⚡ PERFORMANCE: Use React Query for questions with caching
-  const { data: questions = [], isLoading, refetch: refetchQuestions } = useQuery({
+  const {
+    data: questions = [],
+    isLoading,
+    refetch: refetchQuestions,
+  } = useQuery({
     queryKey: ['qbank-questions', selectedCategory],
     queryFn: async () => {
-      const url = selectedCategory 
+      const url = selectedCategory
         ? `/api/qbank?limit=50&categoryId=${selectedCategory}`
         : '/api/qbank?limit=50';
       const response = await fetch(url, { credentials: 'include' });
@@ -2754,8 +3343,8 @@ const QBankList = ({ nav, setActive }: { nav: (mod: string, id?: number) => void
 
     if (selectedCategory) {
       // Assign from specific folder
-      const categoryQuestions = questions.filter(q => q.categoryId === selectedCategory);
-      const folder = categories.find(c => c.id === selectedCategory);
+      const categoryQuestions = questions.filter((q) => q.categoryId === selectedCategory);
+      const folder = categories.find((c) => c.id === selectedCategory);
       folderName = folder?.name || 'Unknown';
 
       if (categoryQuestions.length === 0) {
@@ -2766,18 +3355,20 @@ const QBankList = ({ nav, setActive }: { nav: (mod: string, id?: number) => void
         return;
       }
 
-      questionIds = categoryQuestions.map(q => parseInt(q.id));
+      questionIds = categoryQuestions.map((q) => parseInt(q.id));
     } else {
       // Assign all questions (when "All Questions" is selected)
       if (questions.length === 0) {
         notification.showError('No questions available', 'Create questions in Q-Bank first.');
         return;
       }
-      questionIds = questions.map(q => parseInt(q.id));
+      questionIds = questions.map((q) => parseInt(q.id));
       folderName = 'All Questions';
     }
 
-    console.log(`📦 Assigning ${questionIds.length} questions from "${folderName}" to course ${selectedCourseForAssign}`);
+    console.log(
+      `📦 Assigning ${questionIds.length} questions from "${folderName}" to course ${selectedCourseForAssign}`
+    );
     console.log('Question IDs:', questionIds);
 
     try {
@@ -2811,7 +3402,10 @@ const QBankList = ({ nav, setActive }: { nav: (mod: string, id?: number) => void
   const cloneQuestionToCategory = async (questionId: number, targetCategoryId: number | null) => {
     try {
       if (!targetCategoryId) {
-        notification.showWarning('Select a folder', 'Please select a specific folder to clone the question to.');
+        notification.showWarning(
+          'Select a folder',
+          'Please select a specific folder to clone the question to.'
+        );
         return;
       }
 
@@ -2821,7 +3415,7 @@ const QBankList = ({ nav, setActive }: { nav: (mod: string, id?: number) => void
         credentials: 'include',
         body: JSON.stringify({ questionId, targetCategoryId }),
       });
-      
+
       if (response.ok) {
         const data = await response.json();
         notification.showSuccess('Question cloned!', 'A copy has been added to the folder.');
@@ -2848,7 +3442,10 @@ const QBankList = ({ nav, setActive }: { nav: (mod: string, id?: number) => void
         body: JSON.stringify({ questionId, categoryId }),
       });
       if (response.ok) {
-        notification.showSuccess('Question moved!', categoryId ? 'Question moved to folder.' : 'Question removed from folder.');
+        notification.showSuccess(
+          'Question moved!',
+          categoryId ? 'Question moved to folder.' : 'Question removed from folder.'
+        );
         // ⚡ PERFORMANCE: Invalidate cache after mutation
         queryClient.invalidateQueries({ queryKey: ['qbank-questions'] });
         queryClient.invalidateQueries({ queryKey: ['qbank-categories'] });
@@ -2864,7 +3461,7 @@ const QBankList = ({ nav, setActive }: { nav: (mod: string, id?: number) => void
 
   const bulkMoveQuestions = async (categoryId: number | null) => {
     try {
-      const promises = Array.from(selectedQuestions).map(qId =>
+      const promises = Array.from(selectedQuestions).map((qId) =>
         fetch('/api/qbank', {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
@@ -2926,9 +3523,10 @@ const QBankList = ({ nav, setActive }: { nav: (mod: string, id?: number) => void
   const getFilteredQuestions = React.useMemo(() => {
     let filtered = questions;
     if (searchTerm) {
-      filtered = filtered.filter((q: any) => 
-        q.stem?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        q.id?.toString().includes(searchTerm)
+      filtered = filtered.filter(
+        (q: any) =>
+          q.stem?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          q.id?.toString().includes(searchTerm)
       );
     }
     return filtered;
@@ -2975,10 +3573,13 @@ const QBankList = ({ nav, setActive }: { nav: (mod: string, id?: number) => void
   };
 
   const deleteFolder = async (folderId: number) => {
-    const folder = categories.find(c => c.id === folderId);
-    
+    const folder = categories.find((c) => c.id === folderId);
+
     if (folder && folder.questionCount > 0) {
-      notification.showError(`Cannot delete folder with ${folder.questionCount} questions`, 'Move or delete questions first');
+      notification.showError(
+        `Cannot delete folder with ${folder.questionCount} questions`,
+        'Move or delete questions first'
+      );
       return;
     }
 
@@ -3018,7 +3619,7 @@ const QBankList = ({ nav, setActive }: { nav: (mod: string, id?: number) => void
         <div className="bg-[#161922] border border-slate-800/60 rounded-2xl p-4 h-full flex flex-col">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-bold text-white uppercase tracking-wide">Folders</h3>
-            <button 
+            <button
               onClick={() => setShowCategoryModal(true)}
               className="text-purple-400 hover:text-purple-300 transition"
               title="Add Folder"
@@ -3053,14 +3654,17 @@ const QBankList = ({ nav, setActive }: { nav: (mod: string, id?: number) => void
                   selectedCategory === cat.id
                     ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold'
                     : dragOverFolder === cat.id
-                    ? 'bg-green-600/30 border-2 border-dashed border-green-400 scale-105'
-                    : 'text-slate-300 hover:bg-[#1a1d26] border-2 border-dashed border-transparent hover:border-purple-500/30'
+                      ? 'bg-green-600/30 border-2 border-dashed border-green-400 scale-105'
+                      : 'text-slate-300 hover:bg-[#1a1d26] border-2 border-dashed border-transparent hover:border-purple-500/30'
                 }`}
                 style={{
                   borderLeft: selectedCategory === cat.id ? `3px solid ${cat.color}` : 'none',
                 }}
               >
-                <div className="flex items-center justify-between" onClick={() => setSelectedCategory(cat.id)}>
+                <div
+                  className="flex items-center justify-between"
+                  onClick={() => setSelectedCategory(cat.id)}
+                >
                   <span className="flex items-center gap-2 truncate">
                     <span>{cat.icon}</span>
                     <span className="truncate">{cat.name}</span>
@@ -3068,14 +3672,20 @@ const QBankList = ({ nav, setActive }: { nav: (mod: string, id?: number) => void
                   <div className="flex items-center gap-1">
                     <span className="text-xs opacity-70">({cat.questionCount || 0})</span>
                     <button
-                      onClick={(e) => { e.stopPropagation(); editFolder(cat); }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        editFolder(cat);
+                      }}
                       className="opacity-0 group-hover:opacity-100 p-1 hover:bg-white/10 rounded transition"
                       title="Edit Folder"
                     >
                       <Edit3 size={12} />
                     </button>
                     <button
-                      onClick={(e) => { e.stopPropagation(); deleteFolder(cat.id); }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        deleteFolder(cat.id);
+                      }}
                       className="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-500/20 rounded transition"
                       title="Delete Folder"
                     >
@@ -3107,24 +3717,35 @@ const QBankList = ({ nav, setActive }: { nav: (mod: string, id?: number) => void
         <div className="flex justify-between items-center mb-6">
           <div>
             <h2 className="text-3xl font-bold text-white">
-              {selectedCategory 
-                ? categories.find(c => c.id === selectedCategory)?.name || 'Question Bank'
+              {selectedCategory
+                ? categories.find((c) => c.id === selectedCategory)?.name || 'Question Bank'
                 : 'Question Bank'}
             </h2>
             <p className="text-slate-400 mt-1 text-sm">
               {selectedCategory
-                ? `${categories.find(c => c.id === selectedCategory)?.description || 'Category questions'}`
+                ? `${categories.find((c) => c.id === selectedCategory)?.description || 'Category questions'}`
                 : 'Manage Classic and Next Gen (NGN) Items'}
             </p>
           </div>
           <div className="flex gap-3">
-            <input 
+            <input
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="bg-[#161922] border border-slate-800 text-slate-300 px-4 py-2.5 rounded-lg text-sm focus:border-purple-500 outline-none w-64" 
-              placeholder="Search ID or Content..." 
+              className="bg-[#161922] border border-slate-800 text-slate-300 px-4 py-2.5 rounded-lg text-sm focus:border-purple-500 outline-none w-64"
+              placeholder="Search ID or Content..."
             />
-            <button onClick={() => { setActive({ id: null, category: 'classic', type: 'standard', categoryId: selectedCategory }); nav('qbank_editor'); }} className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-6 py-2.5 rounded-lg font-bold text-sm flex items-center gap-2 hover:shadow-lg hover:shadow-purple-500/20 transition-all">
+            <button
+              onClick={() => {
+                setActive({
+                  id: null,
+                  category: 'classic',
+                  type: 'standard',
+                  categoryId: selectedCategory,
+                });
+                nav('qbank_editor');
+              }}
+              className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-6 py-2.5 rounded-lg font-bold text-sm flex items-center gap-2 hover:shadow-lg hover:shadow-purple-500/20 transition-all"
+            >
               <Plus size={18} /> Add Item
             </button>
           </div>
@@ -3134,14 +3755,16 @@ const QBankList = ({ nav, setActive }: { nav: (mod: string, id?: number) => void
         {!selectedCategory && !draggedQuestion && questions.length > 0 && (
           <div className="bg-blue-900/20 border border-blue-500/30 rounded-xl p-3 mb-4">
             <p className="text-blue-300 text-sm">
-              💡 <strong>Tip:</strong> Drag & drop questions to <strong>clone</strong> them to folders. Use the dropdown to <strong>move</strong> between folders.
+              💡 <strong>Tip:</strong> Drag & drop questions to <strong>clone</strong> them to
+              folders. Use the dropdown to <strong>move</strong> between folders.
             </p>
           </div>
         )}
         {draggedQuestion && (
           <div className="bg-green-900/20 border border-green-500/30 rounded-xl p-3 mb-4 animate-pulse">
             <p className="text-green-300 text-sm font-bold">
-              📋 Drop on a folder to <strong>clone</strong> this question there (original stays in place)
+              📋 Drop on a folder to <strong>clone</strong> this question there (original stays in
+              place)
             </p>
           </div>
         )}
@@ -3174,8 +3797,11 @@ const QBankList = ({ nav, setActive }: { nav: (mod: string, id?: number) => void
             <div className="col-span-1 flex items-center gap-2">
               <input
                 type="checkbox"
-                checked={selectedQuestions.size > 0 && selectedQuestions.size === getFilteredQuestions.length}
-                onChange={(e) => e.target.checked ? selectAll() : deselectAll()}
+                checked={
+                  selectedQuestions.size > 0 &&
+                  selectedQuestions.size === getFilteredQuestions.length
+                }
+                onChange={(e) => (e.target.checked ? selectAll() : deselectAll())}
                 className="w-4 h-4 rounded border-slate-600"
               />
               ID
@@ -3189,23 +3815,29 @@ const QBankList = ({ nav, setActive }: { nav: (mod: string, id?: number) => void
           <div className="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-1">
             {isLoading ? (
               <div className="space-y-1 p-2">
-                {[1, 2, 3, 4, 5].map(i => <QuestionRowSkeleton key={i} />)}
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <QuestionRowSkeleton key={i} />
+                ))}
               </div>
             ) : getFilteredQuestions.length === 0 ? (
               <div className="text-center py-20 text-slate-400">
-                <p>{searchTerm ? 'No questions match your search.' : 'No questions found. Click "Add Item" to create your first question.'}</p>
+                <p>
+                  {searchTerm
+                    ? 'No questions match your search.'
+                    : 'No questions found. Click "Add Item" to create your first question.'}
+                </p>
               </div>
             ) : (
               getFilteredQuestions.map((q: any, i: number) => {
                 const isSelected = selectedQuestions.has(parseInt(q.id));
                 return (
-                  <div 
-                    key={i} 
+                  <div
+                    key={i}
                     draggable
                     onDragStart={(e) => handleDragStart(e, q)}
                     className={`grid grid-cols-12 p-3 rounded-lg items-center transition-all group cursor-move border ${
-                      isSelected 
-                        ? 'bg-purple-600/20 border-purple-500/50' 
+                      isSelected
+                        ? 'bg-purple-600/20 border-purple-500/50'
                         : 'border-transparent hover:bg-[#1f222e] hover:border-slate-800'
                     }`}
                   >
@@ -3219,7 +3851,15 @@ const QBankList = ({ nav, setActive }: { nav: (mod: string, id?: number) => void
                       />
                       <span className="text-slate-500 font-mono text-xs">{q.id}</span>
                     </div>
-                    <div className="col-span-4 text-slate-300 font-medium truncate pr-4 cursor-pointer" onClick={() => { setActive(q); nav('qbank_editor'); }}>{q.stem}</div>
+                    <div
+                      className="col-span-4 text-slate-300 font-medium truncate pr-4 cursor-pointer"
+                      onClick={() => {
+                        setActive(q);
+                        nav('qbank_editor');
+                      }}
+                    >
+                      {q.stem}
+                    </div>
                     <div className="col-span-2">
                       <select
                         value={q.categoryId || ''}
@@ -3233,20 +3873,27 @@ const QBankList = ({ nav, setActive }: { nav: (mod: string, id?: number) => void
                       >
                         <option value="">None</option>
                         {categories.map((cat: any) => (
-                          <option key={cat.id} value={cat.id}>{cat.icon} {cat.name}</option>
+                          <option key={cat.id} value={cat.id}>
+                            {cat.icon} {cat.name}
+                          </option>
                         ))}
                       </select>
                       <div className="text-[9px] text-slate-500 mt-0.5">💡 Drag to clone</div>
                     </div>
                     <div className="col-span-2 text-xs text-slate-400">{q.label}</div>
                     <div className="col-span-1">
-                      <span className={`text-[10px] font-bold px-2 py-1 rounded uppercase ${q.category === 'ngn' ? 'bg-purple-500/10 text-purple-400' : 'bg-blue-500/10 text-blue-400'}`}>
+                      <span
+                        className={`text-[10px] font-bold px-2 py-1 rounded uppercase ${q.category === 'ngn' ? 'bg-purple-500/10 text-purple-400' : 'bg-blue-500/10 text-blue-400'}`}
+                      >
                         {q.category === 'ngn' ? 'NGN' : 'Classic'}
                       </span>
                     </div>
                     <div className="col-span-2 text-right">
-                      <button 
-                        onClick={() => { setActive(q); nav('qbank_editor'); }}
+                      <button
+                        onClick={() => {
+                          setActive(q);
+                          nav('qbank_editor');
+                        }}
                         className="text-xs font-bold text-white bg-slate-700 px-3 py-1 rounded hover:bg-purple-600 transition"
                       >
                         Edit
@@ -3261,12 +3908,22 @@ const QBankList = ({ nav, setActive }: { nav: (mod: string, id?: number) => void
 
         {/* Bulk Move Modal */}
         {showBulkMoveModal && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowBulkMoveModal(false)}>
-            <div className="bg-[#161922] border border-slate-800 rounded-2xl p-6 w-96" onClick={(e) => e.stopPropagation()}>
-              <h3 className="text-xl font-bold text-white mb-4">Move {selectedQuestions.size} Questions</h3>
-              <p className="text-slate-400 text-sm mb-4">Select a folder to move the selected questions:</p>
+          <div
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+            onClick={() => setShowBulkMoveModal(false)}
+          >
+            <div
+              className="bg-[#161922] border border-slate-800 rounded-2xl p-6 w-96"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className="text-xl font-bold text-white mb-4">
+                Move {selectedQuestions.size} Questions
+              </h3>
+              <p className="text-slate-400 text-sm mb-4">
+                Select a folder to move the selected questions:
+              </p>
               <div className="space-y-2 max-h-64 overflow-y-auto custom-scrollbar mb-6">
-                {categories.map(cat => (
+                {categories.map((cat) => (
                   <button
                     key={cat.id}
                     onClick={() => bulkMoveQuestions(cat.id)}
@@ -3276,7 +3933,9 @@ const QBankList = ({ nav, setActive }: { nav: (mod: string, id?: number) => void
                       <span className="text-2xl">{cat.icon}</span>
                       <div className="flex-1">
                         <div className="font-bold">{cat.name}</div>
-                        <div className="text-xs text-slate-500">{cat.description || 'No description'}</div>
+                        <div className="text-xs text-slate-500">
+                          {cat.description || 'No description'}
+                        </div>
                       </div>
                       <span className="text-xs text-slate-500">({cat.questionCount})</span>
                     </div>
@@ -3295,33 +3954,44 @@ const QBankList = ({ nav, setActive }: { nav: (mod: string, id?: number) => void
 
         {/* Course Assignment Modal */}
         {showCourseAssignModal && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowCourseAssignModal(false)}>
-            <div className="bg-[#161922] border border-slate-800 rounded-2xl p-6 w-[500px]" onClick={(e) => e.stopPropagation()}>
+          <div
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+            onClick={() => setShowCourseAssignModal(false)}
+          >
+            <div
+              className="bg-[#161922] border border-slate-800 rounded-2xl p-6 w-[500px]"
+              onClick={(e) => e.stopPropagation()}
+            >
               <h3 className="text-xl font-bold text-white mb-2">Assign Questions to Course</h3>
               {(() => {
-                const folder = categories.find(c => c.id === selectedCategory);
-                const categoryQuestions = selectedCategory 
-                  ? questions.filter(q => q.categoryId === selectedCategory)
+                const folder = categories.find((c) => c.id === selectedCategory);
+                const categoryQuestions = selectedCategory
+                  ? questions.filter((q) => q.categoryId === selectedCategory)
                   : questions;
                 const questionCount = categoryQuestions.length;
                 const folderName = selectedCategory ? folder?.name : 'All Questions';
 
                 return (
                   <>
-                    <div className={`text-sm mb-4 p-3 rounded-lg ${
-                      questionCount === 0 
-                        ? 'bg-red-900/20 border border-red-500/30 text-red-300'
-                        : 'bg-purple-900/20 border border-purple-500/30 text-purple-300'
-                    }`}>
+                    <div
+                      className={`text-sm mb-4 p-3 rounded-lg ${
+                        questionCount === 0
+                          ? 'bg-red-900/20 border border-red-500/30 text-red-300'
+                          : 'bg-purple-900/20 border border-purple-500/30 text-purple-300'
+                      }`}
+                    >
                       {questionCount === 0 ? (
                         <>
                           ⚠️ No questions in "{folderName}"
                           <br />
-                          <span className="text-xs">Move questions to this folder first, or select "All Questions"</span>
+                          <span className="text-xs">
+                            Move questions to this folder first, or select "All Questions"
+                          </span>
                         </>
                       ) : (
                         <>
-                          📦 Ready to assign: <strong>{questionCount} questions</strong> from "{folderName}"
+                          📦 Ready to assign: <strong>{questionCount} questions</strong> from "
+                          {folderName}"
                         </>
                       )}
                     </div>
@@ -3329,7 +3999,7 @@ const QBankList = ({ nav, setActive }: { nav: (mod: string, id?: number) => void
                 );
               })()}
               <div className="space-y-3 max-h-96 overflow-y-auto custom-scrollbar mb-6">
-                {courses.map(course => (
+                {courses.map((course) => (
                   <button
                     key={course.id}
                     onClick={() => setSelectedCourseForAssign(course.id)}
@@ -3346,7 +4016,10 @@ const QBankList = ({ nav, setActive }: { nav: (mod: string, id?: number) => void
               </div>
               <div className="flex gap-3">
                 <button
-                  onClick={() => { setShowCourseAssignModal(false); setSelectedCourseForAssign(null); }}
+                  onClick={() => {
+                    setShowCourseAssignModal(false);
+                    setSelectedCourseForAssign(null);
+                  }}
                   className="flex-1 px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg font-bold transition"
                 >
                   Cancel
@@ -3354,11 +4027,10 @@ const QBankList = ({ nav, setActive }: { nav: (mod: string, id?: number) => void
                 <button
                   onClick={assignCategoryToCourse}
                   disabled={
-                    !selectedCourseForAssign || 
-                    (selectedCategory 
-                      ? questions.filter(q => q.categoryId === selectedCategory).length === 0
-                      : questions.length === 0
-                    )
+                    !selectedCourseForAssign ||
+                    (selectedCategory
+                      ? questions.filter((q) => q.categoryId === selectedCategory).length === 0
+                      : questions.length === 0)
                   }
                   className="flex-1 px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white rounded-lg font-bold transition disabled:opacity-50 disabled:cursor-not-allowed"
                 >
@@ -3371,8 +4043,17 @@ const QBankList = ({ nav, setActive }: { nav: (mod: string, id?: number) => void
 
         {/* Edit Folder Modal */}
         {showEditFolderModal && editingFolder && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => { setShowEditFolderModal(false); setEditingFolder(null); }}>
-            <div className="bg-[#161922] border border-slate-800 rounded-2xl p-6 w-96" onClick={(e) => e.stopPropagation()}>
+          <div
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+            onClick={() => {
+              setShowEditFolderModal(false);
+              setEditingFolder(null);
+            }}
+          >
+            <div
+              className="bg-[#161922] border border-slate-800 rounded-2xl p-6 w-96"
+              onClick={(e) => e.stopPropagation()}
+            >
               <h3 className="text-xl font-bold text-white mb-4">Edit Folder</h3>
               <div className="space-y-4">
                 <div>
@@ -3404,7 +4085,10 @@ const QBankList = ({ nav, setActive }: { nav: (mod: string, id?: number) => void
                 </div>
                 <div className="flex gap-3 pt-4">
                   <button
-                    onClick={() => { setShowEditFolderModal(false); setEditingFolder(null); }}
+                    onClick={() => {
+                      setShowEditFolderModal(false);
+                      setEditingFolder(null);
+                    }}
                     className="flex-1 px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg font-bold transition"
                   >
                     Cancel
@@ -3423,8 +4107,14 @@ const QBankList = ({ nav, setActive }: { nav: (mod: string, id?: number) => void
 
         {/* Add Category Modal */}
         {showCategoryModal && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowCategoryModal(false)}>
-            <div className="bg-[#161922] border border-slate-800 rounded-2xl p-6 w-96" onClick={(e) => e.stopPropagation()}>
+          <div
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+            onClick={() => setShowCategoryModal(false)}
+          >
+            <div
+              className="bg-[#161922] border border-slate-800 rounded-2xl p-6 w-96"
+              onClick={(e) => e.stopPropagation()}
+            >
               <h3 className="text-xl font-bold text-white mb-4">Create New Folder</h3>
               <div className="space-y-4">
                 <div>
@@ -3464,11 +4154,16 @@ const QBankList = ({ nav, setActive }: { nav: (mod: string, id?: number) => void
                   </button>
                   <button
                     onClick={async () => {
-                      const name = (document.getElementById('newCategoryName') as HTMLInputElement)?.value;
-                      const icon = (document.getElementById('newCategoryIcon') as HTMLInputElement)?.value || '📁';
-                      const color = (document.getElementById('newCategoryColor') as HTMLInputElement)?.value || '#8B5CF6';
+                      const name = (document.getElementById('newCategoryName') as HTMLInputElement)
+                        ?.value;
+                      const icon =
+                        (document.getElementById('newCategoryIcon') as HTMLInputElement)?.value ||
+                        '📁';
+                      const color =
+                        (document.getElementById('newCategoryColor') as HTMLInputElement)?.value ||
+                        '#8B5CF6';
                       if (!name) return;
-                      
+
                       try {
                         const response = await fetch('/api/qbank/categories', {
                           method: 'POST',
@@ -3555,7 +4250,10 @@ const BlogManager = ({ nav }: { nav: (mod: string) => void }) => {
           slug,
           content,
           author,
-          tags: tags.split(',').map(t => t.trim()).filter(t => t),
+          tags: tags
+            .split(',')
+            .map((t) => t.trim())
+            .filter((t) => t),
           status,
           cover: cover || null,
           excerpt,
@@ -3607,7 +4305,13 @@ const BlogManager = ({ nav }: { nav: (mod: string) => void }) => {
     setSlug(blog.slug);
     setContent(blog.content);
     setAuthor(blog.author);
-    setTags(Array.isArray(blog.tags) ? blog.tags.join(', ') : (typeof blog.tags === 'string' ? JSON.parse(blog.tags).join(', ') : ''));
+    setTags(
+      Array.isArray(blog.tags)
+        ? blog.tags.join(', ')
+        : typeof blog.tags === 'string'
+          ? JSON.parse(blog.tags).join(', ')
+          : ''
+    );
     setStatus(blog.status);
     setCover(blog.cover || '');
     setExcerpt(blog.excerpt || '');
@@ -3664,7 +4368,13 @@ const BlogManager = ({ nav }: { nav: (mod: string) => void }) => {
                   value={title}
                   onChange={(e) => {
                     setTitle(e.target.value);
-                    if (!editingBlog) setSlug(e.target.value.toLowerCase().replace(/ /g, '-').replace(/[^\w-]+/g, ''));
+                    if (!editingBlog)
+                      setSlug(
+                        e.target.value
+                          .toLowerCase()
+                          .replace(/ /g, '-')
+                          .replace(/[^\w-]+/g, '')
+                      );
                   }}
                   className="w-full px-3 py-2 bg-[#1a1d26] border border-slate-800 rounded-lg text-white text-sm focus:outline-none focus:border-purple-500"
                   required
@@ -3694,7 +4404,9 @@ const BlogManager = ({ nav }: { nav: (mod: string) => void }) => {
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-400 mb-1">Excerpt / Summary</label>
+              <label className="block text-xs font-bold text-slate-400 mb-1">
+                Excerpt / Summary
+              </label>
               <textarea
                 value={excerpt}
                 onChange={(e) => setExcerpt(e.target.value)}
@@ -3738,7 +4450,9 @@ const BlogManager = ({ nav }: { nav: (mod: string) => void }) => {
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-400 mb-1">Tags (comma separated)</label>
+              <label className="block text-xs font-bold text-slate-400 mb-1">
+                Tags (comma separated)
+              </label>
               <input
                 type="text"
                 value={tags}
@@ -3761,7 +4475,9 @@ const BlogManager = ({ nav }: { nav: (mod: string) => void }) => {
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-400 mb-1">Reading Time (minutes)</label>
+                <label className="block text-xs font-bold text-slate-400 mb-1">
+                  Reading Time (minutes)
+                </label>
                 <input
                   type="number"
                   min="1"
@@ -3799,7 +4515,9 @@ const BlogManager = ({ nav }: { nav: (mod: string) => void }) => {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-400 mb-1">SEO Description</label>
+                  <label className="block text-xs font-bold text-slate-400 mb-1">
+                    SEO Description
+                  </label>
                   <textarea
                     value={seoDescription}
                     onChange={(e) => setSeoDescription(e.target.value)}
@@ -3811,14 +4529,18 @@ const BlogManager = ({ nav }: { nav: (mod: string) => void }) => {
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-400 mb-1">Scheduled Publish Date (optional)</label>
+              <label className="block text-xs font-bold text-slate-400 mb-1">
+                Scheduled Publish Date (optional)
+              </label>
               <input
                 type="datetime-local"
                 value={scheduledPublish}
                 onChange={(e) => setScheduledPublish(e.target.value)}
                 className="w-full px-3 py-2 bg-[#1a1d26] border border-slate-800 rounded-lg text-white text-sm focus:outline-none focus:border-purple-500"
               />
-              <p className="text-[10px] text-slate-500 mt-1">Leave empty to publish immediately when status is set to published</p>
+              <p className="text-[10px] text-slate-500 mt-1">
+                Leave empty to publish immediately when status is set to published
+              </p>
             </div>
 
             <button
@@ -3841,19 +4563,36 @@ const BlogManager = ({ nav }: { nav: (mod: string) => void }) => {
             ) : blogs.length === 0 ? (
               <p className="text-center text-slate-500 py-4">No posts found</p>
             ) : (
-              blogs.map(blog => (
-                <div key={blog.id} className="p-3 bg-[#1a1d26] border border-slate-800/40 rounded-lg hover:border-purple-500/30 transition-all">
+              blogs.map((blog) => (
+                <div
+                  key={blog.id}
+                  className="p-3 bg-[#1a1d26] border border-slate-800/40 rounded-lg hover:border-purple-500/30 transition-all"
+                >
                   <div className="flex justify-between items-start mb-2">
                     <h4 className="font-bold text-white text-sm line-clamp-1">{blog.title}</h4>
-                    <span className={`text-[10px] px-2 py-0.5 rounded font-bold ${blog.status === 'published' ? 'bg-green-500/10 text-green-400' : 'bg-yellow-500/10 text-yellow-400'}`}>
+                    <span
+                      className={`text-[10px] px-2 py-0.5 rounded font-bold ${blog.status === 'published' ? 'bg-green-500/10 text-green-400' : 'bg-yellow-500/10 text-yellow-400'}`}
+                    >
                       {blog.status}
                     </span>
                   </div>
                   <div className="flex justify-between items-center mt-2">
-                    <span className="text-xs text-slate-500">{new Date(blog.createdAt).toLocaleDateString()}</span>
+                    <span className="text-xs text-slate-500">
+                      {new Date(blog.createdAt).toLocaleDateString()}
+                    </span>
                     <div className="flex gap-2">
-                      <button onClick={() => handleEdit(blog)} className="text-blue-400 hover:text-blue-300 text-xs font-bold">Edit</button>
-                      <button onClick={() => handleDelete(blog.id)} className="text-red-400 hover:text-red-300 text-xs font-bold">Delete</button>
+                      <button
+                        onClick={() => handleEdit(blog)}
+                        className="text-blue-400 hover:text-blue-300 text-xs font-bold"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => handleDelete(blog.id)}
+                        className="text-red-400 hover:text-red-300 text-xs font-bold"
+                      >
+                        Delete
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -3883,7 +4622,7 @@ const QuizManager = ({ nav }: { nav: (mod: string) => void }) => {
     question: '',
     options: { a: '', b: '', c: '', d: '' },
     correctAnswer: 'a',
-    explanation: ''
+    explanation: '',
   });
 
   React.useEffect(() => {
@@ -3940,7 +4679,9 @@ const QuizManager = ({ nav }: { nav: (mod: string) => void }) => {
 
   const fetchQuizzes = async (chapterId: string) => {
     try {
-      const response = await fetch(`/api/quizzes?chapterId=${chapterId}`, { credentials: 'include' });
+      const response = await fetch(`/api/quizzes?chapterId=${chapterId}`, {
+        credentials: 'include',
+      });
       if (response.ok) {
         const data = await response.json();
         setQuizzes(data.quizzes || []);
@@ -3957,7 +4698,7 @@ const QuizManager = ({ nav }: { nav: (mod: string) => void }) => {
       question: '',
       options: { a: '', b: '', c: '', d: '' },
       correctAnswer: 'a',
-      explanation: ''
+      explanation: '',
     });
   };
 
@@ -3975,7 +4716,7 @@ const QuizManager = ({ nav }: { nav: (mod: string) => void }) => {
           title,
           passMark,
           timeLimit,
-          questions
+          questions,
         }),
       });
 
@@ -4011,7 +4752,11 @@ const QuizManager = ({ nav }: { nav: (mod: string) => void }) => {
               className="w-full px-3 py-2 bg-[#1a1d26] border border-slate-800 rounded-lg text-white text-sm"
             >
               <option value="">Select Course...</option>
-              {courses.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
+              {courses.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.title}
+                </option>
+              ))}
             </select>
             <select
               value={selectedModule}
@@ -4020,7 +4765,11 @@ const QuizManager = ({ nav }: { nav: (mod: string) => void }) => {
               className="w-full px-3 py-2 bg-[#1a1d26] border border-slate-800 rounded-lg text-white text-sm"
             >
               <option value="">Select Module...</option>
-              {modules.map(m => <option key={m.id} value={m.id}>{m.title}</option>)}
+              {modules.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.title}
+                </option>
+              ))}
             </select>
             <select
               value={selectedChapter}
@@ -4029,7 +4778,11 @@ const QuizManager = ({ nav }: { nav: (mod: string) => void }) => {
               className="w-full px-3 py-2 bg-[#1a1d26] border border-slate-800 rounded-lg text-white text-sm"
             >
               <option value="">Select Chapter...</option>
-              {chapters.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
+              {chapters.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.title}
+                </option>
+              ))}
             </select>
           </div>
 
@@ -4047,7 +4800,9 @@ const QuizManager = ({ nav }: { nav: (mod: string) => void }) => {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-400 mb-1">Pass Mark (%)</label>
+                  <label className="block text-xs font-bold text-slate-400 mb-1">
+                    Pass Mark (%)
+                  </label>
                   <input
                     type="number"
                     value={passMark}
@@ -4056,7 +4811,9 @@ const QuizManager = ({ nav }: { nav: (mod: string) => void }) => {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-400 mb-1">Time Limit (min)</label>
+                  <label className="block text-xs font-bold text-slate-400 mb-1">
+                    Time Limit (min)
+                  </label>
                   <input
                     type="number"
                     value={timeLimit}
@@ -4083,31 +4840,45 @@ const QuizManager = ({ nav }: { nav: (mod: string) => void }) => {
                         type="text"
                         placeholder={`Option ${opt.toUpperCase()}`}
                         value={newQuestion.options[opt as keyof typeof newQuestion.options]}
-                        onChange={(e) => setNewQuestion({
-                          ...newQuestion,
-                          options: { ...newQuestion.options, [opt]: e.target.value }
-                        })}
+                        onChange={(e) =>
+                          setNewQuestion({
+                            ...newQuestion,
+                            options: { ...newQuestion.options, [opt]: e.target.value },
+                          })
+                        }
                         className="w-full px-3 py-2 bg-[#1a1d26] border border-slate-800 rounded-lg text-white text-sm"
                       />
                     ))}
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-xs font-bold text-slate-400 mb-1">Correct Option</label>
+                      <label className="block text-xs font-bold text-slate-400 mb-1">
+                        Correct Option
+                      </label>
                       <select
                         value={newQuestion.correctAnswer}
-                        onChange={(e) => setNewQuestion({ ...newQuestion, correctAnswer: e.target.value })}
+                        onChange={(e) =>
+                          setNewQuestion({ ...newQuestion, correctAnswer: e.target.value })
+                        }
                         className="w-full px-3 py-2 bg-[#1a1d26] border border-slate-800 rounded-lg text-white text-sm"
                       >
-                        {['a', 'b', 'c', 'd'].map(opt => <option key={opt} value={opt}>Option {opt.toUpperCase()}</option>)}
+                        {['a', 'b', 'c', 'd'].map((opt) => (
+                          <option key={opt} value={opt}>
+                            Option {opt.toUpperCase()}
+                          </option>
+                        ))}
                       </select>
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-slate-400 mb-1">Explanation</label>
+                      <label className="block text-xs font-bold text-slate-400 mb-1">
+                        Explanation
+                      </label>
                       <input
                         type="text"
                         value={newQuestion.explanation}
-                        onChange={(e) => setNewQuestion({ ...newQuestion, explanation: e.target.value })}
+                        onChange={(e) =>
+                          setNewQuestion({ ...newQuestion, explanation: e.target.value })
+                        }
                         className="w-full px-3 py-2 bg-[#1a1d26] border border-slate-800 rounded-lg text-white text-sm"
                       />
                     </div>
@@ -4136,7 +4907,7 @@ const QuizManager = ({ nav }: { nav: (mod: string) => void }) => {
         <div className="bg-[#161922] border border-slate-800/60 rounded-2xl p-6">
           <h3 className="font-bold text-white mb-6">Existing Quizzes</h3>
           <div className="space-y-3">
-            {quizzes.map(quiz => (
+            {quizzes.map((quiz) => (
               <div key={quiz.id} className="p-3 bg-[#1a1d26] border border-slate-800/40 rounded-lg">
                 <h4 className="font-bold text-white text-sm">{quiz.title}</h4>
                 <div className="flex justify-between mt-2 text-xs text-slate-500">
@@ -4145,7 +4916,9 @@ const QuizManager = ({ nav }: { nav: (mod: string) => void }) => {
                 </div>
               </div>
             ))}
-            {quizzes.length === 0 && <p className="text-slate-500 text-sm text-center">No quizzes found</p>}
+            {quizzes.length === 0 && (
+              <p className="text-slate-500 text-sm text-center">No quizzes found</p>
+            )}
           </div>
         </div>
       </div>
@@ -4159,11 +4932,13 @@ const UniversalQuestionEditor = ({ question, back }: { question: any; back: () =
   const [type, setType] = useState(question?.type || 'standard');
   const [activeStep, setActiveStep] = useState(1);
   const [activeTab, setActiveTab] = useState('scenario');
-  const [questionData, setQuestionData] = useState(question || {
-    options: ['', '', '', ''],
-    correctAnswer: 0,
-    format: 'multiple_choice'
-  });
+  const [questionData, setQuestionData] = useState(
+    question || {
+      options: ['', '', '', ''],
+      correctAnswer: 0,
+      format: 'multiple_choice',
+    }
+  );
 
   // When category changes, reset type to first available in that category
   const handleCategoryChange = (newCat: string) => {
@@ -4177,15 +4952,15 @@ const UniversalQuestionEditor = ({ question, back }: { question: any; back: () =
   // Map question types to QuestionTypeBuilder formats
   const getQuestionFormat = (questionType: string): any => {
     const formatMap: Record<string, string> = {
-      'standard': 'multiple_choice',
-      'sata_classic': 'sata',
-      'matrix': 'matrix_multiple_response',
-      'drag_drop': 'extended_drag_drop',
-      'cloze': 'cloze_dropdown',
-      'bowtie': 'bowtie',
-      'trend': 'trend_item',
-      'ordering': 'ranking',
-      'casestudy': 'case_study'
+      standard: 'multiple_choice',
+      sata_classic: 'sata',
+      matrix: 'matrix_multiple_response',
+      drag_drop: 'extended_drag_drop',
+      cloze: 'cloze_dropdown',
+      bowtie: 'bowtie',
+      trend: 'trend_item',
+      ordering: 'ranking',
+      casestudy: 'case_study',
     };
     return formatMap[questionType] || 'multiple_choice';
   };
@@ -4215,7 +4990,12 @@ const UniversalQuestionEditor = ({ question, back }: { question: any; back: () =
       {/* EDITOR HEADER */}
       <div className="h-20 bg-gradient-to-r from-[#161922] to-[#1a1d26] border-b border-slate-800/60 flex items-center justify-between px-6 z-20 shadow-lg">
         <div className="flex items-center gap-4">
-          <button onClick={back} className="p-2 hover:bg-slate-800/50 rounded-lg text-slate-400 hover:text-white transition-colors"><ArrowLeft size={20} /></button>
+          <button
+            onClick={back}
+            className="p-2 hover:bg-slate-800/50 rounded-lg text-slate-400 hover:text-white transition-colors"
+          >
+            <ArrowLeft size={20} />
+          </button>
           <div>
             <h2 className="font-bold text-white text-xl tracking-tight">Question Editor</h2>
             <div className="flex items-center gap-3 mt-2">
@@ -4241,14 +5021,24 @@ const UniversalQuestionEditor = ({ question, back }: { question: any; back: () =
                 onChange={(e) => setType(e.target.value)}
                 className="bg-[#0b0d12] border border-slate-700 text-slate-200 rounded-lg px-3 py-1.5 text-xs font-medium outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 transition-all cursor-pointer"
               >
-                {(QUESTION_MODES[category.toUpperCase() as keyof typeof QUESTION_MODES]?.types || []).map((t: { id: string; label: string }) => <option key={t.id} value={t.id} className="bg-[#0b0d12]">{t.label}</option>)}
+                {(
+                  QUESTION_MODES[category.toUpperCase() as keyof typeof QUESTION_MODES]?.types || []
+                ).map((t: { id: string; label: string }) => (
+                  <option key={t.id} value={t.id} className="bg-[#0b0d12]">
+                    {t.label}
+                  </option>
+                ))}
               </select>
             </div>
           </div>
         </div>
         <div className="flex gap-3">
-          <button className="text-slate-400 px-5 py-2 text-sm font-bold hover:text-white hover:bg-slate-800/50 rounded-lg transition-all">Preview</button>
-          <button className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-6 py-2 rounded-lg text-sm font-bold hover:from-purple-500 hover:to-pink-500 transition-all shadow-lg shadow-purple-500/20">Save Item</button>
+          <button className="text-slate-400 px-5 py-2 text-sm font-bold hover:text-white hover:bg-slate-800/50 rounded-lg transition-all">
+            Preview
+          </button>
+          <button className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-6 py-2 rounded-lg text-sm font-bold hover:from-purple-500 hover:to-pink-500 transition-all shadow-lg shadow-purple-500/20">
+            Save Item
+          </button>
         </div>
       </div>
 
@@ -4259,13 +5049,13 @@ const UniversalQuestionEditor = ({ question, back }: { question: any; back: () =
           {/* If NGN, show tabs. If Classic, just simple stem header */}
           {category === 'ngn' ? (
             <div className="p-4 border-b border-slate-800/50 bg-[#161922] flex gap-2">
-              {['Scenario', 'Vitals', 'Labs', 'Notes'].map(tab => (
-                <button 
-                  key={tab} 
-                  onClick={() => setActiveTab(tab.toLowerCase())} 
+              {['Scenario', 'Vitals', 'Labs', 'Notes'].map((tab) => (
+                <button
+                  key={tab}
+                  onClick={() => setActiveTab(tab.toLowerCase())}
                   className={`px-4 py-2 text-xs font-bold rounded-lg transition-all duration-200 ${
-                    activeTab === tab.toLowerCase() 
-                      ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg shadow-purple-500/20' 
+                    activeTab === tab.toLowerCase()
+                      ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg shadow-purple-500/20'
                       : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800/30'
                   }`}
                 >
@@ -4277,7 +5067,9 @@ const UniversalQuestionEditor = ({ question, back }: { question: any; back: () =
             <div className="p-4 border-b border-slate-800/50 bg-gradient-to-r from-[#161922] to-[#1a1d26]">
               <div className="flex items-center gap-2">
                 <div className="w-1 h-4 bg-blue-500 rounded-full"></div>
-                <span className="text-xs font-bold text-blue-400 uppercase tracking-wider">Question Stem</span>
+                <span className="text-xs font-bold text-blue-400 uppercase tracking-wider">
+                  Question Stem
+                </span>
               </div>
             </div>
           )}
@@ -4285,8 +5077,16 @@ const UniversalQuestionEditor = ({ question, back }: { question: any; back: () =
           <div className="flex-1 p-6 overflow-y-auto custom-scrollbar">
             <textarea
               className="w-full h-full bg-[#161922]/50 border border-slate-800/50 rounded-xl p-4 outline-none text-slate-200 text-sm resize-none leading-relaxed focus:border-purple-500/50 focus:ring-2 focus:ring-purple-500/20 transition-all placeholder:text-slate-600"
-              placeholder={category === 'ngn' ? `Enter patient ${activeTab} data here...` : "Enter the question text here..."}
-              defaultValue={category === 'ngn' ? "A 45-year-old male client is admitted..." : "Which of the following is the priority nursing intervention?"}
+              placeholder={
+                category === 'ngn'
+                  ? `Enter patient ${activeTab} data here...`
+                  : 'Enter the question text here...'
+              }
+              defaultValue={
+                category === 'ngn'
+                  ? 'A 45-year-old male client is admitted...'
+                  : 'Which of the following is the priority nursing intervention?'
+              }
             />
           </div>
         </div>
@@ -4296,13 +5096,13 @@ const UniversalQuestionEditor = ({ question, back }: { question: any; back: () =
           {type === 'casestudy' && (
             <div className="p-4 border-b border-slate-800/50 bg-gradient-to-r from-[#161922] to-[#1a1d26] flex justify-between items-center shadow-sm">
               <div className="flex gap-2">
-                {CJMM_STEPS.map(s => (
-                  <button 
-                    key={s.step} 
-                    onClick={() => setActiveStep(s.step)} 
+                {CJMM_STEPS.map((s) => (
+                  <button
+                    key={s.step}
+                    onClick={() => setActiveStep(s.step)}
                     className={`w-10 h-10 rounded-lg flex items-center justify-center text-xs font-bold transition-all duration-200 ${
-                      activeStep === s.step 
-                        ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg shadow-purple-500/30' 
+                      activeStep === s.step
+                        ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg shadow-purple-500/30'
                         : 'bg-slate-800 text-slate-500 hover:bg-slate-700 hover:text-slate-300'
                     }`}
                   >
@@ -4316,9 +5116,7 @@ const UniversalQuestionEditor = ({ question, back }: { question: any; back: () =
             </div>
           )}
 
-          <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
-            {renderEditor()}
-          </div>
+          <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">{renderEditor()}</div>
 
           <div className="border-t border-slate-800/50 p-4 bg-gradient-to-r from-[#11131a] to-[#161922]">
             <details className="group">
@@ -4327,16 +5125,19 @@ const UniversalQuestionEditor = ({ question, back }: { question: any; back: () =
                   <Zap size={14} className="text-purple-400" />
                   Rationale Engine
                 </span>
-                <ChevronRight size={16} className="group-open:rotate-90 transition-transform text-slate-500" />
+                <ChevronRight
+                  size={16}
+                  className="group-open:rotate-90 transition-transform text-slate-500"
+                />
               </summary>
               <div className="mt-4 space-y-3 pl-4 border-l-2 border-purple-500/30">
-                <input 
-                  className="w-full bg-[#0b0d12] border border-slate-800 rounded-lg p-3 text-sm text-slate-200 placeholder:text-slate-600 focus:border-purple-500/50 focus:ring-2 focus:ring-purple-500/20 transition-all" 
-                  placeholder="Correct Answer Explanation..." 
+                <input
+                  className="w-full bg-[#0b0d12] border border-slate-800 rounded-lg p-3 text-sm text-slate-200 placeholder:text-slate-600 focus:border-purple-500/50 focus:ring-2 focus:ring-purple-500/20 transition-all"
+                  placeholder="Correct Answer Explanation..."
                 />
-                <input 
-                  className="w-full bg-[#0b0d12] border border-slate-800 rounded-lg p-3 text-sm text-slate-200 placeholder:text-slate-600 focus:border-purple-500/50 focus:ring-2 focus:ring-purple-500/20 transition-all" 
-                  placeholder="Distractor Analysis..." 
+                <input
+                  className="w-full bg-[#0b0d12] border border-slate-800 rounded-lg p-3 text-sm text-slate-200 placeholder:text-slate-600 focus:border-purple-500/50 focus:ring-2 focus:ring-purple-500/20 transition-all"
+                  placeholder="Distractor Analysis..."
                 />
               </div>
             </details>
@@ -4351,13 +5152,21 @@ const UniversalQuestionEditor = ({ question, back }: { question: any; back: () =
 
 const BowTieEditor = () => (
   <div className="space-y-6">
-    <div className="text-center mb-6"><div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 text-blue-400 text-xs font-bold border border-blue-500/20"><Zap size={12} /> Bow-Tie Protocol</div></div>
+    <div className="text-center mb-6">
+      <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 text-blue-400 text-xs font-bold border border-blue-500/20">
+        <Zap size={12} /> Bow-Tie Protocol
+      </div>
+    </div>
     <div className="grid grid-cols-3 gap-4">
       <BowTieColumn title="Actions to Take" color="blue" count={2} center={false} />
       <div className="relative">
         <BowTieColumn title="Potential Condition" color="orange" count={1} center={true} />
-        <div className="absolute top-1/2 -left-3 w-6 h-6 bg-[#0b0d12] border border-slate-700 rounded-full flex items-center justify-center z-10 text-slate-500"><ChevronRight size={12} /></div>
-        <div className="absolute top-1/2 -right-3 w-6 h-6 bg-[#0b0d12] border border-slate-700 rounded-full flex items-center justify-center z-10 text-slate-500"><ChevronRight size={12} /></div>
+        <div className="absolute top-1/2 -left-3 w-6 h-6 bg-[#0b0d12] border border-slate-700 rounded-full flex items-center justify-center z-10 text-slate-500">
+          <ChevronRight size={12} />
+        </div>
+        <div className="absolute top-1/2 -right-3 w-6 h-6 bg-[#0b0d12] border border-slate-700 rounded-full flex items-center justify-center z-10 text-slate-500">
+          <ChevronRight size={12} />
+        </div>
       </div>
       <BowTieColumn title="Parameters to Monitor" color="green" count={2} center={false} />
     </div>
@@ -4369,14 +5178,23 @@ const CaseStudyEditor = ({ step, setStep }: { step: number; setStep: (step: numb
     <div className="bg-[#161922] border border-slate-800 rounded-xl p-6 text-center border-dashed">
       <p className="text-slate-400 text-sm mb-2">Question Type for Step {step}</p>
       <div className="flex justify-center gap-2">
-        <button className="px-3 py-1 bg-slate-800 rounded text-xs font-bold text-white hover:bg-purple-600">Matrix</button>
-        <button className="px-3 py-1 bg-slate-800 rounded text-xs font-bold text-white hover:bg-purple-600">SATA</button>
-        <button className="px-3 py-1 bg-slate-800 rounded text-xs font-bold text-white hover:bg-purple-600">Drop-Down</button>
+        <button className="px-3 py-1 bg-slate-800 rounded text-xs font-bold text-white hover:bg-purple-600">
+          Matrix
+        </button>
+        <button className="px-3 py-1 bg-slate-800 rounded text-xs font-bold text-white hover:bg-purple-600">
+          SATA
+        </button>
+        <button className="px-3 py-1 bg-slate-800 rounded text-xs font-bold text-white hover:bg-purple-600">
+          Drop-Down
+        </button>
       </div>
     </div>
     <div className="space-y-2">
       <label className="text-xs font-bold text-slate-500 uppercase">Question Stem</label>
-      <textarea className="w-full bg-[#11131a] border border-slate-700 rounded-lg p-3 text-sm text-white h-24 resize-none" placeholder="Enter question text for this step..." />
+      <textarea
+        className="w-full bg-[#11131a] border border-slate-700 rounded-lg p-3 text-sm text-white h-24 resize-none"
+        placeholder="Enter question text for this step..."
+      />
     </div>
   </div>
 );
@@ -4384,34 +5202,58 @@ const CaseStudyEditor = ({ step, setStep }: { step: number; setStep: (step: numb
 const MatrixEditor = () => (
   <div className="bg-[#161922] border border-slate-800 rounded-xl overflow-hidden">
     <div className="grid grid-cols-4 bg-[#1a1d26] border-b border-slate-800 text-xs font-bold text-center py-3 text-slate-400">
-      <div className="text-left pl-4">Row Item</div><div>Indicated</div><div>Contraindicated</div><div>Non-Essential</div>
+      <div className="text-left pl-4">Row Item</div>
+      <div>Indicated</div>
+      <div>Contraindicated</div>
+      <div>Non-Essential</div>
     </div>
-    {[1, 2, 3, 4].map(r => (
+    {[1, 2, 3, 4].map((r) => (
       <div key={r} className="grid grid-cols-4 border-b border-slate-800/50 py-2 items-center">
-        <input className="mx-2 bg-[#0b0d12] border border-slate-700 rounded px-2 py-1 text-sm text-slate-300" placeholder={`Row ${r} text...`} />
-        <div className="flex justify-center"><input type="radio" name={`r${r}`} className="accent-purple-500" /></div>
-        <div className="flex justify-center"><input type="radio" name={`r${r}`} className="accent-purple-500" /></div>
-        <div className="flex justify-center"><input type="radio" name={`r${r}`} className="accent-purple-500" /></div>
+        <input
+          className="mx-2 bg-[#0b0d12] border border-slate-700 rounded px-2 py-1 text-sm text-slate-300"
+          placeholder={`Row ${r} text...`}
+        />
+        <div className="flex justify-center">
+          <input type="radio" name={`r${r}`} className="accent-purple-500" />
+        </div>
+        <div className="flex justify-center">
+          <input type="radio" name={`r${r}`} className="accent-purple-500" />
+        </div>
+        <div className="flex justify-center">
+          <input type="radio" name={`r${r}`} className="accent-purple-500" />
+        </div>
       </div>
     ))}
-    <button className="w-full py-2 text-xs font-bold text-purple-400 hover:bg-purple-500/10">+ Add Row</button>
+    <button className="w-full py-2 text-xs font-bold text-purple-400 hover:bg-purple-500/10">
+      + Add Row
+    </button>
   </div>
 );
 
 const TrendEditor = () => (
   <div className="space-y-4">
-    <p className="text-sm text-slate-400 text-center italic">"Review the data in the tabs to answer the question."</p>
+    <p className="text-sm text-slate-400 text-center italic">
+      "Review the data in the tabs to answer the question."
+    </p>
     <StandardEditor type="radio" />
   </div>
 );
 
-const StandardEditor = ({ type }: { type: "radio" | "checkbox" }) => (
+const StandardEditor = ({ type }: { type: 'radio' | 'checkbox' }) => (
   <div className="space-y-4">
     <div className="space-y-2">
-      {[1, 2, 3, 4].map(i => (
-        <div key={i} className="flex items-center gap-3 p-3 border border-slate-800 rounded-lg bg-[#11131a]">
-          <div className="w-6 h-6 rounded border border-slate-600 flex items-center justify-center text-xs font-bold text-slate-500">{String.fromCharCode(64 + i)}</div>
-          <input className="flex-1 bg-transparent outline-none text-sm text-slate-300" placeholder={`Option ${i}`} />
+      {[1, 2, 3, 4].map((i) => (
+        <div
+          key={i}
+          className="flex items-center gap-3 p-3 border border-slate-800 rounded-lg bg-[#11131a]"
+        >
+          <div className="w-6 h-6 rounded border border-slate-600 flex items-center justify-center text-xs font-bold text-slate-500">
+            {String.fromCharCode(64 + i)}
+          </div>
+          <input
+            className="flex-1 bg-transparent outline-none text-sm text-slate-300"
+            placeholder={`Option ${i}`}
+          />
           <input type={type} name="opt" className="accent-blue-500 w-4 h-4" />
         </div>
       ))}
@@ -4422,17 +5264,58 @@ const StandardEditor = ({ type }: { type: "radio" | "checkbox" }) => (
 
 // --- HELPERS ---
 const NavSection = ({ title, children }: { title: string; children: React.ReactNode }) => (
-  <div><p className="px-4 text-[10px] font-extrabold text-slate-500 uppercase tracking-widest mb-4">{title}</p><div className="space-y-1">{children}</div></div>
+  <div>
+    <p className="px-4 text-[10px] font-extrabold text-slate-500 uppercase tracking-widest mb-4">
+      {title}
+    </p>
+    <div className="space-y-1">{children}</div>
+  </div>
 );
 
-const NavItem = ({ icon, label, active, onClick, badge }: { icon: React.ReactNode; label: string; active: boolean; onClick: () => void; badge?: string | undefined }) => (
-  <button onClick={onClick} className={`w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all text-xs font-bold ${active ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg shadow-purple-500/20' : 'text-slate-400 hover:bg-[#1a1d26] hover:text-white'}`}>
-    <div className="flex items-center gap-3"><span>{icon}</span><span>{label}</span></div>
-    {badge && <span className={`px-1.5 py-0.5 rounded text-[9px] ${active ? 'bg-white/20 text-white' : 'bg-slate-800 text-slate-300'}`}>{badge}</span>}
+const NavItem = ({
+  icon,
+  label,
+  active,
+  onClick,
+  badge,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  active: boolean;
+  onClick: () => void;
+  badge?: string | undefined;
+}) => (
+  <button
+    onClick={onClick}
+    className={`w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all text-xs font-bold ${active ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg shadow-purple-500/20' : 'text-slate-400 hover:bg-[#1a1d26] hover:text-white'}`}
+  >
+    <div className="flex items-center gap-3">
+      <span>{icon}</span>
+      <span>{label}</span>
+    </div>
+    {badge && (
+      <span
+        className={`px-1.5 py-0.5 rounded text-[9px] ${active ? 'bg-white/20 text-white' : 'bg-slate-800 text-slate-300'}`}
+      >
+        {badge}
+      </span>
+    )}
   </button>
 );
 
-const MetricCard = ({ title, value, trend, color, icon }: { title: string; value: string; trend: string; color: string; icon?: React.ReactNode }) => {
+const MetricCard = ({
+  title,
+  value,
+  trend,
+  color,
+  icon,
+}: {
+  title: string;
+  value: string;
+  trend: string;
+  color: string;
+  icon?: React.ReactNode;
+}) => {
   const colorClasses: Record<string, string> = {
     green: 'text-green-400 bg-green-400/10 border-green-400/20',
     blue: 'text-blue-400 bg-blue-400/10 border-blue-400/20',
@@ -4440,42 +5323,96 @@ const MetricCard = ({ title, value, trend, color, icon }: { title: string; value
     orange: 'text-orange-400 bg-orange-400/10 border-orange-400/20',
     pink: 'text-pink-400 bg-pink-400/10 border-pink-400/20',
   };
-  
+
   return (
     <div className="bg-[#161922] border border-slate-800/60 rounded-2xl p-6 hover:border-slate-700 transition-colors">
       <div className="flex items-center justify-between mb-2">
         <p className="text-slate-500 text-[10px] font-bold uppercase tracking-wider">{title}</p>
-        {icon && <div className={`p-2 rounded-lg ${colorClasses[color] || colorClasses.blue}`}>{icon}</div>}
+        {icon && (
+          <div className={`p-2 rounded-lg ${colorClasses[color] || colorClasses.blue}`}>{icon}</div>
+        )}
       </div>
       <div className="flex items-end justify-between">
         <h3 className="text-3xl font-bold text-white">{value}</h3>
-        <span className={`text-xs font-bold px-2 py-0.5 rounded border ${colorClasses[color] || colorClasses.blue}`}>{trend}</span>
+        <span
+          className={`text-xs font-bold px-2 py-0.5 rounded border ${colorClasses[color] || colorClasses.blue}`}
+        >
+          {trend}
+        </span>
       </div>
     </div>
   );
 };
 
-const ProgressBar = ({ label, percent, color }: { label: string; percent: number; color: string }) => (
-  <div><div className="flex justify-between text-xs font-bold mb-2 text-slate-400"><span>{label}</span><span>{percent}%</span></div><div className="h-2 bg-slate-800 rounded-full overflow-hidden"><div className={`h-full ${color}`} style={{ width: `${percent}%` }}></div></div></div>
+const ProgressBar = ({
+  label,
+  percent,
+  color,
+}: {
+  label: string;
+  percent: number;
+  color: string;
+}) => (
+  <div>
+    <div className="flex justify-between text-xs font-bold mb-2 text-slate-400">
+      <span>{label}</span>
+      <span>{percent}%</span>
+    </div>
+    <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
+      <div className={`h-full ${color}`} style={{ width: `${percent}%` }}></div>
+    </div>
+  </div>
 );
 
-const QuickAddBtn = ({ icon, label, onClick, active }: { icon: React.ReactNode; label: string; onClick: () => void; active?: boolean }) => (
-  <button onClick={onClick} className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${active ? 'bg-purple-500/10 text-purple-400 border border-purple-500/20' : 'bg-slate-800 text-slate-400 border border-slate-700 hover:text-white'}`}>{icon} {label}</button>
+const QuickAddBtn = ({
+  icon,
+  label,
+  onClick,
+  active,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  onClick: () => void;
+  active?: boolean;
+}) => (
+  <button
+    onClick={onClick}
+    className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${active ? 'bg-purple-500/10 text-purple-400 border border-purple-500/20' : 'bg-slate-800 text-slate-400 border border-slate-700 hover:text-white'}`}
+  >
+    {icon} {label}
+  </button>
 );
 
-const BowTieColumn = ({ title, color, count, center }: { title: string; color: string; count: number; center?: boolean }) => {
+const BowTieColumn = ({
+  title,
+  color,
+  count,
+  center,
+}: {
+  title: string;
+  color: string;
+  count: number;
+  center?: boolean;
+}) => {
   const colors: Record<string, string> = {
     blue: 'border-blue-500/30 bg-blue-500/5 text-blue-400',
     orange: 'border-orange-500/30 bg-orange-500/5 text-orange-400',
-    green: 'border-green-500/30 bg-green-500/5 text-green-400'
+    green: 'border-green-500/30 bg-green-500/5 text-green-400',
   };
   const colorClass = colors[color] || colors.blue;
   return (
-    <div className={`border rounded-xl p-4 flex flex-col ${colorClass} ${center ? 'ring-2 ring-orange-500/20' : ''}`}>
-      <h4 className="text-[10px] font-black text-center uppercase tracking-widest mb-4 opacity-80">{title}</h4>
+    <div
+      className={`border rounded-xl p-4 flex flex-col ${colorClass} ${center ? 'ring-2 ring-orange-500/20' : ''}`}
+    >
+      <h4 className="text-[10px] font-black text-center uppercase tracking-widest mb-4 opacity-80">
+        {title}
+      </h4>
       <div className="flex-1 space-y-2 bg-[#11131a]/50 rounded p-2 min-h-[200px]">
         {Array.from({ length: count + 2 }).map((_, i) => (
-          <div key={i} className="flex items-center gap-2 p-2 rounded border border-transparent hover:bg-[#161922] hover:border-slate-700 cursor-pointer transition-all group">
+          <div
+            key={i}
+            className="flex items-center gap-2 p-2 rounded border border-transparent hover:bg-[#161922] hover:border-slate-700 cursor-pointer transition-all group"
+          >
             <div className="w-3 h-3 border border-slate-600 rounded-sm group-hover:border-white"></div>
             <div className="h-1.5 w-16 bg-slate-800 rounded-full group-hover:bg-slate-600"></div>
           </div>
@@ -4581,7 +5518,10 @@ const AdminProfile = ({ nav, adminUser }: { nav: (mod: string) => void; adminUse
       {/* HEADER */}
       <div className="h-20 bg-[#161922] border-b border-slate-800/60 flex items-center justify-between px-6">
         <div className="flex items-center gap-4">
-          <button onClick={() => nav('dashboard')} className="p-2 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition-colors">
+          <button
+            onClick={() => nav('dashboard')}
+            className="p-2 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition-colors"
+          >
             <ArrowLeft size={20} />
           </button>
           <h2 className="font-bold text-white text-xl">Admin Profile</h2>
@@ -4621,7 +5561,14 @@ const AdminProfile = ({ nav, adminUser }: { nav: (mod: string) => void; adminUse
           <div className="bg-gradient-to-r from-purple-600/20 to-pink-600/20 border border-purple-500/30 rounded-2xl p-8">
             <div className="flex items-center gap-6">
               <div className="w-24 h-24 rounded-full bg-gradient-to-br from-purple-600 to-pink-500 flex items-center justify-center text-3xl font-bold text-white shadow-lg shadow-purple-500/30">
-                {user?.name ? user.name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2) : 'AD'}
+                {user?.name
+                  ? user.name
+                      .split(' ')
+                      .map((n: string) => n[0])
+                      .join('')
+                      .toUpperCase()
+                      .slice(0, 2)
+                  : 'AD'}
               </div>
               <div className="flex-1">
                 <h1 className="text-3xl font-bold text-white mb-2">{user?.name || 'Admin User'}</h1>
@@ -4648,7 +5595,9 @@ const AdminProfile = ({ nav, adminUser }: { nav: (mod: string) => void; adminUse
               </h3>
               <div className="space-y-4">
                 <div>
-                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Full Name</label>
+                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
+                    Full Name
+                  </label>
                   {editMode ? (
                     <input
                       type="text"
@@ -4661,7 +5610,9 @@ const AdminProfile = ({ nav, adminUser }: { nav: (mod: string) => void; adminUse
                   )}
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Email Address</label>
+                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
+                    Email Address
+                  </label>
                   {editMode ? (
                     <input
                       type="email"
@@ -4675,7 +5626,9 @@ const AdminProfile = ({ nav, adminUser }: { nav: (mod: string) => void; adminUse
                   )}
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Phone Number</label>
+                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
+                    Phone Number
+                  </label>
                   {editMode ? (
                     <input
                       type="tel"
@@ -4699,18 +5652,24 @@ const AdminProfile = ({ nav, adminUser }: { nav: (mod: string) => void; adminUse
               </h3>
               <div className="space-y-4">
                 <div>
-                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Role</label>
+                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
+                    Role
+                  </label>
                   <p className="text-slate-200 font-medium">{user?.role || 'admin'}</p>
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Account Status</label>
+                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
+                    Account Status
+                  </label>
                   <div className="flex items-center gap-2">
                     <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                     <p className="text-green-400 font-medium">Active</p>
                   </div>
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Member Since</label>
+                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
+                    Member Since
+                  </label>
                   <p className="text-slate-200 font-medium">
                     {user?.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'N/A'}
                   </p>
@@ -4733,7 +5692,9 @@ const AdminProfile = ({ nav, adminUser }: { nav: (mod: string) => void; adminUse
                   placeholder="Tell us about yourself..."
                 />
               ) : (
-                <p className="text-slate-300 leading-relaxed">{user?.bio || 'No bio provided yet.'}</p>
+                <p className="text-slate-300 leading-relaxed">
+                  {user?.bio || 'No bio provided yet.'}
+                </p>
               )}
             </div>
 
@@ -4748,8 +5709,8 @@ const AdminProfile = ({ nav, adminUser }: { nav: (mod: string) => void; adminUse
                   <div>
                     <p className="text-slate-200 font-medium mb-1">Face ID Status</p>
                     <p className="text-sm text-slate-400">
-                      {user?.faceIdEnrolled 
-                        ? 'Face ID is enrolled and ready to use' 
+                      {user?.faceIdEnrolled
+                        ? 'Face ID is enrolled and ready to use'
                         : 'Face ID is not set up yet'}
                     </p>
                   </div>
@@ -4768,7 +5729,11 @@ const AdminProfile = ({ nav, adminUser }: { nav: (mod: string) => void; adminUse
                 {user?.faceIdEnrolled ? (
                   <button
                     onClick={async () => {
-                      if (confirm('Are you sure you want to reset Face ID? You will need to enroll again.')) {
+                      if (
+                        confirm(
+                          'Are you sure you want to reset Face ID? You will need to enroll again.'
+                        )
+                      ) {
                         try {
                           const response = await fetch('/api/admin/profile/reset-face', {
                             method: 'POST',
@@ -4820,7 +5785,7 @@ const FaceEnrollmentComponent = ({ onComplete }: { onComplete: () => void }) => 
   React.useEffect(() => {
     return () => {
       if (streamRef.current) {
-        streamRef.current.getTracks().forEach(track => track.stop());
+        streamRef.current.getTracks().forEach((track) => track.stop());
       }
     };
   }, []);
@@ -4860,7 +5825,7 @@ const FaceEnrollmentComponent = ({ onComplete }: { onComplete: () => void }) => 
       for (let i = 3; i > 0; i--) {
         setStatus(`Capturing in ${i}...`);
         setProgress(10);
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        await new Promise((resolve) => setTimeout(resolve, 1000));
       }
 
       setStatus('Capturing face...');
@@ -4894,7 +5859,7 @@ const FaceEnrollmentComponent = ({ onComplete }: { onComplete: () => void }) => 
       setProgress(100);
 
       if (streamRef.current) {
-        streamRef.current.getTracks().forEach(track => track.stop());
+        streamRef.current.getTracks().forEach((track) => track.stop());
         streamRef.current = null;
       }
 
@@ -4920,13 +5885,7 @@ const FaceEnrollmentComponent = ({ onComplete }: { onComplete: () => void }) => 
       ) : (
         <>
           <div className="relative bg-[#0b0d12] rounded-xl overflow-hidden border border-slate-800">
-            <video
-              ref={videoRef}
-              autoPlay
-              playsInline
-              muted
-              className="w-full h-64 object-cover"
-            />
+            <video ref={videoRef} autoPlay playsInline muted className="w-full h-64 object-cover" />
             {isEnrolling && (
               <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
                 <div className="text-center">
@@ -4949,9 +5908,7 @@ const FaceEnrollmentComponent = ({ onComplete }: { onComplete: () => void }) => 
               {error}
             </div>
           )}
-          {status && !isEnrolling && (
-            <p className="text-slate-400 text-sm text-center">{status}</p>
-          )}
+          {status && !isEnrolling && <p className="text-slate-400 text-sm text-center">{status}</p>}
           <button
             onClick={handleEnroll}
             disabled={isEnrolling}

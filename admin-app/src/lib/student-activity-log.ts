@@ -3,7 +3,18 @@ import { studentActivityLogs } from './db/schema';
 
 export interface StudentActivityData {
   studentId: number;
-  activityType: 'login' | 'logout' | 'course_view' | 'module_access' | 'chapter_access' | 'test_attempt' | 'test_result' | 'video_watch' | 'document_view' | 'enrollment_request' | 'profile_update';
+  activityType:
+    | 'login'
+    | 'logout'
+    | 'course_view'
+    | 'module_access'
+    | 'chapter_access'
+    | 'test_attempt'
+    | 'test_result'
+    | 'video_watch'
+    | 'document_view'
+    | 'enrollment_request'
+    | 'profile_update';
   title: string;
   description?: string;
   metadata?: {
@@ -28,7 +39,7 @@ export interface StudentActivityData {
 export async function logStudentActivity(data: StudentActivityData) {
   try {
     const db = getDatabase();
-    
+
     await db.insert(studentActivityLogs).values({
       studentId: data.studentId,
       activityType: data.activityType,
@@ -43,14 +54,3 @@ export async function logStudentActivity(data: StudentActivityData) {
     // Don't throw - activity logging shouldn't break the main operation
   }
 }
-
-
-
-
-
-
-
-
-
-
-

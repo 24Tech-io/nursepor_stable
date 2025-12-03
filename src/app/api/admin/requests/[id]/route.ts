@@ -7,13 +7,10 @@ import { sendRequestStatusNotification } from '@/lib/notification-helpers';
 import { approveRequest, rejectRequest } from '@/lib/data-manager/helpers/request-helper';
 
 // PATCH - Approve or deny request
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     console.log('🔄 [PATCH /api/admin/requests/[id]] Starting request approval/denial...');
-    
+
     // Check authentication - try both token and adminToken
     const token = request.cookies.get('token')?.value || request.cookies.get('adminToken')?.value;
 
@@ -27,7 +24,7 @@ export async function PATCH(
       console.error('❌ Token verification failed');
       return NextResponse.json({ message: 'Invalid token' }, { status: 401 });
     }
-    
+
     if (decoded.role !== 'admin') {
       console.error('❌ User is not an admin. Role:', decoded.role);
       return NextResponse.json({ message: 'Admin access required' }, { status: 403 });
@@ -41,10 +38,7 @@ export async function PATCH(
       body = await request.json();
     } catch (e) {
       console.error('❌ Failed to parse request body:', e);
-      return NextResponse.json(
-        { message: 'Invalid request body' },
-        { status: 400 }
-      );
+      return NextResponse.json({ message: 'Invalid request body' }, { status: 400 });
     }
 
     const { action } = body; // 'approve' or 'deny'
@@ -60,10 +54,7 @@ export async function PATCH(
     }
 
     if (isNaN(requestId)) {
-      return NextResponse.json(
-        { message: 'Invalid request ID' },
-        { status: 400 }
-      );
+      return NextResponse.json({ message: 'Invalid request ID' }, { status: 400 });
     }
 
     // Get database connection
@@ -88,7 +79,7 @@ export async function PATCH(
           studentId: accessRequests.studentId,
           courseId: accessRequests.courseId,
           status: accessRequests.status,
-          courseTitle: courses.title
+          courseTitle: courses.title,
         })
         .from(accessRequests)
         .innerJoin(courses, eq(accessRequests.courseId, courses.id))
@@ -115,13 +106,15 @@ export async function PATCH(
       studentId: accessRequest.studentId,
       courseId: accessRequest.courseId,
       status: accessRequest.status,
-      courseTitle: accessRequest.courseTitle
+      courseTitle: accessRequest.courseTitle,
     });
 
     // If request is already approved/rejected, just delete it and return success
     // This handles cases where the request was approved but not deleted
     if (accessRequest.status !== 'pending') {
-      console.warn(`⚠️ Request #${requestId} already reviewed (status: ${accessRequest.status}). Deleting it now.`);
+      console.warn(
+        `⚠️ Request #${requestId} already reviewed (status: ${accessRequest.status}). Deleting it now.`
+      );
       try {
         await db.delete(accessRequests).where(eq(accessRequests.id, requestId));
         console.log(`🗑️ Deleted already-reviewed request #${requestId}`);
@@ -188,11 +181,15 @@ export async function PATCH(
       ]);
 
       if (progressCheck.length === 0 && enrollmentCheck.length === 0) {
-        console.error(`❌ [PATCH /api/admin/requests/${requestId}] CRITICAL: Enrollment not created after approval!`);
+        console.error(
+          `❌ [PATCH /api/admin/requests/${requestId}] CRITICAL: Enrollment not created after approval!`
+        );
         // This is a critical error - enrollment should have been created by DataManager
         // Log it but don't fail the request - the transaction should have rolled back
       } else {
-        console.log(`✅ [PATCH /api/admin/requests/${requestId}] Enrollment verified: progress=${progressCheck.length > 0}, enrollment=${enrollmentCheck.length > 0}`);
+        console.log(
+          `✅ [PATCH /api/admin/requests/${requestId}] Enrollment verified: progress=${progressCheck.length > 0}, enrollment=${enrollmentCheck.length > 0}`
+        );
       }
 
       // Send notification to student (non-blocking)
@@ -264,10 +261,10 @@ export async function PATCH(
     console.error('❌ [PATCH /api/admin/requests/[id]] Unexpected error:', error);
     console.error('Error stack:', error.stack);
     return NextResponse.json(
-      { 
-        message: 'Failed to update request', 
+      {
+        message: 'Failed to update request',
         error: error.message,
-        details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        details: process.env.NODE_ENV === 'development' ? error.stack : undefined,
       },
       { status: 500 }
     );

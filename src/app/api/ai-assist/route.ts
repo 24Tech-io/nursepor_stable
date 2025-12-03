@@ -14,10 +14,7 @@ export async function POST(request: NextRequest) {
     const { action, code, error, description, language, question, context } = body;
 
     if (!action) {
-      return NextResponse.json(
-        { error: 'Action is required' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'Action is required' }, { status: 400 });
     }
 
     let result: string;
@@ -35,10 +32,7 @@ export async function POST(request: NextRequest) {
 
       case 'explain':
         if (!code) {
-          return NextResponse.json(
-            { error: 'Code is required for explanation' },
-            { status: 400 }
-          );
+          return NextResponse.json({ error: 'Code is required for explanation' }, { status: 400 });
         }
         result = await explainCode(code);
         break;
@@ -65,38 +59,25 @@ export async function POST(request: NextRequest) {
 
       case 'review':
         if (!code) {
-          return NextResponse.json(
-            { error: 'Code is required for review' },
-            { status: 400 }
-          );
+          return NextResponse.json({ error: 'Code is required for review' }, { status: 400 });
         }
         result = await reviewCode(code);
         break;
 
       case 'chat':
         if (!question) {
-          return NextResponse.json(
-            { error: 'Question is required for chat' },
-            { status: 400 }
-          );
+          return NextResponse.json({ error: 'Question is required for chat' }, { status: 400 });
         }
         result = await chatWithGemini(question, context);
         break;
 
       default:
-        return NextResponse.json(
-          { error: 'Invalid action' },
-          { status: 400 }
-        );
+        return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
     }
 
     return NextResponse.json({ result });
   } catch (error) {
     console.error('AI Assist API Error:', error);
-    return NextResponse.json(
-      { error: 'Failed to process AI request' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Failed to process AI request' }, { status: 500 });
   }
 }
-

@@ -50,7 +50,7 @@ export function isDatabaseSchemaError(error: any): boolean {
     error?.message?.includes('does not exist') ||
     error?.code === '42P01' || // PostgreSQL: relation does not exist
     error?.code === '42703' || // PostgreSQL: column does not exist
-    error?.code === '42883'    // PostgreSQL: function does not exist
+    error?.code === '42883' // PostgreSQL: function does not exist
   );
 }
 
@@ -228,10 +228,13 @@ export function createErrorResponse(
       error: process.env.NODE_ENV === 'development' ? error.message : undefined,
       type: ErrorType.INTERNAL,
       code: error.code || 'INTERNAL_ERROR',
-      details: process.env.NODE_ENV === 'development' ? {
-        stack: error.stack,
-        name: error.name,
-      } : undefined,
+      details:
+        process.env.NODE_ENV === 'development'
+          ? {
+              stack: error.stack,
+              name: error.name,
+            }
+          : undefined,
       retryable,
     },
     { status: statusCode }
@@ -258,10 +261,7 @@ export function withErrorHandling<T extends any[]>(
 /**
  * Create validation error response
  */
-export function createValidationError(
-  message: string,
-  details?: any
-): NextResponse<ErrorResponse> {
+export function createValidationError(message: string, details?: any): NextResponse<ErrorResponse> {
   return NextResponse.json(
     {
       message,
@@ -294,9 +294,7 @@ export function createAuthError(
 /**
  * Create authorization error response
  */
-export function createAuthzError(
-  message: string = 'Access denied'
-): NextResponse<ErrorResponse> {
+export function createAuthzError(message: string = 'Access denied'): NextResponse<ErrorResponse> {
   return NextResponse.json(
     {
       message,

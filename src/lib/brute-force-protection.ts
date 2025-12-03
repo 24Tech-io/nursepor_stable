@@ -22,24 +22,33 @@ const BLOCK_DURATION = 60 * 60 * 1000; // 1 hour block
 const PROGRESSIVE_DELAY = [0, 1000, 2000, 5000, 10000]; // Progressive delays in ms
 
 // Clean up old attempts every 10 minutes
-setInterval(() => {
-  const now = Date.now();
-  
-  // Clean IP attempts
-  for (const [ip, attempt] of Array.from(ipAttempts.entries())) {
-    if (now - attempt.lastAttempt > ATTEMPT_WINDOW && (!attempt.blockedUntil || now > attempt.blockedUntil)) {
-      ipAttempts.delete(ip);
-      blockedIPs.delete(ip);
+setInterval(
+  () => {
+    const now = Date.now();
+
+    // Clean IP attempts
+    for (const [ip, attempt] of Array.from(ipAttempts.entries())) {
+      if (
+        now - attempt.lastAttempt > ATTEMPT_WINDOW &&
+        (!attempt.blockedUntil || now > attempt.blockedUntil)
+      ) {
+        ipAttempts.delete(ip);
+        blockedIPs.delete(ip);
+      }
     }
-  }
-  
-  // Clean username attempts
-  for (const [username, attempt] of Array.from(usernameAttempts.entries())) {
-    if (now - attempt.lastAttempt > ATTEMPT_WINDOW && (!attempt.blockedUntil || now > attempt.blockedUntil)) {
-      usernameAttempts.delete(username);
+
+    // Clean username attempts
+    for (const [username, attempt] of Array.from(usernameAttempts.entries())) {
+      if (
+        now - attempt.lastAttempt > ATTEMPT_WINDOW &&
+        (!attempt.blockedUntil || now > attempt.blockedUntil)
+      ) {
+        usernameAttempts.delete(username);
+      }
     }
-  }
-}, 10 * 60 * 1000);
+  },
+  10 * 60 * 1000
+);
 
 /**
  * Check if an IP is blocked
@@ -49,7 +58,7 @@ export function isIPBlocked(ip: string): boolean {
   if (!attempt || !attempt.blockedUntil) {
     return false;
   }
-  
+
   const now = Date.now();
   if (now > attempt.blockedUntil) {
     // Unblock
@@ -58,7 +67,7 @@ export function isIPBlocked(ip: string): boolean {
     blockedIPs.delete(ip);
     return false;
   }
-  
+
   return true;
 }
 
@@ -70,7 +79,7 @@ export function isUsernameBlocked(username: string): boolean {
   if (!attempt || !attempt.blockedUntil) {
     return false;
   }
-  
+
   const now = Date.now();
   if (now > attempt.blockedUntil) {
     // Unblock
@@ -78,21 +87,24 @@ export function isUsernameBlocked(username: string): boolean {
     attempt.attempts = 0;
     return false;
   }
-  
+
   return true;
 }
 
 /**
  * Record a failed login attempt
  */
-export function recordFailedAttempt(ip: string, username: string): {
+export function recordFailedAttempt(
+  ip: string,
+  username: string
+): {
   blocked: boolean;
   remainingAttempts: number;
   blockDuration?: number;
   delayMs: number;
 } {
   const now = Date.now();
-  
+
   // Record IP attempt
   let ipAttempt = ipAttempts.get(ip);
   if (!ipAttempt || now - ipAttempt.lastAttempt > ATTEMPT_WINDOW) {
@@ -106,7 +118,7 @@ export function recordFailedAttempt(ip: string, username: string): {
     ipAttempt.lastAttempt = now;
   }
   ipAttempts.set(ip, ipAttempt);
-  
+
   // Record username attempt
   let userAttempt = usernameAttempts.get(username);
   if (!userAttempt || now - userAttempt.lastAttempt > ATTEMPT_WINDOW) {
@@ -120,17 +132,17 @@ export function recordFailedAttempt(ip: string, username: string): {
     userAttempt.lastAttempt = now;
   }
   usernameAttempts.set(username, userAttempt);
-  
+
   // Get progressive delay
   const delayIndex = Math.min(ipAttempt.attempts - 1, PROGRESSIVE_DELAY.length - 1);
   const delayMs = PROGRESSIVE_DELAY[delayIndex];
-  
+
   // Check if should block
   if (ipAttempt.attempts >= MAX_ATTEMPTS || userAttempt.attempts >= MAX_ATTEMPTS) {
     ipAttempt.blockedUntil = now + BLOCK_DURATION;
     userAttempt.blockedUntil = now + BLOCK_DURATION;
     blockedIPs.add(ip);
-    
+
     return {
       blocked: true,
       remainingAttempts: 0,
@@ -138,7 +150,7 @@ export function recordFailedAttempt(ip: string, username: string): {
       delayMs,
     };
   }
-  
+
   return {
     blocked: false,
     remainingAttempts: MAX_ATTEMPTS - ipAttempt.attempts,
@@ -163,12 +175,12 @@ export function getRemainingAttempts(ip: string): number {
   if (!attempt) {
     return MAX_ATTEMPTS;
   }
-  
+
   const now = Date.now();
   if (now - attempt.lastAttempt > ATTEMPT_WINDOW) {
     return MAX_ATTEMPTS;
   }
-  
+
   return Math.max(0, MAX_ATTEMPTS - attempt.attempts);
 }
 
@@ -209,9 +221,8 @@ export function detectCredentialStuffing(ip: string): boolean {
   if (!attempt) {
     return false;
   }
-  
+
   // If many attempts in short time, likely credential stuffing
   const attemptRate = attempt.attempts / ((Date.now() - attempt.firstAttempt) / 1000);
   return attemptRate > 0.5; // More than 0.5 attempts per second
 }
-

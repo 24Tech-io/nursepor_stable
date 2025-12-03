@@ -43,7 +43,10 @@ export async function POST(request: NextRequest) {
     try {
       normalized = normalizeNursingCandidatePayload(parsedBody);
     } catch (error: any) {
-      return NextResponse.json({ message: error?.message || 'Invalid data submitted' }, { status: 400 });
+      return NextResponse.json(
+        { message: error?.message || 'Invalid data submitted' },
+        { status: 400 }
+      );
     }
 
     const referenceNumber = `NPA-${Date.now()}`;
@@ -153,4 +156,3 @@ export async function GET(request: NextRequest) {
     );
   }
 }
-

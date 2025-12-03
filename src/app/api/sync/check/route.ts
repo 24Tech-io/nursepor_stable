@@ -23,30 +23,17 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       ...result,
-      message: result.success 
-        ? 'Sync check completed successfully' 
-        : 'Sync check failed',
+      message: result.success ? 'Sync check completed successfully' : 'Sync check failed',
     });
   } catch (error: any) {
     console.error('Sync check error:', error);
     return NextResponse.json(
-      { 
+      {
         success: false,
         message: 'Failed to perform sync check',
-        error: process.env.NODE_ENV === 'development' ? error.message : undefined
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined,
       },
       { status: 500 }
     );
   }
 }
-
-
-
-
-
-
-
-
-
-
-

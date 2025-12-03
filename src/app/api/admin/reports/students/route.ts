@@ -37,23 +37,24 @@ export async function GET(request: NextRequest) {
     const recentLogins = await db
       .select({ count: count() })
       .from(users)
-      .where(
-        sql`${users.role} = 'student' AND ${users.lastLogin} >= ${thirtyDaysAgo}`
-      );
+      .where(sql`${users.role} = 'student' AND ${users.lastLogin} >= ${thirtyDaysAgo}`);
 
     return NextResponse.json({
       students: {
         total: active + inactive,
         active,
         inactive,
-        recentActiveCount: recentLogins[0]?.count || 0
-      }
+        recentActiveCount: recentLogins[0]?.count || 0,
+      },
     });
   } catch (error) {
     console.error('Get student stats error:', error);
-    return NextResponse.json({
-      message: 'Internal server error',
-      error: process.env.NODE_ENV === 'development' ? String(error) : undefined
-    }, { status: 500 });
+    return NextResponse.json(
+      {
+        message: 'Internal server error',
+        error: process.env.NODE_ENV === 'development' ? String(error) : undefined,
+      },
+      { status: 500 }
+    );
   }
 }

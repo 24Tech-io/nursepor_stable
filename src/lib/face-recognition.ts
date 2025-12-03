@@ -1,7 +1,7 @@
 /**
  * Face Recognition Utilities
  * Uses face-api.js for face detection and recognition
- * 
+ *
  * Installation: npm install face-api.js
  */
 
@@ -33,9 +33,9 @@ export async function loadFaceModels(): Promise<boolean> {
     // Dynamic import to avoid SSR issues
     faceapiModule = await import('face-api.js');
     const faceapi = faceapiModule.default || faceapiModule;
-    
+
     console.log('Loading face recognition models from:', MODEL_URL);
-    
+
     await Promise.all([
       faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
       faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
@@ -51,7 +51,7 @@ export async function loadFaceModels(): Promise<boolean> {
       message: error?.message,
       stack: error?.stack,
     });
-    
+
     // Provide helpful error message
     if (error?.message?.includes('404') || error?.message?.includes('Failed to fetch')) {
       console.error(`
@@ -72,7 +72,7 @@ export async function loadFaceModels(): Promise<boolean> {
         - face_recognition_model-shard1
       `);
     }
-    
+
     return false;
   }
 }
@@ -82,15 +82,17 @@ export async function loadFaceModels(): Promise<boolean> {
  */
 export async function detectFace(
   input: HTMLImageElement | HTMLVideoElement | HTMLCanvasElement
-): Promise<WithFaceDescriptor<WithFaceLandmarks<{
-  detection: FaceDetection;
-}>> | null> {
+): Promise<WithFaceDescriptor<
+  WithFaceLandmarks<{
+    detection: FaceDetection;
+  }>
+> | null> {
   try {
     if (!faceapiModule) {
       faceapiModule = await import('face-api.js');
     }
     const faceapi = faceapiModule.default || faceapiModule;
-    
+
     if (!modelsLoaded) {
       await loadFaceModels();
     }
@@ -110,12 +112,10 @@ export async function detectFace(
 /**
  * Enroll user face - capture and store face descriptor
  */
-export async function enrollFace(
-  videoElement: HTMLVideoElement
-): Promise<Float32Array | null> {
+export async function enrollFace(videoElement: HTMLVideoElement): Promise<Float32Array | null> {
   try {
     const detection = await detectFace(videoElement);
-    
+
     if (!detection) {
       throw new Error('No face detected. Please ensure your face is clearly visible.');
     }
@@ -149,7 +149,7 @@ export async function verifyFace(
 ): Promise<{ match: boolean; distance: number }> {
   try {
     const detection = await detectFace(videoElement);
-    
+
     if (!detection) {
       return { match: false, distance: Infinity };
     }
@@ -158,11 +158,8 @@ export async function verifyFace(
       faceapiModule = await import('face-api.js');
     }
     const faceapi = faceapiModule.default || faceapiModule;
-    
-    const distance = faceapi.euclideanDistance(
-      detection.descriptor,
-      storedDescriptor
-    );
+
+    const distance = faceapi.euclideanDistance(detection.descriptor, storedDescriptor);
 
     // Threshold for face match (lower = stricter)
     // Typical values: 0.4-0.6
@@ -219,4 +216,3 @@ export function checkBrowserSupport(): {
     errors,
   };
 }
-

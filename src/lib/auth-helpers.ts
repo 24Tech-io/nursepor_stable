@@ -36,17 +36,19 @@ export async function getAuthenticatedUser(request: NextRequest): Promise<AuthUs
 }
 
 // Check if user is admin
-export async function requireAdmin(request: NextRequest): Promise<{ user: AuthUser } | NextResponse> {
+export async function requireAdmin(
+  request: NextRequest
+): Promise<{ user: AuthUser } | NextResponse> {
   const token = request.cookies.get('token')?.value;
-  
+
   console.log('🔐 requireAdmin check - Token exists:', !!token, 'Path:', request.nextUrl.pathname);
-  
+
   if (!token) {
     console.log('❌ requireAdmin - No token found');
     return NextResponse.json(
-      { 
+      {
         error: 'Authentication required',
-        message: 'Please log in to continue. Your session may have expired.'
+        message: 'Please log in to continue. Your session may have expired.',
       },
       { status: 401 }
     );
@@ -84,7 +86,7 @@ export async function requireAdmin(request: NextRequest): Promise<{ user: AuthUs
       if (payload.email) {
         const { getUserAccounts } = await import('@/lib/auth');
         const accounts = await getUserAccounts(payload.email);
-        const adminAccount = accounts.find(acc => acc.role === 'admin' && acc.isActive);
+        const adminAccount = accounts.find((acc) => acc.role === 'admin' && acc.isActive);
         if (adminAccount) {
           console.log('✅ requireAdmin - Found admin account from expired token');
           user = {
@@ -103,9 +105,9 @@ export async function requireAdmin(request: NextRequest): Promise<{ user: AuthUs
         } else {
           console.log('❌ requireAdmin - No admin account found');
           return NextResponse.json(
-            { 
+            {
               error: 'Invalid or expired token',
-              message: 'Your session has expired. Please log in again.'
+              message: 'Your session has expired. Please log in again.',
             },
             { status: 401 }
           );
@@ -113,9 +115,9 @@ export async function requireAdmin(request: NextRequest): Promise<{ user: AuthUs
       } else {
         console.log('❌ requireAdmin - Cannot extract email from token');
         return NextResponse.json(
-          { 
+          {
             error: 'Invalid or expired token',
-            message: 'Your session has expired. Please log in again.'
+            message: 'Your session has expired. Please log in again.',
           },
           { status: 401 }
         );
@@ -123,9 +125,9 @@ export async function requireAdmin(request: NextRequest): Promise<{ user: AuthUs
     } catch (e) {
       console.log('❌ requireAdmin - Cannot parse token');
       return NextResponse.json(
-        { 
+        {
           error: 'Invalid or expired token',
-          message: 'Your session has expired. Please log in again.'
+          message: 'Your session has expired. Please log in again.',
         },
         { status: 401 }
       );
@@ -138,8 +140,8 @@ export async function requireAdmin(request: NextRequest): Promise<{ user: AuthUs
     try {
       const { getUserAccounts } = await import('@/lib/auth');
       const accounts = await getUserAccounts(user.email);
-      const adminAccount = accounts.find(acc => acc.role === 'admin' && acc.isActive);
-      
+      const adminAccount = accounts.find((acc) => acc.role === 'admin' && acc.isActive);
+
       if (adminAccount) {
         console.log('✅ requireAdmin - Found admin account, switching to admin role');
         // User has an admin account - use it instead
@@ -159,9 +161,10 @@ export async function requireAdmin(request: NextRequest): Promise<{ user: AuthUs
       } else {
         console.log('❌ requireAdmin - No admin account found for this email');
         return NextResponse.json(
-          { 
+          {
             error: 'Admin access required',
-            message: 'You do not have permission to access this resource. Please log in with an admin account.'
+            message:
+              'You do not have permission to access this resource. Please log in with an admin account.',
           },
           { status: 403 }
         );
@@ -169,9 +172,9 @@ export async function requireAdmin(request: NextRequest): Promise<{ user: AuthUs
     } catch (error) {
       console.error('Error checking for admin account:', error);
       return NextResponse.json(
-        { 
+        {
           error: 'Admin access required',
-          message: 'You do not have permission to access this resource.'
+          message: 'You do not have permission to access this resource.',
         },
         { status: 403 }
       );
@@ -180,9 +183,9 @@ export async function requireAdmin(request: NextRequest): Promise<{ user: AuthUs
 
   if (!user.isActive) {
     return NextResponse.json(
-      { 
+      {
         error: 'Account is deactivated',
-        message: 'Your account has been deactivated. Please contact support.'
+        message: 'Your account has been deactivated. Please contact support.',
       },
       { status: 403 }
     );
@@ -192,21 +195,17 @@ export async function requireAdmin(request: NextRequest): Promise<{ user: AuthUs
 }
 
 // Check if user is authenticated
-export async function requireAuth(request: NextRequest): Promise<{ user: AuthUser } | NextResponse> {
+export async function requireAuth(
+  request: NextRequest
+): Promise<{ user: AuthUser } | NextResponse> {
   const user = await getAuthenticatedUser(request);
-  
+
   if (!user) {
-    return NextResponse.json(
-      { error: 'Authentication required' },
-      { status: 401 }
-    );
+    return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
   }
 
   if (!user.isActive) {
-    return NextResponse.json(
-      { error: 'Account is deactivated' },
-      { status: 403 }
-    );
+    return NextResponse.json({ error: 'Account is deactivated' }, { status: 403 });
   }
 
   return { user };
@@ -231,17 +230,16 @@ export async function requireOwnershipOrAdmin(
 
   // User can only access their own resources
   if (user.id !== resourceUserId) {
-    return NextResponse.json(
-      { error: 'Access denied' },
-      { status: 403 }
-    );
+    return NextResponse.json({ error: 'Access denied' }, { status: 403 });
   }
 
   return { user };
 }
 
 // Check if user is student or admin
-export async function requireStudentOrAdmin(request: NextRequest): Promise<{ user: AuthUser } | NextResponse> {
+export async function requireStudentOrAdmin(
+  request: NextRequest
+): Promise<{ user: AuthUser } | NextResponse> {
   const authResult = await requireAuth(request);
   if (authResult instanceof NextResponse) {
     return authResult;
@@ -250,10 +248,7 @@ export async function requireStudentOrAdmin(request: NextRequest): Promise<{ use
   const user = authResult.user;
 
   if (user.role !== 'student' && user.role !== 'admin') {
-    return NextResponse.json(
-      { error: 'Student or admin access required' },
-      { status: 403 }
-    );
+    return NextResponse.json({ error: 'Student or admin access required' }, { status: 403 });
   }
 
   return { user };
@@ -263,4 +258,3 @@ export async function requireStudentOrAdmin(request: NextRequest): Promise<{ use
 export async function verifyAuth(request: NextRequest): Promise<{ user: AuthUser } | NextResponse> {
   return requireAuth(request);
 }
-

@@ -13,9 +13,9 @@ export const dynamic = 'force-dynamic';
  * @description The single authoritative endpoint for fetching a student's enrolled courses.
  * This should be used by both the student dashboard and admin panels to ensure data consistency.
  * It replaces the logic previously found in `/api/student/enrolled-courses` and the stale data from `/api/students`.
- * 
+ *
  * @param {string} studentId - The ID of the student whose enrollments are being fetched.
- * 
+ *
  * @returns A list of enrollment objects, each containing course details and the student's progress.
  */
 export async function GET(request: NextRequest) {
@@ -43,12 +43,7 @@ export async function GET(request: NextRequest) {
         courseId: accessRequests.courseId,
       })
       .from(accessRequests)
-      .where(
-        and(
-          eq(accessRequests.studentId, studentIdNum),
-          eq(accessRequests.status, 'pending')
-        )
-      );
+      .where(and(eq(accessRequests.studentId, studentIdNum), eq(accessRequests.status, 'pending')));
 
     const pendingRequestCourseIds = pendingRequests.map((r: any) => r.courseId);
 
@@ -85,7 +80,9 @@ export async function GET(request: NextRequest) {
     // This ensures students see their courses during migration period
     // TODO: Remove this fallback after migration is complete
     if (enrollmentData.length === 0) {
-      console.log(`⚠️ No enrollments found in enrollments table for student ${studentIdNum}, checking studentProgress as fallback...`);
+      console.log(
+        `⚠️ No enrollments found in enrollments table for student ${studentIdNum}, checking studentProgress as fallback...`
+      );
       try {
         const progressData = await db
           .select({
@@ -123,7 +120,9 @@ export async function GET(request: NextRequest) {
         }));
 
         if (enrollmentData.length > 0) {
-          console.log(`✅ Found ${enrollmentData.length} enrollments in studentProgress table (fallback)`);
+          console.log(
+            `✅ Found ${enrollmentData.length} enrollments in studentProgress table (fallback)`
+          );
         }
       } catch (fallbackError: any) {
         console.error('⚠️ Error checking studentProgress fallback:', fallbackError);
@@ -153,7 +152,6 @@ export async function GET(request: NextRequest) {
     });
 
     return NextResponse.json({ enrollments: filteredEnrollments });
-
   } catch (error: any) {
     console.error('❌ Error fetching enrollments:', error);
     return NextResponse.json(

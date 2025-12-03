@@ -12,11 +12,13 @@ function getJWTSecret(): string {
       if (process.env.NODE_ENV === 'production') {
         throw new Error(
           'JWT_SECRET must be set in environment variables and must be at least 32 characters long. ' +
-          'Please set a strong random secret in .env.local'
+            'Please set a strong random secret in .env.local'
         );
       }
       // Use a default secret in development only (for hot reload)
-      console.warn('⚠️ Using default JWT_SECRET in development. Set JWT_SECRET in .env.local for production.');
+      console.warn(
+        '⚠️ Using default JWT_SECRET in development. Set JWT_SECRET in .env.local for production.'
+      );
       return 'dev-secret-key-change-this-in-production-at-least-32-chars-long';
     }
     if (process.env.JWT_SECRET.length < 32) {
@@ -113,7 +115,11 @@ export function verifyToken(token: string): AuthUser | null {
   }
 }
 
-export async function createSession(userId: number, deviceInfo?: any, userData?: AuthUser): Promise<string> {
+export async function createSession(
+  userId: number,
+  deviceInfo?: any,
+  userData?: AuthUser
+): Promise<string> {
   try {
     // Get database instance
     let db;
@@ -123,40 +129,36 @@ export async function createSession(userId: number, deviceInfo?: any, userData?:
       console.error('❌ Database connection failed in createSession:', dbError);
       throw new Error(`Database connection failed: ${dbError.message || 'Unknown error'}`);
     }
-    
+
     if (!db) {
       throw new Error('Database is not available');
     }
 
-  // Get user data if not provided
-  let user: AuthUser;
-  if (userData) {
-    user = userData;
-  } else {
-    const userResult = await db
-      .select()
-      .from(users)
-      .where(eq(users.id, userId))
-      .limit(1);
-    
-    if (!userResult.length) {
-      throw new Error('User not found');
+    // Get user data if not provided
+    let user: AuthUser;
+    if (userData) {
+      user = userData;
+    } else {
+      const userResult = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+
+      if (!userResult.length) {
+        throw new Error('User not found');
+      }
+
+      user = {
+        id: userResult[0].id,
+        name: userResult[0].name,
+        email: userResult[0].email,
+        phone: userResult[0].phone || null,
+        bio: userResult[0].bio || null,
+        role: userResult[0].role,
+        isActive: userResult[0].isActive,
+        faceIdEnrolled: userResult[0].faceIdEnrolled || false,
+        fingerprintEnrolled: userResult[0].fingerprintEnrolled || false,
+        twoFactorEnabled: userResult[0].twoFactorEnabled || false,
+        joinedDate: userResult[0].joinedDate || null,
+      };
     }
-    
-    user = {
-      id: userResult[0].id,
-      name: userResult[0].name,
-      email: userResult[0].email,
-      phone: userResult[0].phone || null,
-      bio: userResult[0].bio || null,
-      role: userResult[0].role,
-      isActive: userResult[0].isActive,
-      faceIdEnrolled: userResult[0].faceIdEnrolled || false,
-      fingerprintEnrolled: userResult[0].fingerprintEnrolled || false,
-      twoFactorEnabled: userResult[0].twoFactorEnabled || false,
-      joinedDate: userResult[0].joinedDate || null,
-    };
-  }
 
     const sessionToken = generateToken(user);
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
@@ -195,12 +197,7 @@ export async function validateSession(sessionToken: string): Promise<AuthUser | 
   const session = await db
     .select()
     .from(sessions)
-    .where(
-      and(
-        eq(sessions.sessionToken, sessionToken),
-        eq(sessions.userId, user.id)
-      )
-    )
+    .where(and(eq(sessions.sessionToken, sessionToken), eq(sessions.userId, user.id)))
     .limit(1);
 
   if (!session.length || session[0].expiresAt < new Date()) {
@@ -220,21 +217,21 @@ export async function destroyAllUserSessions(userId: number): Promise<void> {
   await db.delete(sessions).where(eq(sessions.userId, userId));
 }
 
-export async function authenticateUser(email: string, password: string, role?: string): Promise<AuthUser | null> {
+export async function authenticateUser(
+  email: string,
+  password: string,
+  role?: string
+): Promise<AuthUser | null> {
   // Get database instance
   const db = getDatabase();
 
   // If role is specified, authenticate that specific role
   // Otherwise, get the first matching account (for backward compatibility)
-  const whereConditions = role 
+  const whereConditions = role
     ? and(eq(users.email, email), eq(users.role, role), eq(users.isActive, true))
     : and(eq(users.email, email), eq(users.isActive, true));
-  
-  const user = await db
-    .select()
-    .from(users)
-    .where(whereConditions)
-    .limit(1);
+
+  const user = await db.select().from(users).where(whereConditions).limit(1);
 
   if (!user.length) {
     return null;
@@ -246,10 +243,7 @@ export async function authenticateUser(email: string, password: string, role?: s
   }
 
   // Update last login
-  await db
-    .update(users)
-    .set({ lastLogin: new Date() })
-    .where(eq(users.id, user[0].id));
+  await db.update(users).set({ lastLogin: new Date() }).where(eq(users.id, user[0].id));
 
   return {
     id: user[0].id,
@@ -274,14 +268,20 @@ export async function getUserAccounts(email: string): Promise<AuthUser[]> {
   const accounts = await db
     .select()
     .from(users)
-    .where(and(
-      sql`LOWER(${users.email}) = LOWER(${normalizedEmail})`,
-      eq(users.isActive, true)
-    ));
+    .where(and(sql`LOWER(${users.email}) = LOWER(${normalizedEmail})`, eq(users.isActive, true)));
 
   console.log('getUserAccounts - Email searched:', normalizedEmail);
   console.log('getUserAccounts - Accounts found:', accounts.length);
-  console.log('getUserAccounts - Accounts:', accounts.map((a: any) => ({ id: a.id, email: a.email, role: a.role, name: a.name, isActive: a.isActive })));
+  console.log(
+    'getUserAccounts - Accounts:',
+    accounts.map((a: any) => ({
+      id: a.id,
+      email: a.email,
+      role: a.role,
+      name: a.name,
+      isActive: a.isActive,
+    }))
+  );
 
   return accounts.map((user: any) => ({
     id: user.id,
@@ -306,7 +306,7 @@ export async function createUser(userData: {
 }): Promise<AuthUser> {
   try {
     console.log('createUser called with:', { email: userData.email, role: userData.role });
-    
+
     // Get database instance
     const db = getDatabase();
 
@@ -328,7 +328,11 @@ export async function createUser(userData: {
       throw new Error('Failed to create user - no data returned from database');
     }
 
-    console.log('User inserted successfully:', { id: newUser[0].id, email: newUser[0].email, phone: newUser[0].phone });
+    console.log('User inserted successfully:', {
+      id: newUser[0].id,
+      email: newUser[0].email,
+      phone: newUser[0].phone,
+    });
 
     return {
       id: newUser[0].id,
@@ -357,11 +361,7 @@ export async function createUser(userData: {
 
 export async function generateResetToken(email: string): Promise<string | null> {
   const db = getDatabase();
-  const user = await db
-    .select()
-    .from(users)
-    .where(eq(users.email, email))
-    .limit(1);
+  const user = await db.select().from(users).where(eq(users.email, email)).limit(1);
 
   if (!user.length) {
     return null;
@@ -387,10 +387,7 @@ export async function verifyResetToken(email: string, token: string): Promise<bo
   const user = await db
     .select()
     .from(users)
-    .where(and(
-      eq(users.email, email),
-      eq(users.resetToken, token)
-    ))
+    .where(and(eq(users.email, email), eq(users.resetToken, token)))
     .limit(1);
 
   if (!user.length || !user[0].resetTokenExpiry) {
@@ -400,7 +397,11 @@ export async function verifyResetToken(email: string, token: string): Promise<bo
   return user[0].resetTokenExpiry > new Date();
 }
 
-export async function resetPassword(email: string, token: string, newPassword: string): Promise<boolean> {
+export async function resetPassword(
+  email: string,
+  token: string,
+  newPassword: string
+): Promise<boolean> {
   const isValid = await verifyResetToken(email, token);
   if (!isValid) {
     return false;
@@ -420,4 +421,3 @@ export async function resetPassword(email: string, token: string, newPassword: s
 
   return true;
 }
-

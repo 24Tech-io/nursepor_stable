@@ -85,7 +85,9 @@ export class DataManager {
       // This keeps event emission close to the actual data changes
 
       const duration = Date.now() - startTime;
-      console.log(`✅ Operation ${operation.type} completed in ${duration}ms (operationId: ${operationId})`);
+      console.log(
+        `✅ Operation ${operation.type} completed in ${duration}ms (operationId: ${operationId})`
+      );
 
       return {
         success: true,
@@ -100,7 +102,10 @@ export class DataManager {
       }
 
       const duration = Date.now() - startTime;
-      console.error(`❌ Operation ${operation.type} failed after ${duration}ms (operationId: ${operationId}):`, error);
+      console.error(
+        `❌ Operation ${operation.type} failed after ${duration}ms (operationId: ${operationId}):`,
+        error
+      );
 
       return {
         success: false,
@@ -161,4 +166,3 @@ export class DataManager {
 
 // Export singleton instance
 export const dataManager = DataManager.getInstance();
-

@@ -50,9 +50,7 @@ export class ErrorBoundary extends Component<Props, State> {
       return (
         <div className="flex flex-col items-center justify-center min-h-screen p-8 bg-gray-50">
           <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-6">
-            <h2 className="text-2xl font-bold text-red-600 mb-4">
-              Something went wrong
-            </h2>
+            <h2 className="text-2xl font-bold text-red-600 mb-4">Something went wrong</h2>
             <p className="text-gray-700 mb-4">
               {this.state.error?.message || 'An unexpected error occurred'}
             </p>
@@ -73,9 +71,3 @@ export class ErrorBoundary extends Component<Props, State> {
     return this.props.children;
   }
 }
-
-
-
-
-
-

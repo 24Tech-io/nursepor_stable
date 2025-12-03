@@ -23,21 +23,19 @@ export async function POST(request: NextRequest) {
     }
 
     const { chapterId, currentTime, duration } = await request.json();
-    
+
     const watchedPercentage = (currentTime / duration) * 100;
     const completed = watchedPercentage >= 90; // 90% watched = completed
 
     // Check if progress exists
     const existing = await db.query.videoProgress.findFirst({
-      where: and(
-        eq(videoProgress.userId, user.id),
-        eq(videoProgress.chapterId, chapterId)
-      ),
+      where: and(eq(videoProgress.userId, user.id), eq(videoProgress.chapterId, chapterId)),
     });
 
     if (existing) {
       // Update existing progress
-      await db.update(videoProgress)
+      await db
+        .update(videoProgress)
         .set({
           currentTime,
           duration,
@@ -102,4 +100,3 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Failed to fetch progress' }, { status: 500 });
   }
 }
-

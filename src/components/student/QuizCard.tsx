@@ -65,9 +65,9 @@ export default function QuizCard({
 
   const handleSubmit = async () => {
     if (isSubmitted) return;
-    
+
     setIsSubmitted(true);
-    
+
     // Prepare answers for API: { questionId: answer }
     const answers: Record<string, string> = {};
     questions.forEach((q, index) => {
@@ -153,12 +153,32 @@ export default function QuizCard({
           }`}
         >
           {passed ? (
-            <svg className="w-12 h-12 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            <svg
+              className="w-12 h-12 text-green-600"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M5 13l4 4L19 7"
+              />
             </svg>
           ) : (
-            <svg className="w-12 h-12 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            <svg
+              className="w-12 h-12 text-red-600"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M6 18L18 6M6 6l12 12"
+              />
             </svg>
           )}
         </div>
@@ -174,7 +194,9 @@ export default function QuizCard({
           <div className="text-5xl font-bold text-gray-900 mb-2">{score.toFixed(0)}%</div>
           <div className="text-sm text-gray-600">Your Score</div>
           <div className="mt-4 text-sm text-gray-500">
-            Pass Mark: {passMark}% | You got {questions.filter((q, i) => selectedAnswers[i] === q.correctAnswer).length}/{totalQuestions} correct
+            Pass Mark: {passMark}% | You got{' '}
+            {questions.filter((q, i) => selectedAnswers[i] === q.correctAnswer).length}/
+            {totalQuestions} correct
           </div>
         </div>
 
@@ -184,12 +206,22 @@ export default function QuizCard({
             {questions.map((q, index) => {
               const isCorrect = selectedAnswers[index] === q.correctAnswer;
               return (
-                <div key={q.id} className={`p-4 rounded-xl border-2 ${isCorrect ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'}`}>
+                <div
+                  key={q.id}
+                  className={`p-4 rounded-xl border-2 ${isCorrect ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'}`}
+                >
                   <p className="font-semibold text-gray-900 mb-2">
                     {index + 1}. {q.question}
                   </p>
                   <p className="text-sm text-gray-600 mb-1">
-                    Your answer: <span className={isCorrect ? 'text-green-600 font-semibold' : 'text-red-600 font-semibold'}>{selectedAnswers[index]}</span>
+                    Your answer:{' '}
+                    <span
+                      className={
+                        isCorrect ? 'text-green-600 font-semibold' : 'text-red-600 font-semibold'
+                      }
+                    >
+                      {selectedAnswers[index]}
+                    </span>
                   </p>
                   {!isCorrect && (
                     <p className="text-sm text-green-600 font-semibold mb-2">
@@ -315,8 +347,8 @@ export default function QuizCard({
                 index === currentQuestion
                   ? 'bg-purple-600 w-8'
                   : selectedAnswers[index]
-                  ? 'bg-green-400'
-                  : 'bg-gray-300'
+                    ? 'bg-green-400'
+                    : 'bg-gray-300'
               }`}
             />
           ))}

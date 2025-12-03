@@ -5,10 +5,7 @@ import { quizzes, quizQuestions, quizAttempts } from '@/lib/db/schema';
 import { eq, desc, and } from 'drizzle-orm';
 
 // GET - Fetch quiz details for student
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { quizId: string } }
-) {
+export async function GET(request: NextRequest, { params }: { params: { quizId: string } }) {
   try {
     const token = request.cookies.get('token')?.value;
     if (!token) {
@@ -24,11 +21,7 @@ export async function GET(
     const db = getDatabase();
 
     // Get quiz
-    const quiz = await db
-      .select()
-      .from(quizzes)
-      .where(eq(quizzes.id, quizId))
-      .limit(1);
+    const quiz = await db.select().from(quizzes).where(eq(quizzes.id, quizId)).limit(1);
 
     if (quiz.length === 0) {
       return NextResponse.json({ message: 'Quiz not found' }, { status: 404 });
@@ -46,16 +39,11 @@ export async function GET(
     const attempts = await db
       .select()
       .from(quizAttempts)
-      .where(
-        and(
-          eq(quizAttempts.userId, decoded.id),
-          eq(quizAttempts.chapterId, chapterId)
-        )
-      )
+      .where(and(eq(quizAttempts.userId, decoded.id), eq(quizAttempts.chapterId, chapterId)))
       .orderBy(desc(quizAttempts.attemptedAt));
 
     // Parse question options
-    const questionsWithOptions = questions.map(q => ({
+    const questionsWithOptions = questions.map((q) => ({
       ...q,
       options: JSON.parse(q.options || '{}'),
     }));
@@ -77,10 +65,7 @@ export async function GET(
 }
 
 // POST - Submit quiz attempt
-export async function POST(
-  request: NextRequest,
-  { params }: { params: { quizId: string } }
-) {
+export async function POST(request: NextRequest, { params }: { params: { quizId: string } }) {
   try {
     const token = request.cookies.get('token')?.value;
     if (!token) {
@@ -102,11 +87,7 @@ export async function POST(
     const db = getDatabase();
 
     // Get quiz and questions
-    const quiz = await db
-      .select()
-      .from(quizzes)
-      .where(eq(quizzes.id, quizId))
-      .limit(1);
+    const quiz = await db.select().from(quizzes).where(eq(quizzes.id, quizId)).limit(1);
 
     if (quiz.length === 0) {
       return NextResponse.json({ message: 'Quiz not found' }, { status: 404 });
@@ -123,12 +104,7 @@ export async function POST(
     const attempts = await db
       .select()
       .from(quizAttempts)
-      .where(
-        and(
-          eq(quizAttempts.userId, decoded.id),
-          eq(quizAttempts.chapterId, chapterId)
-        )
-      );
+      .where(and(eq(quizAttempts.userId, decoded.id), eq(quizAttempts.chapterId, chapterId)));
 
     if (quiz[0].maxAttempts && attempts.length >= quiz[0].maxAttempts) {
       return NextResponse.json(
@@ -145,7 +121,7 @@ export async function POST(
       const studentAnswer = answers[q.id.toString()];
       const isCorrect = studentAnswer === q.correctAnswer;
       if (isCorrect) correct++;
-      
+
       results.push({
         questionId: q.id,
         question: q.question,
@@ -185,4 +161,3 @@ export async function POST(
     );
   }
 }
-

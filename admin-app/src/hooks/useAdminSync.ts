@@ -90,5 +90,3 @@ export function useAdminSync() {
     isConnected: connectionState === 'connected',
   };
 }
-
-

@@ -12,18 +12,10 @@ export default function StudentProfilePage() {
 
   return (
     <NotificationProvider>
-      <NurseProAdminUltimate initialModule="student_profile" initialStudentId={studentId || undefined} />
+      <NurseProAdminUltimate
+        initialModule="student_profile"
+        initialStudentId={studentId || undefined}
+      />
     </NotificationProvider>
   );
 }
-
-
-
-
-
-
-
-
-
-
-

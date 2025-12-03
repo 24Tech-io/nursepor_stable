@@ -30,12 +30,20 @@ export async function POST(request: NextRequest) {
     const userResult = await db
       .select()
       .from(users)
-      .where(and(eq(users.email, email.toLowerCase().trim()), eq(users.role, targetRole), eq(users.isActive, true)))
+      .where(
+        and(
+          eq(users.email, email.toLowerCase().trim()),
+          eq(users.role, targetRole),
+          eq(users.isActive, true)
+        )
+      )
       .limit(1);
 
     if (!userResult.length) {
       return NextResponse.json(
-        { message: `No ${targetRole} account found with this email. Please check your credentials or register a ${targetRole} account.` },
+        {
+          message: `No ${targetRole} account found with this email. Please check your credentials or register a ${targetRole} account.`,
+        },
         { status: 404 }
       );
     }
@@ -65,10 +73,7 @@ export async function POST(request: NextRequest) {
     const match = distance < threshold;
 
     if (!match) {
-      return NextResponse.json(
-        { message: 'Face verification failed' },
-        { status: 401 }
-      );
+      return NextResponse.json({ message: 'Face verification failed' }, { status: 401 });
     }
 
     // Create session
@@ -94,10 +99,7 @@ export async function POST(request: NextRequest) {
     });
 
     // Update last login
-    await db
-      .update(users)
-      .set({ lastLogin: new Date() })
-      .where(eq(users.id, user.id));
+    await db.update(users).set({ lastLogin: new Date() }).where(eq(users.id, user.id));
 
     return response;
   } catch (error: any) {
@@ -125,4 +127,3 @@ function calculateEuclideanDistance(a: Float32Array, b: Float32Array): number {
   }
   return Math.sqrt(sum);
 }
-

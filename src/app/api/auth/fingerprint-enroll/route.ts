@@ -19,10 +19,7 @@ export async function POST(request: NextRequest) {
     const { credentialId, clientDataJSON, attestationObject } = await request.json();
 
     if (!credentialId || !clientDataJSON || !attestationObject) {
-      return NextResponse.json(
-        { message: 'Missing required fingerprint data' },
-        { status: 400 }
-      );
+      return NextResponse.json({ message: 'Missing required fingerprint data' }, { status: 400 });
     }
 
     // Update user with fingerprint credential
@@ -49,4 +46,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-

@@ -1,7 +1,7 @@
 /**
  * Unified Student Data API - Admin Version
  * Single endpoint that returns ALL student data for admin view
- * 
+ *
  * Same as student version but:
  * - Uses adminToken cookie
  * - Accepts studentId query parameter
@@ -17,7 +17,7 @@ import { eq, or } from 'drizzle-orm';
 // Reuse the same merge logic as student app
 function mergeEnrollmentData(progressRecords: any[], enrollmentRecords: any[]) {
   const map = new Map();
-  
+
   // Add enrollments first (source of truth)
   enrollmentRecords.forEach((e: any) => {
     map.set(e.courseId, {
@@ -29,7 +29,7 @@ function mergeEnrollmentData(progressRecords: any[], enrollmentRecords: any[]) {
       source: 'enrollments',
     });
   });
-  
+
   // Add from studentProgress only if not in enrollments
   progressRecords.forEach((p: any) => {
     if (!map.has(p.courseId)) {
@@ -48,7 +48,7 @@ function mergeEnrollmentData(progressRecords: any[], enrollmentRecords: any[]) {
       }
     }
   });
-  
+
   return Array.from(map.values());
 }
 
@@ -68,7 +68,7 @@ export async function GET(request: NextRequest) {
     // Get studentId from query params
     const { searchParams } = new URL(request.url);
     const studentIdParam = searchParams.get('studentId');
-    
+
     if (!studentIdParam) {
       return NextResponse.json({ message: 'studentId parameter required' }, { status: 400 });
     }
@@ -81,22 +81,24 @@ export async function GET(request: NextRequest) {
 
     // Fetch ALL data in single transaction
     const snapshot = await db.transaction(async (tx) => {
-      const [progressRecords, enrollmentRecords, requestRecords, allCourses] = 
-        await Promise.all([
-          tx.select().from(studentProgress).where(eq(studentProgress.studentId, studentId)),
-          tx.select().from(enrollments).where(eq(enrollments.userId, studentId)),
-          tx.select().from(accessRequests).where(eq(accessRequests.studentId, studentId)),
-          tx.select().from(courses).where(
+      const [progressRecords, enrollmentRecords, requestRecords, allCourses] = await Promise.all([
+        tx.select().from(studentProgress).where(eq(studentProgress.studentId, studentId)),
+        tx.select().from(enrollments).where(eq(enrollments.userId, studentId)),
+        tx.select().from(accessRequests).where(eq(accessRequests.studentId, studentId)),
+        tx
+          .select()
+          .from(courses)
+          .where(
             or(
               eq(courses.status, 'published'),
               eq(courses.status, 'active'),
               eq(courses.status, 'Active')
             )
-          )
-        ]);
-      
+          ),
+      ]);
+
       const mergedEnrollments = mergeEnrollmentData(progressRecords, enrollmentRecords);
-      
+
       return {
         studentId,
         enrollments: mergedEnrollments,
@@ -111,10 +113,11 @@ export async function GET(request: NextRequest) {
       };
     });
 
-    console.log(`✅ [Admin Unified API] Returning data: ${snapshot.enrollments.length} enrollments, ${snapshot.courses.length} courses`);
+    console.log(
+      `✅ [Admin Unified API] Returning data: ${snapshot.enrollments.length} enrollments, ${snapshot.courses.length} courses`
+    );
 
     return NextResponse.json(snapshot);
-
   } catch (error: any) {
     console.error('❌ [Admin Unified API] Error:', error);
     return NextResponse.json(
@@ -126,4 +129,3 @@ export async function GET(request: NextRequest) {
     );
   }
 }
-

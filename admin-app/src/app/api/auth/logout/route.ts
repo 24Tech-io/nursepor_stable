@@ -4,10 +4,7 @@ export async function POST(request: NextRequest) {
   try {
     console.log('🔓 [/api/auth/logout] Logout requested');
 
-    const response = NextResponse.json(
-      { message: 'Logged out successfully' },
-      { status: 200 }
-    );
+    const response = NextResponse.json({ message: 'Logged out successfully' }, { status: 200 });
 
     // Clear the adminToken cookie (matches what auth/login sets)
     response.cookies.set('adminToken', '', {
@@ -17,7 +14,6 @@ export async function POST(request: NextRequest) {
       path: '/',
       maxAge: 0, // Immediately expire the cookie
     });
-
 
     console.log('✅ [/api/auth/logout] Cookie cleared');
 
@@ -30,4 +26,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-

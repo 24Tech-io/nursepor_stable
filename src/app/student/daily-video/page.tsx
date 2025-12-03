@@ -41,7 +41,9 @@ export default function DailyVideoPage() {
   const getVideoEmbedUrl = (url: string, provider: string) => {
     if (provider === 'youtube') {
       // Extract video ID from various YouTube URL formats
-      const match = url.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/);
+      const match = url.match(
+        /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/
+      );
       return match ? `https://www.youtube.com/embed/${match[1]}` : url;
     } else if (provider === 'vimeo') {
       // Extract video ID from Vimeo URL
@@ -59,12 +61,7 @@ export default function DailyVideoPage() {
     if (provider === 'uploaded' || provider === 'direct') {
       // Direct video file or uploaded video - use HTML5 video player
       return (
-        <video
-          className="w-full h-full"
-          controls
-          controlsList="nodownload"
-          preload="metadata"
-        >
+        <video className="w-full h-full" controls controlsList="nodownload" preload="metadata">
           <source src={video.videoUrl} type="video/mp4" />
           <source src={video.videoUrl} type="video/webm" />
           <source src={video.videoUrl} type="video/ogg" />
@@ -110,13 +107,13 @@ export default function DailyVideoPage() {
               {video.videoDuration && ` · ${video.videoDuration} min`}
             </p>
           </div>
-          <span className={`px-3 py-1 rounded-full text-xs font-semibold ${completed ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+          <span
+            className={`px-3 py-1 rounded-full text-xs font-semibold ${completed ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}
+          >
             {completed ? 'Completed' : 'In Progress'}
           </span>
         </div>
-        <div className="aspect-video w-full bg-black">
-          {renderVideoPlayer()}
-        </div>
+        <div className="aspect-video w-full bg-black">{renderVideoPlayer()}</div>
         <div className="p-6 flex items-center justify-between">
           <div className="text-sm text-gray-600">
             Provider: {video.videoProvider?.toUpperCase() || 'UNKNOWN'}

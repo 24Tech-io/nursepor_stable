@@ -40,12 +40,7 @@ export async function getStudentEnrollmentState(
         courseId: accessRequests.courseId,
       })
       .from(accessRequests)
-      .where(
-        and(
-          eq(accessRequests.studentId, studentId),
-          eq(accessRequests.status, 'pending')
-        )
-      );
+      .where(and(eq(accessRequests.studentId, studentId), eq(accessRequests.status, 'pending')));
 
     // Get all approved requests
     const approvedRequests = await db
@@ -53,12 +48,7 @@ export async function getStudentEnrollmentState(
         courseId: accessRequests.courseId,
       })
       .from(accessRequests)
-      .where(
-        and(
-          eq(accessRequests.studentId, studentId),
-          eq(accessRequests.status, 'approved')
-        )
-      );
+      .where(and(eq(accessRequests.studentId, studentId), eq(accessRequests.status, 'approved')));
 
     // Build state map
     const allCourseIds = new Set<number>();
@@ -95,8 +85,10 @@ export async function syncEnrollmentAfterApproval(
   courseId: number
 ): Promise<boolean> {
   try {
-    console.log(`🔄 [syncEnrollmentAfterApproval] Starting sync for student ${studentId}, course ${courseId}`);
-    
+    console.log(
+      `🔄 [syncEnrollmentAfterApproval] Starting sync for student ${studentId}, course ${courseId}`
+    );
+
     const db = getDatabase();
     if (!db) {
       throw new Error('Database connection not available');
@@ -110,12 +102,7 @@ export async function syncEnrollmentAfterApproval(
         courseId: studentProgress.courseId,
       })
       .from(studentProgress)
-      .where(
-        and(
-          eq(studentProgress.studentId, studentId),
-          eq(studentProgress.courseId, courseId)
-        )
-      )
+      .where(and(eq(studentProgress.studentId, studentId), eq(studentProgress.courseId, courseId)))
       .limit(1);
 
     if (existing.length > 0) {
@@ -125,27 +112,37 @@ export async function syncEnrollmentAfterApproval(
 
     // Create enrollment
     // Note: admin-app schema is simpler, but we'll use what's available
-    const result = await db.insert(studentProgress).values({
-      studentId,
-      courseId,
-      totalProgress: 0,
-      // If schema supports these fields, they'll be set to defaults
-      // If not, they'll be ignored (schema mismatch handled by DB)
-    }).returning();
+    const result = await db
+      .insert(studentProgress)
+      .values({
+        studentId,
+        courseId,
+        totalProgress: 0,
+        // If schema supports these fields, they'll be set to defaults
+        // If not, they'll be ignored (schema mismatch handled by DB)
+      })
+      .returning();
 
     if (result && result.length > 0) {
-      console.log(`✅ Synced: Student ${studentId} enrolled in course ${courseId}. Progress ID: ${result[0].id}`);
+      console.log(
+        `✅ Synced: Student ${studentId} enrolled in course ${courseId}. Progress ID: ${result[0].id}`
+      );
       return true;
     } else {
-      console.warn(`⚠️ Enrollment insert returned no result for student ${studentId}, course ${courseId}`);
+      console.warn(
+        `⚠️ Enrollment insert returned no result for student ${studentId}, course ${courseId}`
+      );
       return false;
     }
   } catch (error: any) {
-    console.error(`❌ Error syncing enrollment for student ${studentId}, course ${courseId}:`, error);
+    console.error(
+      `❌ Error syncing enrollment for student ${studentId}, course ${courseId}:`,
+      error
+    );
     console.error('Error details:', {
       message: error.message,
       stack: error.stack,
-      name: error.name
+      name: error.name,
     });
     throw error; // Re-throw to let caller handle it
   }
@@ -182,4 +179,3 @@ export async function cleanupInconsistentStates(studentId: number): Promise<numb
 
   return cleaned;
 }
-

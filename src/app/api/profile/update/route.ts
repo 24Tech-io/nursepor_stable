@@ -9,19 +9,13 @@ export async function PUT(request: NextRequest) {
     const token = request.cookies.get('token')?.value;
 
     if (!token) {
-      return NextResponse.json(
-        { message: 'Not authenticated' },
-        { status: 401 }
-      );
+      return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });
     }
 
     const decoded = verifyToken(token);
 
     if (!decoded || !decoded.id) {
-      return NextResponse.json(
-        { message: 'Invalid token' },
-        { status: 401 }
-      );
+      return NextResponse.json({ message: 'Invalid token' }, { status: 401 });
     }
 
     // Get database instance
@@ -39,10 +33,7 @@ export async function PUT(request: NextRequest) {
     }
 
     if (phone && phone.trim() && phone.trim().length > 20) {
-      return NextResponse.json(
-        { message: 'Phone number is too long' },
-        { status: 400 }
-      );
+      return NextResponse.json({ message: 'Phone number is too long' }, { status: 400 });
     }
 
     if (bio && bio.trim().length > 500) {
@@ -74,10 +65,7 @@ export async function PUT(request: NextRequest) {
       .returning();
 
     if (!updatedUser.length) {
-      return NextResponse.json(
-        { message: 'User not found' },
-        { status: 404 }
-      );
+      return NextResponse.json({ message: 'User not found' }, { status: 404 });
     }
 
     console.log('✅ Profile updated for user:', decoded.id);
@@ -98,12 +86,11 @@ export async function PUT(request: NextRequest) {
   } catch (error: any) {
     console.error('Update profile error:', error);
     return NextResponse.json(
-      { 
+      {
         message: 'Failed to update profile',
-        error: process.env.NODE_ENV === 'development' ? error.message : undefined
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined,
       },
       { status: 500 }
     );
   }
 }
-

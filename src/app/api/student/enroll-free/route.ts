@@ -10,46 +10,30 @@ export async function POST(request: NextRequest) {
     const token = request.cookies.get('token')?.value;
 
     if (!token) {
-      return NextResponse.json(
-        { message: 'Not authenticated' },
-        { status: 401 }
-      );
+      return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });
     }
 
     const decoded = verifyToken(token);
 
     if (!decoded || !decoded.id) {
-      return NextResponse.json(
-        { message: 'Invalid token' },
-        { status: 401 }
-      );
+      return NextResponse.json({ message: 'Invalid token' }, { status: 401 });
     }
 
     const body = await request.json();
     const { courseId } = body;
 
     if (!courseId) {
-      return NextResponse.json(
-        { message: 'Course ID is required' },
-        { status: 400 }
-      );
+      return NextResponse.json({ message: 'Course ID is required' }, { status: 400 });
     }
 
     const db = getDatabase();
     const courseIdNum = parseInt(courseId);
 
     // Get course
-    const courseData = await db
-      .select()
-      .from(courses)
-      .where(eq(courses.id, courseIdNum))
-      .limit(1);
+    const courseData = await db.select().from(courses).where(eq(courses.id, courseIdNum)).limit(1);
 
     if (courseData.length === 0) {
-      return NextResponse.json(
-        { message: 'Course not found' },
-        { status: 404 }
-      );
+      return NextResponse.json({ message: 'Course not found' }, { status: 404 });
     }
 
     const course = courseData[0];
@@ -100,12 +84,11 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     console.error('Free enrollment error:', error);
     return NextResponse.json(
-      { 
+      {
         message: 'Failed to enroll',
-        error: process.env.NODE_ENV === 'development' ? error.message : undefined
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined,
       },
       { status: 500 }
     );
   }
 }
-

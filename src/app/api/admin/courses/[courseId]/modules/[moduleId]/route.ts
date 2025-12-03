@@ -23,11 +23,7 @@ export async function GET(
     const db = getDatabase();
     const moduleId = parseInt(params.moduleId);
 
-    const module = await db
-      .select()
-      .from(modules)
-      .where(eq(modules.id, moduleId))
-      .limit(1);
+    const module = await db.select().from(modules).where(eq(modules.id, moduleId)).limit(1);
 
     if (!module.length) {
       return NextResponse.json({ message: 'Module not found' }, { status: 404 });
@@ -116,4 +112,3 @@ export async function DELETE(
     );
   }
 }
-

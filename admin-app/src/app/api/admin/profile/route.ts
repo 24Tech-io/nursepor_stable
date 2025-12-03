@@ -94,8 +94,8 @@ export async function PUT(request: NextRequest) {
       details: {
         changes: {
           name: name !== decoded.name ? { from: decoded.name, to: name } : undefined,
-        }
-      }
+        },
+      },
     });
 
     return NextResponse.json({
@@ -120,4 +120,3 @@ export async function PUT(request: NextRequest) {
     );
   }
 }
-

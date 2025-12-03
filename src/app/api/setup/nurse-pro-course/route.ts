@@ -21,13 +21,9 @@ export async function POST(request: NextRequest) {
       .from(courses)
       .where(eq(courses.title, 'Nurse Pro'))
       .limit(1);
-    
+
     if (existingCourse.length === 0) {
-      existingCourse = await db
-        .select()
-        .from(courses)
-        .where(eq(courses.title, 'Q-Bank'))
-        .limit(1);
+      existingCourse = await db.select().from(courses).where(eq(courses.title, 'Q-Bank')).limit(1);
     }
 
     let course;
@@ -39,7 +35,8 @@ export async function POST(request: NextRequest) {
         .insert(courses)
         .values({
           title: 'Nurse Pro',
-          description: 'Comprehensive nursing education platform with Q-Bank, live reviews, notes, and cheat sheets. Master nursing concepts and prepare for your exams.',
+          description:
+            'Comprehensive nursing education platform with Q-Bank, live reviews, notes, and cheat sheets. Master nursing concepts and prepare for your exams.',
           instructor: 'Nurse Pro Academy',
           thumbnail: null,
           pricing: 0, // Free enrollment
@@ -78,10 +75,7 @@ export async function POST(request: NextRequest) {
       .select()
       .from(studentProgress)
       .where(
-        and(
-          eq(studentProgress.studentId, decoded.id),
-          eq(studentProgress.courseId, course.id)
-        )
+        and(eq(studentProgress.studentId, decoded.id), eq(studentProgress.courseId, course.id))
       )
       .limit(1);
 
@@ -100,16 +94,18 @@ export async function POST(request: NextRequest) {
       const sampleQuestions = [
         {
           questionBankId: questionBank.id,
-          question: 'A nurse is caring for a client with heart failure. Which assessment finding indicates the client is experiencing fluid overload?',
+          question:
+            'A nurse is caring for a client with heart failure. Which assessment finding indicates the client is experiencing fluid overload?',
           questionType: 'multiple_choice',
           options: JSON.stringify([
             'Decreased urine output',
             'Increased blood pressure',
             'Crackles in the lungs',
-            'All of the above'
+            'All of the above',
           ]),
           correctAnswer: 'All of the above',
-          explanation: 'Fluid overload in heart failure can manifest as decreased urine output, increased blood pressure, and crackles in the lungs due to pulmonary congestion.',
+          explanation:
+            'Fluid overload in heart failure can manifest as decreased urine output, increased blood pressure, and crackles in the lungs due to pulmonary congestion.',
           subject: 'Adult Health',
           lesson: 'Cardiovascular',
           clientNeedArea: 'Physiological Adaptation',
@@ -120,17 +116,24 @@ export async function POST(request: NextRequest) {
         },
         {
           questionBankId: questionBank.id,
-          question: 'Which of the following are signs of hypovolemic shock? (Select all that apply)',
+          question:
+            'Which of the following are signs of hypovolemic shock? (Select all that apply)',
           questionType: 'sata',
           options: JSON.stringify([
             'Rapid, weak pulse',
             'Decreased blood pressure',
             'Cool, clammy skin',
             'Increased urine output',
-            'Confusion'
+            'Confusion',
           ]),
-          correctAnswer: JSON.stringify(['Rapid, weak pulse', 'Decreased blood pressure', 'Cool, clammy skin', 'Confusion']),
-          explanation: 'Hypovolemic shock presents with rapid weak pulse, decreased BP, cool clammy skin, and confusion. Urine output decreases, not increases.',
+          correctAnswer: JSON.stringify([
+            'Rapid, weak pulse',
+            'Decreased blood pressure',
+            'Cool, clammy skin',
+            'Confusion',
+          ]),
+          explanation:
+            'Hypovolemic shock presents with rapid weak pulse, decreased BP, cool clammy skin, and confusion. Urine output decreases, not increases.',
           subject: 'Adult Health',
           lesson: 'Cardiovascular',
           clientNeedArea: 'Physiological Adaptation',
@@ -141,16 +144,13 @@ export async function POST(request: NextRequest) {
         },
         {
           questionBankId: questionBank.id,
-          question: 'A client with diabetes mellitus is prescribed insulin. The nurse should monitor for which potential complication?',
+          question:
+            'A client with diabetes mellitus is prescribed insulin. The nurse should monitor for which potential complication?',
           questionType: 'multiple_choice',
-          options: JSON.stringify([
-            'Hyperglycemia',
-            'Hypoglycemia',
-            'Hyperkalemia',
-            'Hypokalemia'
-          ]),
+          options: JSON.stringify(['Hyperglycemia', 'Hypoglycemia', 'Hyperkalemia', 'Hypokalemia']),
           correctAnswer: 'Hypoglycemia',
-          explanation: 'Insulin administration can cause hypoglycemia if the dose is too high or if the client does not eat adequately.',
+          explanation:
+            'Insulin administration can cause hypoglycemia if the dose is too high or if the client does not eat adequately.',
           subject: 'Adult Health',
           lesson: 'Endocrine',
           clientNeedArea: 'Pharmacological and Parenteral Therapies',
@@ -166,10 +166,7 @@ export async function POST(request: NextRequest) {
 
     // Ensure course is published
     if (course.status !== 'published') {
-      await db
-        .update(courses)
-        .set({ status: 'published' })
-        .where(eq(courses.id, course.id));
+      await db.update(courses).set({ status: 'published' }).where(eq(courses.id, course.id));
       course.status = 'published';
     }
 
@@ -189,12 +186,11 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     console.error('Setup error:', error);
     return NextResponse.json(
-      { 
+      {
         message: 'Failed to setup course',
-        error: process.env.NODE_ENV === 'development' ? error.message : undefined
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined,
       },
       { status: 500 }
     );
   }
 }
-

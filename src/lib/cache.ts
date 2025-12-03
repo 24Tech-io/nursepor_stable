@@ -36,13 +36,13 @@ export async function getFromCache<T>(key: string): Promise<T | null> {
     if (!item) {
       return null;
     }
-    
+
     // Check if expired
     if (item.expiry && Date.now() > item.expiry) {
       cache.delete(key);
       return null;
     }
-    
+
     return item.value as T;
   } catch (error) {
     console.error(`Error getting key ${key} from cache:`, error);
@@ -60,11 +60,11 @@ export async function setInCache(
 ): Promise<boolean> {
   try {
     const item: { value: any; expiry?: number } = { value };
-    
+
     if (expirySeconds) {
-      item.expiry = Date.now() + (expirySeconds * 1000);
+      item.expiry = Date.now() + expirySeconds * 1000;
     }
-    
+
     cache.set(key, item);
     return true;
   } catch (error) {
@@ -95,13 +95,13 @@ export async function existsInCache(key: string): Promise<boolean> {
     if (!item) {
       return false;
     }
-    
+
     // Check if expired
     if (item.expiry && Date.now() > item.expiry) {
       cache.delete(key);
       return false;
     }
-    
+
     return true;
   } catch (error) {
     console.error(`Error checking if key ${key} exists:`, error);
@@ -112,21 +112,18 @@ export async function existsInCache(key: string): Promise<boolean> {
 /**
  * Increment a counter
  */
-export async function incrementCounter(
-  key: string,
-  expirySeconds?: number
-): Promise<number> {
+export async function incrementCounter(key: string, expirySeconds?: number): Promise<number> {
   try {
     const current = cache.get(key);
     const value = (current?.value || 0) + 1;
-    
+
     const item: { value: number; expiry?: number } = { value };
     if (expirySeconds && !current) {
-      item.expiry = Date.now() + (expirySeconds * 1000);
+      item.expiry = Date.now() + expirySeconds * 1000;
     } else if (current?.expiry) {
       item.expiry = current.expiry;
     }
-    
+
     cache.set(key, item);
     return value;
   } catch (error) {
@@ -144,7 +141,7 @@ export async function getTTL(key: string): Promise<number> {
     if (!item || !item.expiry) {
       return -1;
     }
-    
+
     const ttl = Math.ceil((item.expiry - Date.now()) / 1000);
     return ttl > 0 ? ttl : -2;
   } catch (error) {
@@ -162,8 +159,8 @@ export async function setExpiry(key: string, seconds: number): Promise<boolean> 
     if (!item) {
       return false;
     }
-    
-    item.expiry = Date.now() + (seconds * 1000);
+
+    item.expiry = Date.now() + seconds * 1000;
     cache.set(key, item);
     return true;
   } catch (error) {
@@ -177,7 +174,7 @@ export async function setExpiry(key: string, seconds: number): Promise<boolean> 
  */
 export async function getMultipleFromCache<T>(keys: string[]): Promise<(T | null)[]> {
   try {
-    return keys.map(key => {
+    return keys.map((key) => {
       const item = cache.get(key);
       if (!item) {
         return null;
@@ -202,14 +199,14 @@ export async function deletePattern(pattern: string): Promise<number> {
     const regex = new RegExp(pattern.replace(/\*/g, '.*'));
     let count = 0;
     const allKeys = Array.from(cache.keys());
-    
+
     for (const key of allKeys) {
       if (regex.test(key)) {
         cache.delete(key);
         count++;
       }
     }
-    
+
     return count;
   } catch (error) {
     console.error(`Error deleting pattern ${pattern}:`, error);
@@ -220,16 +217,12 @@ export async function deletePattern(pattern: string): Promise<number> {
 /**
  * Hash operations
  */
-export async function setHashField(
-  key: string,
-  field: string,
-  value: any
-): Promise<boolean> {
+export async function setHashField(key: string, field: string, value: any): Promise<boolean> {
   try {
     if (!hashes.has(key)) {
       hashes.set(key, new Map());
     }
-    
+
     const hash = hashes.get(key)!;
     hash.set(field, JSON.stringify(value));
     return true;
@@ -239,21 +232,18 @@ export async function setHashField(
   }
 }
 
-export async function getHashField<T>(
-  key: string,
-  field: string
-): Promise<T | null> {
+export async function getHashField<T>(key: string, field: string): Promise<T | null> {
   try {
     const hash = hashes.get(key);
     if (!hash) {
       return null;
     }
-    
+
     const value = hash.get(field);
     if (!value) {
       return null;
     }
-    
+
     return JSON.parse(value) as T;
   } catch (error) {
     console.error(`Error getting hash field ${field} from ${key}:`, error);
@@ -267,7 +257,7 @@ export async function getAllHashFields<T>(key: string): Promise<Record<string, T
     if (!hash) {
       return {};
     }
-    
+
     const result: Record<string, T> = {};
     const entries = Array.from(hash.entries());
     for (const [field, value] of entries) {
@@ -290,7 +280,7 @@ export async function deleteHashField(key: string, field: string): Promise<boole
     if (!hash) {
       return false;
     }
-    
+
     hash.delete(field);
     if (hash.size === 0) {
       hashes.delete(key);
@@ -360,13 +350,13 @@ export async function keys(pattern: string): Promise<string[]> {
     const regex = new RegExp(pattern.replace(/\*/g, '.*'));
     const matchedKeys: string[] = [];
     const allKeys = Array.from(cache.keys());
-    
+
     for (const key of allKeys) {
       if (regex.test(key)) {
         matchedKeys.push(key);
       }
     }
-    
+
     return matchedKeys;
   } catch (error) {
     console.error('Error getting keys:', error);
@@ -395,7 +385,7 @@ export async function setex(key: string, seconds: number, value: string): Promis
   try {
     cache.set(key, {
       value,
-      expiry: Date.now() + (seconds * 1000)
+      expiry: Date.now() + seconds * 1000,
     });
     return true;
   } catch (error) {
@@ -413,12 +403,12 @@ export async function get(key: string): Promise<string | null> {
     if (!item) {
       return null;
     }
-    
+
     if (item.expiry && Date.now() > item.expiry) {
       cache.delete(key);
       return null;
     }
-    
+
     return typeof item.value === 'string' ? item.value : JSON.stringify(item.value);
   } catch (error) {
     console.error(`Error getting key ${key}:`, error);
@@ -437,12 +427,12 @@ export async function expire(key: string, seconds: number): Promise<boolean> {
  * Cache TTL constants (in seconds)
  */
 export const CacheTTL = {
-  SHORT: 60,           // 1 minute
-  MEDIUM: 300,         // 5 minutes
-  LONG: 900,           // 15 minutes
-  HOUR: 3600,          // 1 hour
-  DAY: 86400,          // 24 hours
-  analytics: 300,      // 5 minutes for analytics
+  SHORT: 60, // 1 minute
+  MEDIUM: 300, // 5 minutes
+  LONG: 900, // 15 minutes
+  HOUR: 3600, // 1 hour
+  DAY: 86400, // 24 hours
+  analytics: 300, // 5 minutes for analytics
 };
 
 /**
@@ -455,14 +445,14 @@ export const CacheKeys = {
   BLOCKED_IP: (ip: string) => `security:blocked:ip:${ip}`,
   THREAT_SCORE: (ip: string) => `security:threat:score:${ip}`,
   CSRF_TOKEN: (sessionId: string) => `security:csrf:${sessionId}`,
-  
+
   // Data caching namespaces
   COURSE: (id: number) => `cache:course:${id}`,
   COURSE_WITH_MODULES: (id: number) => `cache:course:modules:${id}`,
   USER_ENROLLMENTS: (userId: number) => `cache:user:enrollments:${userId}`,
   USER_PROGRESS: (userId: number, courseId: number) => `cache:user:${userId}:progress:${courseId}`,
   courseStats: () => `cache:course:stats`,
-  
+
   // Rate limiting
   RATE_LIMIT: (ip: string, path: string) => `ratelimit:${ip}:${path}`,
 };
@@ -510,4 +500,3 @@ const cacheAPI = {
 };
 
 export default cacheAPI;
-

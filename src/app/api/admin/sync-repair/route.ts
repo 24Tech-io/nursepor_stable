@@ -40,8 +40,11 @@ export async function POST(request: NextRequest) {
           });
           repaired.enrollmentsCreated++;
         } catch (error: any) {
-          if (error.code !== '23505') { // Ignore duplicate key errors
-            repaired.errors.push(`Failed to create enrollment for student ${item.studentId}, course ${item.courseId}: ${error.message}`);
+          if (error.code !== '23505') {
+            // Ignore duplicate key errors
+            repaired.errors.push(
+              `Failed to create enrollment for student ${item.studentId}, course ${item.courseId}: ${error.message}`
+            );
           }
         }
       }
@@ -62,7 +65,9 @@ export async function POST(request: NextRequest) {
           repaired.progressCreated++;
         } catch (error: any) {
           if (error.code !== '23505') {
-            repaired.errors.push(`Failed to create progress for student ${item.userId}, course ${item.courseId}: ${error.message}`);
+            repaired.errors.push(
+              `Failed to create progress for student ${item.userId}, course ${item.courseId}: ${error.message}`
+            );
           }
         }
       }
@@ -72,8 +77,7 @@ export async function POST(request: NextRequest) {
     if (pendingEnrolled && pendingEnrolled.length > 0) {
       for (const item of pendingEnrolled) {
         try {
-          await db.delete(accessRequests)
-            .where(eq(accessRequests.id, item.requestId));
+          await db.delete(accessRequests).where(eq(accessRequests.id, item.requestId));
           repaired.requestsDeleted++;
         } catch (error: any) {
           repaired.errors.push(`Failed to delete request ${item.requestId}: ${error.message}`);
@@ -87,11 +91,12 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error('Repair error:', error);
-    return NextResponse.json({
-      message: 'Internal server error',
-      error: process.env.NODE_ENV === 'development' ? String(error) : undefined
-    }, { status: 500 });
+    return NextResponse.json(
+      {
+        message: 'Internal server error',
+        error: process.env.NODE_ENV === 'development' ? String(error) : undefined,
+      },
+      { status: 500 }
+    );
   }
 }
-
-

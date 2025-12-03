@@ -6,10 +6,10 @@ interface LoadingSpinnerProps {
   fullScreen?: boolean;
 }
 
-export default function LoadingSpinner({ 
-  message, 
+export default function LoadingSpinner({
+  message,
   size = 'md',
-  fullScreen = false 
+  fullScreen = false,
 }: LoadingSpinnerProps) {
   const sizeClasses = {
     sm: 'h-8 w-8 border-2',
@@ -17,19 +17,18 @@ export default function LoadingSpinner({
     lg: 'h-16 w-16 border-4',
   };
 
-  const containerClasses = fullScreen 
+  const containerClasses = fullScreen
     ? 'flex items-center justify-center min-h-screen'
     : 'flex items-center justify-center py-20';
 
   return (
     <div className={containerClasses}>
       <div className="text-center">
-        <div className={`animate-spin rounded-full ${sizeClasses[size]} border-purple-600 border-t-transparent mx-auto`}></div>
-        {message && (
-          <p className="mt-4 text-gray-600 text-sm font-medium">{message}</p>
-        )}
+        <div
+          className={`animate-spin rounded-full ${sizeClasses[size]} border-purple-600 border-t-transparent mx-auto`}
+        ></div>
+        {message && <p className="mt-4 text-gray-600 text-sm font-medium">{message}</p>}
       </div>
     </div>
   );
 }
-

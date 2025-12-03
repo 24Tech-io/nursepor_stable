@@ -5,10 +5,7 @@ import { modules, chapters, studentProgress } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
 
 // GET - Fetch course modules with chapters for student
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { courseId: string } }
-) {
+export async function GET(request: NextRequest, { params }: { params: { courseId: string } }) {
   try {
     const token = request.cookies.get('token')?.value;
     if (!token) {
@@ -28,10 +25,7 @@ export async function GET(
       .select()
       .from(studentProgress)
       .where(
-        and(
-          eq(studentProgress.studentId, decoded.id),
-          eq(studentProgress.courseId, courseId)
-        )
+        and(eq(studentProgress.studentId, decoded.id), eq(studentProgress.courseId, courseId))
       );
 
     if (access.length === 0) {
@@ -45,12 +39,7 @@ export async function GET(
     const courseModules = await db
       .select()
       .from(modules)
-      .where(
-        and(
-          eq(modules.courseId, courseId),
-          eq(modules.isPublished, true)
-        )
-      )
+      .where(and(eq(modules.courseId, courseId), eq(modules.isPublished, true)))
       .orderBy(modules.order);
 
     // For each module, fetch its chapters
@@ -59,12 +48,7 @@ export async function GET(
         const moduleChapters = await db
           .select()
           .from(chapters)
-          .where(
-            and(
-              eq(chapters.moduleId, module.id),
-              eq(chapters.isPublished, true)
-            )
-          )
+          .where(and(eq(chapters.moduleId, module.id), eq(chapters.isPublished, true)))
           .orderBy(chapters.order);
 
         return {
@@ -83,4 +67,3 @@ export async function GET(
     );
   }
 }
-

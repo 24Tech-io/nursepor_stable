@@ -68,13 +68,16 @@ export async function POST(request: NextRequest) {
 
     const db = getDatabase();
 
-    const result = await db.insert(dailyVideos).values({
-      chapterId: parseInt(chapterId),
-      title,
-      description: description || '',
-      day: parseInt(day),
-      isActive: true,
-    }).returning();
+    const result = await db
+      .insert(dailyVideos)
+      .values({
+        chapterId: parseInt(chapterId),
+        title,
+        description: description || '',
+        day: parseInt(day),
+        isActive: true,
+      })
+      .returning();
 
     console.log('✅ Daily video created:', result[0]);
 
@@ -87,4 +90,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-

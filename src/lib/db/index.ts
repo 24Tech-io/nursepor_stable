@@ -14,7 +14,9 @@ function initializeDatabase() {
   if (!process.env.DATABASE_URL) {
     console.warn('⚠️ DATABASE_URL is not set! Database features will be disabled.');
     console.warn('   Please set DATABASE_URL in .env.local');
-    console.warn('   Example: DATABASE_URL="postgresql://user:pass@host.neon.tech/dbname?sslmode=require"');
+    console.warn(
+      '   Example: DATABASE_URL="postgresql://user:pass@host.neon.tech/dbname?sslmode=require"'
+    );
     return null;
   }
 
@@ -22,16 +24,20 @@ function initializeDatabase() {
     // Neon Postgres configuration with optimized settings
     // Using neon-serverless with Pool for transaction support
     const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-    db = drizzle(pool, { 
+    db = drizzle(pool, {
       schema,
       // Optimize for performance
       logger: process.env.NODE_ENV === 'development' ? true : false,
     });
-    console.log('✅ Database connection initialized (Neon Postgres - Serverless with Transaction Support)');
+    console.log(
+      '✅ Database connection initialized (Neon Postgres - Serverless with Transaction Support)'
+    );
     return db;
   } catch (error: any) {
     console.error('❌ Failed to initialize database connection:', error?.message || error);
-    console.error('   Database features will be disabled until DATABASE_URL is properly configured');
+    console.error(
+      '   Database features will be disabled until DATABASE_URL is properly configured'
+    );
     return null;
   }
 }
@@ -68,7 +74,7 @@ export async function checkDatabaseHealth(): Promise<boolean> {
  */
 export async function getDatabaseHealth(): Promise<boolean> {
   const now = Date.now();
-  
+
   // Return cached result if recent
   if (now - lastHealthCheck < HEALTH_CHECK_INTERVAL) {
     return isHealthy;
@@ -85,7 +91,7 @@ export async function reconnectDatabase(): Promise<boolean> {
   try {
     console.log('🔄 Attempting to reconnect database...');
     db = initializeDatabase();
-    
+
     if (db) {
       const healthy = await checkDatabaseHealth();
       if (healthy) {
@@ -93,7 +99,7 @@ export async function reconnectDatabase(): Promise<boolean> {
         return true;
       }
     }
-    
+
     return false;
   } catch (error: any) {
     console.error('❌ Database reconnection failed:', error.message);

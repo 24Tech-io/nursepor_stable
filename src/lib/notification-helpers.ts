@@ -16,16 +16,17 @@ export async function sendRequestStatusNotification(
 ): Promise<boolean> {
   try {
     const db = getDatabase();
-    const message = status === 'approved'
-      ? `Your request for "${courseTitle}" has been approved! You can now access the course.`
-      : `Your request for "${courseTitle}" has been denied. Please contact an administrator for more information.`;
+    const message =
+      status === 'approved'
+        ? `Your request for "${courseTitle}" has been approved! You can now access the course.`
+        : `Your request for "${courseTitle}" has been denied. Please contact an administrator for more information.`;
 
     await db.insert(notifications).values({
       userId: studentId,
       title: `Course Access ${status === 'approved' ? 'Approved' : 'Denied'}`,
       message,
       type: status === 'approved' ? 'info' : 'warning',
-      isRead: false
+      isRead: false,
     });
 
     return true;
@@ -49,7 +50,7 @@ export async function sendCourseCompletionNotification(
       title: 'Course Completed!',
       message: `Congratulations! You've completed "${courseTitle}".`,
       type: 'success',
-      isRead: false
+      isRead: false,
     });
 
     return true;
@@ -75,7 +76,7 @@ export async function sendCertificateNotification(
       message: `Your certificate for "${courseTitle}" is ready to download.`,
       type: 'success',
       isRead: false,
-      data: JSON.stringify({ certificateUrl })
+      data: JSON.stringify({ certificateUrl }),
     });
 
     return true;
@@ -84,5 +85,3 @@ export async function sendCertificateNotification(
     return false;
   }
 }
-
-

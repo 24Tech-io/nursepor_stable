@@ -30,7 +30,10 @@ export async function GET(request: NextRequest) {
         .limit(limit);
     } catch (tableError: any) {
       // If table doesn't exist, return empty array instead of error
-      if (tableError?.message && (tableError.message.includes('does not exist') || tableError.message.includes('relation'))) {
+      if (
+        tableError?.message &&
+        (tableError.message.includes('does not exist') || tableError.message.includes('relation'))
+      ) {
         console.warn('⚠️ activity_logs table does not exist yet. Run migration to create it.');
         return NextResponse.json({ logs: [] });
       }
@@ -70,9 +73,11 @@ export async function GET(request: NextRequest) {
   } catch (error: any) {
     console.error('Get activity logs error:', error);
     return NextResponse.json(
-      { message: 'Failed to fetch activity logs', error: process.env.NODE_ENV === 'development' ? error.message : undefined },
+      {
+        message: 'Failed to fetch activity logs',
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+      },
       { status: 500 }
     );
   }
 }
-

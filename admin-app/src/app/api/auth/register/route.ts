@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
 
     // Create new admin account
     const hashedPassword = await hashPassword(password);
-    
+
     const [newUser] = await db
       .insert(users)
       .values({
@@ -57,24 +57,26 @@ export async function POST(request: NextRequest) {
       })
       .returning();
 
-    return NextResponse.json({
-      message: 'Admin account created successfully',
-      user: {
-        id: newUser.id,
-        name: newUser.name,
-        email: newUser.email,
-        role: newUser.role,
+    return NextResponse.json(
+      {
+        message: 'Admin account created successfully',
+        user: {
+          id: newUser.id,
+          name: newUser.name,
+          email: newUser.email,
+          role: newUser.role,
+        },
       },
-    }, { status: 201 });
+      { status: 201 }
+    );
   } catch (error: any) {
     console.error('Admin registration error:', error);
     return NextResponse.json(
-      { 
-        message: 'Failed to create admin account', 
-        error: process.env.NODE_ENV === 'development' ? error.message : undefined 
+      {
+        message: 'Failed to create admin account',
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined,
       },
       { status: 500 }
     );
   }
 }
-

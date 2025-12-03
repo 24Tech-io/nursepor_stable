@@ -27,23 +27,28 @@ export async function GET(request: NextRequest) {
       })
       .from(courses)
       .leftJoin(studentProgress, eq(courses.id, studentProgress.courseId))
-      .leftJoin(enrollments, and(
-        eq(courses.id, enrollments.courseId),
-        eq(enrollments.status, 'active')
-      ))
+      .leftJoin(
+        enrollments,
+        and(eq(courses.id, enrollments.courseId), eq(enrollments.status, 'active'))
+      )
       .where(eq(courses.status, 'published'))
       .groupBy(courses.id, courses.title)
-      .orderBy(desc(sql`count(distinct COALESCE(${enrollments.userId}, ${studentProgress.studentId}))`));
+      .orderBy(
+        desc(sql`count(distinct COALESCE(${enrollments.userId}, ${studentProgress.studentId}))`)
+      );
 
     return NextResponse.json({
       enrollmentStats,
-      totalCourses: enrollmentStats.length
+      totalCourses: enrollmentStats.length,
     });
   } catch (error) {
     console.error('Get enrollment report error:', error);
-    return NextResponse.json({
-      message: 'Internal server error',
-      error: process.env.NODE_ENV === 'development' ? String(error) : undefined
-    }, { status: 500 });
+    return NextResponse.json(
+      {
+        message: 'Internal server error',
+        error: process.env.NODE_ENV === 'development' ? String(error) : undefined,
+      },
+      { status: 500 }
+    );
   }
 }

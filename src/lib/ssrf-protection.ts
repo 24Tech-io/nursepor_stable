@@ -18,25 +18,18 @@ const ALLOWED_DOMAINS = [
 
 // Blacklist of private/internal IP ranges (CIDR notation)
 const BLOCKED_IP_RANGES = [
-  '10.0.0.0/8',        // Private network
-  '172.16.0.0/12',     // Private network
-  '192.168.0.0/16',    // Private network
-  '127.0.0.0/8',       // Loopback
-  '169.254.0.0/16',    // Link-local
-  '::1/128',           // IPv6 loopback
-  'fe80::/10',         // IPv6 link-local
-  'fc00::/7',          // IPv6 unique local
+  '10.0.0.0/8', // Private network
+  '172.16.0.0/12', // Private network
+  '192.168.0.0/16', // Private network
+  '127.0.0.0/8', // Loopback
+  '169.254.0.0/16', // Link-local
+  '::1/128', // IPv6 loopback
+  'fe80::/10', // IPv6 link-local
+  'fc00::/7', // IPv6 unique local
 ];
 
 // Blocked protocols
-const BLOCKED_PROTOCOLS = [
-  'file:',
-  'gopher:',
-  'ftp:',
-  'dict:',
-  'ldap:',
-  'tftp:',
-];
+const BLOCKED_PROTOCOLS = ['file:', 'gopher:', 'ftp:', 'dict:', 'ldap:', 'tftp:'];
 
 /**
  * Check if an IP address is in a blocked range
@@ -44,12 +37,14 @@ const BLOCKED_PROTOCOLS = [
 function isIPInBlockedRange(ip: string): boolean {
   // Simple check for obvious private IPs
   // In production, use a proper IP range checker library
-  if (ip.startsWith('127.') || 
-      ip.startsWith('10.') || 
-      ip.startsWith('192.168.') ||
-      ip.startsWith('169.254.') ||
-      ip === 'localhost' ||
-      ip === '::1') {
+  if (
+    ip.startsWith('127.') ||
+    ip.startsWith('10.') ||
+    ip.startsWith('192.168.') ||
+    ip.startsWith('169.254.') ||
+    ip === 'localhost' ||
+    ip === '::1'
+  ) {
     return true;
   }
 
@@ -67,10 +62,13 @@ function isIPInBlockedRange(ip: string): boolean {
 /**
  * Validate if a URL is safe to request
  */
-export function validateURL(urlString: string, clientIP?: string): { 
-  valid: boolean; 
-  error?: string; 
-  url?: URL 
+export function validateURL(
+  urlString: string,
+  clientIP?: string
+): {
+  valid: boolean;
+  error?: string;
+  url?: URL;
 } {
   try {
     const url = new URL(urlString);
@@ -80,9 +78,9 @@ export function validateURL(urlString: string, clientIP?: string): {
       if (clientIP) {
         securityLogger.logSSRFAttempt(clientIP, urlString);
       }
-      return { 
-        valid: false, 
-        error: `Protocol ${url.protocol} is not allowed` 
+      return {
+        valid: false,
+        error: `Protocol ${url.protocol} is not allowed`,
       };
     }
 
@@ -91,14 +89,14 @@ export function validateURL(urlString: string, clientIP?: string): {
       if (clientIP) {
         securityLogger.logSSRFAttempt(clientIP, urlString);
       }
-      return { 
-        valid: false, 
-        error: 'Only HTTP and HTTPS protocols are allowed' 
+      return {
+        valid: false,
+        error: 'Only HTTP and HTTPS protocols are allowed',
       };
     }
 
     // Check if domain is in whitelist
-    const isWhitelisted = ALLOWED_DOMAINS.some(domain => {
+    const isWhitelisted = ALLOWED_DOMAINS.some((domain) => {
       if (domain.startsWith('*.')) {
         // Wildcard subdomain
         const baseDomain = domain.slice(2);
@@ -111,9 +109,9 @@ export function validateURL(urlString: string, clientIP?: string): {
       if (clientIP) {
         securityLogger.logSSRFAttempt(clientIP, urlString);
       }
-      return { 
-        valid: false, 
-        error: `Domain ${url.hostname} is not in the allowed list` 
+      return {
+        valid: false,
+        error: `Domain ${url.hostname} is not in the allowed list`,
       };
     }
 
@@ -122,17 +120,17 @@ export function validateURL(urlString: string, clientIP?: string): {
       if (clientIP) {
         securityLogger.logSSRFAttempt(clientIP, urlString);
       }
-      return { 
-        valid: false, 
-        error: 'Cannot access internal/private IP addresses' 
+      return {
+        valid: false,
+        error: 'Cannot access internal/private IP addresses',
       };
     }
 
     return { valid: true, url };
   } catch (error) {
-    return { 
-      valid: false, 
-      error: 'Invalid URL format' 
+    return {
+      valid: false,
+      error: 'Invalid URL format',
     };
   }
 }
@@ -141,7 +139,7 @@ export function validateURL(urlString: string, clientIP?: string): {
  * Safe fetch wrapper with SSRF protection
  */
 export async function safeFetch(
-  urlString: string, 
+  urlString: string,
   options: RequestInit = {},
   clientIP?: string
 ): Promise<Response> {
@@ -204,4 +202,3 @@ export function validateWebhookURL(urlString: string): boolean {
   const validation = validateURL(urlString);
   return validation.valid;
 }
-

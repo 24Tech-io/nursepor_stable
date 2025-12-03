@@ -20,10 +20,7 @@ export async function GET(request: NextRequest) {
     const db = getDatabase();
 
     // Fetch all categories with question counts
-    const categories = await db
-      .select()
-      .from(qbankCategories)
-      .orderBy(qbankCategories.sortOrder);
+    const categories = await db.select().from(qbankCategories).orderBy(qbankCategories.sortOrder);
 
     // Get question counts for each category
     const categoriesWithCounts = await Promise.all(
@@ -74,10 +71,7 @@ export async function POST(request: NextRequest) {
     const { name, description, color, icon, parentCategoryId, sortOrder } = body;
 
     if (!name) {
-      return NextResponse.json(
-        { message: 'Category name is required' },
-        { status: 400 }
-      );
+      return NextResponse.json({ message: 'Category name is required' }, { status: 400 });
     }
 
     const db = getDatabase();
@@ -94,17 +88,20 @@ export async function POST(request: NextRequest) {
       })
       .returning();
 
-    return NextResponse.json({
-      category: {
-        id: newCategory.id,
-        name: newCategory.name,
-        description: newCategory.description,
-        color: newCategory.color,
-        icon: newCategory.icon,
-        parentCategoryId: newCategory.parentCategoryId,
-        sortOrder: newCategory.sortOrder,
+    return NextResponse.json(
+      {
+        category: {
+          id: newCategory.id,
+          name: newCategory.name,
+          description: newCategory.description,
+          color: newCategory.color,
+          icon: newCategory.icon,
+          parentCategoryId: newCategory.parentCategoryId,
+          sortOrder: newCategory.sortOrder,
+        },
       },
-    }, { status: 201 });
+      { status: 201 }
+    );
   } catch (error: any) {
     console.error('Create category error:', error);
     return NextResponse.json(
@@ -113,4 +110,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-

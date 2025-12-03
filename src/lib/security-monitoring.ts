@@ -83,9 +83,7 @@ class SecurityMonitor {
    */
   private checkAlertThreshold(event: SecurityEvent): void {
     const recentEvents = this.getRecentEvents(5 * 60 * 1000); // Last 5 minutes
-    const severityCount = recentEvents.filter(
-      (e) => e.severity === event.severity
-    ).length;
+    const severityCount = recentEvents.filter((e) => e.severity === event.severity).length;
 
     if (severityCount >= this.alertThresholds[event.severity]) {
       this.triggerAlert(event.severity, severityCount);
@@ -270,11 +268,7 @@ export const SecurityChecks = {
    * Check for path traversal
    */
   hasPathTraversal(input: string): boolean {
-    const patterns = [
-      /\.\.[\/\\]/,
-      /%2e%2e[\/\\]/i,
-      /\.\.[%252f|%255c]/i,
-    ];
+    const patterns = [/\.\.[\/\\]/, /%2e%2e[\/\\]/i, /\.\.[%252f|%255c]/i];
 
     return patterns.some((pattern) => pattern.test(input));
   },
@@ -283,26 +277,8 @@ export const SecurityChecks = {
    * Check for command injection
    */
   hasCommandInjection(input: string): boolean {
-    const patterns = [
-      /[;&|`$()]/,
-      /\b(cat|ls|rm|chmod|wget|curl|nc|bash|sh)\b/i,
-    ];
+    const patterns = [/[;&|`$()]/, /\b(cat|ls|rm|chmod|wget|curl|nc|bash|sh)\b/i];
 
     return patterns.some((pattern) => pattern.test(input));
   },
 };
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

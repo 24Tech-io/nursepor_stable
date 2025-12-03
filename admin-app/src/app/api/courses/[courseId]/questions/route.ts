@@ -5,10 +5,7 @@ import { courseQuestionAssignments, qbankQuestions } from '@/lib/db/schema';
 import { eq, and, inArray } from 'drizzle-orm';
 
 // GET - Fetch all questions assigned to a course
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { courseId: string } }
-) {
+export async function GET(request: NextRequest, { params }: { params: { courseId: string } }) {
   try {
     const token = request.cookies.get('adminToken')?.value;
 
@@ -41,7 +38,7 @@ export async function GET(
       .where(eq(courseQuestionAssignments.courseId, courseId));
 
     return NextResponse.json({
-      assignments: assignments.map(a => ({
+      assignments: assignments.map((a) => ({
         id: a.assignmentId,
         questionId: a.questionId,
         moduleId: a.moduleId,
@@ -62,10 +59,7 @@ export async function GET(
 }
 
 // POST - Assign questions to course/module
-export async function POST(
-  request: NextRequest,
-  { params }: { params: { courseId: string } }
-) {
+export async function POST(request: NextRequest, { params }: { params: { courseId: string } }) {
   try {
     const token = request.cookies.get('adminToken')?.value;
 
@@ -83,10 +77,7 @@ export async function POST(
     const { questionIds, moduleId, isModuleSpecific } = body;
 
     if (!questionIds || !Array.isArray(questionIds) || questionIds.length === 0) {
-      return NextResponse.json(
-        { message: 'questionIds array is required' },
-        { status: 400 }
-      );
+      return NextResponse.json({ message: 'questionIds array is required' }, { status: 400 });
     }
 
     const db = getDatabase();
@@ -106,12 +97,17 @@ export async function POST(
       .onConflictDoNothing()
       .returning();
 
-    console.log(`✅ Assigned ${inserted.length} questions to course ${courseId}${moduleId ? ` / module ${moduleId}` : ''}`);
+    console.log(
+      `✅ Assigned ${inserted.length} questions to course ${courseId}${moduleId ? ` / module ${moduleId}` : ''}`
+    );
 
-    return NextResponse.json({
-      message: `${inserted.length} questions assigned successfully`,
-      assignments: inserted,
-    }, { status: 201 });
+    return NextResponse.json(
+      {
+        message: `${inserted.length} questions assigned successfully`,
+        assignments: inserted,
+      },
+      { status: 201 }
+    );
   } catch (error: any) {
     console.error('Assign questions error:', error);
     return NextResponse.json(
@@ -122,10 +118,7 @@ export async function POST(
 }
 
 // DELETE - Remove question assignment
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: { courseId: string } }
-) {
+export async function DELETE(request: NextRequest, { params }: { params: { courseId: string } }) {
   try {
     const token = request.cookies.get('adminToken')?.value;
 
@@ -176,4 +169,3 @@ export async function DELETE(
     );
   }
 }
-

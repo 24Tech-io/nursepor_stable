@@ -5,7 +5,15 @@ export interface ActivityLogData {
   adminId: number;
   adminName: string;
   action: 'created' | 'updated' | 'deleted' | 'activated' | 'deactivated' | 'approved' | 'rejected';
-  entityType: 'course' | 'student' | 'question' | 'module' | 'chapter' | 'access_request' | 'blog' | 'admin';
+  entityType:
+    | 'course'
+    | 'student'
+    | 'question'
+    | 'module'
+    | 'chapter'
+    | 'access_request'
+    | 'blog'
+    | 'admin';
   entityId?: number | null;
   entityName?: string | null;
   details?: Record<string, any> | null;
@@ -28,4 +36,3 @@ export async function logActivity(data: ActivityLogData) {
     // Don't throw - activity logging shouldn't break the main operation
   }
 }
-

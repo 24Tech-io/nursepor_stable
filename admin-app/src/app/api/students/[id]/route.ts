@@ -4,14 +4,11 @@ import { getDatabase } from '@/lib/db';
 import { users, studentProgress, courses, accessRequests, enrollments } from '@/lib/db/schema';
 import { eq, and, or, sql } from 'drizzle-orm';
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     console.log('📥 GET /api/students/[id] called with params:', params);
     console.log('📥 Request URL:', request.url);
-    
+
     const token = request.cookies.get('adminToken')?.value;
 
     if (!token) {
@@ -58,10 +55,13 @@ export async function GET(
 
     if (userCheck.role !== 'student') {
       console.error('User is not a student. Role:', userCheck.role, 'ID:', studentId);
-      return NextResponse.json({ 
-        message: 'User is not a student',
-        error: `User with ID ${studentId} has role: ${userCheck.role}`
-      }, { status: 404 });
+      return NextResponse.json(
+        {
+          message: 'User is not a student',
+          error: `User with ID ${studentId} has role: ${userCheck.role}`,
+        },
+        { status: 404 }
+      );
     }
 
     const [student] = await db
@@ -96,20 +96,16 @@ export async function GET(
       const pendingRequests = await db
         .select({ courseId: accessRequests.courseId })
         .from(accessRequests)
-        .where(
-          and(
-            eq(accessRequests.studentId, student.id),
-            eq(accessRequests.status, 'pending')
-          )
-        )
+        .where(and(eq(accessRequests.studentId, student.id), eq(accessRequests.status, 'pending')))
         .limit(100); // Limit to prevent huge queries
 
-      pendingRequestCourseIds = new Set(
-        pendingRequests.map((r: any) => r.courseId.toString())
-      );
+      pendingRequestCourseIds = new Set(pendingRequests.map((r: any) => r.courseId.toString()));
       console.log('📋 Pending request course IDs:', Array.from(pendingRequestCourseIds));
     } catch (pendingError: any) {
-      console.error('⚠️ Error fetching pending requests (continuing without filter):', pendingError);
+      console.error(
+        '⚠️ Error fetching pending requests (continuing without filter):',
+        pendingError
+      );
       // Continue without pending requests filter if query fails
       pendingRequestCourseIds = new Set();
     }
@@ -184,7 +180,7 @@ export async function GET(
 
       // Merge: prefer enrollments.progress (new source of truth), fallback to studentProgress.totalProgress
       const enrollmentMap = new Map();
-      
+
       // First, add all from enrollments table (new source of truth)
       enrollmentsData.forEach((e: any) => {
         const courseIdStr = e.courseId.toString();
@@ -215,7 +211,10 @@ export async function GET(
           } else {
             // Already in map from enrollments, but update lastAccessed if studentProgress is more recent
             const existing = enrollmentMap.get(courseIdStr);
-            if (e.lastAccessed && (!existing.lastAccessed || e.lastAccessed > existing.lastAccessed)) {
+            if (
+              e.lastAccessed &&
+              (!existing.lastAccessed || e.lastAccessed > existing.lastAccessed)
+            ) {
               existing.lastAccessed = e.lastAccessed;
             }
           }
@@ -224,7 +223,9 @@ export async function GET(
 
       enrollmentsList = Array.from(enrollmentMap.values());
       enrolledCount = enrollmentsList.length;
-      console.log(`✅ Found ${enrolledCount} valid enrollments (merged from both tables, excluded ${(enrollmentsData.length + studentProgressData.length) - enrolledCount} with pending requests)`);
+      console.log(
+        `✅ Found ${enrolledCount} valid enrollments (merged from both tables, excluded ${enrollmentsData.length + studentProgressData.length - enrolledCount} with pending requests)`
+      );
     } catch (enrollmentError: any) {
       console.error('Error fetching enrollments:', enrollmentError);
       enrollmentsList = [];
@@ -249,12 +250,7 @@ export async function GET(
         })
         .from(accessRequests)
         .innerJoin(courses, eq(accessRequests.courseId, courses.id))
-        .where(
-          and(
-            eq(accessRequests.studentId, student.id),
-            eq(accessRequests.status, 'pending')
-          )
-        )
+        .where(and(eq(accessRequests.studentId, student.id), eq(accessRequests.status, 'pending')))
         .limit(100);
 
       pendingRequests = requestsData.map((r: any) => ({
@@ -286,13 +282,12 @@ export async function GET(
     console.error('❌ Get student error:', error);
     console.error('Error stack:', error.stack);
     return NextResponse.json(
-      { 
-        message: 'Failed to fetch student', 
+      {
+        message: 'Failed to fetch student',
         error: error.message,
-        details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        details: process.env.NODE_ENV === 'development' ? error.stack : undefined,
       },
       { status: 500 }
     );
   }
 }
-

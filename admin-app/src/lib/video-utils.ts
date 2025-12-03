@@ -173,7 +173,3 @@ export function isValidVideoUrl(url: string): boolean {
   const parsed = parseVideoUrl(url);
   return parsed.provider !== 'unknown' || parsed.provider === 'direct';
 }
-
-
-
-

@@ -13,8 +13,8 @@ export default function CourseEditorPage() {
   useEffect(() => {
     if (courseId) {
       fetch(`/api/courses/${courseId}`, { credentials: 'include' })
-        .then(res => res.json())
-        .then(data => {
+        .then((res) => res.json())
+        .then((data) => {
           if (data.course) {
             setCourse(data.course);
           }
@@ -29,14 +29,3 @@ export default function CourseEditorPage() {
     </NotificationProvider>
   );
 }
-
-
-
-
-
-
-
-
-
-
-

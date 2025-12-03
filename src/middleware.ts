@@ -67,13 +67,13 @@ export function middleware(request: NextRequest) {
           securityLogger.warn('Rate limit exceeded', {
             ip,
             path: request.nextUrl.pathname,
-            count: rateLimit.count
+            count: rateLimit.count,
           });
           return new NextResponse(
             JSON.stringify({
               error: 'Too many requests',
               message: 'Please try again later',
-              retryAfter: Math.ceil((rateLimit.resetTime - now) / 1000)
+              retryAfter: Math.ceil((rateLimit.resetTime - now) / 1000),
             }),
             {
               status: 429,
@@ -103,12 +103,16 @@ export function middleware(request: NextRequest) {
     const currentLimit = rateLimitMap.get(key);
     if (currentLimit) {
       response.headers.set('X-RateLimit-Limit', String(RATE_LIMIT_MAX));
-      response.headers.set('X-RateLimit-Remaining', String(Math.max(0, RATE_LIMIT_MAX - currentLimit.count)));
+      response.headers.set(
+        'X-RateLimit-Remaining',
+        String(Math.max(0, RATE_LIMIT_MAX - currentLimit.count))
+      );
       response.headers.set('X-RateLimit-Reset', String(currentLimit.resetTime));
     }
 
     // Clean up old entries periodically
-    if (Math.random() < 0.01) { // 1% chance
+    if (Math.random() < 0.01) {
+      // 1% chance
       const cutoff = now - RATE_LIMIT_WINDOW;
       for (const [key, value] of rateLimitMap.entries()) {
         if (value.resetTime < cutoff) {
@@ -122,8 +126,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: [
-    '/api/:path*',
-    '/((?!_next/static|_next/image|favicon.ico).*)',
-  ],
+  matcher: ['/api/:path*', '/((?!_next/static|_next/image|favicon.ico).*)'],
 };

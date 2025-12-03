@@ -22,10 +22,7 @@ export async function POST(request: NextRequest) {
     const { ip } = body;
 
     if (!ip) {
-      return NextResponse.json(
-        { error: 'IP address is required' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'IP address is required' }, { status: 400 });
     }
 
     // Unblock from both systems
@@ -37,10 +34,6 @@ export async function POST(request: NextRequest) {
       message: `IP ${ip} has been unblocked`,
     });
   } catch (error) {
-    return NextResponse.json(
-      { error: 'Failed to unblock IP' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Failed to unblock IP' }, { status: 500 });
   }
 }
-

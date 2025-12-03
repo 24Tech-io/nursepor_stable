@@ -3,7 +3,12 @@ import { verifyToken } from '@/lib/auth';
 import { getStudentEnrollmentStatus } from '@/lib/enrollment-helpers';
 import { enrollStudent, unenrollStudent } from '@/lib/data-manager/helpers/enrollment-helper';
 import { withEnrollmentLock } from '@/lib/operation-lock';
-import { createErrorResponse, createAuthError, createAuthzError, createValidationError } from '@/lib/error-handler';
+import {
+  createErrorResponse,
+  createAuthError,
+  createAuthzError,
+  createValidationError,
+} from '@/lib/error-handler';
 import { retryDatabase } from '@/lib/retry';
 
 /**
@@ -38,9 +43,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Use unified helper to get enrollment status for all courses with retry
-    const enrollmentStatus = await retryDatabase(
-      () => getStudentEnrollmentStatus(studentIdNum)
-    );
+    const enrollmentStatus = await retryDatabase(() => getStudentEnrollmentStatus(studentIdNum));
 
     return NextResponse.json({
       studentId: studentIdNum,
@@ -171,5 +174,3 @@ export async function DELETE(request: NextRequest) {
     return createErrorResponse(error, 'Failed to unenroll student');
   }
 }
-
-

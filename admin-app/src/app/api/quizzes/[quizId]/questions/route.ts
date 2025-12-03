@@ -5,10 +5,7 @@ import { quizQbankQuestions } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 
 // POST - Add Q-Bank questions to quiz
-export async function POST(
-  request: NextRequest,
-  { params }: { params: { quizId: string } }
-) {
+export async function POST(request: NextRequest, { params }: { params: { quizId: string } }) {
   try {
     const token = request.cookies.get('adminToken')?.value;
 
@@ -26,10 +23,7 @@ export async function POST(
     const { questionIds } = body;
 
     if (!questionIds || !Array.isArray(questionIds)) {
-      return NextResponse.json(
-        { message: 'questionIds array is required' },
-        { status: 400 }
-      );
+      return NextResponse.json({ message: 'questionIds array is required' }, { status: 400 });
     }
 
     const db = getDatabase();
@@ -47,10 +41,13 @@ export async function POST(
       .onConflictDoNothing()
       .returning();
 
-    return NextResponse.json({
-      message: `${inserted.length} questions added to quiz`,
-      assignments: inserted,
-    }, { status: 201 });
+    return NextResponse.json(
+      {
+        message: `${inserted.length} questions added to quiz`,
+        assignments: inserted,
+      },
+      { status: 201 }
+    );
   } catch (error: any) {
     console.error('Add quiz questions error:', error);
     return NextResponse.json(
@@ -61,10 +58,7 @@ export async function POST(
 }
 
 // DELETE - Remove question from quiz
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: { quizId: string } }
-) {
+export async function DELETE(request: NextRequest, { params }: { params: { quizId: string } }) {
   try {
     const token = request.cookies.get('adminToken')?.value;
 
@@ -85,16 +79,10 @@ export async function DELETE(
 
     if (questionIds && Array.isArray(questionIds)) {
       // Delete specific questions
-      await db
-        .delete(quizQbankQuestions)
-        .where(
-          eq(quizQbankQuestions.quizId, quizId)
-        );
+      await db.delete(quizQbankQuestions).where(eq(quizQbankQuestions.quizId, quizId));
     } else {
       // Delete all questions from quiz
-      await db
-        .delete(quizQbankQuestions)
-        .where(eq(quizQbankQuestions.quizId, quizId));
+      await db.delete(quizQbankQuestions).where(eq(quizQbankQuestions.quizId, quizId));
     }
 
     return NextResponse.json({ message: 'Questions removed successfully' });
@@ -106,4 +94,3 @@ export async function DELETE(
     );
   }
 }
-

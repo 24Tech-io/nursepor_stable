@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
     // Get enrolled courses from BOTH tables (studentProgress + enrollments)
     let enrolledProgress: any[] = [];
     let enrolledRecords: any[] = [];
-    
+
     try {
       // Try to get from studentProgress table
       enrolledProgress = await db
@@ -74,12 +74,7 @@ export async function GET(request: NextRequest) {
           lastAccessed: enrollments.enrolledAt, // Use enrolledAt for now (updatedAt may not exist in DB yet)
         })
         .from(enrollments)
-        .where(
-          and(
-            eq(enrollments.userId, studentIdNum),
-            eq(enrollments.status, 'active')
-          )
-        );
+        .where(and(eq(enrollments.userId, studentIdNum), eq(enrollments.status, 'active')));
     } catch (enrollmentsError: any) {
       console.error('⚠️ Error fetching from enrollments table:', enrollmentsError);
       console.error('⚠️ This might mean the enrollments table or column does not exist yet');
@@ -88,7 +83,7 @@ export async function GET(request: NextRequest) {
 
     // Merge enrollments from both tables - prefer enrollments table (new source of truth)
     const enrollmentMap = new Map();
-    
+
     // First, add all from enrollments table (new source of truth)
     enrolledRecords.forEach((e: any) => {
       const courseIdStr = e.courseId.toString();
@@ -129,12 +124,7 @@ export async function GET(request: NextRequest) {
         reason: accessRequests.reason,
       })
       .from(accessRequests)
-      .where(
-        and(
-          eq(accessRequests.studentId, studentIdNum),
-          eq(accessRequests.status, 'pending')
-        )
-      );
+      .where(and(eq(accessRequests.studentId, studentIdNum), eq(accessRequests.status, 'pending')));
 
     const pendingRequestCourseIds = new Set(pendingRequests.map((r: any) => r.courseId.toString()));
 
@@ -145,7 +135,9 @@ export async function GET(request: NextRequest) {
       // Only check actual enrollment records
       const isEnrolled = enrolledCourseIds.has(courseIdStr);
       const hasPendingRequest = pendingRequestCourseIds.has(courseIdStr);
-      const progressData = mergedEnrollments.find((ep: any) => ep.courseId.toString() === courseIdStr);
+      const progressData = mergedEnrollments.find(
+        (ep: any) => ep.courseId.toString() === courseIdStr
+      );
 
       let status: 'enrolled' | 'requested' | 'available' = 'available';
       // Only mark as enrolled if actual enrollment records exist
@@ -168,7 +160,8 @@ export async function GET(request: NextRequest) {
         progress: progressData?.progress || 0,
         lastAccessed: progressData?.lastAccessed || null,
         requestedAt: hasPendingRequest
-          ? pendingRequests.find((pr: any) => pr.courseId.toString() === courseIdStr)?.requestedAt || null
+          ? pendingRequests.find((pr: any) => pr.courseId.toString() === courseIdStr)
+              ?.requestedAt || null
           : null,
       };
     });
@@ -192,10 +185,10 @@ export async function GET(request: NextRequest) {
       code: error.code,
     });
     return NextResponse.json(
-      { 
-        message: 'Failed to get enrollment status', 
+      {
+        message: 'Failed to get enrollment status',
         error: error.message,
-        details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        details: process.env.NODE_ENV === 'development' ? error.stack : undefined,
       },
       { status: 500 }
     );
@@ -317,5 +310,3 @@ export async function DELETE(request: NextRequest) {
     );
   }
 }
-
-

@@ -5,10 +5,7 @@ import { users } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 
 // POST - Reset student's Face ID enrollment
-export async function POST(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     const token = request.cookies.get('token')?.value;
 
@@ -47,4 +44,3 @@ export async function POST(
     );
   }
 }
-

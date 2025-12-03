@@ -5,10 +5,7 @@ import { users } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 
 // PATCH - Toggle student active/inactive status
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     const token = request.cookies.get('token')?.value;
 
@@ -25,11 +22,7 @@ export async function PATCH(
     const db = getDatabase();
 
     // Get current student
-    const student = await db
-      .select()
-      .from(users)
-      .where(eq(users.id, studentId))
-      .limit(1);
+    const student = await db.select().from(users).where(eq(users.id, studentId)).limit(1);
 
     if (student.length === 0) {
       return NextResponse.json({ message: 'Student not found' }, { status: 404 });
@@ -37,10 +30,7 @@ export async function PATCH(
 
     // Toggle active status
     const newStatus = !student[0].isActive;
-    await db
-      .update(users)
-      .set({ isActive: newStatus })
-      .where(eq(users.id, studentId));
+    await db.update(users).set({ isActive: newStatus }).where(eq(users.id, studentId));
 
     console.log(`✅ Student ${studentId} active status changed to: ${newStatus}`);
 
@@ -56,4 +46,3 @@ export async function PATCH(
     );
   }
 }
-
