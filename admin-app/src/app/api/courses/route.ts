@@ -2,11 +2,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/auth';
 import { getDatabase } from '@/lib/db';
 import { courses } from '@/lib/db/schema';
-import { desc } from 'drizzle-orm';
+import { desc, sql } from 'drizzle-orm';
 import { logActivity } from '@/lib/activity-log';
 
 export async function GET(request: NextRequest) {
   try {
+    const { searchParams } = new URL(request.url);
+    const countOnly = searchParams.get('countOnly') === 'true';
+
     let db;
     try {
       db = getDatabase();
@@ -17,18 +20,29 @@ export async function GET(request: NextRequest) {
           message: 'Database connection failed',
           error: dbError.message || 'Database is not available',
           hint: 'Please check your DATABASE_URL in .env.local',
-          courses: []
+          courses: [],
+          count: 0
         },
         { status: 500 }
       );
     }
+
+    // ⚡ PERFORMANCE: If only count is needed, use efficient COUNT query
+    if (countOnly) {
+      const [result] = await db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(courses);
+      
+      console.log(`⚡ [Admin API] Fast count: ${result.count} courses`);
+      return NextResponse.json({ count: result.count });
+    }
+
     const allCourses = await db
       .select()
       .from(courses)
       .orderBy(desc(courses.createdAt));
 
     console.log(`📚 [Admin API] Found ${allCourses.length} total courses`);
-    console.log('📊 [Admin API] Course statuses:', allCourses.map(c => `${c.title}: ${c.status}`));
 
     return NextResponse.json({
       courses: allCourses.map((course: any) => ({
@@ -91,9 +105,19 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { title, description, instructor, thumbnail, pricing, status, isRequestable, isPublic } = body;
+    console.log('📝 [POST /api/courses] Request received:', { 
+      title: body.title, 
+      description: body.description?.substring(0, 50) + '...', 
+      instructor: body.instructor,
+      hasTitle: !!body.title,
+      hasDescription: !!body.description,
+      hasInstructor: !!body.instructor
+    });
+
+    const { title, description, instructor, thumbnail, pricing, status, isRequestable, isDefaultUnlocked, isPublic } = body;
 
     if (!title || !description || !instructor) {
+      console.error('❌ Validation failed:', { title: !!title, description: !!description, instructor: !!instructor });
       return NextResponse.json(
         { message: 'Title, description, and instructor are required' },
         { status: 400 }
@@ -123,6 +147,7 @@ export async function POST(request: NextRequest) {
         pricing: pricing ? parseFloat(pricing) : null,
         status: courseStatus,
         isRequestable: isRequestable !== undefined ? isRequestable : true,
+        isDefaultUnlocked: isDefaultUnlocked !== undefined ? isDefaultUnlocked : false,
         isPublic: isPublic !== undefined ? isPublic : false,
       })
       .returning();

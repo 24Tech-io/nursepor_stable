@@ -3,6 +3,36 @@ import { getDatabase } from '@/lib/db';
 import { questionBanks, qbankQuestions } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 
+// Safe JSON parser that handles both JSON strings and plain values
+function safeJsonParse(value: any, fallback: any = null) {
+  if (!value) return fallback;
+  if (typeof value !== 'string') return value;
+  
+  try {
+    return JSON.parse(value);
+  } catch {
+    // If it's not valid JSON, return as-is (e.g., single letter answers like 'b')
+    return value;
+  }
+}
+
+// Get human-readable label for question type
+function getQuestionTypeLabel(type: string): string {
+  const labels: Record<string, string> = {
+    'multiple_choice': 'Single Best Answer',
+    'sata': 'SATA (Classic)',
+    'ngn_case_study': 'Case Study',
+    'unfolding_ngn': 'Unfolding NGN',
+    'bowtie': 'Bow-Tie',
+    'casestudy': 'Case Study',
+    'matrix': 'Matrix',
+    'trend': 'Trend',
+    'standard': 'Single Best Answer',
+    'sata_classic': 'SATA (Classic)',
+  };
+  return labels[type] || type;
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: { courseId: string } }
@@ -30,21 +60,19 @@ export async function GET(
     return NextResponse.json({
       questions: allQuestions.map((q: any) => ({
         id: q.id.toString(),
-        format: q.questionFormat,
+        stem: q.question ? (q.question.substring(0, 100) + (q.question.length > 100 ? '...' : '')) : 'No question text',
+        category: q.testType || 'classic',
+        label: getQuestionTypeLabel(q.questionType),
+        format: q.questionType || 'multiple_choice',
         question: q.question,
         explanation: q.explanation,
         points: q.points,
+        subject: q.subject,
+        difficulty: q.difficulty,
+        testType: q.testType,
         data: {
-          options: q.options ? (typeof q.options === 'string' ? JSON.parse(q.options) : q.options) : [],
-          correctAnswer: q.correctAnswer ? (typeof q.correctAnswer === 'string' ? JSON.parse(q.correctAnswer) : q.correctAnswer) : {},
-          matrixData: q.matrixData,
-          dragDropData: q.dragDropData,
-          trendTabs: q.trendTabs,
-          bowtieData: q.bowtieData,
-          clozeData: q.clozeData,
-          rankingData: q.rankingData,
-          highlightData: q.highlightData,
-          selectNCount: q.selectNCount,
+          options: safeJsonParse(q.options, []),
+          correctAnswer: safeJsonParse(q.correctAnswer, null),
         },
       })),
     });
@@ -96,21 +124,18 @@ export async function POST(
       .values(
         questionsData.map((q: any) => ({
           questionBankId: qbank.id,
-          questionFormat: q.format || 'multiple_choice',
           questionType: q.format || 'multiple_choice',
           question: q.question || '',
           explanation: q.explanation || null,
           points: q.points || 1,
           options: q.data?.options ? JSON.stringify(q.data.options) : '[]',
           correctAnswer: q.data?.correctAnswer ? JSON.stringify(q.data.correctAnswer) : '{}',
-          matrixData: q.data?.matrixData || null,
-          dragDropData: q.data?.dragDropData || null,
-          trendTabs: q.data?.trendTabs || null,
-          bowtieData: q.data?.bowtieData || null,
-          clozeData: q.data?.clozeData || null,
-          rankingData: q.data?.rankingData || null,
-          highlightData: q.data?.highlightData || null,
-          selectNCount: q.data?.selectNCount || null,
+          subject: q.subject || null,
+          lesson: q.lesson || null,
+          clientNeedArea: q.clientNeedArea || null,
+          subcategory: q.subcategory || null,
+          testType: q.testType || 'mixed',
+          difficulty: q.difficulty || 'medium',
         }))
       )
       .returning();
@@ -119,21 +144,19 @@ export async function POST(
       message: 'Questions created successfully',
       questions: insertedQuestions.map((q: any) => ({
         id: q.id.toString(),
-        format: q.questionFormat,
+        stem: q.question ? (q.question.substring(0, 100) + (q.question.length > 100 ? '...' : '')) : 'No question text',
+        category: q.testType || 'classic',
+        label: getQuestionTypeLabel(q.questionType),
+        format: q.questionType,
         question: q.question,
         explanation: q.explanation,
         points: q.points,
+        subject: q.subject,
+        difficulty: q.difficulty,
+        testType: q.testType,
         data: {
-          options: q.options ? (typeof q.options === 'string' ? JSON.parse(q.options) : q.options) : [],
-          correctAnswer: q.correctAnswer ? (typeof q.correctAnswer === 'string' ? JSON.parse(q.correctAnswer) : q.correctAnswer) : {},
-          matrixData: q.matrixData,
-          dragDropData: q.dragDropData,
-          trendTabs: q.trendTabs,
-          bowtieData: q.bowtieData,
-          clozeData: q.clozeData,
-          rankingData: q.rankingData,
-          highlightData: q.highlightData,
-          selectNCount: q.selectNCount,
+          options: safeJsonParse(q.options, []),
+          correctAnswer: safeJsonParse(q.correctAnswer, null),
         },
       })),
     }, { status: 201 });

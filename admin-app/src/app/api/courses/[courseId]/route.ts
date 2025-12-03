@@ -36,6 +36,7 @@ export async function GET(
         pricing: course.pricing || 0,
         status: course.status,
         isRequestable: course.isRequestable,
+        isDefaultUnlocked: course.isDefaultUnlocked,
         isPublic: course.isPublic,
         createdAt: course.createdAt?.toISOString(),
         updatedAt: course.updatedAt?.toISOString(),
@@ -58,7 +59,14 @@ export async function PUT(
     const db = getDatabase();
     const courseId = parseInt(params.courseId);
     const body = await request.json();
-    const { title, description, instructor, thumbnail, pricing, status, isRequestable } = body;
+    console.log('📝 [PUT /api/courses/:id] Request received:', { 
+      courseId,
+      title: body.title, 
+      description: body.description?.substring(0, 50) + '...', 
+      instructor: body.instructor 
+    });
+
+    const { title, description, instructor, thumbnail, pricing, status, isRequestable, isDefaultUnlocked, isPublic } = body;
 
     // Check if course exists
     const [existingCourse] = await db
@@ -97,6 +105,7 @@ export async function PUT(
         pricing: pricing !== undefined ? (pricing ? parseFloat(pricing) : null) : existingCourse.pricing,
         status: newStatus,
         isRequestable: isRequestable !== undefined ? isRequestable : existingCourse.isRequestable,
+        isDefaultUnlocked: isDefaultUnlocked !== undefined ? isDefaultUnlocked : existingCourse.isDefaultUnlocked,
         isPublic: isPublic !== undefined ? isPublic : existingCourse.isPublic,
         updatedAt: new Date(),
       })

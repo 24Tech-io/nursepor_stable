@@ -185,27 +185,48 @@ export const questionBanks = pgTable('question_banks', {
 });
 
 // Q-Bank Questions table
+// Q-Bank: Question Categories (Folders)
+export const qbankCategories = pgTable('qbank_categories', {
+  id: serial('id').primaryKey(),
+  name: text('name').notNull(),
+  parentCategoryId: integer('parent_category_id').references((): any => qbankCategories.id, { onDelete: 'cascade' }),
+  description: text('description'),
+  color: text('color').default('#8B5CF6'),
+  icon: text('icon').default('📁'),
+  sortOrder: integer('sort_order').default(0),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
 export const qbankQuestions = pgTable('qbank_questions', {
   id: serial('id').primaryKey(),
   questionBankId: integer('question_bank_id').notNull().references(() => questionBanks.id, { onDelete: 'cascade' }),
+  categoryId: integer('category_id').references(() => qbankCategories.id, { onDelete: 'set null' }),
   question: text('question').notNull(),
-  questionType: text('question_type').notNull().default('standard'),
-  questionFormat: text('question_format').notNull().default('standard'),
+  questionType: text('question_type').notNull().default('multiple_choice'), // multiple_choice, sata, ngn_case_study
   options: text('options').notNull().default('[]'), // JSON array
   correctAnswer: text('correct_answer').notNull().default('{}'), // JSON
   explanation: text('explanation'),
+  subject: text('subject'), // Adult Health, Child Health, etc.
+  lesson: text('lesson'), // Cardiovascular, Endocrine, etc.
+  clientNeedArea: text('client_need_area'), // Physiological Adaptation, etc.
+  subcategory: text('subcategory'), // Alterations in Body Systems, etc.
+  testType: text('test_type').notNull().default('mixed'), // classic, ngn, mixed
+  difficulty: text('difficulty').default('medium'), // easy, medium, hard
   points: integer('points').notNull().default(1),
-  // NGN-specific fields (nullable)
-  matrixData: text('matrix_data'),
-  dragDropData: text('drag_drop_data'),
-  trendTabs: text('trend_tabs'),
-  bowtieData: text('bowtie_data'),
-  clozeData: text('cloze_data'),
-  rankingData: text('ranking_data'),
-  highlightData: text('highlight_data'),
-  selectNCount: integer('select_n_count'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+// Course Question Assignments
+export const courseQuestionAssignments = pgTable('course_question_assignments', {
+  id: serial('id').primaryKey(),
+  courseId: integer('course_id').notNull().references(() => courses.id, { onDelete: 'cascade' }),
+  moduleId: integer('module_id').references(() => modules.id, { onDelete: 'cascade' }),
+  questionId: integer('question_id').notNull().references(() => qbankQuestions.id, { onDelete: 'cascade' }),
+  isModuleSpecific: boolean('is_module_specific').notNull().default(false),
+  sortOrder: integer('sort_order').default(0),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
 });
 
 // Notifications table

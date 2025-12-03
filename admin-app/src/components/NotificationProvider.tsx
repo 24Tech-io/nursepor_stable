@@ -85,27 +85,28 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     onConfirm: () => void,
     onCancel?: () => void
   ) => {
-    showNotification({
+    const id = Math.random().toString(36).substring(2, 15);
+    
+    const newNotification: Notification = {
+      id,
       type: 'confirm',
       title,
       message,
       duration: 0, // Don't auto-dismiss
       onConfirm: () => {
         onConfirm();
-        // Remove notification after confirm
-        const id = notifications[notifications.length - 1]?.id;
-        if (id) removeNotification(id);
+        removeNotification(id);
       },
       onCancel: () => {
         if (onCancel) onCancel();
-        // Remove notification after cancel
-        const id = notifications[notifications.length - 1]?.id;
-        if (id) removeNotification(id);
+        removeNotification(id);
       },
       confirmText: 'Confirm',
       cancelText: 'Cancel',
-    });
-  }, [showNotification, notifications, removeNotification]);
+    };
+
+    setNotifications((prev) => [...prev, newNotification]);
+  }, [removeNotification]);
 
   const showPrompt = useCallback((title: string, message: string, defaultValue?: string): Promise<string | null> => {
     return new Promise((resolve) => {

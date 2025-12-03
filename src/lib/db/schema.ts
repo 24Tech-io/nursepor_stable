@@ -108,7 +108,7 @@ export const quizzes = pgTable('quizzes', {
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 });
 
-// Quiz Questions table
+// Quiz Questions table (Legacy - for old quizzes)
 export const quizQuestions = pgTable('quiz_questions', {
   id: serial('id').primaryKey(),
   quizId: integer('quiz_id').notNull().references(() => quizzes.id, { onDelete: 'cascade' }),
@@ -117,6 +117,15 @@ export const quizQuestions = pgTable('quiz_questions', {
   correctAnswer: text('correct_answer').notNull(),
   explanation: text('explanation'),
   order: integer('order').notNull(),
+});
+
+// Quiz Q-Bank Questions (NEW - links quizzes to Q-Bank questions)
+export const quizQbankQuestions = pgTable('quiz_qbank_questions', {
+  id: serial('id').primaryKey(),
+  quizId: integer('quiz_id').notNull().references(() => quizzes.id, { onDelete: 'cascade' }),
+  questionId: integer('question_id').notNull().references(() => qbankQuestions.id, { onDelete: 'cascade' }),
+  sortOrder: integer('sort_order').default(0),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
 });
 
 // Blog Posts table
@@ -607,6 +616,19 @@ export const nursingCandidateForms = pgTable('nursing_candidate_forms', {
 
 // Q-Bank Tables
 // Question Banks - links Q-Bank to courses
+// Q-Bank: Question Categories (Folders)
+export const qbankCategories = pgTable('qbank_categories', {
+  id: serial('id').primaryKey(),
+  name: text('name').notNull(),
+  parentCategoryId: integer('parent_category_id').references((): any => qbankCategories.id, { onDelete: 'cascade' }),
+  description: text('description'),
+  color: text('color').default('#8B5CF6'),
+  icon: text('icon').default('📁'),
+  sortOrder: integer('sort_order').default(0),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
 export const questionBanks = pgTable('question_banks', {
   id: serial('id').primaryKey(),
   courseId: integer('course_id').references(() => courses.id, { onDelete: 'cascade' }),
@@ -621,6 +643,7 @@ export const questionBanks = pgTable('question_banks', {
 export const qbankQuestions = pgTable('qbank_questions', {
   id: serial('id').primaryKey(),
   questionBankId: integer('question_bank_id').notNull().references(() => questionBanks.id, { onDelete: 'cascade' }),
+  categoryId: integer('category_id').references(() => qbankCategories.id, { onDelete: 'set null' }),
   question: text('question').notNull(),
   questionType: text('question_type').notNull().default('multiple_choice'), // multiple_choice, sata, ngn_case_study, unfolding_ngn
   options: text('options').notNull(), // JSON array of options
@@ -635,6 +658,17 @@ export const qbankQuestions = pgTable('qbank_questions', {
   points: integer('points').notNull().default(1),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+// Course Question Assignments - Link questions to courses/modules
+export const courseQuestionAssignments = pgTable('course_question_assignments', {
+  id: serial('id').primaryKey(),
+  courseId: integer('course_id').notNull().references(() => courses.id, { onDelete: 'cascade' }),
+  moduleId: integer('module_id').references(() => modules.id, { onDelete: 'cascade' }),
+  questionId: integer('question_id').notNull().references(() => qbankQuestions.id, { onDelete: 'cascade' }),
+  isModuleSpecific: boolean('is_module_specific').notNull().default(false),
+  sortOrder: integer('sort_order').default(0),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
 });
 
 // Q-Bank Tests
@@ -704,10 +738,24 @@ export const questionBanksRelations = relations(questionBanks, ({ one, many }) =
   tests: many(qbankTests),
 }));
 
+export const qbankCategoriesRelations = relations(qbankCategories, ({ one, many }) => ({
+  parentCategory: one(qbankCategories, {
+    fields: [qbankCategories.parentCategoryId],
+    references: [qbankCategories.id],
+    relationName: 'subcategories',
+  }),
+  subcategories: many(qbankCategories, { relationName: 'subcategories' }),
+  questions: many(qbankQuestions),
+}));
+
 export const qbankQuestionsRelations = relations(qbankQuestions, ({ one, many }) => ({
   questionBank: one(questionBanks, {
     fields: [qbankQuestions.questionBankId],
     references: [questionBanks.id],
+  }),
+  category: one(qbankCategories, {
+    fields: [qbankQuestions.categoryId],
+    references: [qbankCategories.id],
   }),
   attempts: many(qbankQuestionAttempts),
   statistics: many(qbankQuestionStatistics),

@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useNotification } from './NotificationProvider';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Layout, Database, Users, Settings, Plus, Save, ArrowLeft, Layers,
   Activity, FileText, Video, CheckCircle, Grid, Monitor, ChevronRight,
@@ -18,6 +19,7 @@ import DocumentUploadModal from './DocumentUploadModal';
 import StudentActivityModal from './StudentActivityModal';
 import { Upload, Link as LinkIcon } from 'lucide-react';
 import { convertToEmbedUrl, parseVideoUrl } from '@/lib/video-utils';
+import { StatCardSkeleton, ActivityLogSkeleton, TableSkeleton, CourseCardSkeleton, QuestionRowSkeleton, ModuleSkeleton } from './LoadingSkeleton';
 
 // --- DATA CONSTANTS ---
 const QUESTION_MODES = {
@@ -57,8 +59,16 @@ const CJMM_STEPS = [
   { step: 6, label: "Evaluate Outcomes" }
 ];
 
-import StudentProfile from './admin/StudentProfile';
-import QuestionTypeBuilder from './qbank/QuestionTypeBuilder';
+// ⚡ PERFORMANCE: Lazy load heavy components for code splitting
+import dynamic from 'next/dynamic';
+
+const StudentProfile = dynamic(() => import('./admin/StudentProfile'), {
+  loading: () => <div className="flex items-center justify-center h-screen"><div className="animate-spin rounded-full h-12 w-12 border-4 border-purple-600 border-t-transparent"></div></div>
+});
+
+const QuestionTypeBuilder = dynamic(() => import('./qbank/QuestionTypeBuilder'), {
+  loading: () => <div className="flex items-center justify-center h-screen"><div className="animate-spin rounded-full h-12 w-12 border-4 border-purple-600 border-t-transparent"></div></div>
+});
 
 // --- ROOT COMPONENT ---
 export default function NurseProAdminUltimate({ 
@@ -310,79 +320,47 @@ export default function NurseProAdminUltimate({
 
 // --- DASHBOARD MODULE ---
 const Dashboard = ({ nav }: { nav: (mod: string) => void }) => {
-  const [stats, setStats] = React.useState({ courses: 0, questions: 0, students: 0 });
-  const [activityLogs, setActivityLogs] = React.useState<any[]>([]);
-
-  // Fetch dashboard stats
-  const fetchDashboardStats = async () => {
-    try {
-      const [coursesRes, qbankRes, studentsRes] = await Promise.all([
-        fetch('/api/courses', { credentials: 'include' }),
+  // ⚡ PERFORMANCE: Use React Query for caching dashboard stats
+  const { data: stats, isLoading: statsLoading } = useQuery({
+    queryKey: ['dashboard-stats'],
+    queryFn: async () => {
+      // Use countOnly for maximum performance
+      const [coursesRes, questionsRes, studentsRes] = await Promise.all([
+        fetch('/api/courses?countOnly=true', { credentials: 'include' }),
         fetch('/api/qbank?countOnly=true', { credentials: 'include' }),
-        fetch('/api/students', { credentials: 'include' })
+        fetch('/api/students?countOnly=true', { credentials: 'include' })
       ]);
 
-      if (coursesRes.ok) {
-        const coursesData = await coursesRes.json();
-        setStats(prev => ({ ...prev, courses: coursesData.courses?.length || 0 }));
-      }
-      if (qbankRes.ok) {
-        const qbankData = await qbankRes.json();
-        setStats(prev => ({ ...prev, questions: qbankData.count || 0 }));
-      }
-      if (studentsRes.ok) {
-        const studentsData = await studentsRes.json();
-        setStats(prev => ({ ...prev, students: studentsData.students?.length || 0 }));
-      }
-    } catch (error) {
-      console.error('Error fetching dashboard stats:', error);
-    }
-  };
+      const [courses, questions, students] = await Promise.all([
+        coursesRes.json(),
+        questionsRes.json(),
+        studentsRes.json()
+      ]);
 
-  React.useEffect(() => {
-    const fetchStats = async () => {
-      try {
-        // Optimized: Fetch all stats in parallel, use count-only for questions
-        const [coursesRes, questionsRes, studentsRes] = await Promise.all([
-          fetch('/api/courses', { credentials: 'include' }),
-          fetch('/api/qbank?countOnly=true', { credentials: 'include' }),
-          fetch('/api/students', { credentials: 'include' })
-        ]);
+      console.log('⚡ Dashboard stats loaded from optimized count queries');
+      
+      return {
+        courses: courses.count || 0,
+        questions: questions.count || questions.totalCount || 0,
+        students: students.count || 0,
+      };
+    },
+    staleTime: 2 * 60 * 1000, // 2 minutes
+  });
 
-        const [courses, questions, students] = await Promise.all([
-          coursesRes.ok ? coursesRes.json() : Promise.resolve({ courses: [] }),
-          questionsRes.ok ? questionsRes.json() : Promise.resolve({ totalCount: 0 }),
-          studentsRes.ok ? studentsRes.json() : Promise.resolve({ students: [] })
-        ]);
-
-        setStats({
-          courses: courses.courses?.length || 0,
-          questions: questions.totalCount || 0,
-          students: students.students?.length || 0,
-        });
-      } catch (error) {
-        console.error('Error fetching stats:', error);
+  // ⚡ PERFORMANCE: Use React Query for activity logs
+  const { data: activityLogs = [], isLoading: logsLoading } = useQuery({
+    queryKey: ['activity-logs'],
+    queryFn: async () => {
+      const response = await fetch('/api/activity-logs?limit=10', { credentials: 'include' });
+      if (response.ok) {
+        const data = await response.json();
+        return data.logs || [];
       }
-    };
-
-    const fetchActivityLogs = async () => {
-      try {
-        const response = await fetch('/api/activity-logs?limit=10', { credentials: 'include' });
-        if (response.ok) {
-          const data = await response.json();
-          setActivityLogs(data.logs || []);
-        }
-      } catch (error) {
-        console.error('Error fetching activity logs:', error);
-      }
-    };
-
-    fetchStats();
-    fetchActivityLogs();
-    
-    // REMOVED: Auto-refresh interval for activity logs
-    // Users can manually refresh the page if needed
-  }, []);
+      return [];
+    },
+    staleTime: 60 * 1000, // 1 minute
+  });
 
   return (
     <div className="p-8 overflow-y-auto h-full">
@@ -396,11 +374,20 @@ const Dashboard = ({ nav }: { nav: (mod: string) => void }) => {
         </button>
       </header>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-        <MetricCard title="Total Courses" value={stats.courses.toString()} trend="Active" color="blue" />
-        <MetricCard title="Total Questions" value={stats.questions.toString()} trend="In Q-Bank" color="green" />
-        <MetricCard title="Total Students" value={stats.students.toString()} trend="Registered" color="purple" />
-      </div>
+      {/* ⚡ PERFORMANCE: Show skeleton while loading */}
+      {statsLoading ? (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+          <StatCardSkeleton />
+          <StatCardSkeleton />
+          <StatCardSkeleton />
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+          <MetricCard title="Total Courses" value={stats?.courses?.toString() || '0'} trend="Active" color="blue" />
+          <MetricCard title="Total Questions" value={stats?.questions?.toString() || '0'} trend="In Q-Bank" color="green" />
+          <MetricCard title="Total Students" value={stats?.students?.toString() || '0'} trend="Registered" color="purple" />
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 bg-[#161922] border border-slate-800/60 rounded-2xl p-6">
@@ -431,11 +418,15 @@ const Dashboard = ({ nav }: { nav: (mod: string) => void }) => {
 
         <div className="bg-[#161922] border border-slate-800/60 rounded-2xl p-6">
           <h3 className="font-bold text-white mb-6">Recent Activity</h3>
-          <div className="space-y-3 max-h-[500px] overflow-y-auto custom-scrollbar">
-            {activityLogs.length === 0 ? (
-              <p className="text-slate-500 text-sm text-center py-4">No recent activity</p>
-            ) : (
-              activityLogs.map((log) => {
+          {/* ⚡ PERFORMANCE: Show skeleton while loading */}
+          {logsLoading ? (
+            <ActivityLogSkeleton />
+          ) : (
+            <div className="space-y-3 max-h-[500px] overflow-y-auto custom-scrollbar">
+              {activityLogs.length === 0 ? (
+                <p className="text-slate-500 text-sm text-center py-4">No recent activity</p>
+              ) : (
+                activityLogs.map((log) => {
                 const getActionIcon = () => {
                   switch (log.action) {
                     case 'created': return <Plus size={14} className="text-green-400" />;
@@ -501,9 +492,10 @@ const Dashboard = ({ nav }: { nav: (mod: string) => void }) => {
                     </div>
                   </div>
                 );
-              })
-            )}
-          </div>
+                })
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -755,45 +747,25 @@ const RequestsInbox = ({ nav }: { nav: (mod: string) => void }) => {
 // --- STUDENTS LIST MODULE ---
 const StudentsList = ({ nav, onSelectStudent, refreshTrigger }: { nav: (mod: string) => void, onSelectStudent: (id: number) => void, refreshTrigger?: number }) => {
   const notification = useNotification();
-  const [students, setStudents] = React.useState<any[]>([]);
-  const [isLoading, setIsLoading] = React.useState(true);
+  const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = React.useState('');
   const [showActivityModal, setShowActivityModal] = React.useState(false);
   const [activityStudentId, setActivityStudentId] = React.useState<number | null>(null);
 
-  React.useEffect(() => {
-    fetchStudents();
-  }, []);
-
-  // Refresh when trigger changes
-  React.useEffect(() => {
-    if (refreshTrigger !== undefined) {
-      fetchStudents();
-    }
-  }, [refreshTrigger]);
-
-  const fetchStudents = async () => {
-    try {
-      const response = await fetch('/api/students', { 
-        credentials: 'include',
-        cache: 'no-store',
-        headers: {
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'Pragma': 'no-cache',
-        }
-      });
+  // ⚡ PERFORMANCE: Use React Query for students data with caching
+  const { data: students = [], isLoading, refetch } = useQuery({
+    queryKey: ['students', refreshTrigger],
+    queryFn: async () => {
+      const response = await fetch('/api/students', { credentials: 'include' });
       if (response.ok) {
         const data = await response.json();
-        setStudents(data.students || []);
-      } else {
-        console.error('Failed to fetch students:', response.status);
+        console.log('⚡ Students loaded and cached');
+        return data.students || [];
       }
-    } catch (error) {
-      console.error('Error fetching students:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+      throw new Error('Failed to fetch students');
+    },
+    staleTime: 30 * 1000, // 30 seconds - fresh for quick navigation
+  });
 
   const toggleActive = async (studentId: number, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -804,7 +776,8 @@ const StudentsList = ({ nav, onSelectStudent, refreshTrigger }: { nav: (mod: str
       });
 
       if (response.ok) {
-        await fetchStudents(); // Refresh list
+        // ⚡ PERFORMANCE: Invalidate cache after mutation
+        queryClient.invalidateQueries({ queryKey: ['students'] });
       } else {
         notification.showError('Failed to toggle student status');
       }
@@ -827,7 +800,8 @@ const StudentsList = ({ nav, onSelectStudent, refreshTrigger }: { nav: (mod: str
           });
 
           if (response.ok) {
-            await fetchStudents(); // Refresh list
+            // ⚡ PERFORMANCE: Invalidate cache after mutation
+            queryClient.invalidateQueries({ queryKey: ['students'] });
             notification.showSuccess('Face ID reset successfully');
           } else {
             notification.showError('Failed to reset Face ID');
@@ -2067,21 +2041,13 @@ const DailyVideoManager = ({ nav }: { nav: (mod: string) => void }) => {
 // --- COURSE BUILDER MODULE ---
 const CourseList = ({ nav, setActive }: { nav: (mod: string, id?: number) => void; setActive: (item: any) => void }) => {
   const notification = useNotification();
-  const [coursesList, setCoursesList] = React.useState<any[]>([]);
-  const [isLoading, setIsLoading] = React.useState(true);
+  const queryClient = useQueryClient();
 
-  React.useEffect(() => {
-    fetchCourses();
-  }, []);
-
-  const fetchCourses = async () => {
-    try {
-      // Show loading state immediately
-      setIsLoading(true);
-      const response = await fetch('/api/courses', { 
-        credentials: 'include',
-        cache: 'no-cache', // Ensure fresh data
-      });
+  // ⚡ PERFORMANCE: Use React Query for courses with caching
+  const { data: coursesList = [], isLoading, refetch } = useQuery({
+    queryKey: ['courses'],
+    queryFn: async () => {
+      const response = await fetch('/api/courses', { credentials: 'include' });
       if (response.ok) {
         const data = await response.json();
         const mappedCourses = (data.courses || []).map((c: any) => ({
@@ -2089,14 +2055,13 @@ const CourseList = ({ nav, setActive }: { nav: (mod: string, id?: number) => voi
           author: c.instructor,
           status: c.status === 'published' ? 'Active' : 'Draft'
         }));
-        setCoursesList(mappedCourses);
+        console.log('⚡ Courses loaded and cached');
+        return mappedCourses;
       }
-    } catch (error) {
-      console.error('Error fetching courses:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+      throw new Error('Failed to fetch courses');
+    },
+    staleTime: 60 * 1000, // 1 minute
+  });
 
   const handleDelete = async (id: number) => {
     notification.showConfirm(
@@ -2109,7 +2074,9 @@ const CourseList = ({ nav, setActive }: { nav: (mod: string, id?: number) => voi
             credentials: 'include',
           });
           if (response.ok) {
-            fetchCourses();
+            // ⚡ PERFORMANCE: Invalidate cache after mutation
+            queryClient.invalidateQueries({ queryKey: ['courses'] });
+            queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
             notification.showSuccess('Course deleted successfully');
           } else {
             notification.showError('Failed to delete course');
@@ -2129,15 +2096,17 @@ const CourseList = ({ nav, setActive }: { nav: (mod: string, id?: number) => voi
           <h2 className="text-3xl font-bold text-white">Courses</h2>
           <p className="text-slate-400 mt-1 text-sm">Manage curriculum and learning paths.</p>
         </div>
-        <button onClick={() => { setActive(null); nav('course_editor'); }} className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-2.5 rounded-lg font-bold text-sm shadow-lg shadow-purple-500/20 hover:shadow-purple-500/40 transition-all flex items-center gap-2">
+        <button onClick={() => { 
+          setActive(null); 
+          window.history.pushState({}, '', '/dashboard/courses/new');
+          nav('course_editor'); 
+        }} className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-2.5 rounded-lg font-bold text-sm shadow-lg shadow-purple-500/20 hover:shadow-purple-500/40 transition-all flex items-center gap-2">
           <Plus size={18} /> Create Course
         </button>
       </div>
       <div className="bg-[#161922] border border-slate-800/60 rounded-2xl overflow-hidden flex-1">
         {isLoading ? (
-          <div className="flex items-center justify-center h-full">
-            <div className="animate-spin rounded-full h-12 w-12 border-4 border-purple-600 border-t-transparent"></div>
-          </div>
+          <TableSkeleton rows={5} cols={4} />
         ) : (
           <table className="w-full text-left text-sm">
             <thead className="bg-[#1a1d26] text-slate-400 text-xs uppercase font-bold">
@@ -2153,7 +2122,11 @@ const CourseList = ({ nav, setActive }: { nav: (mod: string, id?: number) => voi
                   <td className="p-6">{c.author}</td>
                   <td className="p-6"><span className={`px-2 py-1 rounded text-xs font-bold ${c.status === 'Active' ? 'bg-green-500/10 text-green-400' : 'bg-slate-700/30 text-slate-400'}`}>{c.status}</span></td>
                   <td className="p-6 text-right">
-                    <button onClick={() => { setActive(c); nav('course_editor', c.id); }} className="text-purple-400 hover:text-purple-300 font-semibold mr-4">Edit</button>
+                    <button onClick={() => { 
+                      setActive(c); 
+                      window.history.pushState({}, '', `/dashboard/courses/${c.id}`);
+                      nav('course_editor', c.id); 
+                    }} className="text-purple-400 hover:text-purple-300 font-semibold mr-4">Edit</button>
                     <button onClick={() => handleDelete(c.id)} className="text-red-400 hover:text-red-300 font-semibold">Delete</button>
                   </td>
                 </tr>
@@ -2180,18 +2153,54 @@ const CourseBuilder = ({ course, back }: { course: any; back: () => void }) => {
   const [isPublished, setIsPublished] = React.useState(course?.status === 'published' || course?.status === 'Active');
   const [isDefaultUnlocked, setIsDefaultUnlocked] = React.useState(course?.isDefaultUnlocked || false);
   const [isRequestable, setIsRequestable] = React.useState(course?.isRequestable !== false);
-  const [isPublic, setIsPublic] = React.useState(course?.isPublic !== false); // Default to false (private) for new courses
-  const [courseId, setCourseId] = React.useState(course?.id || null);
+  const [isPublic, setIsPublic] = React.useState(course?.isPublic !== false);
+  // Get course ID from props or URL to ensure persistence
+  const urlCourseId = React.useMemo(() => {
+    if (typeof window === 'undefined') return null;
+    const parts = window.location.pathname.split('/');
+    const lastPart = parts[parts.length - 1];
+    if (lastPart === 'courses' || lastPart === 'new') return null;
+    const parsed = parseInt(lastPart);
+    return isNaN(parsed) ? null : parsed;
+  }, []);
+  const [courseId, setCourseId] = React.useState(course?.id || urlCourseId);
   const [isLoading, setIsLoading] = React.useState(!!course?.id);
   const [showVideoModal, setShowVideoModal] = React.useState(false);
   const [showDocumentModal, setShowDocumentModal] = React.useState(false);
+  const [showQuizModal, setShowQuizModal] = React.useState(false);
   const [currentModuleId, setCurrentModuleId] = React.useState<number | null>(null);
+  const [currentQuizId, setCurrentQuizId] = React.useState<number | null>(null);
 
   React.useEffect(() => {
     if (course?.id) {
       fetchModules(course.id);
+    } else if (courseId && !course?.id) {
+      // Reload course data if we have ID but no course object
+      loadCourseData(courseId);
     }
-  }, [course]);
+  }, [course, courseId]);
+
+  const loadCourseData = async (id: number) => {
+    try {
+      const response = await fetch(`/api/courses/${id}`, { credentials: 'include' });
+      if (response.ok) {
+        const data = await response.json();
+        const c = data.course;
+        setTitle(c.title || '');
+        setDescription(c.description || '');
+        setInstructor(c.instructor || 'Nurse Pro Academy');
+        setPricing(c.pricing || 0);
+        setThumbnail(c.thumbnail || '');
+        setIsPublished(c.status === 'published');
+        setIsDefaultUnlocked(c.isDefaultUnlocked || false);
+        setIsRequestable(c.isRequestable !== false);
+        setIsPublic(c.isPublic !== false);
+        fetchModules(id);
+      }
+    } catch (error) {
+      console.error('Error loading course data:', error);
+    }
+  };
 
   const fetchModules = async (id: number) => {
     try {
@@ -2212,10 +2221,19 @@ const CourseBuilder = ({ course, back }: { course: any; back: () => void }) => {
     }
   };
 
+
   const handleSaveCourse = async () => {
+    // Validate required fields
+    if (!title || !description || !instructor) {
+      notification.showError('Please fill in all required fields: Title, Description, and Instructor');
+      return;
+    }
+
     try {
       const method = courseId ? 'PATCH' : 'POST';
       const url = courseId ? `/api/courses/${courseId}` : '/api/courses';
+
+      console.log('💾 Saving course:', { courseId, title, method, url });
 
       const response = await fetch(url, {
         method,
@@ -2226,7 +2244,7 @@ const CourseBuilder = ({ course, back }: { course: any; back: () => void }) => {
           description,
           instructor,
           thumbnail: thumbnail || null,
-          pricing: parseFloat(pricing.toString()),
+          pricing: parseFloat(pricing.toString()) || 0,
           status: isPublished ? 'published' : 'draft',
           isDefaultUnlocked,
           isRequestable,
@@ -2236,18 +2254,25 @@ const CourseBuilder = ({ course, back }: { course: any; back: () => void }) => {
 
       if (response.ok) {
         const data = await response.json();
-        if (!courseId) {
-          setCourseId(data.course.id);
+        console.log('✅ Course saved:', data);
+        if (!courseId && data.course.id) {
+          // New course created - set the ID and update URL to prevent duplicates
+          const newCourseId = data.course.id;
+          setCourseId(newCourseId);
+          // Update URL to reflect the course ID
+          window.history.replaceState({}, '', `/dashboard/courses/${newCourseId}`);
           notification.showSuccess('Course created!', 'You can now add modules.');
         } else {
           notification.showSuccess('Course updated successfully');
         }
       } else {
-        notification.showError('Failed to save course');
+        const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
+        console.error('❌ Save course failed:', errorData);
+        notification.showError(errorData.message || 'Failed to save course');
       }
     } catch (error) {
       console.error('Error saving course:', error);
-      notification.showError('Failed to save course');
+      notification.showError('Failed to save course: ' + (error instanceof Error ? error.message : 'Unknown error'));
     }
   };
 
@@ -2290,6 +2315,11 @@ const CourseBuilder = ({ course, back }: { course: any; back: () => void }) => {
       setCurrentModuleId(modId);
       setShowDocumentModal(true);
       return;
+    } else if (type === 'mcq') {
+      // Show quiz creation modal instead of creating chapter
+      setCurrentModuleId(modId);
+      setShowQuizModal(true);
+      return;
     }
 
     const title = prompt(`Enter ${type} title:`);
@@ -2300,8 +2330,6 @@ const CourseBuilder = ({ course, back }: { course: any; back: () => void }) => {
     if (type === 'textbook') {
       contentData.textbookContent = '<p>Enter content here...</p>';
       contentData.readingTime = 10;
-    } else if (type === 'mcq') {
-      contentData.mcqData = '[]';
     }
 
     try {
@@ -2323,20 +2351,26 @@ const CourseBuilder = ({ course, back }: { course: any; back: () => void }) => {
     }
   };
 
-  const deleteChapter = async (chapterId: number, modId: number) => {
+  const deleteItem = async (itemId: number, modId: number, itemType: string) => {
+    // Determine the correct label based on item type
+    const itemTypeLabel = itemType === 'mcq' || itemType === 'qbank' || itemType === 'quiz' ? 'Quiz' :
+                         itemType === 'video' ? 'Video' :
+                         itemType === 'document' ? 'Document' :
+                         itemType === 'textbook' ? 'Reading' : 'Chapter';
+    
     notification.showConfirm(
-      'Delete Chapter',
-      'Are you sure you want to delete this chapter?',
+      `Delete ${itemTypeLabel}`,
+      `Are you sure you want to delete this ${itemTypeLabel.toLowerCase()}?`,
       async () => {
         try {
-          await fetch(`/api/chapters/${chapterId}`, { method: 'DELETE', credentials: 'include' });
+          await fetch(`/api/chapters/${itemId}`, { method: 'DELETE', credentials: 'include' });
           setModules(modules.map((m: any) => m.id === modId ? {
-            ...m, items: m.items.filter((i: any) => i.id !== chapterId)
+            ...m, items: m.items.filter((i: any) => i.id !== itemId)
           } : m));
-          notification.showSuccess('Chapter deleted successfully');
+          notification.showSuccess(`${itemTypeLabel} deleted successfully`);
         } catch (error) {
-          console.error('Error deleting chapter:', error);
-          notification.showError('Failed to delete chapter');
+          console.error(`Error deleting ${itemTypeLabel.toLowerCase()}:`, error);
+          notification.showError(`Failed to delete ${itemTypeLabel.toLowerCase()}`);
         }
       }
     );
@@ -2406,39 +2440,39 @@ const CourseBuilder = ({ course, back }: { course: any; back: () => void }) => {
 
           {/* Modules */}
           {modules.map((mod: any, i: number) => (
-            <div key={mod.id} className="bg-[#161922] border border-slate-800/60 rounded-xl overflow-hidden">
-              <div className="p-4 bg-[#1a1d26] border-b border-slate-800/60 flex justify-between items-center group">
-                <div className="flex items-center gap-3">
-                  <GripVertical size={16} className="text-slate-600 cursor-grab" />
-                  <h4 className="font-bold text-white">Module {i + 1}: {mod.title}</h4>
-                </div>
-                <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button className="p-1.5 hover:bg-slate-700 rounded text-slate-400"><Edit3 size={14} /></button>
-                  <button className="p-1.5 hover:bg-slate-700 rounded text-red-400"><Trash2 size={14} /></button>
-                </div>
-              </div>
-              <div className="p-4 space-y-2">
-                {mod.items.length === 0 && <div className="text-center py-8 border-2 border-dashed border-slate-800 rounded-lg text-slate-500 text-sm">Drop content here</div>}
-                {mod.items.map((item: any) => (
-                  <div key={item.id} className="flex items-center p-3 bg-[#13151d] border border-slate-800/50 rounded-lg hover:border-purple-500/30 transition-colors">
-                    <div className={`mr-3 p-2 rounded-lg ${
-                      item.type === 'mcq' || item.type === 'qbank' 
-                        ? 'bg-purple-500/10 text-purple-400' 
-                        : item.type === 'document'
-                        ? 'bg-orange-500/10 text-orange-400'
-                        : 'bg-blue-500/10 text-blue-400'
-                    }`}>
-                      {item.type === 'video' ? <Video size={16} /> : 
-                       item.type === 'document' ? <FileText size={16} /> :
-                       item.type === 'mcq' || item.type === 'qbank' ? <Zap size={16} /> : 
-                       <FileText size={16} />}
-                    </div>
-                    <span className="text-sm font-medium text-slate-300">{item.title}</span>
-                    <div className="ml-auto flex items-center gap-2">
-                      <button onClick={() => deleteChapter(item.id, mod.id)} className="p-1 text-slate-500 hover:text-red-400"><Trash2 size={14} /></button>
-                    </div>
+              <div key={mod.id} className="bg-[#161922] border border-slate-800/60 rounded-xl overflow-hidden">
+                <div className="p-4 bg-[#1a1d26] border-b border-slate-800/60 flex justify-between items-center group">
+                  <div className="flex items-center gap-3">
+                    <GripVertical size={16} className="text-slate-600 cursor-grab" />
+                    <h4 className="font-bold text-white">Module {i + 1}: {mod.title}</h4>
                   </div>
-                ))}
+                  <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button className="p-1.5 hover:bg-slate-700 rounded text-slate-400"><Edit3 size={14} /></button>
+                    <button className="p-1.5 hover:bg-slate-700 rounded text-red-400"><Trash2 size={14} /></button>
+                  </div>
+                </div>
+                <div className="p-4 space-y-2">
+                  {mod.items.length === 0 && <div className="text-center py-8 border-2 border-dashed border-slate-800 rounded-lg text-slate-500 text-sm">Drop videos/documents here</div>}
+                  {mod.items.map((item: any) => (
+                    <div key={item.id} className="flex items-center p-3 bg-[#13151d] border border-slate-800/50 rounded-lg hover:border-purple-500/30 transition-colors">
+                      <div className={`mr-3 p-2 rounded-lg ${
+                        item.type === 'mcq' || item.type === 'qbank' 
+                          ? 'bg-purple-500/10 text-purple-400' 
+                          : item.type === 'document'
+                          ? 'bg-orange-500/10 text-orange-400'
+                          : 'bg-blue-500/10 text-blue-400'
+                      }`}>
+                        {item.type === 'video' ? <Video size={16} /> : 
+                         item.type === 'document' ? <FileText size={16} /> :
+                         item.type === 'mcq' || item.type === 'qbank' ? <Zap size={16} /> : 
+                         <FileText size={16} />}
+                      </div>
+                      <span className="text-sm font-medium text-slate-300">{item.title}</span>
+                      <div className="ml-auto flex items-center gap-2">
+                        <button onClick={() => deleteItem(item.id, mod.id, item.type)} className="p-1 text-slate-500 hover:text-red-400"><Trash2 size={14} /></button>
+                      </div>
+                    </div>
+                  ))}
                 <div className="flex justify-center gap-3 pt-4 mt-2 border-t border-slate-800/50">
                   <QuickAddBtn icon={<Video size={14} />} label="Video" onClick={() => addItem(mod.id, 'video')} active={false} />
                   <QuickAddBtn icon={<FileText size={14} />} label="Reading" onClick={() => addItem(mod.id, 'textbook')} active={false} />
@@ -2507,6 +2541,99 @@ const CourseBuilder = ({ course, back }: { course: any; back: () => void }) => {
         />
       )}
 
+      {/* Quiz Creation Modal */}
+      {showQuizModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowQuizModal(false)}>
+          <div className="bg-[#161922] border border-slate-800 rounded-2xl p-6 w-[500px]" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-xl font-bold text-white mb-4">Create Quiz</h3>
+            <div className="space-y-4">
+              <div>
+                <label className="text-sm text-slate-400 mb-1 block">Quiz Title</label>
+                <input
+                  id="quizTitle"
+                  type="text"
+                  placeholder="e.g., Cardiovascular Assessment"
+                  className="w-full bg-[#1a1d26] border border-slate-700 text-white px-4 py-2 rounded-lg focus:border-purple-500 outline-none"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm text-slate-400 mb-1 block">Pass Mark (%)</label>
+                  <input
+                    id="quizPassMark"
+                    type="number"
+                    defaultValue="70"
+                    min="0"
+                    max="100"
+                    className="w-full bg-[#1a1d26] border border-slate-700 text-white px-4 py-2 rounded-lg focus:border-purple-500 outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm text-slate-400 mb-1 block">Max Attempts</label>
+                  <input
+                    id="quizMaxAttempts"
+                    type="number"
+                    defaultValue="3"
+                    min="1"
+                    className="w-full bg-[#1a1d26] border border-slate-700 text-white px-4 py-2 rounded-lg focus:border-purple-500 outline-none"
+                  />
+                </div>
+              </div>
+              <div className="bg-purple-900/20 border border-purple-500/30 rounded-lg p-4">
+                <p className="text-sm text-purple-300">
+                  ℹ️ After creating the quiz, go to Q-Bank Manager to assign questions to this quiz.
+                </p>
+              </div>
+              <div className="flex gap-3 pt-4">
+                <button
+                  onClick={() => { setShowQuizModal(false); setCurrentModuleId(null); }}
+                  className="flex-1 px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg font-bold transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={async () => {
+                    const title = (document.getElementById('quizTitle') as HTMLInputElement)?.value;
+                    const passMark = parseInt((document.getElementById('quizPassMark') as HTMLInputElement)?.value || '70');
+                    const maxAttempts = parseInt((document.getElementById('quizMaxAttempts') as HTMLInputElement)?.value || '3');
+                    
+                    if (!title || !currentModuleId) return;
+                    
+                    try {
+                      const response = await fetch(`/api/modules/${currentModuleId}/quizzes`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        credentials: 'include',
+                        body: JSON.stringify({ title, passMark, maxAttempts }),
+                      });
+
+                      if (response.ok) {
+                        const data = await response.json();
+                        setModules(modules.map((m: any) => m.id === currentModuleId ? {
+                          ...m, items: [...m.items, { ...data.chapter, quiz: data.quiz }]
+                        } : m));
+                        setShowQuizModal(false);
+                        setCurrentModuleId(null);
+                        setCurrentQuizId(data.quiz.id);
+                        notification.showSuccess('Quiz created!', 'Go to Q-Bank Manager to add questions.');
+                      } else {
+                        notification.showError('Failed to create quiz');
+                      }
+                    } catch (error) {
+                      console.error('Error creating quiz:', error);
+                      notification.showError('Failed to create quiz');
+                    }
+                  }}
+                  className="flex-1 px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white rounded-lg font-bold transition"
+                >
+                  Create Quiz
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Document Upload Modal */}
       {showDocumentModal && (
         <DocumentUploadModal
@@ -2554,77 +2681,819 @@ const CourseBuilder = ({ course, back }: { course: any; back: () => void }) => {
 
 // --- Q-BANK LIST (MAIN) ---
 const QBankList = ({ nav, setActive }: { nav: (mod: string, id?: number) => void; setActive: (item: any) => void }) => {
-  const [questions, setQuestions] = React.useState<any[]>([]);
-  const [isLoading, setIsLoading] = React.useState(true);
+  const notification = useNotification();
+  const queryClient = useQueryClient();
+  const [selectedCategory, setSelectedCategory] = React.useState<number | null>(null);
+  const [selectedQuestions, setSelectedQuestions] = React.useState<Set<number>>(new Set());
+  const [showCategoryModal, setShowCategoryModal] = React.useState(false);
+  const [showBulkMoveModal, setShowBulkMoveModal] = React.useState(false);
+  const [showCourseAssignModal, setShowCourseAssignModal] = React.useState(false);
+  const [showEditFolderModal, setShowEditFolderModal] = React.useState(false);
+  const [editingFolder, setEditingFolder] = React.useState<any>(null);
+  const [searchTerm, setSearchTerm] = React.useState('');
+  const [draggedQuestion, setDraggedQuestion] = React.useState<any>(null);
+  const [dragOverFolder, setDragOverFolder] = React.useState<number | null>(null);
+  const [selectedCourseForAssign, setSelectedCourseForAssign] = React.useState<number | null>(null);
 
-  React.useEffect(() => {
-    fetchQuestions();
-  }, []);
-
-  const fetchQuestions = async () => {
-    try {
-      const response = await fetch('/api/qbank?limit=50', { credentials: 'include' });
+  // ⚡ PERFORMANCE: Use React Query for categories with caching
+  const { data: categories = [], refetch: refetchCategories } = useQuery({
+    queryKey: ['qbank-categories'],
+    queryFn: async () => {
+      const response = await fetch('/api/qbank/categories', { credentials: 'include' });
       if (response.ok) {
         const data = await response.json();
-        setQuestions(data.questions || []);
+        console.log('⚡ Categories loaded and cached');
+        return data.categories || [];
+      }
+      return [];
+    },
+    staleTime: 2 * 60 * 1000, // 2 minutes
+  });
+
+  // ⚡ PERFORMANCE: Use React Query for questions with caching
+  const { data: questions = [], isLoading, refetch: refetchQuestions } = useQuery({
+    queryKey: ['qbank-questions', selectedCategory],
+    queryFn: async () => {
+      const url = selectedCategory 
+        ? `/api/qbank?limit=50&categoryId=${selectedCategory}`
+        : '/api/qbank?limit=50';
+      const response = await fetch(url, { credentials: 'include' });
+      if (response.ok) {
+        const data = await response.json();
+        console.log('⚡ Questions loaded and cached');
+        return data.questions || [];
+      }
+      return [];
+    },
+    staleTime: 30 * 1000, // 30 seconds
+  });
+
+  // ⚡ PERFORMANCE: Use React Query for courses (reuse from cache)
+  const { data: courses = [] } = useQuery({
+    queryKey: ['courses'],
+    queryFn: async () => {
+      const response = await fetch('/api/courses', { credentials: 'include' });
+      if (response.ok) {
+        const data = await response.json();
+        return data.courses || [];
+      }
+      return [];
+    },
+    staleTime: 60 * 1000, // 1 minute - likely already cached from CourseList
+  });
+
+  const assignCategoryToCourse = async () => {
+    if (!selectedCourseForAssign) {
+      notification.showError('Please select a course first');
+      return;
+    }
+
+    // Get questions to assign
+    let questionIds: number[];
+    let folderName = '';
+
+    if (selectedCategory) {
+      // Assign from specific folder
+      const categoryQuestions = questions.filter(q => q.categoryId === selectedCategory);
+      const folder = categories.find(c => c.id === selectedCategory);
+      folderName = folder?.name || 'Unknown';
+
+      if (categoryQuestions.length === 0) {
+        notification.showError(
+          'No questions in folder',
+          `The folder "${folderName}" is empty. Move questions to this folder first, or use "All Questions" to assign everything.`
+        );
+        return;
+      }
+
+      questionIds = categoryQuestions.map(q => parseInt(q.id));
+    } else {
+      // Assign all questions (when "All Questions" is selected)
+      if (questions.length === 0) {
+        notification.showError('No questions available', 'Create questions in Q-Bank first.');
+        return;
+      }
+      questionIds = questions.map(q => parseInt(q.id));
+      folderName = 'All Questions';
+    }
+
+    console.log(`📦 Assigning ${questionIds.length} questions from "${folderName}" to course ${selectedCourseForAssign}`);
+    console.log('Question IDs:', questionIds);
+
+    try {
+      const response = await fetch(`/api/courses/${selectedCourseForAssign}/questions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ questionIds }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        notification.showSuccess(
+          'Questions Assigned!',
+          `${questionIds.length} questions from "${folderName}" added to course.`
+        );
+        setShowCourseAssignModal(false);
+        setSelectedCourseForAssign(null);
+      } else {
+        const error = await response.json().catch(() => ({ message: 'Unknown error' }));
+        console.error('❌ Assignment failed:', error);
+        notification.showError(error.message || 'Failed to assign questions');
       }
     } catch (error) {
-      console.error('Error fetching questions:', error);
-    } finally {
-      setIsLoading(false);
+      console.error('Error assigning to course:', error);
+      notification.showError('Failed to assign questions to course');
     }
   };
 
+  // ✅ CLONE - Drag & drop creates a copy in target folder
+  const cloneQuestionToCategory = async (questionId: number, targetCategoryId: number | null) => {
+    try {
+      if (!targetCategoryId) {
+        notification.showWarning('Select a folder', 'Please select a specific folder to clone the question to.');
+        return;
+      }
+
+      const response = await fetch('/api/qbank/clone', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ questionId, targetCategoryId }),
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        notification.showSuccess('Question cloned!', 'A copy has been added to the folder.');
+        // ⚡ PERFORMANCE: Invalidate cache after mutation
+        queryClient.invalidateQueries({ queryKey: ['qbank-questions'] });
+        queryClient.invalidateQueries({ queryKey: ['qbank-categories'] });
+      } else {
+        const error = await response.json().catch(() => ({ message: 'Failed to clone' }));
+        notification.showError(error.message);
+      }
+    } catch (error) {
+      console.error('Error cloning question:', error);
+      notification.showError('Failed to clone question');
+    }
+  };
+
+  // ✅ MOVE - Dropdown changes which folder the question belongs to
+  const moveQuestionToCategory = async (questionId: number, categoryId: number | null) => {
+    try {
+      const response = await fetch('/api/qbank', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ questionId, categoryId }),
+      });
+      if (response.ok) {
+        notification.showSuccess('Question moved!', categoryId ? 'Question moved to folder.' : 'Question removed from folder.');
+        // ⚡ PERFORMANCE: Invalidate cache after mutation
+        queryClient.invalidateQueries({ queryKey: ['qbank-questions'] });
+        queryClient.invalidateQueries({ queryKey: ['qbank-categories'] });
+      } else {
+        const error = await response.json().catch(() => ({ message: 'Failed to move' }));
+        notification.showError(error.message);
+      }
+    } catch (error) {
+      console.error('Error moving question:', error);
+      notification.showError('Failed to move question');
+    }
+  };
+
+  const bulkMoveQuestions = async (categoryId: number | null) => {
+    try {
+      const promises = Array.from(selectedQuestions).map(qId =>
+        fetch('/api/qbank', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ questionId: qId, categoryId }),
+        })
+      );
+      await Promise.all(promises);
+      setSelectedQuestions(new Set());
+      setShowBulkMoveModal(false);
+      // ⚡ PERFORMANCE: Invalidate cache after bulk mutation
+      queryClient.invalidateQueries({ queryKey: ['qbank-questions'] });
+      queryClient.invalidateQueries({ queryKey: ['qbank-categories'] });
+    } catch (error) {
+      console.error('Error bulk moving questions:', error);
+    }
+  };
+
+  const toggleQuestionSelection = (questionId: number) => {
+    const newSet = new Set(selectedQuestions);
+    if (newSet.has(questionId)) {
+      newSet.delete(questionId);
+    } else {
+      newSet.add(questionId);
+    }
+    setSelectedQuestions(newSet);
+  };
+
+  const selectAll = () => {
+    setSelectedQuestions(new Set(getFilteredQuestions.map((q: any) => parseInt(q.id))));
+  };
+
+  const deselectAll = () => {
+    setSelectedQuestions(new Set());
+  };
+
+  const handleDragStart = (e: any, question: any) => {
+    setDraggedQuestion(question);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragOver = (e: any, folderId: number | null = null) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy'; // ✅ Show copy cursor
+    setDragOverFolder(folderId);
+  };
+
+  const handleDrop = async (e: any, categoryId: number | null) => {
+    e.preventDefault();
+    setDragOverFolder(null); // Clear drag-over state
+    if (draggedQuestion && categoryId) {
+      // ✅ CLONE question to target folder instead of moving
+      await cloneQuestionToCategory(parseInt(draggedQuestion.id), categoryId);
+      setDraggedQuestion(null);
+    }
+  };
+
+  // ⚡ PERFORMANCE: Memoize filtered questions to prevent unnecessary recalculations
+  const getFilteredQuestions = React.useMemo(() => {
+    let filtered = questions;
+    if (searchTerm) {
+      filtered = filtered.filter((q: any) => 
+        q.stem?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        q.id?.toString().includes(searchTerm)
+      );
+    }
+    return filtered;
+  }, [questions, searchTerm]);
+
+  const editFolder = (folder: any) => {
+    setEditingFolder(folder);
+    setShowEditFolderModal(true);
+  };
+
+  const updateFolder = async () => {
+    if (!editingFolder) return;
+
+    const name = (document.getElementById('editFolderName') as HTMLInputElement)?.value;
+    const icon = (document.getElementById('editFolderIcon') as HTMLInputElement)?.value;
+    const color = (document.getElementById('editFolderColor') as HTMLInputElement)?.value;
+
+    if (!name) {
+      notification.showError('Folder name is required');
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/qbank/categories/${editingFolder.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ name, icon, color }),
+      });
+
+      if (response.ok) {
+        notification.showSuccess('Folder updated successfully');
+        setShowEditFolderModal(false);
+        setEditingFolder(null);
+        // ⚡ PERFORMANCE: Invalidate cache after update
+        queryClient.invalidateQueries({ queryKey: ['qbank-categories'] });
+      } else {
+        notification.showError('Failed to update folder');
+      }
+    } catch (error) {
+      console.error('Error updating folder:', error);
+      notification.showError('Failed to update folder');
+    }
+  };
+
+  const deleteFolder = async (folderId: number) => {
+    const folder = categories.find(c => c.id === folderId);
+    
+    if (folder && folder.questionCount > 0) {
+      notification.showError(`Cannot delete folder with ${folder.questionCount} questions`, 'Move or delete questions first');
+      return;
+    }
+
+    notification.showConfirm(
+      'Delete Folder',
+      `Are you sure you want to delete "${folder?.name}"?`,
+      async () => {
+        try {
+          const response = await fetch(`/api/qbank/categories/${folderId}`, {
+            method: 'DELETE',
+            credentials: 'include',
+          });
+
+          if (response.ok) {
+            notification.showSuccess('Folder deleted successfully');
+            if (selectedCategory === folderId) {
+              setSelectedCategory(null);
+            }
+            // ⚡ PERFORMANCE: Invalidate cache after delete
+            queryClient.invalidateQueries({ queryKey: ['qbank-categories'] });
+          } else {
+            const error = await response.json();
+            notification.showError(error.message || 'Failed to delete folder');
+          }
+        } catch (error) {
+          console.error('Error deleting folder:', error);
+          notification.showError('Failed to delete folder');
+        }
+      }
+    );
+  };
+
   return (
-    <div className="p-8 h-full flex flex-col">
-      <div className="flex justify-between items-center mb-8">
-        <div>
-          <h2 className="text-3xl font-bold text-white">Question Bank</h2>
-          <p className="text-slate-400 mt-1 text-sm">Manage Classic and Next Gen (NGN) Items.</p>
-        </div>
-        <div className="flex gap-3">
-          <input className="bg-[#161922] border border-slate-800 text-slate-300 px-4 py-2.5 rounded-lg text-sm focus:border-purple-500 outline-none w-64" placeholder="Search ID or Content..." />
-          <button onClick={() => { setActive({ id: null, category: 'classic', type: 'standard' }); nav('qbank_editor'); }} className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-6 py-2.5 rounded-lg font-bold text-sm flex items-center gap-2 hover:shadow-lg hover:shadow-purple-500/20 transition-all">
-            <Plus size={18} /> Add Item
-          </button>
+    <div className="p-8 h-full flex gap-6">
+      {/* Folder Sidebar */}
+      <div className="w-72 flex-shrink-0">
+        <div className="bg-[#161922] border border-slate-800/60 rounded-2xl p-4 h-full flex flex-col">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-bold text-white uppercase tracking-wide">Folders</h3>
+            <button 
+              onClick={() => setShowCategoryModal(true)}
+              className="text-purple-400 hover:text-purple-300 transition"
+              title="Add Folder"
+            >
+              <Plus size={16} />
+            </button>
+          </div>
+          <div className="space-y-1 flex-1 overflow-y-auto custom-scrollbar">
+            <div
+              onDragOver={(e) => handleDragOver(e, null)}
+              onDragLeave={() => setDragOverFolder(null)}
+              onDrop={(e) => handleDrop(e, null)}
+              className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-all cursor-pointer ${
+                selectedCategory === null
+                  ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold'
+                  : 'text-slate-300 hover:bg-[#1a1d26] border-2 border-dashed border-transparent hover:border-purple-500/30'
+              }`}
+              onClick={() => setSelectedCategory(null)}
+            >
+              <div className="flex items-center justify-between">
+                <span>📋 All Questions</span>
+                <span className="text-xs opacity-70">({questions.length})</span>
+              </div>
+            </div>
+            {categories.map((cat: any) => (
+              <div
+                key={cat.id}
+                onDragOver={(e) => handleDragOver(e, cat.id)}
+                onDragLeave={() => setDragOverFolder(null)}
+                onDrop={(e) => handleDrop(e, cat.id)}
+                className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-all cursor-pointer group ${
+                  selectedCategory === cat.id
+                    ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold'
+                    : dragOverFolder === cat.id
+                    ? 'bg-green-600/30 border-2 border-dashed border-green-400 scale-105'
+                    : 'text-slate-300 hover:bg-[#1a1d26] border-2 border-dashed border-transparent hover:border-purple-500/30'
+                }`}
+                style={{
+                  borderLeft: selectedCategory === cat.id ? `3px solid ${cat.color}` : 'none',
+                }}
+              >
+                <div className="flex items-center justify-between" onClick={() => setSelectedCategory(cat.id)}>
+                  <span className="flex items-center gap-2 truncate">
+                    <span>{cat.icon}</span>
+                    <span className="truncate">{cat.name}</span>
+                  </span>
+                  <div className="flex items-center gap-1">
+                    <span className="text-xs opacity-70">({cat.questionCount || 0})</span>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); editFolder(cat); }}
+                      className="opacity-0 group-hover:opacity-100 p-1 hover:bg-white/10 rounded transition"
+                      title="Edit Folder"
+                    >
+                      <Edit3 size={12} />
+                    </button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); deleteFolder(cat.id); }}
+                      className="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-500/20 rounded transition"
+                      title="Delete Folder"
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  </div>
+                </div>
+                {selectedCategory === cat.id && cat.questionCount > 0 && (
+                  <div className="mt-2 pt-2 border-t border-white/20">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowCourseAssignModal(true);
+                      }}
+                      className="w-full text-xs px-2 py-1 bg-white/10 hover:bg-white/20 rounded transition"
+                    >
+                      + Add to Course
+                    </button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
-      <div className="bg-[#161922] border border-slate-800/60 rounded-2xl overflow-hidden flex-1 flex flex-col">
-        <div className="grid grid-cols-12 bg-[#1a1d26] p-4 text-xs font-bold text-slate-500 uppercase border-b border-slate-800/60">
-          <div className="col-span-1">ID</div>
-          <div className="col-span-5">Stem Preview</div>
-          <div className="col-span-2">Category</div>
-          <div className="col-span-2">Type</div>
-          <div className="col-span-2 text-right">Actions</div>
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col">
+        <div className="flex justify-between items-center mb-6">
+          <div>
+            <h2 className="text-3xl font-bold text-white">
+              {selectedCategory 
+                ? categories.find(c => c.id === selectedCategory)?.name || 'Question Bank'
+                : 'Question Bank'}
+            </h2>
+            <p className="text-slate-400 mt-1 text-sm">
+              {selectedCategory
+                ? `${categories.find(c => c.id === selectedCategory)?.description || 'Category questions'}`
+                : 'Manage Classic and Next Gen (NGN) Items'}
+            </p>
+          </div>
+          <div className="flex gap-3">
+            <input 
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="bg-[#161922] border border-slate-800 text-slate-300 px-4 py-2.5 rounded-lg text-sm focus:border-purple-500 outline-none w-64" 
+              placeholder="Search ID or Content..." 
+            />
+            <button onClick={() => { setActive({ id: null, category: 'classic', type: 'standard', categoryId: selectedCategory }); nav('qbank_editor'); }} className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-6 py-2.5 rounded-lg font-bold text-sm flex items-center gap-2 hover:shadow-lg hover:shadow-purple-500/20 transition-all">
+              <Plus size={18} /> Add Item
+            </button>
+          </div>
         </div>
-        <div className="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-1">
-          {isLoading ? (
-            <div className="flex items-center justify-center py-20">
-              <div className="animate-spin rounded-full h-12 w-12 border-4 border-purple-600 border-t-transparent"></div>
+
+        {/* ✅ Instructions for Clone vs Move */}
+        {!selectedCategory && !draggedQuestion && questions.length > 0 && (
+          <div className="bg-blue-900/20 border border-blue-500/30 rounded-xl p-3 mb-4">
+            <p className="text-blue-300 text-sm">
+              💡 <strong>Tip:</strong> Drag & drop questions to <strong>clone</strong> them to folders. Use the dropdown to <strong>move</strong> between folders.
+            </p>
+          </div>
+        )}
+        {draggedQuestion && (
+          <div className="bg-green-900/20 border border-green-500/30 rounded-xl p-3 mb-4 animate-pulse">
+            <p className="text-green-300 text-sm font-bold">
+              📋 Drop on a folder to <strong>clone</strong> this question there (original stays in place)
+            </p>
+          </div>
+        )}
+
+        {/* Bulk Operations Toolbar */}
+        {selectedQuestions.size > 0 && (
+          <div className="bg-purple-600/20 border border-purple-500/30 rounded-xl p-3 mb-4 flex items-center justify-between">
+            <span className="text-purple-300 text-sm font-bold">
+              {selectedQuestions.size} question{selectedQuestions.size > 1 ? 's' : ''} selected
+            </span>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowBulkMoveModal(true)}
+                className="text-xs px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded font-bold transition"
+              >
+                Move to Folder
+              </button>
+              <button
+                onClick={deselectAll}
+                className="text-xs px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-white rounded font-bold transition"
+              >
+                Deselect All
+              </button>
             </div>
-          ) : questions.length === 0 ? (
-            <div className="text-center py-20 text-slate-400">
-              <p>No questions found. Click "Add Item" to create your first question.</p>
+          </div>
+        )}
+
+        <div className="bg-[#161922] border border-slate-800/60 rounded-2xl overflow-hidden flex-1 flex flex-col">
+          <div className="grid grid-cols-12 bg-[#1a1d26] p-4 text-xs font-bold text-slate-500 uppercase border-b border-slate-800/60 items-center">
+            <div className="col-span-1 flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={selectedQuestions.size > 0 && selectedQuestions.size === getFilteredQuestions.length}
+                onChange={(e) => e.target.checked ? selectAll() : deselectAll()}
+                className="w-4 h-4 rounded border-slate-600"
+              />
+              ID
             </div>
-          ) : (
-            questions.map((q, i) => (
-              <div key={i} className="grid grid-cols-12 p-3 hover:bg-[#1f222e] rounded-lg items-center transition-colors group cursor-pointer border border-transparent hover:border-slate-800" onClick={() => { setActive(q); nav('qbank_editor'); }}>
-                <div className="col-span-1 text-slate-500 font-mono text-xs">{q.id}</div>
-                <div className="col-span-5 text-slate-300 font-medium truncate pr-4">{q.stem}</div>
-                <div className="col-span-2">
-                  <span className={`text-[10px] font-bold px-2 py-1 rounded uppercase ${q.category === 'ngn' ? 'bg-purple-500/10 text-purple-400' : 'bg-blue-500/10 text-blue-400'}`}>
-                    {q.category === 'ngn' ? 'NGN' : 'Classic'}
-                  </span>
+            <div className="col-span-4">Stem Preview</div>
+            <div className="col-span-2">Folder</div>
+            <div className="col-span-2">Type</div>
+            <div className="col-span-1">Test</div>
+            <div className="col-span-2 text-right">Actions</div>
+          </div>
+          <div className="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-1">
+            {isLoading ? (
+              <div className="space-y-1 p-2">
+                {[1, 2, 3, 4, 5].map(i => <QuestionRowSkeleton key={i} />)}
+              </div>
+            ) : getFilteredQuestions.length === 0 ? (
+              <div className="text-center py-20 text-slate-400">
+                <p>{searchTerm ? 'No questions match your search.' : 'No questions found. Click "Add Item" to create your first question.'}</p>
+              </div>
+            ) : (
+              getFilteredQuestions.map((q: any, i: number) => {
+                const isSelected = selectedQuestions.has(parseInt(q.id));
+                return (
+                  <div 
+                    key={i} 
+                    draggable
+                    onDragStart={(e) => handleDragStart(e, q)}
+                    className={`grid grid-cols-12 p-3 rounded-lg items-center transition-all group cursor-move border ${
+                      isSelected 
+                        ? 'bg-purple-600/20 border-purple-500/50' 
+                        : 'border-transparent hover:bg-[#1f222e] hover:border-slate-800'
+                    }`}
+                  >
+                    <div className="col-span-1 flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => toggleQuestionSelection(parseInt(q.id))}
+                        onClick={(e) => e.stopPropagation()}
+                        className="w-4 h-4 rounded border-slate-600"
+                      />
+                      <span className="text-slate-500 font-mono text-xs">{q.id}</span>
+                    </div>
+                    <div className="col-span-4 text-slate-300 font-medium truncate pr-4 cursor-pointer" onClick={() => { setActive(q); nav('qbank_editor'); }}>{q.stem}</div>
+                    <div className="col-span-2">
+                      <select
+                        value={q.categoryId || ''}
+                        onChange={(e) => {
+                          const newCategoryId = e.target.value ? parseInt(e.target.value) : null;
+                          moveQuestionToCategory(parseInt(q.id), newCategoryId);
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                        className="text-xs bg-[#1a1d26] border border-slate-700 text-slate-300 px-2 py-1 rounded focus:border-purple-500 outline-none w-full"
+                        title="Move question to folder (changes primary folder)"
+                      >
+                        <option value="">None</option>
+                        {categories.map((cat: any) => (
+                          <option key={cat.id} value={cat.id}>{cat.icon} {cat.name}</option>
+                        ))}
+                      </select>
+                      <div className="text-[9px] text-slate-500 mt-0.5">💡 Drag to clone</div>
+                    </div>
+                    <div className="col-span-2 text-xs text-slate-400">{q.label}</div>
+                    <div className="col-span-1">
+                      <span className={`text-[10px] font-bold px-2 py-1 rounded uppercase ${q.category === 'ngn' ? 'bg-purple-500/10 text-purple-400' : 'bg-blue-500/10 text-blue-400'}`}>
+                        {q.category === 'ngn' ? 'NGN' : 'Classic'}
+                      </span>
+                    </div>
+                    <div className="col-span-2 text-right">
+                      <button 
+                        onClick={() => { setActive(q); nav('qbank_editor'); }}
+                        className="text-xs font-bold text-white bg-slate-700 px-3 py-1 rounded hover:bg-purple-600 transition"
+                      >
+                        Edit
+                      </button>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+
+        {/* Bulk Move Modal */}
+        {showBulkMoveModal && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowBulkMoveModal(false)}>
+            <div className="bg-[#161922] border border-slate-800 rounded-2xl p-6 w-96" onClick={(e) => e.stopPropagation()}>
+              <h3 className="text-xl font-bold text-white mb-4">Move {selectedQuestions.size} Questions</h3>
+              <p className="text-slate-400 text-sm mb-4">Select a folder to move the selected questions:</p>
+              <div className="space-y-2 max-h-64 overflow-y-auto custom-scrollbar mb-6">
+                {categories.map(cat => (
+                  <button
+                    key={cat.id}
+                    onClick={() => bulkMoveQuestions(cat.id)}
+                    className="w-full text-left px-4 py-3 rounded-lg bg-[#1a1d26] hover:bg-purple-600/20 hover:border-purple-500/50 border border-transparent transition-all text-slate-300"
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="text-2xl">{cat.icon}</span>
+                      <div className="flex-1">
+                        <div className="font-bold">{cat.name}</div>
+                        <div className="text-xs text-slate-500">{cat.description || 'No description'}</div>
+                      </div>
+                      <span className="text-xs text-slate-500">({cat.questionCount})</span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+              <button
+                onClick={() => setShowBulkMoveModal(false)}
+                className="w-full px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg font-bold transition"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Course Assignment Modal */}
+        {showCourseAssignModal && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowCourseAssignModal(false)}>
+            <div className="bg-[#161922] border border-slate-800 rounded-2xl p-6 w-[500px]" onClick={(e) => e.stopPropagation()}>
+              <h3 className="text-xl font-bold text-white mb-2">Assign Questions to Course</h3>
+              {(() => {
+                const folder = categories.find(c => c.id === selectedCategory);
+                const categoryQuestions = selectedCategory 
+                  ? questions.filter(q => q.categoryId === selectedCategory)
+                  : questions;
+                const questionCount = categoryQuestions.length;
+                const folderName = selectedCategory ? folder?.name : 'All Questions';
+
+                return (
+                  <>
+                    <div className={`text-sm mb-4 p-3 rounded-lg ${
+                      questionCount === 0 
+                        ? 'bg-red-900/20 border border-red-500/30 text-red-300'
+                        : 'bg-purple-900/20 border border-purple-500/30 text-purple-300'
+                    }`}>
+                      {questionCount === 0 ? (
+                        <>
+                          ⚠️ No questions in "{folderName}"
+                          <br />
+                          <span className="text-xs">Move questions to this folder first, or select "All Questions"</span>
+                        </>
+                      ) : (
+                        <>
+                          📦 Ready to assign: <strong>{questionCount} questions</strong> from "{folderName}"
+                        </>
+                      )}
+                    </div>
+                  </>
+                );
+              })()}
+              <div className="space-y-3 max-h-96 overflow-y-auto custom-scrollbar mb-6">
+                {courses.map(course => (
+                  <button
+                    key={course.id}
+                    onClick={() => setSelectedCourseForAssign(course.id)}
+                    className={`w-full text-left p-4 rounded-lg transition border ${
+                      selectedCourseForAssign === course.id
+                        ? 'bg-purple-600/20 border-purple-500'
+                        : 'bg-[#1a1d26] border-slate-800 hover:border-purple-500/50'
+                    }`}
+                  >
+                    <div className="font-bold text-white">{course.title}</div>
+                    <div className="text-xs text-slate-400 mt-1">{course.instructor}</div>
+                  </button>
+                ))}
+              </div>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => { setShowCourseAssignModal(false); setSelectedCourseForAssign(null); }}
+                  className="flex-1 px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg font-bold transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={assignCategoryToCourse}
+                  disabled={
+                    !selectedCourseForAssign || 
+                    (selectedCategory 
+                      ? questions.filter(q => q.categoryId === selectedCategory).length === 0
+                      : questions.length === 0
+                    )
+                  }
+                  className="flex-1 px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white rounded-lg font-bold transition disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Assign Questions
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Edit Folder Modal */}
+        {showEditFolderModal && editingFolder && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => { setShowEditFolderModal(false); setEditingFolder(null); }}>
+            <div className="bg-[#161922] border border-slate-800 rounded-2xl p-6 w-96" onClick={(e) => e.stopPropagation()}>
+              <h3 className="text-xl font-bold text-white mb-4">Edit Folder</h3>
+              <div className="space-y-4">
+                <div>
+                  <label className="text-sm text-slate-400 mb-1 block">Folder Name</label>
+                  <input
+                    id="editFolderName"
+                    type="text"
+                    defaultValue={editingFolder.name}
+                    className="w-full bg-[#1a1d26] border border-slate-700 text-white px-4 py-2 rounded-lg focus:border-purple-500 outline-none"
+                  />
                 </div>
-                <div className="col-span-2 text-xs text-slate-400">{q.label}</div>
-                <div className="col-span-2 text-right opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button className="text-xs font-bold text-white bg-slate-700 px-3 py-1 rounded hover:bg-purple-600">Edit</button>
+                <div>
+                  <label className="text-sm text-slate-400 mb-1 block">Icon (Emoji)</label>
+                  <input
+                    id="editFolderIcon"
+                    type="text"
+                    defaultValue={editingFolder.icon}
+                    className="w-full bg-[#1a1d26] border border-slate-700 text-white px-4 py-2 rounded-lg focus:border-purple-500 outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm text-slate-400 mb-1 block">Color</label>
+                  <input
+                    id="editFolderColor"
+                    type="color"
+                    defaultValue={editingFolder.color}
+                    className="w-full h-10 bg-[#1a1d26] border border-slate-700 rounded-lg"
+                  />
+                </div>
+                <div className="flex gap-3 pt-4">
+                  <button
+                    onClick={() => { setShowEditFolderModal(false); setEditingFolder(null); }}
+                    className="flex-1 px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg font-bold transition"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={updateFolder}
+                    className="flex-1 px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white rounded-lg font-bold transition"
+                  >
+                    Update Folder
+                  </button>
                 </div>
               </div>
-            ))
-          )}
-        </div>
+            </div>
+          </div>
+        )}
+
+        {/* Add Category Modal */}
+        {showCategoryModal && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowCategoryModal(false)}>
+            <div className="bg-[#161922] border border-slate-800 rounded-2xl p-6 w-96" onClick={(e) => e.stopPropagation()}>
+              <h3 className="text-xl font-bold text-white mb-4">Create New Folder</h3>
+              <div className="space-y-4">
+                <div>
+                  <label className="text-sm text-slate-400 mb-1 block">Folder Name</label>
+                  <input
+                    id="newCategoryName"
+                    type="text"
+                    placeholder="e.g., Cardiovascular"
+                    className="w-full bg-[#1a1d26] border border-slate-700 text-white px-4 py-2 rounded-lg focus:border-purple-500 outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm text-slate-400 mb-1 block">Icon (Emoji)</label>
+                  <input
+                    id="newCategoryIcon"
+                    type="text"
+                    placeholder="❤️"
+                    defaultValue="📁"
+                    className="w-full bg-[#1a1d26] border border-slate-700 text-white px-4 py-2 rounded-lg focus:border-purple-500 outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm text-slate-400 mb-1 block">Color</label>
+                  <input
+                    id="newCategoryColor"
+                    type="color"
+                    defaultValue="#8B5CF6"
+                    className="w-full h-10 bg-[#1a1d26] border border-slate-700 rounded-lg"
+                  />
+                </div>
+                <div className="flex gap-3 pt-4">
+                  <button
+                    onClick={() => setShowCategoryModal(false)}
+                    className="flex-1 px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg font-bold transition"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={async () => {
+                      const name = (document.getElementById('newCategoryName') as HTMLInputElement)?.value;
+                      const icon = (document.getElementById('newCategoryIcon') as HTMLInputElement)?.value || '📁';
+                      const color = (document.getElementById('newCategoryColor') as HTMLInputElement)?.value || '#8B5CF6';
+                      if (!name) return;
+                      
+                      try {
+                        const response = await fetch('/api/qbank/categories', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          credentials: 'include',
+                          body: JSON.stringify({ name, icon, color }),
+                        });
+                        if (response.ok) {
+                          setShowCategoryModal(false);
+                          // ⚡ PERFORMANCE: Invalidate cache after create
+                          queryClient.invalidateQueries({ queryKey: ['qbank-categories'] });
+                        }
+                      } catch (error) {
+                        console.error('Error creating category:', error);
+                      }
+                    }}
+                    className="flex-1 px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white rounded-lg font-bold transition"
+                  >
+                    Create Folder
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

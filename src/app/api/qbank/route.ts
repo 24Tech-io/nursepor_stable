@@ -6,6 +6,19 @@ import { desc, eq } from 'drizzle-orm';
 // Force dynamic rendering - this route uses request.url
 export const dynamic = 'force-dynamic';
 
+// Safe JSON parser that handles both JSON strings and plain values
+function safeJsonParse(value: any, fallback: any = null) {
+  if (!value) return fallback;
+  if (typeof value !== 'string') return value;
+  
+  try {
+    return JSON.parse(value);
+  } catch {
+    // If it's not valid JSON, return as-is (e.g., single letter answers like 'b')
+    return value;
+  }
+}
+
 export async function GET(request: Request) {
     try {
         // Parse query parameters for pagination
@@ -42,8 +55,8 @@ export async function GET(request: Request) {
             type: q.questionType,
             label: getQuestionTypeLabel(q.questionType),
             fullQuestion: q.question,
-            options: q.options,
-            correctAnswer: q.correctAnswer,
+            options: safeJsonParse(q.options, []),
+            correctAnswer: safeJsonParse(q.correctAnswer, null),
             explanation: q.explanation,
             subject: q.subject,
             difficulty: q.difficulty,

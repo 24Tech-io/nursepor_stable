@@ -7,6 +7,9 @@ import { eq, sql, and, or } from 'drizzle-orm';
 // GET - Fetch all students with their stats
 export async function GET(request: NextRequest) {
   try {
+    const { searchParams } = new URL(request.url);
+    const countOnly = searchParams.get('countOnly') === 'true';
+
     const token = request.cookies.get('adminToken')?.value;
 
     if (!token) {
@@ -28,10 +31,22 @@ export async function GET(request: NextRequest) {
           message: 'Database connection failed',
           error: dbError.message || 'Database is not available',
           hint: 'Please check your DATABASE_URL in .env.local',
-          students: []
+          students: [],
+          count: 0
         },
         { status: 500 }
       );
+    }
+
+    // ⚡ PERFORMANCE: If only count is needed, use efficient COUNT query
+    if (countOnly) {
+      const [result] = await db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(users)
+        .where(eq(users.role, 'student'));
+      
+      console.log(`⚡ [Admin API] Fast count: ${result.count} students`);
+      return NextResponse.json({ count: result.count });
     }
 
     // Fetch all students first
