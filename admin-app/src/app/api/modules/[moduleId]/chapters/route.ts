@@ -3,6 +3,7 @@ import { verifyToken } from '@/lib/auth';
 import { getDatabase } from '@/lib/db';
 import { chapters } from '@/lib/db/schema';
 import { eq, desc } from 'drizzle-orm';
+import { parseVideoUrl } from '@/lib/video-utils';
 
 // GET - Fetch all chapters for a module
 export async function GET(
@@ -98,6 +99,16 @@ export async function POST(
       chapterOrder = existingChapters.length > 0 ? existingChapters[0].order + 1 : 0;
     }
 
+    // Convert video URL to embed format if provided (hides branding)
+    let finalVideoUrl = videoUrl || null;
+    let finalVideoProvider = videoProvider || null;
+    
+    if (finalVideoUrl && type === 'video') {
+      const parsed = parseVideoUrl(finalVideoUrl);
+      finalVideoUrl = parsed.embedUrl; // Use embed URL with privacy settings
+      finalVideoProvider = parsed.provider; // Auto-detect provider
+    }
+
     // Prepare chapter data
     const chapterData: any = {
       moduleId,
@@ -107,8 +118,8 @@ export async function POST(
       order: chapterOrder,
       isPublished: isPublished !== false,
       prerequisiteChapterId: prerequisiteChapterId || null,
-      videoUrl: videoUrl || null,
-      videoProvider: videoProvider || null,
+      videoUrl: finalVideoUrl,
+      videoProvider: finalVideoProvider,
       videoDuration: videoDuration || null,
       transcript: transcript || null,
       textbookContent: textbookContent || null,

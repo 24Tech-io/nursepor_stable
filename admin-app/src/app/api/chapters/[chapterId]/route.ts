@@ -3,6 +3,7 @@ import { verifyToken } from '@/lib/auth';
 import { getDatabase } from '@/lib/db';
 import { chapters } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
+import { parseVideoUrl } from '@/lib/video-utils';
 
 // PATCH - Update chapter
 export async function PATCH(
@@ -22,6 +23,15 @@ export async function PATCH(
 
     const chapterId = parseInt(params.chapterId);
     const updates = await request.json();
+
+    // Convert video URL to embed format if provided (hides branding)
+    if (updates.videoUrl && updates.type === 'video') {
+      const parsed = parseVideoUrl(updates.videoUrl);
+      updates.videoUrl = parsed.embedUrl; // Use embed URL with privacy settings
+      if (!updates.videoProvider) {
+        updates.videoProvider = parsed.provider; // Auto-detect provider
+      }
+    }
 
     const db = getDatabase();
 

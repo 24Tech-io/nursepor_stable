@@ -19,11 +19,11 @@ export async function POST(
 
         const decoded = verifyToken(token);
         if (!decoded || decoded.role !== 'admin') {
-            securityLogger.logUnauthorizedAccess(
-                request.headers.get('x-forwarded-for') || 'unknown',
-                `/api/students/${params.id}/courses`,
-                decoded?.id?.toString()
-            );
+            securityLogger.warn('Unauthorized access attempt', {
+                ip: request.headers.get('x-forwarded-for') || 'unknown',
+                path: `/api/students/${params.id}/courses`,
+                userId: decoded?.id?.toString()
+            });
             return NextResponse.json({ message: 'Admin access required' }, { status: 403 });
         }
 
@@ -81,7 +81,7 @@ export async function POST(
             quizAttempts: '[]'
         });
 
-        securityLogger.logSecurityEvent('Course manually assigned', {
+        securityLogger.info('Course manually assigned', {
             adminId: decoded.id,
             studentId,
             studentName: student[0].name,
@@ -98,7 +98,7 @@ export async function POST(
         });
     } catch (error) {
         console.error('Assign course error:', error);
-        securityLogger.logSecurityEvent('Course assignment failed', { error: String(error) });
+        securityLogger.info('Course assignment failed', { error: String(error) });
         return NextResponse.json({
             message: 'Internal server error',
             error: process.env.NODE_ENV === 'development' ? String(error) : undefined
@@ -120,11 +120,11 @@ export async function DELETE(
 
         const decoded = verifyToken(token);
         if (!decoded || decoded.role !== 'admin') {
-            securityLogger.logUnauthorizedAccess(
-                request.headers.get('x-forwarded-for') || 'unknown',
-                `/api/students/${params.id}/courses`,
-                decoded?.id?.toString()
-            );
+            securityLogger.warn('Unauthorized access attempt', {
+                ip: request.headers.get('x-forwarded-for') || 'unknown',
+                path: `/api/students/${params.id}/courses`,
+                userId: decoded?.id?.toString()
+            });
             return NextResponse.json({ message: 'Admin access required' }, { status: 403 });
         }
 
@@ -150,7 +150,7 @@ export async function DELETE(
             return NextResponse.json({ message: 'Enrollment not found' }, { status: 404 });
         }
 
-        securityLogger.logSecurityEvent('Course access revoked', {
+        securityLogger.info('Course access revoked', {
             adminId: decoded.id,
             studentId,
             courseId
@@ -161,7 +161,7 @@ export async function DELETE(
         });
     } catch (error) {
         console.error('Revoke course error:', error);
-        securityLogger.logSecurityEvent('Course revocation failed', { error: String(error) });
+        securityLogger.info('Course revocation failed', { error: String(error) });
         return NextResponse.json({
             message: 'Internal server error',
             error: process.env.NODE_ENV === 'development' ? String(error) : undefined

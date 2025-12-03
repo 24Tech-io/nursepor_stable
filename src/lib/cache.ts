@@ -434,6 +434,18 @@ export async function expire(key: string, seconds: number): Promise<boolean> {
 }
 
 /**
+ * Cache TTL constants (in seconds)
+ */
+export const CacheTTL = {
+  SHORT: 60,           // 1 minute
+  MEDIUM: 300,         // 5 minutes
+  LONG: 900,           // 15 minutes
+  HOUR: 3600,          // 1 hour
+  DAY: 86400,          // 24 hours
+  analytics: 300,      // 5 minutes for analytics
+};
+
+/**
  * Cache key namespaces for organization
  */
 export const CacheKeys = {
@@ -449,6 +461,7 @@ export const CacheKeys = {
   COURSE_WITH_MODULES: (id: number) => `cache:course:modules:${id}`,
   USER_ENROLLMENTS: (userId: number) => `cache:user:enrollments:${userId}`,
   USER_PROGRESS: (userId: number, courseId: number) => `cache:user:${userId}:progress:${courseId}`,
+  courseStats: () => `cache:course:stats`,
   
   // Rate limiting
   RATE_LIMIT: (ip: string, path: string) => `ratelimit:${ip}:${path}`,

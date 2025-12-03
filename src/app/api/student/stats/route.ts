@@ -2,26 +2,23 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/auth';
 import { getDatabase } from '@/lib/db';
 import { studentProgress, courses, users, accessRequests, enrollments } from '@/lib/db/schema';
-import { eq, and, or, sql } from 'drizzle-orm';
+import { eq, and, sql } from 'drizzle-orm';
+import { getPublishedCourseFilter } from '@/lib/enrollment-helpers';
+import { createErrorResponse, createAuthError } from '@/lib/error-handler';
+import { retryDatabase } from '@/lib/retry';
 
 export async function GET(request: NextRequest) {
   try {
     const token = request.cookies.get('token')?.value;
 
     if (!token) {
-      return NextResponse.json(
-        { message: 'Not authenticated' },
-        { status: 401 }
-      );
+      return createAuthError('Not authenticated');
     }
 
     const decoded = verifyToken(token);
 
     if (!decoded || !decoded.id) {
-      return NextResponse.json(
-        { message: 'Invalid token' },
-        { status: 401 }
-      );
+      return createAuthError('Invalid token');
     }
 
     // Get database instance
@@ -31,56 +28,46 @@ export async function GET(request: NextRequest) {
 
     // IMPORTANT: Get pending request course IDs to exclude from enrolled count
     const pendingRequests = await db
-      .select({
-        courseId: accessRequests.courseId,
-      })
-      .from(accessRequests)
-      .where(
-        and(
-          eq(accessRequests.studentId, userId),
-          eq(accessRequests.status, 'pending')
+        .select({
+          courseId: accessRequests.courseId,
+        })
+        .from(accessRequests)
+        .where(
+          and(
+            eq(accessRequests.studentId, userId),
+            eq(accessRequests.status, 'pending')
         )
-      );
+    );
 
     const pendingRequestCourseIds = pendingRequests.map((r: any) => r.courseId);
 
     // Get all enrolled courses from BOTH tables
     const [allEnrolledProgress, allEnrolledRecords] = await Promise.all([
-      db
-        .select({
-          courseId: studentProgress.courseId,
-        })
-        .from(studentProgress)
-        .innerJoin(courses, eq(studentProgress.courseId, courses.id))
-        .where(
-          and(
-            eq(studentProgress.studentId, userId),
-            or(
-              eq(courses.status, 'published'),
-              eq(courses.status, 'active'),
-              eq(courses.status, 'Published'),
-              eq(courses.status, 'Active')
-            )
+        db
+          .select({
+            courseId: studentProgress.courseId,
+          })
+          .from(studentProgress)
+          .innerJoin(courses, eq(studentProgress.courseId, courses.id))
+          .where(
+            and(
+              eq(studentProgress.studentId, userId),
+              getPublishedCourseFilter()
           )
-        ),
-      db
-        .select({
-          courseId: enrollments.courseId,
-        })
-        .from(enrollments)
-        .innerJoin(courses, eq(enrollments.courseId, courses.id))
-        .where(
-          and(
-            eq(enrollments.userId, userId),
-            eq(enrollments.status, 'active'),
-            or(
-              eq(courses.status, 'published'),
-              eq(courses.status, 'active'),
-              eq(courses.status, 'Published'),
-              eq(courses.status, 'Active')
-            )
+      ),
+        db
+          .select({
+            courseId: enrollments.courseId,
+          })
+          .from(enrollments)
+          .innerJoin(courses, eq(enrollments.courseId, courses.id))
+          .where(
+            and(
+              eq(enrollments.userId, userId),
+              eq(enrollments.status, 'active'),
+              getPublishedCourseFilter()
           )
-        ),
+      ),
     ]);
 
     // Merge course IDs from both tables
@@ -99,45 +86,35 @@ export async function GET(request: NextRequest) {
 
     // Get completed courses (progress >= 100) from BOTH tables - exclude courses with pending requests
     const [allCompletedProgress, allCompletedEnrollments] = await Promise.all([
-      db
-        .select({
-          courseId: studentProgress.courseId,
-          totalProgress: studentProgress.totalProgress,
-        })
-        .from(studentProgress)
-        .innerJoin(courses, eq(studentProgress.courseId, courses.id))
-        .where(
-          and(
-            eq(studentProgress.studentId, userId),
-            or(
-              eq(courses.status, 'published'),
-              eq(courses.status, 'active'),
-              eq(courses.status, 'Published'),
-              eq(courses.status, 'Active')
-            ),
-            sql`${studentProgress.totalProgress} >= 100`
+        db
+          .select({
+            courseId: studentProgress.courseId,
+            totalProgress: studentProgress.totalProgress,
+          })
+          .from(studentProgress)
+          .innerJoin(courses, eq(studentProgress.courseId, courses.id))
+          .where(
+            and(
+              eq(studentProgress.studentId, userId),
+              getPublishedCourseFilter(),
+              sql`${studentProgress.totalProgress} >= 100`
           )
-        ),
-      db
-        .select({
-          courseId: enrollments.courseId,
-          progress: enrollments.progress,
-        })
-        .from(enrollments)
-        .innerJoin(courses, eq(enrollments.courseId, courses.id))
-        .where(
-          and(
-            eq(enrollments.userId, userId),
-            eq(enrollments.status, 'active'),
-            or(
-              eq(courses.status, 'published'),
-              eq(courses.status, 'active'),
-              eq(courses.status, 'Published'),
-              eq(courses.status, 'Active')
-            ),
-            sql`${enrollments.progress} >= 100`
+      ),
+        db
+          .select({
+            courseId: enrollments.courseId,
+            progress: enrollments.progress,
+          })
+          .from(enrollments)
+          .innerJoin(courses, eq(enrollments.courseId, courses.id))
+          .where(
+            and(
+              eq(enrollments.userId, userId),
+              eq(enrollments.status, 'active'),
+              getPublishedCourseFilter(),
+              sql`${enrollments.progress} >= 100`
           )
-        ),
+      ),
     ]);
 
     // Merge completed course IDs from both tables
@@ -156,23 +133,23 @@ export async function GET(request: NextRequest) {
     // Calculate total hours learned (sum of progress from both tables)
     // Prefer enrollments.progress, fallback to studentProgress.totalProgress
     const [progressSum, enrollmentSum] = await Promise.all([
-      db
-        .select({
-          totalProgress: sql<number>`coalesce(sum(${studentProgress.totalProgress}), 0)`,
-        })
-        .from(studentProgress)
+        db
+          .select({
+            totalProgress: sql<number>`coalesce(sum(${studentProgress.totalProgress}), 0)`,
+          })
+          .from(studentProgress)
         .where(eq(studentProgress.studentId, userId)),
-      db
-        .select({
-          totalProgress: sql<number>`coalesce(sum(${enrollments.progress}), 0)`,
-        })
-        .from(enrollments)
-        .where(
-          and(
-            eq(enrollments.userId, userId),
-            eq(enrollments.status, 'active')
+        db
+          .select({
+            totalProgress: sql<number>`coalesce(sum(${enrollments.progress}), 0)`,
+          })
+          .from(enrollments)
+          .where(
+            and(
+              eq(enrollments.userId, userId),
+              eq(enrollments.status, 'active')
           )
-        ),
+      ),
     ]);
 
     // Use enrollments.progress as primary source, fallback to studentProgress
@@ -194,9 +171,9 @@ export async function GET(request: NextRequest) {
     // Calculate login streak
     // Get user's last login dates and calculate consecutive days
     const user = await db
-      .select({ lastLogin: users.lastLogin })
-      .from(users)
-      .where(eq(users.id, userId))
+        .select({ lastLogin: users.lastLogin })
+        .from(users)
+        .where(eq(users.id, userId))
       .limit(1);
 
     let currentStreak = 0;
@@ -233,13 +210,7 @@ export async function GET(request: NextRequest) {
     });
   } catch (error: any) {
     console.error('Get student stats error:', error);
-    return NextResponse.json(
-      { 
-        message: 'Failed to get student stats',
-        error: process.env.NODE_ENV === 'development' ? error.message : undefined
-      },
-      { status: 500 }
-    );
+    return createErrorResponse(error, 'Failed to get student stats');
   }
 }
 

@@ -19,7 +19,7 @@ export async function DELETE(
             return NextResponse.json({ message: 'Chapter not found' }, { status: 404 });
         }
 
-        securityLogger.logSecurityEvent('Chapter Deleted', { chapterId });
+        securityLogger.info('Chapter Deleted', { chapterId });
 
         return NextResponse.json({ message: 'Chapter deleted successfully' });
 

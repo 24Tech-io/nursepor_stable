@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
             thumbnail: body.thumbnail || null,
         }).returning();
 
-        securityLogger.logSecurityEvent('Course Created', { courseId: newCourse[0].id, title: body.title });
+        securityLogger.info('Course Created', { courseId: newCourse[0].id, title: body.title });
 
         return NextResponse.json({
             message: 'Course created successfully',

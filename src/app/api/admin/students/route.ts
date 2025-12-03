@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/auth';
 import { getDatabase } from '@/lib/db';
-import { users, studentProgress, courses } from '@/lib/db/schema';
-import { eq, sql, and } from 'drizzle-orm';
+import { users } from '@/lib/db/schema';
+import { eq } from 'drizzle-orm';
+import { getStudentEnrollmentCount } from '@/lib/enrollment-helpers';
 
 // GET - Fetch all students with their stats
 export async function GET(request: NextRequest) {
@@ -36,17 +37,14 @@ export async function GET(request: NextRequest) {
       .from(users)
       .where(eq(users.role, 'student'));
 
-    // For each student, get enrolled courses count
+    // For each student, get enrolled courses count using unified helper
     const studentsWithStats = await Promise.all(
-      students.map(async (student) => {
-        const enrolledCount = await db
-          .select({ count: sql<number>`count(*)` })
-          .from(studentProgress)
-          .where(eq(studentProgress.studentId, student.id));
+      students.map(async (student: any) => {
+        const enrolledCount = await getStudentEnrollmentCount(student.id);
 
         return {
           ...student,
-          enrolledCourses: Number(enrolledCount[0]?.count || 0),
+          enrolledCourses: enrolledCount,
         };
       })
     );

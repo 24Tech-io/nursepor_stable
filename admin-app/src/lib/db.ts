@@ -1,5 +1,5 @@
-import { drizzle } from 'drizzle-orm/neon-http';
-import { neon } from '@neondatabase/serverless';
+import { drizzle } from 'drizzle-orm/neon-serverless';
+import { Pool } from '@neondatabase/serverless';
 import * as schema from './db/schema';
 
 let db: any;
@@ -14,10 +14,10 @@ function initializeDatabase() {
   }
 
   try {
-    // Reuse the same neon instance for better performance (connection reuse)
-    const sql = neon(process.env.DATABASE_URL);
-    db = drizzle(sql, { schema });
-    console.log('✅ Admin Database connection initialized');
+    // Using Pool for transaction support
+    const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+    db = drizzle(pool, { schema });
+    console.log('✅ Admin Database connection initialized (with Transaction Support)');
     return db;
   } catch (error: any) {
     console.error('❌ Failed to initialize database:', error?.message || error);

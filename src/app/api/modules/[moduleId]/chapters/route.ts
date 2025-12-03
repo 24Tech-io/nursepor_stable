@@ -47,7 +47,7 @@ export async function POST(
             mcqData: body.mcqData,
         }).returning();
 
-        securityLogger.logSecurityEvent('Chapter Created', { chapterId: newChapter[0].id, moduleId });
+        securityLogger.info('Chapter Created', { chapterId: newChapter[0].id, moduleId });
 
         return NextResponse.json({
             message: 'Chapter created successfully',

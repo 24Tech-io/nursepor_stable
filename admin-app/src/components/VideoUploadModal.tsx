@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { X, Video, Upload, Link as LinkIcon } from 'lucide-react';
 import FileUpload from './FileUpload';
+import { parseVideoUrl } from '@/lib/video-utils';
 
 interface VideoUploadModalProps {
   onClose: () => void;
@@ -31,7 +32,14 @@ export default function VideoUploadModal({ onClose, onSave }: VideoUploadModalPr
       return;
     }
 
-    onSave(title, videoUrl, videoFile);
+    // Convert video URL to embed format if provided (hides branding)
+    let finalVideoUrl = videoUrl;
+    if (uploadMethod === 'url' && videoUrl) {
+      const parsed = parseVideoUrl(videoUrl);
+      finalVideoUrl = parsed.embedUrl; // Use embed URL with privacy settings
+    }
+
+    onSave(title, finalVideoUrl || videoUrl, videoFile);
   };
 
   return (
@@ -134,6 +142,7 @@ export default function VideoUploadModal({ onClose, onSave }: VideoUploadModalPr
     </div>
   );
 }
+
 
 
 

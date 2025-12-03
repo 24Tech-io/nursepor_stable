@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { modules } from '@/lib/db/schema';
 import { eq, inArray } from 'drizzle-orm';
@@ -7,13 +7,13 @@ import { securityLogger } from '@/lib/logger';
 import { getClientIP } from '@/lib/security-middleware';
 
 export async function PUT(
-    request: Request,
+    request: NextRequest,
     { params }: { params: { courseId: string } }
 ) {
     try {
         const { items } = await request.json(); // items: { id: number, order: number }[]
         const courseId = parseInt(params.courseId);
-        const ip = getClientIP(request);
+        const ip = getClientIP(request) || 'unknown';
 
         // Verify auth and ownership (admin or instructor)
         // For simplicity, we'll just check if user is admin or instructor of the course
@@ -33,7 +33,7 @@ export async function PUT(
             }
         });
 
-        securityLogger.logSecurityEvent('Modules Reordered', { courseId, count: items.length });
+        securityLogger.info('Modules Reordered', { courseId, count: items.length });
 
         return NextResponse.json({ message: 'Modules reordered successfully' });
     } catch (error) {

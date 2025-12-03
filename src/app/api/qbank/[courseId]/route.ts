@@ -28,7 +28,7 @@ export async function GET(
     }
 
     const db = getDatabase();
-    const courseIdNum = parseInt(courseId);
+    const courseIdNum = parseInt(params.courseId);
 
     // Check if user is enrolled in the course
     const enrollment = await db

@@ -130,18 +130,21 @@ export default function StudentLayout({
 
     if (user) {
       fetchNotifications();
-      // Poll for new notifications every 30 seconds
-      const interval = setInterval(fetchNotifications, 30000);
+      // Poll for new notifications every 120 seconds (2 minutes)
+      const interval = setInterval(fetchNotifications, 120000);
       return () => clearInterval(interval);
     }
   }, [user]);
 
   // Fetch user data for profile display
   useEffect(() => {
+    const abortController = new AbortController();
+    let isMounted = true;
+
     const fetchUser = async () => {
       // First, try to get user data from sessionStorage (set during login)
       const storedUserData = sessionStorage.getItem('userData');
-      if (storedUserData) {
+      if (storedUserData && isMounted) {
         try {
           const parsedUser = JSON.parse(storedUserData);
           console.log('📦 Layout: Using user data from sessionStorage:', parsedUser);
@@ -154,15 +157,20 @@ export default function StudentLayout({
       // Wait a bit for cookie to be available, then fetch from API
       await new Promise(resolve => setTimeout(resolve, 1000));
       
+      if (!isMounted) return;
+      
       try {
         console.log('🔍 Layout: Fetching user data from /api/auth/me...');
         const response = await fetch('/api/auth/me', { 
           credentials: 'include',
+          signal: abortController.signal,
           cache: 'no-store',
           headers: {
             'Content-Type': 'application/json',
           }
         });
+        
+        if (!isMounted) return;
         
         if (response.ok) {
           const data = await response.json();
@@ -176,32 +184,42 @@ export default function StudentLayout({
           }
         } else if (response.status === 401) {
           console.error('❌ Layout: Unauthorized (401) - cookie might not be set yet');
-          // If we have stored data, use it temporarily and retry
-          if (storedUserData) {
+          // If we have stored data, use it temporarily and retry ONCE
+          if (storedUserData && isMounted) {
             setTimeout(async () => {
+              if (!isMounted) return;
               try {
                 const retryResponse = await fetch('/api/auth/me', { 
                   credentials: 'include',
+                  signal: abortController.signal,
                   cache: 'no-store'
                 });
-                if (retryResponse.ok) {
+                if (retryResponse.ok && isMounted) {
                   const retryData = await retryResponse.json();
                   if (retryData.user) {
                     setUser(retryData.user);
                     sessionStorage.removeItem('userData');
                   }
                 }
-              } catch (e) {
+              } catch (e: any) {
+                if (e.name === 'AbortError') return;
                 console.error('Layout retry failed:', e);
               }
             }, 3000);
           }
         }
-      } catch (error) {
+      } catch (error: any) {
+        if (error.name === 'AbortError') return;
         console.error('❌ Layout: Exception fetching user:', error);
       }
     };
+    
     fetchUser();
+
+    return () => {
+      isMounted = false;
+      abortController.abort();
+    };
   }, []);
 
   // Close notifications when clicking outside

@@ -57,7 +57,7 @@ export async function GET(request: NextRequest) {
     const user = await db
       .select()
       .from(users)
-      .where(eq(users.id, decoded.id))
+      .where(eq(users.id, decoded?.id || 0))
       .limit(1);
 
     if (!user.length) {
@@ -71,7 +71,7 @@ export async function GET(request: NextRequest) {
     const phoneValue = user[0].phone;
     const phoneString = phoneValue && String(phoneValue).trim() ? String(phoneValue).trim() : null;
     
-    console.log('🔍 /api/auth/me - Token decoded ID:', decoded.id);
+    console.log('🔍 /api/auth/me - Token decoded ID:', decoded?.id);
     console.log('🔍 /api/auth/me - User found in database:', {
       id: user[0].id,
       name: user[0].name,

@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/auth';
-import { getDatabase } from '@/lib/db';
-import { accessRequests, studentProgress, courses, users } from '@/lib/db/schema';
-import { eq, and, or } from 'drizzle-orm';
+import { getStudentEnrollmentStatus } from '@/lib/enrollment-helpers';
+import { enrollStudent, unenrollStudent } from '@/lib/data-manager/helpers/enrollment-helper';
+import { withEnrollmentLock } from '@/lib/operation-lock';
+import { createErrorResponse, createAuthError, createAuthzError, createValidationError } from '@/lib/error-handler';
+import { retryDatabase } from '@/lib/retry';
 
 /**
  * Unified Enrollment Management API
@@ -15,108 +17,30 @@ export async function GET(request: NextRequest) {
     const token = request.cookies.get('token')?.value || request.cookies.get('adminToken')?.value;
 
     if (!token) {
-      return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });
+      return createAuthError('Not authenticated');
     }
 
     const decoded = verifyToken(token);
     if (!decoded || decoded.role !== 'admin') {
-      return NextResponse.json({ message: 'Admin access required' }, { status: 403 });
+      return createAuthzError('Admin access required');
     }
 
     const { searchParams } = new URL(request.url);
     const studentId = searchParams.get('studentId');
 
     if (!studentId) {
-      return NextResponse.json({ message: 'Student ID is required' }, { status: 400 });
+      return createValidationError('Student ID is required');
     }
 
-    const db = getDatabase();
     const studentIdNum = parseInt(studentId);
+    if (isNaN(studentIdNum)) {
+      return createValidationError('Invalid student ID');
+    }
 
-    // Get all courses
-    const allCourses = await db
-      .select({
-        id: courses.id,
-        title: courses.title,
-        description: courses.description,
-        status: courses.status,
-      })
-      .from(courses)
-      .where(or(eq(courses.status, 'published'), eq(courses.status, 'active')));
-
-    // Get enrolled courses (studentProgress entries)
-    const enrolledProgress = await db
-      .select({
-        courseId: studentProgress.courseId,
-        progress: studentProgress.totalProgress,
-        lastAccessed: studentProgress.lastAccessed,
-      })
-      .from(studentProgress)
-      .where(eq(studentProgress.studentId, studentIdNum));
-
-    const enrolledCourseIds = new Set(enrolledProgress.map((ep: any) => ep.courseId.toString()));
-
-    // Get pending requests
-    const pendingRequests = await db
-      .select({
-        courseId: accessRequests.courseId,
-        requestedAt: accessRequests.requestedAt,
-        reason: accessRequests.reason,
-      })
-      .from(accessRequests)
-      .where(
-        and(
-          eq(accessRequests.studentId, studentIdNum),
-          eq(accessRequests.status, 'pending')
-        )
-      );
-
-    const pendingRequestCourseIds = new Set(pendingRequests.map((pr: any) => pr.courseId.toString()));
-
-    // Get approved requests (for reference)
-    const approvedRequests = await db
-      .select({
-        courseId: accessRequests.courseId,
-        reviewedAt: accessRequests.reviewedAt,
-      })
-      .from(accessRequests)
-      .where(
-        and(
-          eq(accessRequests.studentId, studentIdNum),
-          eq(accessRequests.status, 'approved')
-        )
-      );
-
-    // Build enrollment status for each course
-    const enrollmentStatus = allCourses.map((course: any) => {
-      const courseIdStr = course.id.toString();
-      const isEnrolled = enrolledCourseIds.has(courseIdStr);
-      const hasPendingRequest = pendingRequestCourseIds.has(courseIdStr);
-      const progressData = enrolledProgress.find((ep: any) => ep.courseId.toString() === courseIdStr);
-
-      let status: 'enrolled' | 'requested' | 'available' = 'available';
-      if (isEnrolled) {
-        status = 'enrolled';
-      } else if (hasPendingRequest) {
-        status = 'requested';
-      }
-
-      return {
-        courseId: course.id,
-        course: {
-          id: course.id,
-          title: course.title,
-          description: course.description,
-          status: course.status,
-        },
-        enrollmentStatus: status,
-        progress: progressData?.progress || 0,
-        lastAccessed: progressData?.lastAccessed || null,
-        requestedAt: hasPendingRequest
-          ? pendingRequests.find((pr: any) => pr.courseId.toString() === courseIdStr)?.requestedAt
-          : null,
-      };
-    });
+    // Use unified helper to get enrollment status for all courses with retry
+    const enrollmentStatus = await retryDatabase(
+      () => getStudentEnrollmentStatus(studentIdNum)
+    );
 
     return NextResponse.json({
       studentId: studentIdNum,
@@ -130,10 +54,7 @@ export async function GET(request: NextRequest) {
     });
   } catch (error: any) {
     console.error('Get enrollment status error:', error);
-    return NextResponse.json(
-      { message: 'Failed to get enrollment status', error: error.message },
-      { status: 500 }
-    );
+    return createErrorResponse(error, 'Failed to get enrollment status');
   }
 }
 
@@ -143,88 +64,53 @@ export async function POST(request: NextRequest) {
     const token = request.cookies.get('token')?.value || request.cookies.get('adminToken')?.value;
 
     if (!token) {
-      return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });
+      return createAuthError('Not authenticated');
     }
 
     const decoded = verifyToken(token);
     if (!decoded || decoded.role !== 'admin') {
-      return NextResponse.json({ message: 'Admin access required' }, { status: 403 });
+      return createAuthzError('Admin access required');
     }
 
     const { studentId, courseId } = await request.json();
 
     if (!studentId || !courseId) {
-      return NextResponse.json(
-        { message: 'Student ID and Course ID are required' },
-        { status: 400 }
-      );
+      return createValidationError('Student ID and Course ID are required');
     }
 
-    const db = getDatabase();
+    const studentIdNum = parseInt(studentId);
+    const courseIdNum = parseInt(courseId);
 
-    // Check if already enrolled
-    const existing = await db
-      .select()
-      .from(studentProgress)
-      .where(
-        and(
-          eq(studentProgress.studentId, parseInt(studentId)),
-          eq(studentProgress.courseId, parseInt(courseId))
-        )
-      )
-      .limit(1);
-
-    if (existing.length > 0) {
-      return NextResponse.json(
-        { message: 'Student is already enrolled in this course' },
-        { status: 400 }
-      );
+    if (isNaN(studentIdNum) || isNaN(courseIdNum)) {
+      return createValidationError('Invalid student ID or course ID');
     }
 
-    // Check if there's a pending request - if so, approve it first
-    const pendingRequest = await db
-      .select()
-      .from(accessRequests)
-      .where(
-        and(
-          eq(accessRequests.studentId, parseInt(studentId)),
-          eq(accessRequests.courseId, parseInt(courseId)),
-          eq(accessRequests.status, 'pending')
-        )
-      )
-      .limit(1);
-
-    if (pendingRequest.length > 0) {
-      // Update request to approved
-      await db
-        .update(accessRequests)
-        .set({
-          status: 'approved',
-          reviewedAt: new Date(),
-          reviewedBy: decoded.id,
-        })
-        .where(eq(accessRequests.id, pendingRequest[0].id));
-    }
-
-    // Create enrollment
-    await db.insert(studentProgress).values({
-      studentId: parseInt(studentId),
-      courseId: parseInt(courseId),
-      totalProgress: 0,
+    // Use DataManager with operation lock to prevent race conditions
+    const result = await withEnrollmentLock(studentIdNum, courseIdNum, async () => {
+      return await enrollStudent({
+        userId: studentIdNum,
+        courseId: courseIdNum,
+        adminId: decoded.id,
+        source: 'admin',
+      });
     });
 
-    console.log(`✅ Student ${studentId} enrolled in course ${courseId}`);
+    if (!result.success) {
+      return createErrorResponse(
+        result.error,
+        result.error?.message || 'Failed to enroll student',
+        result.error?.retryable ? 503 : 400
+      );
+    }
 
     return NextResponse.json({
       message: 'Student enrolled successfully',
       enrolled: true,
+      operationId: result.operationId,
     });
   } catch (error: any) {
     console.error('Enroll student error:', error);
-    return NextResponse.json(
-      { message: 'Failed to enroll student', error: error.message },
-      { status: 500 }
-    );
+    return createErrorResponse(error, 'Failed to enroll student');
   }
 }
 
@@ -234,12 +120,12 @@ export async function DELETE(request: NextRequest) {
     const token = request.cookies.get('token')?.value || request.cookies.get('adminToken')?.value;
 
     if (!token) {
-      return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });
+      return createAuthError('Not authenticated');
     }
 
     const decoded = verifyToken(token);
     if (!decoded || decoded.role !== 'admin') {
-      return NextResponse.json({ message: 'Admin access required' }, { status: 403 });
+      return createAuthzError('Admin access required');
     }
 
     const { searchParams } = new URL(request.url);
@@ -247,36 +133,42 @@ export async function DELETE(request: NextRequest) {
     const courseId = searchParams.get('courseId');
 
     if (!studentId || !courseId) {
-      return NextResponse.json(
-        { message: 'Student ID and Course ID are required' },
-        { status: 400 }
-      );
+      return createValidationError('Student ID and Course ID are required');
     }
 
-    const db = getDatabase();
+    const studentIdNum = parseInt(studentId);
+    const courseIdNum = parseInt(courseId);
 
-    // Delete enrollment
-    const result = await db
-      .delete(studentProgress)
-      .where(
-        and(
-          eq(studentProgress.studentId, parseInt(studentId)),
-          eq(studentProgress.courseId, parseInt(courseId))
-        )
+    if (isNaN(studentIdNum) || isNaN(courseIdNum)) {
+      return createValidationError('Invalid student ID or course ID');
+    }
+
+    // Use DataManager with operation lock to prevent race conditions
+    const result = await withEnrollmentLock(studentIdNum, courseIdNum, async () => {
+      return await unenrollStudent({
+        userId: studentIdNum,
+        courseId: courseIdNum,
+        adminId: decoded.id,
+        reason: 'Admin unenrollment',
+      });
+    });
+
+    if (!result.success) {
+      return createErrorResponse(
+        result.error,
+        result.error?.message || 'Failed to unenroll student',
+        result.error?.retryable ? 503 : 400
       );
-
-    console.log(`✅ Student ${studentId} unenrolled from course ${courseId}`);
+    }
 
     return NextResponse.json({
       message: 'Student unenrolled successfully',
       unenrolled: true,
+      operationId: result.operationId,
     });
   } catch (error: any) {
     console.error('Unenroll student error:', error);
-    return NextResponse.json(
-      { message: 'Failed to unenroll student', error: error.message },
-      { status: 500 }
-    );
+    return createErrorResponse(error, 'Failed to unenroll student');
   }
 }
 

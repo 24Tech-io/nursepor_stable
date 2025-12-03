@@ -144,7 +144,5 @@ export const logPerformance = (operation: string, duration: number, metadata?: a
   });
 };
 
-// Legacy compatibility
-securityLogger.logSecurityEvent = logSecurityEvent;
-
 export default logger;
+

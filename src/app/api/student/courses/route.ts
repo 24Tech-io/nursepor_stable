@@ -184,6 +184,11 @@ export async function GET(request: NextRequest) {
       // If not enrolled but has pending request, show as requested
       const finalIsEnrolled = isEnrolled;
 
+      // Normalize status to lowercase for consistent frontend handling
+      const normalizedStatus = course.status?.toLowerCase() === 'active' ? 'active' : 
+                              course.status?.toLowerCase() === 'published' ? 'published' : 
+                              course.status;
+
       return {
         id: courseIdStr,
         title: course.title,
@@ -191,7 +196,7 @@ export async function GET(request: NextRequest) {
         instructor: course.instructor,
         thumbnail: course.thumbnail,
         pricing: course.pricing || 0,
-        status: course.status,
+        status: normalizedStatus,
         isRequestable: course.isRequestable ?? true, // Allow Requests checkbox
         isDefaultUnlocked: course.isDefaultUnlocked ?? false, // Default Unlocked checkbox
         isPublic: course.isPublic ?? false, // Public Course checkbox - direct enrollment
@@ -203,7 +208,10 @@ export async function GET(request: NextRequest) {
       };
     });
 
-    console.log(`✅ Returning ${coursesList.length} courses`);
+    console.log(`✅ Returning ${coursesList.length} courses to student ${decoded.id}`);
+    coursesList.forEach((c, idx) => {
+      console.log(`  ${idx + 1}. "${c.title}" (ID: ${c.id}, Status: ${c.status}, Enrolled: ${c.isEnrolled})`);
+    });
 
     return NextResponse.json({
       courses: coursesList,

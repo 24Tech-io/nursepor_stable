@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
     
     // Check brute force protection
     if (isIPBlocked(clientIP)) {
-      securityLogger.logSecurityEvent('Blocked IP attempted login', { ip: clientIP });
+      securityLogger.info('Blocked IP attempted login', { ip: clientIP });
       return NextResponse.json(
         { message: 'Too many failed login attempts. Please try again later.' },
         { status: 429 }
@@ -88,7 +88,7 @@ export async function POST(request: NextRequest) {
     
     // Check if username is blocked
     if (isUsernameBlocked(email)) {
-      securityLogger.logSecurityEvent('Blocked username attempted login', { email, ip: clientIP });
+      securityLogger.info('Blocked username attempted login', { email, ip: clientIP });
       return NextResponse.json(
         { message: 'Too many failed login attempts for this account. Please try again later.' },
         { status: 429 }
@@ -103,7 +103,7 @@ export async function POST(request: NextRequest) {
       
       // Record failed attempt
       const attemptResult = recordFailedAttempt(clientIP, email);
-      securityLogger.logFailedAuth(clientIP, email, 'Invalid credentials');
+      securityLogger.info('failed_auth', { ip: clientIP, email, reason: 'Invalid credentials' });
       reportSecurityIncident(clientIP, 'Failed login attempt', { email }, 'low');
       
       // Add delay for failed attempt (progressive delay)
@@ -146,7 +146,7 @@ export async function POST(request: NextRequest) {
 
     // Record successful login (clear failed attempts)
     recordSuccessfulLogin(clientIP, email);
-    securityLogger.logSuccessfulAuth(clientIP, email);
+    securityLogger.info('successful_auth', { ip: clientIP, email });
 
     // Create session with user data
     console.log('Creating session for user:', user.id);

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDatabase } from '@/lib/db';
-import { users, otpCodes } from '@/lib/db/schema';
-import { eq, and, gt } from 'drizzle-orm';
+import { users } from '@/lib/db/schema';
+import { eq } from 'drizzle-orm';
 
 function generateOTP(): string {
     return Math.floor(100000 + Math.random() * 900000).toString();
@@ -35,21 +35,12 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // Rate limiting: Check recent OTP requests (max 3 per 15 minutes)
-        const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000);
-        const recentOTPs = await db
-            .select()
-            .from(otpCodes)
-            .where(
-                and(
-                    eq(otpCodes.email, normalizedEmail),
-                    gt(otpCodes.createdAt, fifteenMinutesAgo)
-                )
-            );
+        const user = userResult[0];
 
-        if (recentOTPs.length >= 3) {
+        // Rate limiting: Check if OTP was recently sent (within 2 minutes)
+        if (user.otpExpiry && user.otpExpiry > new Date(Date.now() - 2 * 60 * 1000)) {
             return NextResponse.json(
-                { message: 'Too many OTP requests. Please try again in 15 minutes.' },
+                { message: 'OTP was recently sent. Please wait before requesting again.' },
                 { status: 429 }
             );
         }
@@ -58,14 +49,13 @@ export async function POST(request: NextRequest) {
         const otp = generateOTP();
         const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
-        // Store OTP in database
-        await db.insert(otpCodes).values({
-            email: normalizedEmail,
-            code: otp,
-            expiresAt,
-            used: false,
-            attempts: 0,
-        });
+        // Store OTP in user record
+        await db.update(users)
+            .set({
+                otpSecret: otp,
+                otpExpiry: expiresAt,
+            })
+            .where(eq(users.id, user.id));
 
         // Log OTP for development (in production, send via email)
         if (process.env.NODE_ENV === 'development') {

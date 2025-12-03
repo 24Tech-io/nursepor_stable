@@ -59,7 +59,7 @@ export async function PATCH(
             return NextResponse.json({ message: 'Course not found' }, { status: 404 });
         }
 
-        securityLogger.logSecurityEvent('Course Updated', { courseId, title: body.title });
+        securityLogger.info('Course Updated', { courseId, title: body.title });
 
         return NextResponse.json({
             message: 'Course updated successfully',
@@ -87,7 +87,7 @@ export async function DELETE(
             return NextResponse.json({ message: 'Course not found' }, { status: 404 });
         }
 
-        securityLogger.logSecurityEvent('Course Deleted', { courseId });
+        securityLogger.info('Course Deleted', { courseId });
 
         return NextResponse.json({ message: 'Course deleted successfully' });
 

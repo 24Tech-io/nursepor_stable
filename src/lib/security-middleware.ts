@@ -156,7 +156,7 @@ export function checkCORS(req: NextRequest): { allowed: boolean; origin: string 
   );
 
   if (!allowed) {
-    securityLogger.logSecurityEvent('CORS violation', { origin, path: req.nextUrl.pathname });
+    securityLogger.info('CORS violation', { origin, path: req.nextUrl.pathname });
   }
 
   return { allowed, origin };
@@ -303,4 +303,5 @@ export function getClientIP(req: NextRequest): string {
     'unknown'
   );
 }
+
 

@@ -50,12 +50,12 @@ export async function GET(request: NextRequest) {
       return {
         ...video,
         description: parsedDesc.description || video.description || '',
-        videoUrl: metadataObj.videoUrl || null,
-        videoProvider: metadataObj.videoProvider || 'youtube',
-        videoDuration: metadataObj.videoDuration || null,
-        thumbnail: metadataObj.thumbnail || null,
-        scheduledDate: metadataObj.scheduledDate || null,
-        priority: metadataObj.priority || 0,
+        videoUrl: (metadataObj as any).videoUrl || null,
+        videoProvider: (metadataObj as any).videoProvider || 'youtube',
+        videoDuration: (metadataObj as any).videoDuration || null,
+        thumbnail: (metadataObj as any).thumbnail || null,
+        scheduledDate: (metadataObj as any).scheduledDate || null,
+        priority: (metadataObj as any).priority || 0,
       };
     });
 
@@ -139,12 +139,12 @@ export async function POST(request: NextRequest) {
       dailyVideo: {
         ...result[0],
         description: parsedDesc.description || result[0].description || '',
-        videoUrl: metadataObj.videoUrl || null,
-        videoProvider: metadataObj.videoProvider || 'youtube',
-        videoDuration: metadataObj.videoDuration || null,
-        thumbnail: metadataObj.thumbnail || null,
-        scheduledDate: metadataObj.scheduledDate || null,
-        priority: metadataObj.priority || 0,
+        videoUrl: (metadataObj as any).videoUrl || null,
+        videoProvider: (metadataObj as any).videoProvider || 'youtube',
+        videoDuration: (metadataObj as any).videoDuration || null,
+        thumbnail: (metadataObj as any).thumbnail || null,
+        scheduledDate: (metadataObj as any).scheduledDate || null,
+        priority: (metadataObj as any).priority || 0,
       }
     });
   } catch (error: any) {

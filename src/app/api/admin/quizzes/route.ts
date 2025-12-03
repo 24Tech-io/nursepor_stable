@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
 
     // For each quiz, fetch its questions
     const quizzesWithQuestions = await Promise.all(
-      chapterQuizzes.map(async (quiz) => {
+      chapterQuizzes.map(async (quiz: any) => {
         const questions = await db
           .select()
           .from(quizQuestions)

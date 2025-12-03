@@ -9,17 +9,17 @@ import dotenv from 'dotenv';
 // Load environment variables from .env.local
 dotenv.config({ path: '.env.local' });
 
+import { sql } from 'drizzle-orm';
+
 if (!process.env.DATABASE_URL) {
     console.error('❌ DATABASE_URL is not set in .env.local');
     process.exit(1);
 }
 
-// Dynamic import to ensure env var is set before db init
-const { db } = await import('../src/lib/db');
-const { courses, modules, chapters, enrollments, quizAttempts, videoProgress } = await import('../src/lib/db/schema');
-import { sql } from 'drizzle-orm';
-
 async function cleanupDuplicateData() {
+    // Dynamic import to ensure env var is set before db init
+    const { db } = await import('../src/lib/db');
+    const { courses, modules, chapters, enrollments, quizAttempts, videoProgress } = await import('../src/lib/db/schema');
     console.log('🧹 Starting duplicate data cleanup...\n');
 
     try {

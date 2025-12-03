@@ -34,7 +34,7 @@ async function cleanupMockData() {
             console.log('✅ No mock courses found!\n');
         } else {
             console.log(`Found ${mockCourses.length} mock courses:`);
-            mockCourses.forEach(course => {
+            mockCourses.forEach((course: any) => {
                 console.log(`  - [${course.id}] ${course.title} by ${course.instructor}`);
             });
 
@@ -82,7 +82,7 @@ async function cleanupMockData() {
             console.log('   Admins will need to create new courses.\n');
         } else {
             console.log(`✅ ${remainingCourses.length} courses remaining:`);
-            remainingCourses.forEach(course => {
+            remainingCourses.forEach((course: any) => {
                 console.log(`  - [${course.id}] ${course.title} by ${course.instructor} (Status: ${course.status})`);
             });
             console.log('');

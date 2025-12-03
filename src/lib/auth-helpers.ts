@@ -240,3 +240,27 @@ export async function requireOwnershipOrAdmin(
   return { user };
 }
 
+// Check if user is student or admin
+export async function requireStudentOrAdmin(request: NextRequest): Promise<{ user: AuthUser } | NextResponse> {
+  const authResult = await requireAuth(request);
+  if (authResult instanceof NextResponse) {
+    return authResult;
+  }
+
+  const user = authResult.user;
+
+  if (user.role !== 'student' && user.role !== 'admin') {
+    return NextResponse.json(
+      { error: 'Student or admin access required' },
+      { status: 403 }
+    );
+  }
+
+  return { user };
+}
+
+// Verify authentication and return user (alias for requireAuth)
+export async function verifyAuth(request: NextRequest): Promise<{ user: AuthUser } | NextResponse> {
+  return requireAuth(request);
+}
+

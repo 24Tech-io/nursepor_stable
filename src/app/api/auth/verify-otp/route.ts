@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDatabase } from '@/lib/db';
-import { users, otpCodes } from '@/lib/db/schema';
-import { eq, and, gt } from 'drizzle-orm';
+import { users } from '@/lib/db/schema';
+import { eq, and } from 'drizzle-orm';
 import { SignJWT } from 'jose';
 
 const JWT_SECRET = new TextEncoder().encode(
@@ -21,66 +21,6 @@ export async function POST(request: NextRequest) {
 
         const db = getDatabase();
         const normalizedEmail = email.toLowerCase().trim();
-
-        // Find valid OTP
-        const validOTPs = await db
-            .select()
-            .from(otpCodes)
-            .where(
-                and(
-                    eq(otpCodes.email, normalizedEmail),
-                    eq(otpCodes.code, otp),
-                    eq(otpCodes.used, false),
-                    gt(otpCodes.expiresAt, new Date())
-                )
-            )
-            .limit(1);
-
-        if (!validOTPs.length) {
-            // Check if OTP exists but is expired or used
-            const anyOTP = await db
-                .select()
-                .from(otpCodes)
-                .where(
-                    and(
-                        eq(otpCodes.email, normalizedEmail),
-                        eq(otpCodes.code, otp)
-                    )
-                )
-                .limit(1);
-
-            if (anyOTP.length) {
-                const otpRecord = anyOTP[0];
-                if (otpRecord.used) {
-                    return NextResponse.json(
-                        { message: 'This OTP has already been used' },
-                        { status: 400 }
-                    );
-                }
-                if (otpRecord.expiresAt < new Date()) {
-                    return NextResponse.json(
-                        { message: 'This OTP has expired. Please request a new one.' },
-                        { status: 400 }
-                    );
-                }
-            }
-
-            // Increment attempts
-            return NextResponse.json(
-                { message: 'Invalid OTP. Please check and try again.' },
-                { status: 400 }
-            );
-        }
-
-        const otpRecord = validOTPs[0];
-
-        // Check attempts limit
-        if (otpRecord.attempts >= 5) {
-            return NextResponse.json(
-                { message: 'Too many failed attempts. Please request a new OTP.' },
-                { status: 429 }
-            );
-        }
 
         // Find user - filter by role if specified
         const whereConditions = role
@@ -108,11 +48,36 @@ export async function POST(request: NextRequest) {
 
         const user = userResult[0];
 
-        // Mark OTP as used
+        // Verify OTP
+        if (!user.otpSecret || !user.otpExpiry) {
+            return NextResponse.json(
+                { message: 'No OTP found. Please request a new one.' },
+                { status: 400 }
+            );
+        }
+
+        if (user.otpExpiry < new Date()) {
+            return NextResponse.json(
+                { message: 'This OTP has expired. Please request a new one.' },
+                { status: 400 }
+            );
+        }
+
+        if (user.otpSecret !== otp) {
+            return NextResponse.json(
+                { message: 'Invalid OTP. Please check and try again.' },
+                { status: 400 }
+            );
+        }
+
+        // Clear OTP after successful verification
         await db
-            .update(otpCodes)
-            .set({ used: true })
-            .where(eq(otpCodes.id, otpRecord.id));
+            .update(users)
+            .set({ 
+                otpSecret: null, 
+                otpExpiry: null 
+            })
+            .where(eq(users.id, user.id));
 
         // Update last login
         await db

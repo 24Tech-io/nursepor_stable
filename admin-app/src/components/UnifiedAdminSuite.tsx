@@ -17,6 +17,7 @@ import VideoUploadModal from './VideoUploadModal';
 import DocumentUploadModal from './DocumentUploadModal';
 import StudentActivityModal from './StudentActivityModal';
 import { Upload, Link as LinkIcon } from 'lucide-react';
+import { convertToEmbedUrl, parseVideoUrl } from '@/lib/video-utils';
 
 // --- DATA CONSTANTS ---
 const QUESTION_MODES = {
@@ -58,7 +59,6 @@ const CJMM_STEPS = [
 
 import StudentProfile from './admin/StudentProfile';
 import QuestionTypeBuilder from './qbank/QuestionTypeBuilder';
-import { adminSyncClient } from '@/lib/sync-client';
 
 // --- ROOT COMPONENT ---
 export default function NurseProAdminUltimate({ 
@@ -340,23 +340,6 @@ const Dashboard = ({ nav }: { nav: (mod: string) => void }) => {
   };
 
   React.useEffect(() => {
-    fetchDashboardStats();
-    
-    // Start admin sync client for auto-refresh
-    adminSyncClient.start();
-    const handleSync = (syncData: any) => {
-      console.log('🔄 Admin Dashboard: Sync update received:', syncData);
-      fetchDashboardStats(); // Refresh stats on sync
-    };
-    adminSyncClient.on('sync', handleSync);
-
-    return () => {
-      adminSyncClient.off('sync', handleSync);
-      adminSyncClient.stop();
-    };
-  }, []);
-
-  React.useEffect(() => {
     const fetchStats = async () => {
       try {
         // Optimized: Fetch all stats in parallel, use count-only for questions
@@ -397,9 +380,8 @@ const Dashboard = ({ nav }: { nav: (mod: string) => void }) => {
     fetchStats();
     fetchActivityLogs();
     
-    // Refresh activity logs every 30 seconds
-    const interval = setInterval(fetchActivityLogs, 30000);
-    return () => clearInterval(interval);
+    // REMOVED: Auto-refresh interval for activity logs
+    // Users can manually refresh the page if needed
   }, []);
 
   return (
@@ -537,19 +519,8 @@ const RequestsInbox = ({ nav }: { nav: (mod: string) => void }) => {
 
   React.useEffect(() => {
     fetchRequests();
-    
-    // Start admin sync client for auto-refresh
-    adminSyncClient.start();
-    const handleSync = (syncData: any) => {
-      console.log('🔄 Admin Requests: Sync update received:', syncData);
-      fetchRequests(); // Refresh requests on sync
-    };
-    adminSyncClient.on('sync', handleSync);
-
-    return () => {
-      adminSyncClient.off('sync', handleSync);
-      adminSyncClient.stop();
-    };
+    // REMOVED: Auto-refresh on sync events
+    // Requests will only refresh when actions are performed
   }, []);
 
   const fetchRequests = async () => {
@@ -1063,19 +1034,8 @@ const Analytics = ({ nav }: { nav: (mod: string) => void }) => {
 
   React.useEffect(() => {
     fetchAnalytics();
-    
-    // Start admin sync client for auto-refresh
-    adminSyncClient.start();
-    const handleSync = (syncData: any) => {
-      console.log('🔄 Admin Analytics: Sync update received:', syncData);
-      fetchAnalytics(); // Refresh analytics on sync
-    };
-    adminSyncClient.on('sync', handleSync);
-
-    return () => {
-      adminSyncClient.off('sync', handleSync);
-      adminSyncClient.stop();
-    };
+    // REMOVED: Auto-refresh on sync events
+    // Analytics will only refresh when dateRange changes or page loads
   }, [dateRange]);
 
   const fetchAnalytics = async () => {
@@ -1649,16 +1609,13 @@ const DailyVideoManager = ({ nav }: { nav: (mod: string) => void }) => {
         finalVideoUrl = uploadedVideoUrl;
         finalProvider = 'uploaded';
       } else {
-        finalVideoUrl = videoUrl;
-        // Auto-detect provider from URL if not explicitly set
-        if (finalVideoUrl) {
-          if (finalVideoUrl.includes('youtube.com') || finalVideoUrl.includes('youtu.be')) {
-            finalProvider = 'youtube';
-          } else if (finalVideoUrl.includes('vimeo.com')) {
-            finalProvider = 'vimeo';
-          } else if (finalVideoUrl.match(/\.(mp4|webm|ogg|mov)$/i)) {
-            finalProvider = 'direct';
-          }
+        // Convert video URL to embed format (hides branding)
+        if (videoUrl) {
+          const parsed = parseVideoUrl(videoUrl);
+          finalVideoUrl = parsed.embedUrl; // Use embed URL with privacy settings
+          finalProvider = parsed.provider; // Auto-detect provider
+        } else {
+          finalVideoUrl = videoUrl;
         }
       }
 
@@ -2508,12 +2465,22 @@ const CourseBuilder = ({ course, back }: { course: any; back: () => void }) => {
           onSave={async (title: string, videoUrl: string, videoFile: string) => {
             if (!currentModuleId || !title) return;
             
+            // Convert video URL to embed format if provided (hides branding)
+            let finalVideoUrl = videoUrl || videoFile;
+            let finalProvider = 'uploaded';
+            
+            if (videoUrl) {
+              const parsed = parseVideoUrl(videoUrl);
+              finalVideoUrl = parsed.embedUrl; // Use embed URL with privacy settings
+              finalProvider = parsed.provider; // Auto-detect provider
+            }
+            
             const contentData: any = {
               title,
               type: 'video',
               order: 999,
-              videoUrl: videoUrl || videoFile,
-              videoProvider: videoUrl ? (videoUrl.includes('vimeo') ? 'vimeo' : 'youtube') : 'uploaded',
+              videoUrl: finalVideoUrl,
+              videoProvider: finalProvider,
               videoDuration: 15,
             };
 

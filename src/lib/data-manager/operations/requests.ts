@@ -57,7 +57,21 @@ export class RequestOperations {
       source: 'request_approval',
     });
 
-    // Delete the request (it's been processed)
+    // CRITICAL: Verify enrollment was actually created in BOTH tables
+    const verification = await EnrollmentOperations.verifyEnrollmentExists(
+      tx,
+      requestData.studentId,
+      requestData.courseId
+    );
+
+    if (!verification.verified) {
+      throw new Error(
+        `Enrollment verification failed for student ${requestData.studentId}, course ${requestData.courseId}. ` +
+        `Progress: ${verification.inProgress}, Enrollments: ${verification.inEnrollments}`
+      );
+    }
+
+    // Only delete request if enrollment is verified in both tables
     await tx.delete(accessRequests).where(eq(accessRequests.id, requestId));
 
     // Emit event

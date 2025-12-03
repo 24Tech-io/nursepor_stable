@@ -38,7 +38,7 @@ export async function POST(request: Request) {
             isActive: true,
         }).returning();
 
-        securityLogger.logSecurityEvent('Daily Video Created', { videoId: newVideo[0].id });
+        securityLogger.info('Daily Video Created', { videoId: newVideo[0].id });
 
         return NextResponse.json({
             message: 'Daily video created successfully',

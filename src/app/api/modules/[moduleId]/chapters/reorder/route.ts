@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { chapters } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
@@ -6,13 +6,13 @@ import { securityLogger } from '@/lib/logger';
 import { getClientIP } from '@/lib/security-middleware';
 
 export async function PUT(
-    request: Request,
+    request: NextRequest,
     { params }: { params: { moduleId: string } }
 ) {
     try {
         const { items } = await request.json(); // items: { id: number, order: number }[]
         const moduleId = parseInt(params.moduleId);
-        const ip = getClientIP(request);
+        const ip = getClientIP(request) || 'unknown';
 
         if (!Array.isArray(items)) {
             return NextResponse.json({ message: 'Invalid data' }, { status: 400 });
@@ -27,7 +27,7 @@ export async function PUT(
             }
         });
 
-        securityLogger.logSecurityEvent('Chapters Reordered', { moduleId, count: items.length });
+        securityLogger.info('Chapters Reordered', { moduleId, count: items.length });
 
         return NextResponse.json({ message: 'Chapters reordered successfully' });
     } catch (error) {

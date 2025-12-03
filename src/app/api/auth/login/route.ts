@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
     
     if (isBlocked) {
       try {
-        securityLogger.logSecurityEvent('Blocked IP attempted login', { ip: clientIP });
+        securityLogger.info('Blocked IP attempted login', { ip: clientIP });
       } catch (logError) {
         console.error('❌ Error logging security event:', logError);
       }
@@ -212,7 +212,7 @@ export async function POST(request: NextRequest) {
     
     if (usernameBlocked) {
       try {
-        securityLogger.logSecurityEvent('Blocked username attempted login', { email: sanitizedEmail, ip: clientIP });
+        securityLogger.info('Blocked username attempted login', { email: sanitizedEmail, ip: clientIP });
       } catch (logError) {
         console.error('❌ Error logging security event:', logError);
       }
@@ -259,7 +259,7 @@ export async function POST(request: NextRequest) {
       }
       
       try {
-        securityLogger.logFailedAuth(clientIP, sanitizedEmail, 'Invalid credentials');
+        securityLogger.info('failed_auth', { ip: clientIP, email: sanitizedEmail, reason: 'Invalid credentials' });
       } catch (logError) {
         console.error('❌ Error logging failed auth:', logError);
       }
@@ -308,7 +308,7 @@ export async function POST(request: NextRequest) {
     }
     
     try {
-      securityLogger.logSuccessfulAuth(clientIP, sanitizedEmail);
+      securityLogger.info('successful_auth', { ip: clientIP, email: sanitizedEmail });
     } catch (logError) {
       console.error('❌ Error logging successful auth:', logError);
     }

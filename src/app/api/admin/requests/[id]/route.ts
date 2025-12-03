@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/auth';
 import { getDatabase } from '@/lib/db';
-import { accessRequests, studentProgress, courses } from '@/lib/db/schema';
+import { accessRequests, studentProgress, courses, enrollments } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
-import { sendRequestStatusNotification } from '@/app/api/notifications/route';
+import { sendRequestStatusNotification } from '@/lib/notification-helpers';
 import { approveRequest, rejectRequest } from '@/lib/data-manager/helpers/request-helper';
 
 // PATCH - Approve or deny request
@@ -162,6 +162,39 @@ export async function PATCH(
         );
       }
 
+      // Verify enrollment was created in both tables
+      const [progressCheck, enrollmentCheck] = await Promise.all([
+        db
+          .select({ id: studentProgress.id })
+          .from(studentProgress)
+          .where(
+            and(
+              eq(studentProgress.studentId, accessRequest.studentId),
+              eq(studentProgress.courseId, accessRequest.courseId)
+            )
+          )
+          .limit(1),
+        db
+          .select({ id: enrollments.id })
+          .from(enrollments)
+          .where(
+            and(
+              eq(enrollments.userId, accessRequest.studentId),
+              eq(enrollments.courseId, accessRequest.courseId),
+              eq(enrollments.status, 'active')
+            )
+          )
+          .limit(1),
+      ]);
+
+      if (progressCheck.length === 0 && enrollmentCheck.length === 0) {
+        console.error(`❌ [PATCH /api/admin/requests/${requestId}] CRITICAL: Enrollment not created after approval!`);
+        // This is a critical error - enrollment should have been created by DataManager
+        // Log it but don't fail the request - the transaction should have rolled back
+      } else {
+        console.log(`✅ [PATCH /api/admin/requests/${requestId}] Enrollment verified: progress=${progressCheck.length > 0}, enrollment=${enrollmentCheck.length > 0}`);
+      }
+
       // Send notification to student (non-blocking)
       try {
         await sendRequestStatusNotification(
@@ -182,7 +215,7 @@ export async function PATCH(
         courseId: accessRequest.courseId,
         deleted: true,
         operationId: result.operationId,
-        enrollmentCreated: result.data?.enrollmentCreated,
+        enrollmentCreated: result.data?.enrollmentCreated || false,
       });
     } else {
       const result = await rejectRequest({

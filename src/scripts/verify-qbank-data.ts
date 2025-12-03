@@ -1,11 +1,11 @@
 
-import { drizzle } from 'drizzle-orm/neon-http';
+import { drizzle } from 'drizzle-orm/neon-serverless';
 import { neon } from '@neondatabase/serverless';
 import * as schema from '../lib/db/schema';
 import { eq, sql } from 'drizzle-orm';
 import dotenv from 'dotenv';
 
-import { drizzle } from 'drizzle-orm/neon-http';
+import { drizzle } from 'drizzle-orm/neon-serverless';
 import { neon } from '@neondatabase/serverless';
 import * as schema from '../lib/db/schema';
 import { eq, sql } from 'drizzle-orm';

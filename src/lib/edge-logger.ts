@@ -21,5 +21,35 @@ export const securityLogger = {
       timestamp: new Date().toISOString(),
       type: 'SECURITY_EVENT'
     }));
+  },
+  logRateLimitExceeded: (ip: string, path: string) => {
+    console.warn(JSON.stringify({
+      level: 'warn',
+      message: 'Rate limit exceeded',
+      ip,
+      path,
+      timestamp: new Date().toISOString(),
+      type: 'RATE_LIMIT'
+    }));
+  },
+  logSQLInjectionAttempt: (ip: string, value: string) => {
+    console.warn(JSON.stringify({
+      level: 'warn',
+      message: 'SQL injection attempt detected',
+      ip,
+      value,
+      timestamp: new Date().toISOString(),
+      type: 'SQL_INJECTION'
+    }));
+  },
+  logXSSAttempt: (ip: string, value: string) => {
+    console.warn(JSON.stringify({
+      level: 'warn',
+      message: 'XSS attempt detected',
+      ip,
+      value,
+      timestamp: new Date().toISOString(),
+      type: 'XSS_ATTEMPT'
+    }));
   }
 };

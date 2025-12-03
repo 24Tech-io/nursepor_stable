@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/auth';
 import { getDatabase } from '@/lib/db';
 import { accessRequests, studentProgress, courses, enrollments } from '@/lib/db/schema';
-import { eq, and, or, sql } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 import { enrollStudent, unenrollStudent } from '@/lib/data-manager/helpers/enrollment-helper';
+import { getPublishedCourseFilter } from '@/lib/enrollment-helpers';
 
 /**
  * Unified Enrollment Management API
@@ -43,7 +44,7 @@ export async function GET(request: NextRequest) {
         status: courses.status,
       })
       .from(courses)
-      .where(or(eq(courses.status, 'published'), eq(courses.status, 'active')));
+      .where(getPublishedCourseFilter());
 
     // Get enrolled courses from BOTH tables (studentProgress + enrollments)
     let enrolledProgress: any[] = [];
@@ -119,7 +120,8 @@ export async function GET(request: NextRequest) {
     const mergedEnrollments = Array.from(enrollmentMap.values());
     const enrolledCourseIds = new Set(mergedEnrollments.map((ep: any) => ep.courseId.toString()));
 
-    // Get pending requests
+    // Get pending requests only - approved requests should have been deleted after approval
+    // If approved requests exist, they're stale and will be cleaned up, but we don't show them
     const pendingRequests = await db
       .select({
         courseId: accessRequests.courseId,
@@ -134,19 +136,23 @@ export async function GET(request: NextRequest) {
         )
       );
 
-    const pendingRequestCourseIds = new Set(pendingRequests.map((pr: any) => pr.courseId.toString()));
+    const pendingRequestCourseIds = new Set(pendingRequests.map((r: any) => r.courseId.toString()));
 
     // Build enrollment status for each course
+    // CRITICAL: Only mark as "enrolled" if actual enrollment records exist
     const enrollmentStatus = allCourses.map((course: any) => {
       const courseIdStr = course.id.toString();
+      // Only check actual enrollment records
       const isEnrolled = enrolledCourseIds.has(courseIdStr);
       const hasPendingRequest = pendingRequestCourseIds.has(courseIdStr);
       const progressData = mergedEnrollments.find((ep: any) => ep.courseId.toString() === courseIdStr);
 
       let status: 'enrolled' | 'requested' | 'available' = 'available';
+      // Only mark as enrolled if actual enrollment records exist
       if (isEnrolled) {
         status = 'enrolled';
       } else if (hasPendingRequest) {
+        // Pending request - show as requested
         status = 'requested';
       }
 
@@ -162,7 +168,7 @@ export async function GET(request: NextRequest) {
         progress: progressData?.progress || 0,
         lastAccessed: progressData?.lastAccessed || null,
         requestedAt: hasPendingRequest
-          ? pendingRequests.find((pr: any) => pr.courseId.toString() === courseIdStr)?.requestedAt
+          ? pendingRequests.find((pr: any) => pr.courseId.toString() === courseIdStr)?.requestedAt || null
           : null,
       };
     });

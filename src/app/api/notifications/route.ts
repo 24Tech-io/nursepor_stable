@@ -1,34 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/auth';
 import { db } from '@/lib/db';
-import { notifications, accessRequests, users } from '@/lib/db/schema';
+import { notifications } from '@/lib/db/schema';
 import { eq, desc } from 'drizzle-orm';
-
-// Send notification when access request is approved/denied
-export async function sendRequestStatusNotification(
-    studentId: number,
-    courseTitle: string,
-    status: 'approved' | 'rejected'
-) {
-    try {
-        const message = status === 'approved'
-            ? `Your request for "${courseTitle}" has been approved! You can now access the course.`
-            : `Your request for "${courseTitle}" has been denied. Please contact an administrator for more information.`;
-
-        await db.insert(notifications).values({
-            userId: studentId,
-            title: `Course Access ${status === 'approved' ? 'Approved' : 'Denied'}`,
-            message,
-            type: status === 'approved' ? 'info' : 'warning',
-            isRead: false
-        });
-
-        return true;
-    } catch (error) {
-        console.error('Failed to send notification:', error);
-        return false;
-    }
-}
 
 // GET - Fetch user's notifications
 export async function GET(request: NextRequest) {

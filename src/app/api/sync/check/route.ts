@@ -22,7 +22,6 @@ export async function GET(request: NextRequest) {
     const result = await performSyncCheck();
 
     return NextResponse.json({
-      success: result.success,
       ...result,
       message: result.success 
         ? 'Sync check completed successfully' 
@@ -40,6 +39,10 @@ export async function GET(request: NextRequest) {
     );
   }
 }
+
+
+
+
 
 
 

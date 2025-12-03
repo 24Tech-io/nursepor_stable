@@ -1,0 +1,12 @@
+2025-12-03 11:52:12 [INFO]: System metrics collected {"dbLatency":1629,"apiLatency":1629,"memoryUsage":62.697914974000646,"cpuUsage":0.671}
+2025-12-03 11:55:09 [INFO]: System metrics collected {"dbLatency":11259,"apiLatency":11260,"memoryUsage":88.43096532951925,"cpuUsage":0.765}
+2025-12-03 12:02:52 [INFO]: System metrics collected {"dbLatency":2582,"apiLatency":2582,"memoryUsage":54.715909090909086,"cpuUsage":0.546}
+2025-12-03 12:03:20 [INFO]: System metrics collected {"dbLatency":2158,"apiLatency":2158,"memoryUsage":64.72302995800153,"cpuUsage":0.624}
+2025-12-03 12:03:58 [INFO]: System metrics collected {"dbLatency":4622,"apiLatency":4622,"memoryUsage":53.778423437324655,"cpuUsage":0.546}
+2025-12-03 12:04:28 [INFO]: System metrics collected {"dbLatency":4160,"apiLatency":4160,"memoryUsage":53.34488161559888,"cpuUsage":0.624}
+2025-12-03 12:09:17 [INFO]: System metrics collected {"dbLatency":8318,"apiLatency":8318,"memoryUsage":85.87527385589094,"cpuUsage":0.796}
+2025-12-03 12:13:25 [INFO]: System metrics collected {"dbLatency":2485,"apiLatency":2485,"memoryUsage":62.340640129101665,"cpuUsage":0.702}
+2025-12-03 12:14:04 [INFO]: System metrics collected {"dbLatency":4265,"apiLatency":4265,"memoryUsage":56.629982210100785,"cpuUsage":0.64}
+2025-12-03 12:28:53 [INFO]: System metrics collected {"dbLatency":9977,"apiLatency":9978,"memoryUsage":86.81159475413827,"cpuUsage":0.702}
+2025-12-03 12:29:20 [INFO]: System metrics collected {"dbLatency":1347,"apiLatency":1347,"memoryUsage":56.579406023424426,"cpuUsage":0.687}
+2025-12-03 12:34:42 [INFO]: System metrics collected {"dbLatency":1089,"apiLatency":1089,"memoryUsage":52.81906667321288,"cpuUsage":0.624}

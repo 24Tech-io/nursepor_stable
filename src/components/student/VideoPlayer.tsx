@@ -1,10 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { parseVideoUrl } from '@/lib/video-utils';
 
 interface VideoPlayerProps {
   url: string;
-  provider: 'youtube' | 'vimeo';
+  provider?: 'youtube' | 'vimeo' | 'direct' | 'unknown';
   onProgressUpdate?: (watchTime: number) => void;
   onComplete?: () => void;
 }
@@ -17,6 +18,15 @@ export default function VideoPlayer({
 }: VideoPlayerProps) {
   const [watchTime, setWatchTime] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [embedUrl, setEmbedUrl] = useState<string>(url);
+
+  useEffect(() => {
+    // Parse URL and convert to embed format if needed
+    if (url) {
+      const parsed = parseVideoUrl(url);
+      setEmbedUrl(parsed.embedUrl);
+    }
+  }, [url]);
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -40,19 +50,47 @@ export default function VideoPlayer({
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
+  // Check if it's a direct video file (not embeddable)
+  const isDirectVideo = embedUrl.match(/\.(mp4|webm|ogg|mov|avi|mkv)$/i);
+
   return (
     <div className="bg-black rounded-2xl overflow-hidden shadow-2xl">
-      {/* Video Embed */}
+      {/* Video Embed or Direct Video */}
       <div className="relative pt-[56.25%]">
-        <iframe
-          src={url}
-          className="absolute inset-0 w-full h-full"
-          allowFullScreen
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-        />
+        {isDirectVideo ? (
+          <video
+            src={embedUrl}
+            className="absolute inset-0 w-full h-full"
+            controls
+            onPlay={() => setIsPlaying(true)}
+            onPause={() => setIsPlaying(false)}
+            onTimeUpdate={(e) => {
+              const currentTime = Math.floor(e.currentTarget.currentTime);
+              setWatchTime(currentTime);
+              if (onProgressUpdate) {
+                onProgressUpdate(currentTime);
+              }
+            }}
+            onEnded={() => {
+              setIsPlaying(false);
+              if (onComplete) {
+                onComplete();
+              }
+            }}
+          />
+        ) : (
+          <iframe
+            src={embedUrl}
+            className="absolute inset-0 w-full h-full"
+            allowFullScreen
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            frameBorder="0"
+            style={{ border: 'none' }}
+          />
+        )}
       </div>
 
-      {/* Controls Info */}
+      {/* Controls Info - Hidden provider branding */}
       <div className="bg-gradient-to-r from-gray-900 to-gray-800 p-4">
         <div className="flex items-center justify-between text-white">
           <div className="flex items-center space-x-4">
@@ -75,10 +113,7 @@ export default function VideoPlayer({
               <p className="text-gray-300">{formatTime(watchTime)}</p>
             </div>
           </div>
-          <div className="text-right">
-            <p className="text-xs text-gray-400">Provider</p>
-            <p className="text-sm font-semibold capitalize">{provider}</p>
-          </div>
+          {/* Provider branding removed - no longer showing provider name */}
         </div>
       </div>
     </div>

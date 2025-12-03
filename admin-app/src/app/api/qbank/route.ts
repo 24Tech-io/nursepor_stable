@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
       const [result] = await db
         .select({ count: sql<number>`COUNT(${qbankQuestions.id})` })
         .from(qbankQuestions)
-        .innerJoin(questionBanks, eq(qbankQuestions.questionBankId, questionBanks.id));
+        .leftJoin(questionBanks, eq(qbankQuestions.questionBankId, questionBanks.id));
 
       return NextResponse.json({
         questions: [],
@@ -38,9 +38,9 @@ export async function GET(request: NextRequest) {
     const [countResult] = await db
       .select({ count: sql<number>`COUNT(${qbankQuestions.id})` })
       .from(qbankQuestions)
-      .innerJoin(questionBanks, eq(qbankQuestions.questionBankId, questionBanks.id));
+      .leftJoin(questionBanks, eq(qbankQuestions.questionBankId, questionBanks.id));
 
-    // Otherwise, fetch questions with limit
+    // Otherwise, fetch questions with limit (use LEFT JOIN to include all questions)
     const questions = await db
       .select({
         id: qbankQuestions.id,
@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
         correctAnswer: qbankQuestions.correctAnswer,
       })
       .from(qbankQuestions)
-      .innerJoin(questionBanks, eq(qbankQuestions.questionBankId, questionBanks.id))
+      .leftJoin(questionBanks, eq(qbankQuestions.questionBankId, questionBanks.id))
       .limit(limit);
 
     return NextResponse.json({

@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/auth';
 import { getDatabase } from '@/lib/db';
-import { accessRequests, studentProgress, courses } from '@/lib/db/schema';
+import { accessRequests, studentProgress, courses, enrollments } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
-import { syncEnrollmentAfterApproval } from '@/lib/enrollment-sync';
+import { approveRequest, rejectRequest } from '@/lib/data-manager/helpers/request-helper';
+import { withRequestLock } from '@/lib/operation-lock';
+import { createErrorResponse } from '@/lib/error-handler';
 
 // PATCH - Approve or deny request
 export async function PATCH(
@@ -116,20 +118,41 @@ export async function PATCH(
       courseTitle: accessRequest.courseTitle
     });
 
-    // If request is already approved/rejected, delete it and return success
-    // This handles cases where the request was approved but not deleted
+    // If request is already approved/rejected, verify enrollment exists and delete it
+    // This handles cases where the request was approved but not properly processed
     if (accessRequest.status !== 'pending') {
-      console.warn(`⚠️ Request #${requestId} already reviewed (status: ${accessRequest.status}). Deleting it now.`);
+      console.warn(`⚠️ Request #${requestId} already reviewed (status: ${accessRequest.status}). Verifying and cleaning up...`);
       
-      // If approved, ensure enrollment is synced before deleting
+      // If approved, verify enrollment exists
       if (accessRequest.status === 'approved') {
-        try {
-          await syncEnrollmentAfterApproval(
-            accessRequest.studentId,
-            accessRequest.courseId
-          );
-        } catch (enrollmentError: any) {
-          console.error('❌ Error ensuring enrollment:', enrollmentError);
+        const [progressCheck, enrollmentCheck] = await Promise.all([
+          db
+            .select({ id: studentProgress.id })
+            .from(studentProgress)
+            .where(
+              and(
+                eq(studentProgress.studentId, accessRequest.studentId),
+                eq(studentProgress.courseId, accessRequest.courseId)
+              )
+            )
+            .limit(1),
+          db
+            .select({ id: enrollments.id })
+            .from(enrollments)
+            .where(
+              and(
+                eq(enrollments.userId, accessRequest.studentId),
+                eq(enrollments.courseId, accessRequest.courseId),
+                eq(enrollments.status, 'active')
+              )
+            )
+            .limit(1),
+        ]);
+
+        if (progressCheck.length === 0 && enrollmentCheck.length === 0) {
+          console.error(`❌ Request #${requestId} was approved but enrollment doesn't exist!`);
+          // Don't try to repair here - just log the error and delete the request
+          // The repair should happen in the enrollment status endpoint
         }
       }
       
@@ -154,28 +177,35 @@ export async function PATCH(
       }
     }
 
-    // For approve/deny, DELETE immediately without updating status first
-    // This prevents any chance of the request remaining with wrong status
-    console.log(`🗑️ [PATCH /api/requests/${requestId}] Processing ${action} - will delete immediately`);
-    
-    // If approved, grant access by creating studentProgress entry FIRST
+    // Use DataManager with operation lock for atomic approval/rejection
+    // This ensures: 1) Status is updated, 2) Enrollment is created (if approved), 3) Request is deleted - all atomically
     if (action === 'approve') {
-      try {
-        console.log(`🔄 Syncing enrollment for student ${accessRequest.studentId} and course ${accessRequest.courseId}...`);
-        const synced = await syncEnrollmentAfterApproval(
-          accessRequest.studentId,
-          accessRequest.courseId
-        );
-        
-        if (synced) {
-          console.log(`✅ Student ${accessRequest.studentId} enrolled in course ${accessRequest.courseId}`);
-        } else {
-          console.log(`ℹ️ Student ${accessRequest.studentId} already enrolled in course ${accessRequest.courseId}`);
+      // Use request lock to prevent concurrent approvals
+      const result = await withRequestLock(
+        accessRequest.studentId,
+        accessRequest.courseId,
+        async () => {
+          return await approveRequest({
+            requestId,
+            action: 'approve',
+            adminId: decoded.id,
+            reason: body.reason,
+          });
         }
-        
-        // Verify enrollment was successful
-        const enrollmentCheck = await db
-          .select()
+      );
+
+      if (!result.success) {
+        return createErrorResponse(
+          result.error,
+          result.error?.message || 'Failed to approve request',
+          result.error?.retryable ? 503 : 400
+        );
+      }
+
+      // Verify enrollment was created in both tables
+      const [progressCheck, enrollmentCheck] = await Promise.all([
+        db
+          .select({ id: studentProgress.id })
           .from(studentProgress)
           .where(
             and(
@@ -183,77 +213,71 @@ export async function PATCH(
               eq(studentProgress.courseId, accessRequest.courseId)
             )
           )
-          .limit(1);
-        
-        if (enrollmentCheck.length === 0) {
-          console.warn(`⚠️ [PATCH /api/requests/${requestId}] Enrollment not confirmed, but proceeding with deletion`);
-        }
-      } catch (enrollmentError: any) {
-        console.error(`❌ [PATCH /api/requests/${requestId}] Error syncing enrollment:`, enrollmentError);
-        // Continue with deletion even if enrollment fails
+          .limit(1),
+        db
+          .select({ id: enrollments.id })
+          .from(enrollments)
+          .where(
+            and(
+              eq(enrollments.userId, accessRequest.studentId),
+              eq(enrollments.courseId, accessRequest.courseId),
+              eq(enrollments.status, 'active')
+            )
+          )
+          .limit(1),
+      ]);
+
+      if (progressCheck.length === 0 && enrollmentCheck.length === 0) {
+        console.error(`❌ [PATCH /api/requests/${requestId}] CRITICAL: Enrollment not created after approval!`);
+        // This is a critical error - enrollment should have been created by DataManager
+        // Log it but don't fail the request - the transaction should have rolled back
+      } else {
+        console.log(`✅ [PATCH /api/requests/${requestId}] Enrollment verified: progress=${progressCheck.length > 0}, enrollment=${enrollmentCheck.length > 0}`);
       }
-    }
-    
-    // Delete the request IMMEDIATELY - don't update status first
-    // Use retry logic to ensure deletion succeeds
-    let deleted = false;
-    let retryCount = 0;
-    const maxRetries = 3;
-    
-    console.log(`🗑️ [PATCH /api/requests/${requestId}] Deleting request immediately...`);
-    
-    while (!deleted && retryCount < maxRetries) {
-      try {
-        await db.delete(accessRequests).where(eq(accessRequests.id, requestId));
-        
-        // Verify deletion succeeded
-        const verifyDelete = await db
-          .select({ id: accessRequests.id })
-          .from(accessRequests)
-          .where(eq(accessRequests.id, requestId))
-          .limit(1);
-        
-        if (verifyDelete.length === 0) {
-          deleted = true;
-          console.log(`✅ [PATCH /api/requests/${requestId}] Request deleted and verified (attempt ${retryCount + 1})`);
-        } else {
-          retryCount++;
-          console.warn(`⚠️ [PATCH /api/requests/${requestId}] Deletion verification failed, retrying... (attempt ${retryCount}/${maxRetries})`);
-          if (retryCount < maxRetries) {
-            await new Promise(resolve => setTimeout(resolve, 100 * retryCount)); // Exponential backoff
-          }
-        }
-      } catch (deleteError: any) {
-        retryCount++;
-        console.error(`❌ [PATCH /api/requests/${requestId}] Failed to delete request (attempt ${retryCount}/${maxRetries}):`, deleteError);
-        if (retryCount < maxRetries) {
-          await new Promise(resolve => setTimeout(resolve, 100 * retryCount)); // Exponential backoff
-        }
-      }
-    }
-    
-    if (!deleted) {
-      console.error(`❌ [PATCH /api/requests/${requestId}] CRITICAL: Failed to delete request after ${maxRetries} attempts`);
-      return NextResponse.json(
-        { 
-          message: 'Failed to delete request after processing',
-          error: 'Deletion failed after multiple retries',
-          requestId 
-        },
-        { status: 500 }
-      );
-    }
-      
+
       return NextResponse.json({
-        message: action === 'approve' 
-          ? 'Request approved, access granted, and request removed' 
-          : 'Request denied and removed',
-        action,
+        message: 'Request approved, access granted, and request removed',
+        action: 'approve',
         requestId,
         studentId: accessRequest.studentId,
         courseId: accessRequest.courseId,
-        deleted: true, // Indicate that the request was deleted
+        deleted: true,
+        operationId: result.operationId,
+        enrollmentCreated: result.data?.enrollmentCreated || false,
       });
+    } else {
+      // Reject request
+      const result = await withRequestLock(
+        accessRequest.studentId,
+        accessRequest.courseId,
+        async () => {
+          return await rejectRequest({
+            requestId,
+            action: 'reject',
+            adminId: decoded.id,
+            reason: body.reason,
+          });
+        }
+      );
+
+      if (!result.success) {
+        return createErrorResponse(
+          result.error,
+          result.error?.message || 'Failed to reject request',
+          result.error?.retryable ? 503 : 400
+        );
+      }
+
+      return NextResponse.json({
+        message: 'Request denied and removed',
+        action: 'deny',
+        requestId,
+        studentId: accessRequest.studentId,
+        courseId: accessRequest.courseId,
+        deleted: true,
+        operationId: result.operationId,
+      });
+    }
   } catch (error: any) {
     console.error('❌ [PATCH /api/requests/[id]] Unexpected error:', error);
     console.error('Error stack:', error.stack);

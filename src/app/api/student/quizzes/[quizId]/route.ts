@@ -41,14 +41,15 @@ export async function GET(
       .where(eq(quizQuestions.quizId, quizId))
       .orderBy(quizQuestions.order);
 
-    // Get previous attempts
+    // Get previous attempts (quizAttempts uses userId and chapterId, not studentId and quizId)
+    const chapterId = quiz[0].chapterId;
     const attempts = await db
       .select()
       .from(quizAttempts)
       .where(
         and(
-          eq(quizAttempts.studentId, decoded.id),
-          eq(quizAttempts.quizId, quizId)
+          eq(quizAttempts.userId, decoded.id),
+          eq(quizAttempts.chapterId, chapterId)
         )
       )
       .orderBy(desc(quizAttempts.attemptedAt));
@@ -117,14 +118,15 @@ export async function POST(
       .where(eq(quizQuestions.quizId, quizId))
       .orderBy(quizQuestions.order);
 
-    // Check max attempts
+    // Check max attempts (quizAttempts uses userId and chapterId)
+    const chapterId = quiz[0].chapterId;
     const attempts = await db
       .select()
       .from(quizAttempts)
       .where(
         and(
-          eq(quizAttempts.studentId, decoded.id),
-          eq(quizAttempts.quizId, quizId)
+          eq(quizAttempts.userId, decoded.id),
+          eq(quizAttempts.chapterId, chapterId)
         )
       );
 

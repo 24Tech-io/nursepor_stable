@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/auth';
 import { db } from '@/lib/db';
-import { studentProgress, courses } from '@/lib/db/schema';
-import { eq, sql, desc } from 'drizzle-orm';
+import { studentProgress, courses, enrollments } from '@/lib/db/schema';
+import { eq, sql, desc, and } from 'drizzle-orm';
 
 export async function GET(request: NextRequest) {
   try {
@@ -17,19 +17,23 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ message: 'Admin access required' }, { status: 403 });
     }
 
-    // Get enrollment stats per course with proper SQL
+    // Get enrollment stats per course with proper SQL - query BOTH tables
     const enrollmentStats = await db
       .select({
         courseId: courses.id,
         courseTitle: courses.title,
-        enrollmentCount: sql<number>`cast(count(distinct ${studentProgress.studentId}) as int)`,
-        avgProgress: sql<number>`coalesce(avg(cast(${studentProgress.totalProgress} as float)), 0)`,
+        enrollmentCount: sql<number>`cast(count(distinct COALESCE(${enrollments.userId}, ${studentProgress.studentId})) as int)`,
+        avgProgress: sql<number>`coalesce(avg(cast(COALESCE(${enrollments.progress}, ${studentProgress.totalProgress}) as float)), 0)`,
       })
       .from(courses)
       .leftJoin(studentProgress, eq(courses.id, studentProgress.courseId))
+      .leftJoin(enrollments, and(
+        eq(courses.id, enrollments.courseId),
+        eq(enrollments.status, 'active')
+      ))
       .where(eq(courses.status, 'published'))
       .groupBy(courses.id, courses.title)
-      .orderBy(desc(sql`count(distinct ${studentProgress.studentId})`));
+      .orderBy(desc(sql`count(distinct COALESCE(${enrollments.userId}, ${studentProgress.studentId}))`));
 
     return NextResponse.json({
       enrollmentStats,

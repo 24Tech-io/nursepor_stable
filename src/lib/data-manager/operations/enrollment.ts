@@ -169,6 +169,33 @@ export class EnrollmentOperations {
   }
 
   /**
+   * Verify enrollment exists in both tables
+   * Returns detailed status of enrollment in each table
+   */
+  static async verifyEnrollmentExists(
+    tx: any,
+    userId: number,
+    courseId: number
+  ): Promise<{ inProgress: boolean; inEnrollments: boolean; verified: boolean }> {
+    const [progressCheck, enrollmentCheck] = await Promise.all([
+      tx.select({ id: studentProgress.id })
+        .from(studentProgress)
+        .where(and(eq(studentProgress.studentId, userId), eq(studentProgress.courseId, courseId)))
+        .limit(1),
+      tx.select({ id: enrollments.id })
+        .from(enrollments)
+        .where(and(eq(enrollments.userId, userId), eq(enrollments.courseId, courseId)))
+        .limit(1)
+    ]);
+    
+    return {
+      inProgress: progressCheck.length > 0,
+      inEnrollments: enrollmentCheck.length > 0,
+      verified: progressCheck.length > 0 && enrollmentCheck.length > 0
+    };
+  }
+
+  /**
    * Sync enrollment state between tables
    * Ensures both tables have consistent data
    */

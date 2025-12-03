@@ -18,11 +18,11 @@ export async function POST(
 
         const decoded = verifyToken(token);
         if (!decoded || decoded.role !== 'admin') {
-            securityLogger.logUnauthorizedAccess(
-                request.headers.get('x-forwarded-for') || 'unknown',
-                `/api/students/${params.id}/reset-face`,
-                decoded?.id?.toString()
-            );
+            securityLogger.warn('Unauthorized access attempt', {
+                ip: request.headers.get('x-forwarded-for') || 'unknown',
+                path: `/api/students/${params.id}/reset-face`,
+                userId: decoded?.id?.toString()
+            });
             return NextResponse.json({ message: 'Admin access required' }, { status: 403 });
         }
 
@@ -63,7 +63,7 @@ export async function POST(
             })
             .where(eq(users.id, studentId));
 
-        securityLogger.logSecurityEvent('Face ID reset by admin', {
+        securityLogger.info('Face ID reset by admin', {
             adminId: decoded.id,
             studentId,
             studentName: student[0].name
@@ -76,7 +76,7 @@ export async function POST(
         });
     } catch (error) {
         console.error('Reset Face ID error:', error);
-        securityLogger.logSecurityEvent('Face ID reset failed', { error: String(error) });
+        securityLogger.info('Face ID reset failed', { error: String(error) });
         return NextResponse.json({
             message: 'Internal server error',
             error: process.env.NODE_ENV === 'development' ? String(error) : undefined

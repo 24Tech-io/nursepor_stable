@@ -334,26 +334,24 @@ export default function StudentProfile({ studentId, back, onEnrollmentChange }: 
                     <div className="bg-[#161922] border border-slate-800/60 rounded-2xl p-6">
                         <h3 className="font-bold text-white mb-4 flex items-center gap-2">
                             <BookOpen size={18} className="text-blue-400" />
-                            Enrolled Courses ({student.enrolledCourses || student.enrollments?.length || (student.enrollmentData?.filter((e: any) => e.enrollmentStatus === 'enrolled')?.length || 0)})
+                            Enrolled Courses ({(() => {
+                                const enrollmentData = student.enrollmentData || [];
+                                return enrollmentData.filter((e: any) => e.enrollmentStatus === 'enrolled').length;
+                            })()})
                         </h3>
 
                         {(() => {
-                            // Use enrollments from /api/students/[id] if available, otherwise use enrollmentData from /api/enrollment
-                            const enrolledList = student.enrollments && student.enrollments.length > 0 
-                                ? student.enrollments 
-                                : (student.enrollmentData?.filter((e: any) => e.enrollmentStatus === 'enrolled').map((e: any) => ({
+                            // Get enrolled courses from enrollmentData
+                            const enrollmentData = student.enrollmentData || [];
+                            const enrolledList = enrollmentData
+                                .filter((e: any) => e.enrollmentStatus === 'enrolled')
+                                .map((e: any) => ({
                                     courseId: e.courseId,
                                     progress: e.progress || 0,
                                     totalProgress: e.progress || 0,
                                     lastAccessed: e.lastAccessed,
                                     course: e.course || courses.find((c: any) => c.id === e.courseId),
-                                })) || []);
-                            
-                            console.log('📊 [StudentProfile] Enrolled courses:', {
-                                fromEnrollments: student.enrollments?.length || 0,
-                                fromEnrollmentData: student.enrollmentData?.filter((e: any) => e.enrollmentStatus === 'enrolled')?.length || 0,
-                                finalList: enrolledList.length,
-                            });
+                                }));
                             
                             return enrolledList.length > 0 ? (
                                 <div className="space-y-3">
@@ -400,88 +398,103 @@ export default function StudentProfile({ studentId, back, onEnrollmentChange }: 
                         })()}
                     </div>
 
+                    {/* Requested Courses */}
+                    <div className="bg-[#161922] border border-slate-800/60 rounded-2xl p-6">
+                        <h3 className="font-bold text-white mb-4 flex items-center gap-2">
+                            <BookOpen size={18} className="text-yellow-400" />
+                            Requested Courses ({(() => {
+                                const enrollmentData = student.enrollmentData || [];
+                                return enrollmentData.filter((e: any) => e.enrollmentStatus === 'requested').length;
+                            })()})
+                        </h3>
+
+                        {(() => {
+                            const enrollmentData = student.enrollmentData || [];
+                            const requestedList = enrollmentData
+                                .filter((e: any) => e.enrollmentStatus === 'requested')
+                                .map((e: any) => ({
+                                    courseId: e.courseId,
+                                    requestedAt: e.requestedAt,
+                                    course: e.course || courses.find((c: any) => c.id === e.courseId),
+                                }));
+
+                            return requestedList.length > 0 ? (
+                                <div className="space-y-3">
+                                    {requestedList.map((request: any) => (
+                                        <div key={request.courseId} className="p-4 bg-[#1a1d26] rounded-xl border border-slate-800/40">
+                                            <div className="flex items-start justify-between mb-3">
+                                                <div className="flex-1">
+                                                    <h4 className="font-bold text-white mb-1">{request.course?.title || 'Unknown Course'}</h4>
+                                                    <p className="text-xs text-slate-500 mb-2">{request.course?.description?.substring(0, 80) || ''}...</p>
+                                                    <div className="flex items-center gap-4 mt-2">
+                                                        <div>
+                                                            <span className="text-xs text-slate-500">Requested: </span>
+                                                            <span className="text-xs text-slate-400">
+                                                                {request.requestedAt ? new Date(request.requestedAt).toLocaleDateString() : 'Unknown'}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <button
+                                                    onClick={() => handleToggleCourse(request.courseId, false)}
+                                                    disabled={isSaving}
+                                                    className="ml-4 px-4 py-2 bg-green-500/10 text-green-400 hover:bg-green-500/20 rounded-lg font-bold text-xs transition-colors border border-green-500/30 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                >
+                                                    {isSaving ? 'Processing...' : 'Approve & Enroll'}
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <p className="text-slate-400 text-center py-8">No pending course requests</p>
+                            );
+                        })()}
+                    </div>
+
                     {/* Available Courses */}
                     <div className="bg-[#161922] border border-slate-800/60 rounded-2xl p-6">
                         <h3 className="font-bold text-white mb-4 flex items-center gap-2">
                             <BookOpen size={18} className="text-emerald-400" />
-                            Available Courses
+                            Available Courses ({(() => {
+                                const enrollmentData = student.enrollmentData || [];
+                                return enrollmentData.filter((e: any) => e.enrollmentStatus === 'available').length;
+                            })()})
                         </h3>
 
                         <div className="space-y-3">
                             {(() => {
-                                // Use enrollment data from unified API if available, otherwise fall back to old method
                                 const enrollmentData = student.enrollmentData || [];
-                                
-                                return courses
-                                    .filter(course => {
-                                        const courseId = Number(course.id);
-                                        // Exclude enrolled courses
-                                        if (enrollmentData.length > 0) {
-                                            const enrollment = enrollmentData.find((e: any) => Number(e.courseId) === Number(course.id));
-                                            return enrollment?.enrollmentStatus !== 'enrolled';
-                                        }
-                                        // Fallback to old method
-                                        return !student.enrollments?.some((e: any) => {
-                                            const enrolledCourseId = Number(e.courseId);
-                                            return enrolledCourseId === courseId;
-                                        });
-                                    })
-                                    .map(course => {
-                                        const courseId = Number(course.id);
-                                        
-                                        // Get enrollment status from unified API
-                                        let enrollmentStatus = 'available';
-                                        let hasPendingRequest = false;
-                                        
-                                        if (enrollmentData.length > 0) {
-                                            const enrollment = enrollmentData.find((e: any) => Number(e.courseId) === Number(course.id));
-                                            enrollmentStatus = enrollment?.enrollmentStatus || 'available';
-                                            hasPendingRequest = enrollmentStatus === 'requested';
-                                        } else {
-                                            // Fallback to old method
-                                            hasPendingRequest = student.pendingRequests?.some((pr: any) => {
-                                                const requestCourseId = Number(pr.courseId);
-                                                return requestCourseId === courseId;
-                                            }) || false;
-                                        }
+                                const availableList = enrollmentData
+                                    .filter((e: any) => e.enrollmentStatus === 'available')
+                                    .map((e: any) => ({
+                                        courseId: e.courseId,
+                                        course: e.course || courses.find((c: any) => c.id === e.courseId),
+                                    }));
 
+                                return availableList.length > 0 ? (
+                                    availableList.map((item: any) => {
+                                        const courseId = Number(item.courseId);
                                         return (
-                                            <div key={course.id} className="flex items-center justify-between p-4 bg-[#1a1d26] rounded-xl border border-slate-800/40">
+                                            <div key={item.courseId} className="flex items-center justify-between p-4 bg-[#1a1d26] rounded-xl border border-slate-800/40">
                                                 <div className="flex-1">
-                                                    <h4 className="font-bold text-white">{course.title}</h4>
-                                                    <p className="text-xs text-slate-500 mt-1">{course.description?.substring(0, 80)}...</p>
+                                                    <h4 className="font-bold text-white">{item.course?.title || 'Unknown Course'}</h4>
+                                                    <p className="text-xs text-slate-500 mt-1">{item.course?.description?.substring(0, 80) || ''}...</p>
                                                 </div>
-                                                {hasPendingRequest ? (
-                                                    <button
-                                                        disabled
-                                                        className="ml-4 px-4 py-2 bg-yellow-500/10 text-yellow-400 rounded-lg font-bold text-xs border border-yellow-500/30 cursor-not-allowed"
-                                                    >
-                                                        Requested
-                                                    </button>
-                                                ) : (
-                                                    <button
-                                                        onClick={() => handleToggleCourse(courseId, false)}
-                                                        disabled={isSaving}
-                                                        className="ml-4 px-4 py-2 bg-green-500/10 text-green-400 hover:bg-green-500/20 rounded-lg font-bold text-xs transition-colors border border-green-500/30 disabled:opacity-50 disabled:cursor-not-allowed"
-                                                    >
-                                                        {isSaving ? 'Processing...' : 'Enroll'}
-                                                    </button>
-                                                )}
+                                                <button
+                                                    onClick={() => handleToggleCourse(courseId, false)}
+                                                    disabled={isSaving}
+                                                    className="ml-4 px-4 py-2 bg-green-500/10 text-green-400 hover:bg-green-500/20 rounded-lg font-bold text-xs transition-colors border border-green-500/30 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                >
+                                                    {isSaving ? 'Processing...' : 'Enroll'}
+                                                </button>
                                             </div>
                                         );
-                                    });
+                                    })
+                                ) : (
+                                    <p className="text-slate-400 text-center py-8">All courses are either enrolled or requested</p>
+                                );
                             })()}
-                            {courses.filter(course => {
-                                const courseId = Number(course.id);
-                                const enrollmentData = student.enrollmentData || [];
-                                if (enrollmentData.length > 0) {
-                                    const enrollment = enrollmentData.find((e: any) => Number(e.courseId) === Number(course.id));
-                                    return enrollment?.enrollmentStatus === 'enrolled';
-                                }
-                                return !student.enrollments?.some((e: any) => Number(e.courseId) === courseId);
-                            }).length === courses.length && (
-                                <p className="text-slate-400 text-center py-4">All available courses are enrolled</p>
-                            )}
                         </div>
                     </div>
                 </div>

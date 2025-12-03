@@ -125,7 +125,7 @@ export function blockIP(
     permanent,
   });
   
-  securityLogger.logSecurityEvent('IP Blocked', {
+  securityLogger.info('IP Blocked', {
     ip,
     reason,
     permanent,
@@ -149,7 +149,7 @@ export function unblockIP(ip: string): boolean {
   threatScores.delete(ip);
   suspiciousIPs.delete(ip);
   
-  securityLogger.logSecurityEvent('IP Unblocked', { ip });
+  securityLogger.info('IP Unblocked', { ip });
   return true;
 }
 
@@ -235,7 +235,7 @@ export function reportSecurityIncident(
 ): void {
   calculateThreatScore(ip, incidentType, severity);
   
-  securityLogger.logSecurityEvent('Security Incident', {
+  securityLogger.info('Security Incident', {
     ip,
     type: incidentType,
     severity,
@@ -382,4 +382,5 @@ setInterval(() => {
     });
   }
 }, 60 * 60 * 1000);
+
 

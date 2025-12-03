@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
             })
             .where(eq(users.id, user.id));
 
-        securityLogger.logSecurityEvent('OTP Generated', { userId: user.id, method: phone ? 'phone' : 'email' });
+        securityLogger.info('OTP Generated', { userId: user.id, method: phone ? 'phone' : 'email' });
 
         // Log to console in development
         if (process.env.NODE_ENV === 'development') {
@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
         });
     } catch (error) {
         console.error('Send OTP error:', error);
-        securityLogger.logSecurityEvent('OTP Send Error', { error: String(error) });
+        securityLogger.error('OTP Send Error', { error: String(error) });
         return NextResponse.json({ message: 'Internal server error' }, { status: 500 });
     }
 }

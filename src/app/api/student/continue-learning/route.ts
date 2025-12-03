@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
             .where(eq(studentProgress.studentId, decoded.id))
             .orderBy(desc(studentProgress.lastAccessed));
 
-        const recommendations = [];
+        const recommendations: any[] = [];
 
         for (const course of enrolledCourses) {
             // Parse completed chapters

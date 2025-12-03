@@ -51,12 +51,12 @@ export async function GET(
       dailyVideo: {
         ...video[0],
         description: parsedDesc.description || video[0].description || '',
-        videoUrl: metadataObj.videoUrl || null,
-        videoProvider: metadataObj.videoProvider || 'youtube',
-        videoDuration: metadataObj.videoDuration || null,
-        thumbnail: metadataObj.thumbnail || null,
-        scheduledDate: metadataObj.scheduledDate || null,
-        priority: metadataObj.priority || 0,
+        videoUrl: (metadataObj as any).videoUrl || null,
+        videoProvider: (metadataObj as any).videoProvider || 'youtube',
+        videoDuration: (metadataObj as any).videoDuration || null,
+        thumbnail: (metadataObj as any).thumbnail || null,
+        scheduledDate: (metadataObj as any).scheduledDate || null,
+        priority: (metadataObj as any).priority || 0,
       },
     });
   } catch (error: any) {
@@ -131,12 +131,12 @@ export async function PUT(
         data.priority !== undefined) {
       
       const metadata = {
-        videoUrl: data.videoUrl !== undefined ? data.videoUrl : existingMetadata.videoUrl || null,
-        videoProvider: data.videoProvider !== undefined ? data.videoProvider : existingMetadata.videoProvider || 'youtube',
-        videoDuration: data.videoDuration !== undefined ? data.videoDuration : existingMetadata.videoDuration || null,
-        thumbnail: data.thumbnail !== undefined ? data.thumbnail : existingMetadata.thumbnail || null,
-        scheduledDate: data.scheduledDate !== undefined ? data.scheduledDate : existingMetadata.scheduledDate || null,
-        priority: data.priority !== undefined ? data.priority : existingMetadata.priority || 0,
+        videoUrl: data.videoUrl !== undefined ? data.videoUrl : (existingMetadata as any).videoUrl || null,
+        videoProvider: data.videoProvider !== undefined ? data.videoProvider : (existingMetadata as any).videoProvider || 'youtube',
+        videoDuration: data.videoDuration !== undefined ? data.videoDuration : (existingMetadata as any).videoDuration || null,
+        thumbnail: data.thumbnail !== undefined ? data.thumbnail : (existingMetadata as any).thumbnail || null,
+        scheduledDate: data.scheduledDate !== undefined ? data.scheduledDate : (existingMetadata as any).scheduledDate || null,
+        priority: data.priority !== undefined ? data.priority : (existingMetadata as any).priority || 0,
       };
 
       const enhancedDescription = {
@@ -168,12 +168,12 @@ export async function PUT(
       dailyVideo: {
         ...updated[0],
         description: parsedDesc.description || updated[0].description || '',
-        videoUrl: metadataObj.videoUrl || null,
-        videoProvider: metadataObj.videoProvider || 'youtube',
-        videoDuration: metadataObj.videoDuration || null,
-        thumbnail: metadataObj.thumbnail || null,
-        scheduledDate: metadataObj.scheduledDate || null,
-        priority: metadataObj.priority || 0,
+        videoUrl: (metadataObj as any).videoUrl || null,
+        videoProvider: (metadataObj as any).videoProvider || 'youtube',
+        videoDuration: (metadataObj as any).videoDuration || null,
+        thumbnail: (metadataObj as any).thumbnail || null,
+        scheduledDate: (metadataObj as any).scheduledDate || null,
+        priority: (metadataObj as any).priority || 0,
       },
     });
   } catch (error: any) {
@@ -215,6 +215,9 @@ export async function DELETE(
     );
   }
 }
+
+
+
 
 
 

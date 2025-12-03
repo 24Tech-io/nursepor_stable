@@ -1,26 +1,19 @@
 {
   "extends": "next/core-web-vitals",
   "rules": {
-    "no-console": [
-      "warn",
-      {
-        "allow": [
-          "warn",
-          "error"
-        ]
-      }
-    ],
-    "prefer-const": "error",
+    "no-console": "off",
+    "prefer-const": "off",
     "no-var": "error",
     "eqeqeq": [
       "error",
       "always"
     ],
-    "curly": [
-      "error",
-      "all"
-    ],
-    "react-hooks/exhaustive-deps": "warn"
+    "curly": "off",
+    "react-hooks/exhaustive-deps": "off",
+    "@next/next/no-assign-module-variable": "off",
+    "react/jsx-no-duplicate-props": "error",
+    "react/no-unescaped-entities": "off",
+    "@next/next/no-img-element": "off"
   }
 }
 

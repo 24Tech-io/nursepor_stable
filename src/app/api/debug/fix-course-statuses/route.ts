@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
     console.log(`🔧 Found ${activeCourses.length} courses with "active" status`);
 
     // Update them to "published"
-    const updated = [];
+    const updated: any[] = [];
     for (const course of activeCourses) {
       await db
         .update(courses)
@@ -108,6 +108,9 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+
+
 
 
 

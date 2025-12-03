@@ -3,6 +3,9 @@ import { db } from '@/lib/db';
 import { qbankQuestions, questionBanks } from '@/lib/db/schema';
 import { desc, eq } from 'drizzle-orm';
 
+// Force dynamic rendering - this route uses request.url
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: Request) {
     try {
         // Parse query parameters for pagination

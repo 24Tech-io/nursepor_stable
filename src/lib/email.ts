@@ -5,7 +5,7 @@ import { formatNursingCandidateDocument } from './nursing-candidate';
 // Create transporter only if SMTP is configured
 let transporter: nodemailer.Transporter | null = null;
 
-function createTransporter(): nodemailer.Transporter | null {
+function createTransport(): nodemailer.Transporter | null {
   if (!process.env.SMTP_HOST || !process.env.SMTP_USER || !process.env.SMTP_PASS) {
     return null;
   }
@@ -39,7 +39,7 @@ function createTransporter(): nodemailer.Transporter | null {
 }
 
 // Initialize transporter
-transporter = createTransporter();
+transporter = createTransport();
 
 // Verify connection on startup if transporter exists (async, non-blocking)
 if (transporter) {
@@ -71,7 +71,7 @@ if (transporter) {
 export async function sendPasswordResetEmail(email: string, resetToken: string): Promise<void> {
   // Recreate transporter if it doesn't exist (in case env vars were added after startup)
   if (!transporter) {
-    transporter = createTransporter();
+    transporter = createTransport();
   }
 
   if (!transporter) {
@@ -126,7 +126,7 @@ export async function sendPasswordResetEmail(email: string, resetToken: string):
 export async function sendWelcomeEmail(email: string, name: string): Promise<void> {
   // Recreate transporter if it doesn't exist
   if (!transporter) {
-    transporter = createTransporter();
+    transporter = createTransport();
   }
 
   if (!transporter) {
@@ -169,7 +169,7 @@ export async function sendWelcomeEmail(email: string, name: string): Promise<voi
 export async function sendAccessRequestNotification(adminEmail: string, studentName: string, courseTitle: string): Promise<void> {
   // Recreate transporter if it doesn't exist
   if (!transporter) {
-    transporter = createTransporter();
+    transporter = createTransport();
   }
 
   if (!transporter) {
@@ -212,7 +212,7 @@ export async function sendAccessRequestNotification(adminEmail: string, studentN
 // Test email function
 export async function testEmailConnection(): Promise<{ success: boolean; message: string }> {
   if (!transporter) {
-    transporter = createTransporter();
+    transporter = createTransport();
   }
 
   if (!transporter) {
@@ -250,7 +250,7 @@ export async function testEmailConnection(): Promise<{ success: boolean; message
 // Send test email
 export async function sendTestEmail(to: string): Promise<{ success: boolean; message: string }> {
   if (!transporter) {
-    transporter = createTransporter();
+    transporter = createTransport();
   }
 
   if (!transporter) {
@@ -298,7 +298,7 @@ export async function sendNursingCandidateSubmissionEmail(
   referenceNumber: string
 ): Promise<'sent' | 'skipped'> {
   if (!transporter) {
-    transporter = createTransporter();
+    transporter = createTransport();
   }
 
   const document = formatNursingCandidateDocument({

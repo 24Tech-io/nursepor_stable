@@ -49,7 +49,7 @@ export async function DELETE(
             .delete(sessions)
             .where(eq(sessions.id, sessionId));
 
-        securityLogger.logSecurityEvent('Session force logout', {
+        securityLogger.info('Session force logout', {
             requestedBy: decoded.id,
             targetUserId: session[0].userId,
             sessionId,
@@ -61,7 +61,7 @@ export async function DELETE(
         });
     } catch (error) {
         console.error('Force logout error:', error);
-        securityLogger.logSecurityEvent('Force logout failed', { error: String(error) });
+        securityLogger.error('Force logout failed', { error: String(error) });
         return NextResponse.json({
             message: 'Internal server error',
             error: process.env.NODE_ENV === 'development' ? String(error) : undefined

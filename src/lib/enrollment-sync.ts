@@ -270,9 +270,9 @@ export async function syncProgressToEnrollments(
   courseId: number,
   progress: number
 ): Promise<void> {
+  const db = getDatabase();
+  
   try {
-    const db = getDatabase();
-    
     // Update enrollments.progress to match studentProgress.totalProgress
     await db
       .update(enrollments)

@@ -23,12 +23,15 @@ export default function ProfilePage() {
   });
 
   useEffect(() => {
+    const abortController = new AbortController();
+    let isMounted = true;
+
     // Fetch user data
     const fetchUser = async () => {
       // First, try to get user data from sessionStorage (set during login)
       const storedUserData = sessionStorage.getItem('userData');
       let hasStoredData = false;
-      if (storedUserData) {
+      if (storedUserData && isMounted) {
         try {
           const parsedUser = JSON.parse(storedUserData);
           console.log('📦 Profile: Using user data from sessionStorage:', parsedUser);
@@ -53,15 +56,20 @@ export default function ProfilePage() {
       // Wait a bit for cookie to be available, then fetch from API
       await new Promise(resolve => setTimeout(resolve, 1000));
       
+      if (!isMounted) return;
+      
       try {
         console.log('🔍 Profile: Fetching user data from /api/auth/me...');
         const response = await fetch('/api/auth/me', { 
           credentials: 'include',
+          signal: abortController.signal,
           cache: 'no-store',
           headers: {
             'Content-Type': 'application/json',
           }
         });
+        
+        if (!isMounted) return;
         
         if (response.ok) {
           const data = await response.json();
@@ -93,18 +101,20 @@ export default function ProfilePage() {
           }
         } else if (response.status === 401) {
           console.error('❌ Profile: Unauthorized (401) - cookie might not be set yet');
-          // If we already have user data displayed, don't redirect - just retry
-          if (hasStoredData) {
+          // If we already have user data displayed, don't redirect - just retry ONCE
+          if (hasStoredData && isMounted) {
             console.log('⚠️ Profile: Using stored user data while cookie is being set - will retry');
-            // Retry fetching after a longer delay
+            // Retry fetching after a longer delay (only once)
             setTimeout(async () => {
+              if (!isMounted) return;
               try {
                 console.log('🔄 Profile: Retrying /api/auth/me...');
                 const retryResponse = await fetch('/api/auth/me', { 
                   credentials: 'include',
+                  signal: abortController.signal,
                   cache: 'no-store'
                 });
-                if (retryResponse.ok) {
+                if (retryResponse.ok && isMounted) {
                   const retryData = await retryResponse.json();
                   if (retryData.user) {
                     console.log('✅ Profile: Retry successful - updating user data');
@@ -124,7 +134,8 @@ export default function ProfilePage() {
                 } else {
                   console.error('❌ Profile: Retry still failed - status:', retryResponse.status);
                 }
-              } catch (e) {
+              } catch (e: any) {
+                if (e.name === 'AbortError') return;
                 console.error('Profile retry failed:', e);
               }
             }, 3000);
@@ -137,14 +148,21 @@ export default function ProfilePage() {
             setIsLoading(false);
           }
         }
-      } catch (error) {
+      } catch (error: any) {
+        if (error.name === 'AbortError') return;
         console.error('❌ Profile: Exception fetching user:', error);
-        if (!hasStoredData) {
+        if (!hasStoredData && isMounted) {
           setIsLoading(false);
         }
       }
     };
+    
     fetchUser();
+
+    return () => {
+      isMounted = false;
+      abortController.abort();
+    };
   }, []);
 
   // Fetch stats when user is loaded

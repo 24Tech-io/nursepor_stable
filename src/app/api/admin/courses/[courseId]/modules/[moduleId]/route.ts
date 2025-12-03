@@ -4,6 +4,45 @@ import { getDatabase } from '@/lib/db';
 import { modules } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 
+// GET - Fetch single module
+export async function GET(
+  request: NextRequest,
+  { params }: { params: { courseId: string; moduleId: string } }
+) {
+  try {
+    const token = request.cookies.get('token')?.value;
+    if (!token) {
+      return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });
+    }
+
+    const decoded = verifyToken(token);
+    if (!decoded || decoded.role !== 'admin') {
+      return NextResponse.json({ message: 'Admin access required' }, { status: 403 });
+    }
+
+    const db = getDatabase();
+    const moduleId = parseInt(params.moduleId);
+
+    const module = await db
+      .select()
+      .from(modules)
+      .where(eq(modules.id, moduleId))
+      .limit(1);
+
+    if (!module.length) {
+      return NextResponse.json({ message: 'Module not found' }, { status: 404 });
+    }
+
+    return NextResponse.json({ module: module[0] });
+  } catch (error: any) {
+    console.error('Get module error:', error);
+    return NextResponse.json(
+      { message: 'Failed to fetch module', error: error.message },
+      { status: 500 }
+    );
+  }
+}
+
 // PATCH - Update module
 export async function PATCH(
   request: NextRequest,

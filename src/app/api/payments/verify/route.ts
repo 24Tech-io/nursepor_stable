@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDatabase } from '@/lib/db';
-import { payments, studentProgress, enrollments } from '@/lib/db/schema';
-import { eq, and } from 'drizzle-orm';
+import { payments } from '@/lib/db/schema';
+import { eq } from 'drizzle-orm';
 import { stripe } from '@/lib/stripe';
+import { enrollStudent } from '@/lib/data-manager/helpers/enrollment-helper';
+import { withEnrollmentLock } from '@/lib/operation-lock';
+import { createErrorResponse, createValidationError, createNotFoundError } from '@/lib/error-handler';
+import { retryDatabase } from '@/lib/retry';
 
 // Force dynamic rendering since we use searchParams
 export const dynamic = 'force-dynamic';
@@ -13,27 +17,23 @@ export async function GET(request: NextRequest) {
     const sessionId = searchParams.get('session_id');
 
     if (!sessionId) {
-      return NextResponse.json(
-        { success: false, error: 'Session ID is required' },
-        { status: 400 }
-      );
+      return createValidationError('Session ID is required');
     }
 
     // Get database instance
     const db = getDatabase();
 
     // Check payment status
-    const payment = await db
-      .select()
-      .from(payments)
-      .where(eq(payments.stripeSessionId, sessionId))
-      .limit(1);
+    const payment: any = await retryDatabase(() =>
+      db
+        .select()
+        .from(payments)
+        .where(eq(payments.stripeSessionId, sessionId))
+        .limit(1)
+    );
 
     if (!payment.length) {
-      return NextResponse.json(
-        { success: false, error: 'Payment not found' },
-        { status: 404 }
-      );
+      return createNotFoundError('Payment not found');
     }
 
     const paymentData = payment[0];
@@ -44,59 +44,31 @@ export async function GET(request: NextRequest) {
         const session = await stripe.checkout.sessions.retrieve(sessionId);
         if (session.payment_status === 'paid') {
           // Update payment status
-          await db
-            .update(payments)
-            .set({
-              status: 'completed',
-              stripePaymentIntentId: session.payment_intent as string,
-              transactionId: session.id,
-              updatedAt: new Date(),
-            })
-            .where(eq(payments.stripeSessionId, sessionId));
-
-          // Ensure student is enrolled in both tables
-          const [existingProgress, existingEnrollment] = await Promise.all([
+          await retryDatabase(() =>
             db
-              .select()
-              .from(studentProgress)
-              .where(
-                and(
-                  eq(studentProgress.studentId, paymentData.userId),
-                  eq(studentProgress.courseId, paymentData.courseId)
-                )
-              )
-              .limit(1),
-            db
-              .select()
-              .from(enrollments)
-              .where(
-                and(
-                  eq(enrollments.userId, paymentData.userId),
-                  eq(enrollments.courseId, paymentData.courseId)
-                )
-              )
-              .limit(1),
-          ]);
+              .update(payments)
+              .set({
+                status: 'completed',
+                stripePaymentIntentId: session.payment_intent as string,
+                transactionId: session.id,
+                updatedAt: new Date(),
+              })
+              .where(eq(payments.stripeSessionId, sessionId))
+          );
 
-          if (existingProgress.length === 0) {
-            await db.insert(studentProgress).values({
-              studentId: paymentData.userId,
-              courseId: paymentData.courseId,
-              completedChapters: '[]',
-              watchedVideos: '[]',
-              quizAttempts: '[]',
-              totalProgress: 0,
-            });
-          }
-
-          if (existingEnrollment.length === 0) {
-            await db.insert(enrollments).values({
+          // Use DataManager with lock to ensure enrollment (atomic operation)
+          await withEnrollmentLock(paymentData.userId, paymentData.courseId, async () => {
+            const enrollmentResult = await enrollStudent({
               userId: paymentData.userId,
               courseId: paymentData.courseId,
-              status: 'active',
-              progress: 0,
+              source: 'payment',
             });
-          }
+
+            if (!enrollmentResult.success) {
+              console.error('Error enrolling student after payment verification:', enrollmentResult.error);
+              // Don't throw - payment is recorded, enrollment can be retried
+            }
+          });
 
           return NextResponse.json({
             success: true,
@@ -108,8 +80,9 @@ export async function GET(request: NextRequest) {
             },
           });
         }
-      } catch (stripeError) {
+      } catch (stripeError: any) {
         console.error('Error checking Stripe session:', stripeError);
+        // Continue to return current payment status
       }
     }
 
@@ -125,14 +98,7 @@ export async function GET(request: NextRequest) {
 
   } catch (error: any) {
     console.error('Payment verification error:', error);
-    return NextResponse.json(
-      {
-        success: false,
-        error: 'Failed to verify payment',
-        message: process.env.NODE_ENV === 'development' ? error.message : undefined,
-      },
-      { status: 500 }
-    );
+    return createErrorResponse(error, 'Failed to verify payment');
   }
 }
 

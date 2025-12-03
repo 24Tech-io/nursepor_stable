@@ -27,6 +27,9 @@ export async function GET(request: NextRequest) {
       .from(courses)
       .orderBy(desc(courses.createdAt));
 
+    console.log(`📚 [Admin API] Found ${allCourses.length} total courses`);
+    console.log('📊 [Admin API] Course statuses:', allCourses.map(c => `${c.title}: ${c.status}`));
+
     return NextResponse.json({
       courses: allCourses.map((course: any) => ({
         id: course.id.toString(),

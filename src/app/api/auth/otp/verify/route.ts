@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { users } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
@@ -8,10 +8,10 @@ import { securityLogger } from '@/lib/logger';
 import { cookies } from 'next/headers';
 import { getClientIP } from '@/lib/security-middleware';
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
     try {
         const { email, otp, role } = await request.json();
-        const ip = getClientIP(request);
+        const ip = getClientIP(request) || 'unknown';
 
         if (!email || !otp) {
             return NextResponse.json({ message: 'Email and OTP are required' }, { status: 400 });
@@ -23,18 +23,18 @@ export async function POST(request: Request) {
         });
 
         if (!user) {
-            securityLogger.logFailedAuth(ip, email, 'User not found during OTP login');
+            securityLogger.error(ip, email, 'User not found during OTP login');
             return NextResponse.json({ message: 'Invalid OTP' }, { status: 400 });
         }
 
         // Check if OTP exists and is not expired
         if (!user.otpSecret || !user.otpExpiry) {
-            securityLogger.logFailedAuth(ip, email, 'No OTP requested');
+            securityLogger.error(ip, email, 'No OTP requested');
             return NextResponse.json({ message: 'No OTP requested' }, { status: 400 });
         }
 
         if (new Date() > user.otpExpiry) {
-            securityLogger.logFailedAuth(ip, email, 'OTP expired');
+            securityLogger.error(ip, email, 'OTP expired');
             return NextResponse.json({ message: 'OTP expired' }, { status: 400 });
         }
 
@@ -42,7 +42,7 @@ export async function POST(request: Request) {
         const isValid = await bcrypt.compare(otp, user.otpSecret);
 
         if (!isValid) {
-            securityLogger.logFailedAuth(ip, email, 'Invalid OTP');
+            securityLogger.error(ip, email, 'Invalid OTP');
             return NextResponse.json({ message: 'Invalid OTP' }, { status: 400 });
         }
 
@@ -56,7 +56,7 @@ export async function POST(request: Request) {
 
         // Check role if specified
         if (role && user.role !== role) {
-            securityLogger.logUnauthorizedAccess(ip, '/api/auth/otp/verify', user.id.toString());
+            securityLogger.warn('Unauthorized access', { ip, path: '/api/auth/otp/verify', userId: user.id });
             return NextResponse.json({ message: 'Unauthorized role' }, { status: 403 });
         }
 
@@ -84,7 +84,7 @@ export async function POST(request: Request) {
             path: '/',
         });
 
-        securityLogger.logSuccessfulAuth(ip, email);
+        securityLogger.info(ip, email);
 
         return NextResponse.json({
             message: 'Login successful',

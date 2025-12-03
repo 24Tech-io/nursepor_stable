@@ -298,8 +298,10 @@ export default function CourseCard({
   const finalIsPublic = course.isPublic ?? isPublic;
   const finalIsEnrolled = course.isEnrolled ?? !isLocked;
   
-  // If approved request exists, treat as enrolled and unlock the course
-  const shouldBeUnlocked = finalIsEnrolled || finalHasApprovedRequest;
+  // CRITICAL FIX: Only unlock if actually enrolled, not just approved request
+  // Approved requests should be synced by API to create enrollments
+  // If sync succeeded, finalIsEnrolled will be true
+  const shouldBeUnlocked = finalIsEnrolled;
   const finalIsLocked = !shouldBeUnlocked;
   return (
     <div className="group bg-white rounded-2xl shadow-sm hover:shadow-2xl transition-all duration-300 overflow-hidden border border-gray-100">

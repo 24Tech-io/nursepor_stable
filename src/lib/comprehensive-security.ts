@@ -54,7 +54,7 @@ export async function applySecurity(
   
   // 1. Check if IP is blocked (from threat detection)
   if (config.enableThreatDetection && isIPBlocked(ip)) {
-    securityLogger.logSecurityEvent('Blocked IP attempted access', { ip, path });
+    securityLogger.info('Blocked IP attempted access', { ip, path });
     return {
       allowed: false,
       response: NextResponse.json(
@@ -141,7 +141,7 @@ export async function applySecurity(
   if (config.logAllRequests) {
     const threatScore = getThreatScore(ip);
     if (threatScore > 0) {
-      securityLogger.logSecurityEvent('Request from suspicious IP', {
+      securityLogger.info('Request from suspicious IP', {
         ip,
         path,
         method,
@@ -370,4 +370,5 @@ export function checkRateLimit(
 
 // Export validation functions
 export { validateEmail, validateUsername, detectSSRF };
+
 

@@ -12,11 +12,8 @@ export async function POST(
     try {
         // Verify authentication
         const authResult = await verifyAuth(request);
-        if (!authResult.authenticated || !authResult.user) {
-            return NextResponse.json(
-                { message: 'Unauthorized' },
-                { status: 401 }
-            );
+        if (authResult instanceof NextResponse) {
+            return authResult;
         }
 
         const userId = authResult.user.id;

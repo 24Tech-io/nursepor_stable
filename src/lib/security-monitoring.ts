@@ -66,7 +66,7 @@ class SecurityMonitor {
     }
 
     // Log event
-    securityLogger.logSecurityEvent(fullEvent.type, {
+    securityLogger.info(fullEvent.type, {
       severity: fullEvent.severity,
       ip: fullEvent.ip,
       path: fullEvent.path,
@@ -106,7 +106,7 @@ class SecurityMonitor {
     // - SMS (for critical)
 
     // Log alert
-    securityLogger.logSecurityEvent('security_alert_triggered', {
+    securityLogger.info('security_alert_triggered', {
       severity,
       count,
       threshold: this.alertThresholds[severity],
@@ -291,6 +291,7 @@ export const SecurityChecks = {
     return patterns.some((pattern) => pattern.test(input));
   },
 };
+
 
 
 

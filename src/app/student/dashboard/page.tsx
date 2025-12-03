@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react';
 import StatCard from '../../../components/student/StatCard';
 import CourseCard from '../../../components/student/CourseCard';
 import LoadingSpinner from '../../../components/student/LoadingSpinner';
-import { syncClient } from '../../../lib/sync-client';
 
 // Calculate real progress from student progress data
 function calculateRealProgress(courseId: string, enrolledCourses: any[]): number {
@@ -33,6 +32,8 @@ export default function StudentDashboard() {
   const [enrolledCourseIds, setEnrolledCourseIds] = useState<string[]>([]);
   const [enrolledCoursesData, setEnrolledCoursesData] = useState<any[]>([]);
   const [isLoadingCourses, setIsLoadingCourses] = useState(true);
+  const [isFetchingCourses, setIsFetchingCourses] = useState(false);
+  const [isFetchingStats, setIsFetchingStats] = useState(false);
   const [pendingRequestCourseIds, setPendingRequestCourseIds] = useState<string[]>([]);
 
   // Fetch real user data
@@ -125,18 +126,24 @@ export default function StudentDashboard() {
 
   // Fetch real courses from API
   useEffect(() => {
-    const fetchCourses = async () => {
-      if (!user || user.role !== 'student') {
-        setIsLoadingCourses(false);
-        setCourses([]);
-        return;
-      }
+    if (!user?.id) return;
+    if (user.role !== 'student') {
+      setIsLoadingCourses(false);
+      setCourses([]);
+      return;
+    }
 
+    let isMounted = true;
+    const abortController = new AbortController();
+
+    const fetchCourses = async () => {
+      setIsFetchingCourses(true);
       try {
         setIsLoadingCourses(true);
         console.log('📚 Fetching courses from API...');
         const response = await fetch('/api/student/courses', { 
           credentials: 'include',
+          signal: abortController.signal,
           cache: 'no-store',
           headers: {
             'Cache-Control': 'no-cache, no-store, must-revalidate',
@@ -144,23 +151,26 @@ export default function StudentDashboard() {
           }
         });
         
+        if (!isMounted) return;
+        
         if (response.ok) {
           const data = await response.json();
+          console.log('📚 API Response - Full data:', data);
           console.log('📚 API Response - Courses count:', data.courses?.length || 0);
-          console.log('📚 API Response - Course titles:', data.courses?.map((c: any) => c.title) || []);
-          console.log('📚 API Response - Course statuses:', data.courses?.map((c: any) => `${c.title}: ${c.status}`) || []);
           
           if (data.courses && data.courses.length > 0) {
+            console.log('📚 Courses received:', data.courses);
             setCourses(data.courses);
-            console.log('✅ Courses loaded successfully:', data.courses.length, 'courses');
-            console.log('📊 Course breakdown:', {
-              published: data.courses.filter((c: any) => c.status === 'published').length,
-              active: data.courses.filter((c: any) => c.status === 'active').length,
-              draft: data.courses.filter((c: any) => c.status === 'draft').length,
-            });
+            console.log('✅ Courses SET in state:', data.courses.length, 'courses');
+            console.log('📚 Course details:', data.courses.map((c: any) => ({
+              id: c.id,
+              title: c.title,
+              status: c.status,
+              isEnrolled: c.isEnrolled
+            })));
           } else {
             console.warn('⚠️ No courses returned from API');
-            console.warn('⚠️ Response data:', data);
+            console.warn('⚠️ Response data:', JSON.stringify(data));
             setCourses([]);
           }
         } else {
@@ -168,37 +178,57 @@ export default function StudentDashboard() {
           console.error('❌ Failed to fetch courses:', response.status, errorData);
           setCourses([]);
         }
-      } catch (error) {
+      } catch (error: any) {
+        if (error.name === 'AbortError') return;
         console.error('❌ Error fetching courses:', error);
-        setCourses([]);
+        if (isMounted) setCourses([]);
       } finally {
-        setIsLoadingCourses(false);
+        if (isMounted) {
+          setIsLoadingCourses(false);
+          setIsFetchingCourses(false);
+        }
       }
     };
 
     fetchCourses();
-  }, [user]);
+
+    return () => {
+      isMounted = false;
+      abortController.abort();
+    };
+  }, [user?.id]);
 
   // Fetch stats, enrolled courses, and pending requests
   useEffect(() => {
-    if (!user) return;
+    if (!user?.id) return;
+
+    let isMounted = true;
+    const abortController = new AbortController();
 
     const fetchStats = async () => {
+      if (!isMounted) return;
+      
+      setIsFetchingStats(true);
       try {
         const [statsResponse, coursesResponse, requestsResponse] = await Promise.all([
           fetch('/api/student/stats', {
             credentials: 'include',
+            signal: abortController.signal,
             cache: 'no-store',
           }),
           fetch('/api/student/enrolled-courses', {
             credentials: 'include',
+            signal: abortController.signal,
             cache: 'no-store',
           }),
           fetch('/api/student/requests', {
             credentials: 'include',
+            signal: abortController.signal,
             cache: 'no-store',
           }),
         ]);
+
+        if (!isMounted) return;
 
         if (statsResponse.ok) {
           const statsData = await statsResponse.json();
@@ -210,10 +240,12 @@ export default function StudentDashboard() {
 
         if (coursesResponse.ok) {
           const coursesData = await coursesResponse.json();
-          const courseIds = coursesData.enrolledCourses.map((ec: any) => ec.courseId);
+          // CRITICAL: Convert to string for consistent comparison
+          const courseIds = coursesData.enrolledCourses.map((ec: any) => String(ec.courseId));
           setEnrolledCourseIds(courseIds);
           setEnrolledCoursesData(coursesData.enrolledCourses);
           console.log('✅ Enrolled courses fetched (REAL DATA):', courseIds);
+          console.log('✅ Enrolled course data:', coursesData.enrolledCourses);
         } else {
           console.error('❌ Failed to fetch enrolled courses:', coursesResponse.status);
         }
@@ -228,29 +260,26 @@ export default function StudentDashboard() {
         } else {
           console.error('❌ Failed to fetch requests:', requestsResponse.status);
         }
-      } catch (error) {
+      } catch (error: any) {
+        if (error.name === 'AbortError') return;
         console.error('Error fetching stats/courses/requests:', error);
+      } finally {
+        if (isMounted) {
+          setIsFetchingStats(false);
+        }
       }
     };
 
     fetchStats();
 
-    // Start sync client for real-time updates
-    if (user) {
-      syncClient.start();
-      syncClient.on('sync', (syncData: any) => {
-        console.log('🔄 Sync update received:', syncData);
-        // Refresh data when sync update is received
-        fetchStats();
-      });
-    }
+    // REMOVED: Sync client auto-refresh (too frequent)
+    // Stats will only refresh on page load or user action
 
     return () => {
-      if (user) {
-        syncClient.stop();
-      }
+      isMounted = false;
+      abortController.abort();
     };
-  }, [user]);
+  }, [user?.id]);
 
   if (isLoading || !user) {
     return <LoadingSpinner message="Loading your dashboard..." fullScreen />;
@@ -318,31 +347,40 @@ export default function StudentDashboard() {
   // Only show as enrolled if they have actual enrollment (studentProgress entry) AND no pending request
   // Accept both 'published' and 'active' status (admin UI shows "Active" but DB stores "published")
   const enrolledCourses = courses.filter(c => {
-    const isEnrolled = studentData.enrolledCourses.includes(c.id);
-    const hasPendingRequest = pendingRequestCourseIds.includes(c.id.toString());
-    const hasApprovedRequest = c.hasApprovedRequest || false;
-    const isPublished = c.status === 'published' || c.status === 'active';
-    // Show as enrolled if: (enrolled OR approved request) AND no pending request AND published/active
-    return (isEnrolled || hasApprovedRequest) && !hasPendingRequest && isPublished;
+    // CRITICAL: Ensure string comparison for consistency
+    const courseIdStr = String(c.id);
+    const isEnrolled = studentData.enrolledCourses.includes(courseIdStr);
+    const hasPendingRequest = pendingRequestCourseIds.includes(courseIdStr);
+    // Case-insensitive status check to handle 'Active', 'active', 'Published', 'published'
+    const statusLower = c.status?.toLowerCase();
+    const isPublished = statusLower === 'published' || statusLower === 'active';
+    const result = isEnrolled && !hasPendingRequest && isPublished;
+    
+    console.log(`📋 Course "${c.title}" (${courseIdStr}): enrolled=${isEnrolled}, pending=${hasPendingRequest}, status=${c.status}, published=${isPublished}, result=${result}`);
+    
+    return result;
   });
 
   // Show courses with pending requests separately (they should show "Requested" status)
   const requestedCourses = courses.filter(c => {
-    const hasPendingRequest = pendingRequestCourseIds.includes(c.id.toString());
-    const isEnrolled = studentData.enrolledCourses.includes(c.id);
-    const hasApprovedRequest = c.hasApprovedRequest || false;
-    const isPublished = c.status === 'published' || c.status === 'active';
-    // Show as requested if has pending request AND not enrolled AND not approved AND published/active
-    return hasPendingRequest && !isEnrolled && !hasApprovedRequest && isPublished;
+    const courseIdStr = String(c.id);
+    const hasPendingRequest = pendingRequestCourseIds.includes(courseIdStr);
+    const isEnrolled = studentData.enrolledCourses.includes(courseIdStr);
+    const statusLower = c.status?.toLowerCase();
+    const isPublished = statusLower === 'published' || statusLower === 'active';
+    // Show as requested if has pending request AND not enrolled AND published/active
+    // Approved requests without enrollment should also show here (sync may be in progress)
+    return hasPendingRequest && !isEnrolled && isPublished;
   });
 
   const lockedCourses = courses.filter(c => {
-    const isEnrolled = studentData.enrolledCourses.includes(c.id);
-    const hasPendingRequest = pendingRequestCourseIds.includes(c.id.toString());
-    const hasApprovedRequest = c.hasApprovedRequest || false;
-    const isPublished = c.status === 'published' || c.status === 'active';
-    // Show as locked if not enrolled AND no pending request AND no approved request AND published/active
-    return !isEnrolled && !hasPendingRequest && !hasApprovedRequest && isPublished;
+    const courseIdStr = String(c.id);
+    const isEnrolled = studentData.enrolledCourses.includes(courseIdStr);
+    const hasPendingRequest = pendingRequestCourseIds.includes(courseIdStr);
+    const statusLower = c.status?.toLowerCase();
+    const isPublished = statusLower === 'published' || statusLower === 'active';
+    // Show as locked if not enrolled AND no pending request AND published/active
+    return !isEnrolled && !hasPendingRequest && isPublished;
   });
 
   return (
@@ -503,7 +541,7 @@ export default function StudentDashboard() {
               <CourseCard
                 key={course.id}
                 course={course}
-                isLocked={!course.hasApprovedRequest && !studentData.enrolledCourses.includes(course.id)}
+                isLocked={!studentData.enrolledCourses.includes(course.id)}
                 userId={user?.id || 1}
                 hasPendingRequest={pendingRequestCourseIds.includes(course.id)}
                 hasApprovedRequest={course.hasApprovedRequest || false}
@@ -525,11 +563,10 @@ export default function StudentDashboard() {
                 <CourseCard
                   key={course.id}
                   course={course}
-                  isLocked={true}
+                  isLocked={!course.isEnrolled}
                   userId={user?.id || 1}
                   hasPendingRequest={pendingRequestCourseIds.includes(course.id)}
                   hasApprovedRequest={course.hasApprovedRequest || false}
-                  isLocked={!course.isEnrolled && !course.hasApprovedRequest}
                   isPublic={course.isPublic || false}
                   onRequestAccess={() => {
                     // Refresh data after enrollment/request

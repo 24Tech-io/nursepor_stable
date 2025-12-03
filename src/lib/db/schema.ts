@@ -816,4 +816,16 @@ export const quizAttemptsRelations = relations(quizAttempts, ({ one }) => ({
   }),
 }));
 
+// Idempotency Keys table - prevents duplicate processing of operations
+export const idempotencyKeys = pgTable('idempotency_keys', {
+  id: serial('id').primaryKey(),
+  key: text('key').notNull().unique(),
+  operation: text('operation').notNull(), // e.g., 'payment_webhook', 'enrollment'
+  result: text('result'), // JSON string of the operation result
+  expiresAt: timestamp('expires_at').notNull(),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+}, (table) => ({
+  keyUnique: unique('idempotency_key_unique').on(table.key),
+}));
+
 
