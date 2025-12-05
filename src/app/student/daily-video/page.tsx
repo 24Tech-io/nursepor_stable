@@ -145,7 +145,20 @@ export default function DailyVideoPage() {
       {video.description && (
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
           <h2 className="text-lg font-bold text-gray-900 mb-2">Description</h2>
-          <p className="text-gray-600">{video.description}</p>
+          <p className="text-gray-600">
+            {(() => {
+              // Parse description if it's JSON
+              try {
+                if (typeof video.description === 'string' && video.description.startsWith('{')) {
+                  const parsed = JSON.parse(video.description);
+                  return parsed.description || video.description;
+                }
+                return video.description;
+              } catch (e) {
+                return video.description;
+              }
+            })()}
+          </p>
         </div>
       )}
     </div>

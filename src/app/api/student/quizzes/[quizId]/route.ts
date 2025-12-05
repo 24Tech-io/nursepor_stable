@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/auth';
 import { getDatabase } from '@/lib/db';
-import { quizzes, quizQuestions, quizAttempts } from '@/lib/db/schema';
+import { quizzes, quizQuestions, quizAttempts, quizQbankQuestions, qbankQuestions } from '@/lib/db/schema';
 import { eq, desc, and } from 'drizzle-orm';
 
 // GET - Fetch quiz details for student
 export async function GET(request: NextRequest, { params }: { params: { quizId: string } }) {
   try {
-    const token = request.cookies.get('token')?.value;
+    const token = request.cookies.get('studentToken')?.value;
     if (!token) {
       return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });
     }
@@ -27,12 +27,36 @@ export async function GET(request: NextRequest, { params }: { params: { quizId: 
       return NextResponse.json({ message: 'Quiz not found' }, { status: 404 });
     }
 
-    // Get questions
-    const questions = await db
+    // ✅ FIX: Get questions from BOTH regular quiz_questions AND Q-Bank
+    let questions = await db
       .select()
       .from(quizQuestions)
       .where(eq(quizQuestions.quizId, quizId))
       .orderBy(quizQuestions.order);
+
+    // If no regular questions, try Q-Bank questions
+    if (questions.length === 0) {
+      console.log(`📚 No regular questions found for quiz ${quizId}, checking Q-Bank...`);
+      const qbankLinks = await db
+        .select({
+          id: qbankQuestions.id,
+          quizId: quizQbankQuestions.quizId,
+          question: qbankQuestions.question,
+          options: qbankQuestions.options,
+          correctAnswer: qbankQuestions.correctAnswer,
+          explanation: qbankQuestions.explanation,
+          order: quizQbankQuestions.sortOrder,
+        })
+        .from(quizQbankQuestions)
+        .innerJoin(qbankQuestions, eq(quizQbankQuestions.questionId, qbankQuestions.id))
+        .where(eq(quizQbankQuestions.quizId, quizId))
+        .orderBy(quizQbankQuestions.sortOrder);
+
+      console.log(`📚 Found ${qbankLinks.length} Q-Bank questions for quiz ${quizId}`);
+      questions = qbankLinks as any;
+    } else {
+      console.log(`📝 Found ${questions.length} regular questions for quiz ${quizId}`);
+    }
 
     // Get previous attempts (quizAttempts uses userId and chapterId, not studentId and quizId)
     const chapterId = quiz[0].chapterId;
@@ -42,11 +66,34 @@ export async function GET(request: NextRequest, { params }: { params: { quizId: 
       .where(and(eq(quizAttempts.userId, decoded.id), eq(quizAttempts.chapterId, chapterId)))
       .orderBy(desc(quizAttempts.attemptedAt));
 
-    // Parse question options
-    const questionsWithOptions = questions.map((q) => ({
-      ...q,
-      options: JSON.parse(q.options || '{}'),
-    }));
+    // Parse question options and normalize correctAnswer
+    const questionsWithOptions = questions.map((q) => {
+      const options = JSON.parse(q.options || '{}');
+      let correctAnswer = q.correctAnswer;
+      
+      // Normalize correctAnswer - remove any JSON wrapping
+      if (typeof correctAnswer === 'string') {
+        // Remove quotes if present (e.g., "\"1\"" becomes "1")
+        correctAnswer = correctAnswer.replace(/^["']+|["']+$/g, '');
+        // Try to parse if it's wrapped in JSON
+        try {
+          const parsed = JSON.parse(correctAnswer);
+          if (typeof parsed === 'string') {
+            correctAnswer = parsed;
+          }
+        } catch (e) {
+          // Not JSON, use as-is
+        }
+      }
+      
+      console.log(`📝 Question ${q.id}: correctAnswer="${correctAnswer}" (type: ${typeof correctAnswer})`);
+      
+      return {
+        ...q,
+        options,
+        correctAnswer,
+      };
+    });
 
     return NextResponse.json({
       quiz: {
@@ -67,7 +114,7 @@ export async function GET(request: NextRequest, { params }: { params: { quizId: 
 // POST - Submit quiz attempt
 export async function POST(request: NextRequest, { params }: { params: { quizId: string } }) {
   try {
-    const token = request.cookies.get('token')?.value;
+    const token = request.cookies.get('studentToken')?.value;
     if (!token) {
       return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });
     }
@@ -93,11 +140,32 @@ export async function POST(request: NextRequest, { params }: { params: { quizId:
       return NextResponse.json({ message: 'Quiz not found' }, { status: 404 });
     }
 
-    const questions = await db
+    // ✅ FIX: Get questions from BOTH regular quiz_questions AND Q-Bank
+    let questions = await db
       .select()
       .from(quizQuestions)
       .where(eq(quizQuestions.quizId, quizId))
       .orderBy(quizQuestions.order);
+
+    // If no regular questions, try Q-Bank questions
+    if (questions.length === 0) {
+      const qbankLinks = await db
+        .select({
+          id: qbankQuestions.id,
+          quizId: quizQbankQuestions.quizId,
+          question: qbankQuestions.question,
+          options: qbankQuestions.options,
+          correctAnswer: qbankQuestions.correctAnswer,
+          explanation: qbankQuestions.explanation,
+          order: quizQbankQuestions.sortOrder,
+        })
+        .from(quizQbankQuestions)
+        .innerJoin(qbankQuestions, eq(quizQbankQuestions.questionId, qbankQuestions.id))
+        .where(eq(quizQbankQuestions.quizId, quizId))
+        .orderBy(quizQbankQuestions.sortOrder);
+
+      questions = qbankLinks as any;
+    }
 
     // Check max attempts (quizAttempts uses userId and chapterId)
     const chapterId = quiz[0].chapterId;

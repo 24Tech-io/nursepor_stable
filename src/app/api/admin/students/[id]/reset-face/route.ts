@@ -7,7 +7,7 @@ import { eq } from 'drizzle-orm';
 // POST - Reset student's Face ID enrollment
 export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const token = request.cookies.get('token')?.value;
+    const token = request.cookies.get('adminToken')?.value;
 
     if (!token) {
       return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });

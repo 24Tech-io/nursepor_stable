@@ -95,7 +95,8 @@ export async function GET(request: NextRequest) {
       query = query.where(eq(qbankQuestions.categoryId, parseInt(categoryId)));
     }
 
-    const questions = await query.limit(limit);
+    // ✅ FIX: Add ordering by ID for consistent display
+    const questions = await query.orderBy(qbankQuestions.id).limit(limit);
 
     return NextResponse.json({
       questions: questions.map((q: any) => ({

@@ -5,12 +5,11 @@ import { courses, studentProgress, accessRequests, users, payments } from '@/lib
 import { eq, and, or, sql, inArray } from 'drizzle-orm';
 
 /**
- * Auto-fix Data Inconsistencies
- * Cleans up orphaned records and fixes sync issues
+ * Auto-fix Data Inconsistencies (Admin App)
  */
 export async function POST(request: NextRequest) {
   try {
-    const token = request.cookies.get('token')?.value || request.cookies.get('adminToken')?.value;
+    const token = request.cookies.get('token')?.value;
 
     if (!token) {
       return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });
@@ -25,14 +24,13 @@ export async function POST(request: NextRequest) {
     const fixes: any[] = [];
     let totalFixed = 0;
 
-    // Get all valid IDs
     const allCourses = await db.select().from(courses);
     const allStudents = await db.select().from(users).where(eq(users.role, 'student'));
 
     const courseIds = new Set(allCourses.map((c) => c.id));
     const studentIds = new Set(allStudents.map((s) => s.id));
 
-    // 1. Fix orphaned studentProgress entries
+    // Fix orphaned progress
     const allProgress = await db.select().from(studentProgress);
     const orphanedProgress = allProgress.filter(
       (p) => !courseIds.has(p.courseId) || !studentIds.has(p.studentId)
@@ -45,12 +43,11 @@ export async function POST(request: NextRequest) {
       fixes.push({
         type: 'orphaned_progress',
         count: orphanedProgress.length,
-        description: 'Deleted orphaned student progress entries',
       });
       totalFixed += orphanedProgress.length;
     }
 
-    // 2. Fix orphaned accessRequests
+    // Fix orphaned requests
     const allRequests = await db.select().from(accessRequests);
     const orphanedRequests = allRequests.filter(
       (r) => !courseIds.has(r.courseId) || !studentIds.has(r.studentId)
@@ -63,12 +60,11 @@ export async function POST(request: NextRequest) {
       fixes.push({
         type: 'orphaned_requests',
         count: orphanedRequests.length,
-        description: 'Deleted orphaned access requests',
       });
       totalFixed += orphanedRequests.length;
     }
 
-    // 3. Fix inconsistent enrollments (remove pending requests if studentProgress exists)
+    // Fix inconsistent enrollments
     for (const progress of allProgress) {
       if (courseIds.has(progress.courseId) && studentIds.has(progress.studentId)) {
         const pendingRequest = await db
@@ -85,36 +81,9 @@ export async function POST(request: NextRequest) {
 
         if (pendingRequest.length > 0) {
           await db.delete(accessRequests).where(eq(accessRequests.id, pendingRequest[0].id));
-
           totalFixed++;
         }
       }
-    }
-
-    if (totalFixed > 0) {
-      fixes.push({
-        type: 'inconsistent_enrollment',
-        count: totalFixed - (orphanedProgress.length + orphanedRequests.length),
-        description: 'Removed pending requests for already enrolled courses',
-      });
-    }
-
-    // 4. Fix orphaned payments
-    const allPayments = await db.select().from(payments);
-    const orphanedPayments = allPayments.filter(
-      (p) => !courseIds.has(p.courseId) || !studentIds.has(p.userId)
-    );
-
-    if (orphanedPayments.length > 0) {
-      const orphanedIds = orphanedPayments.map((p) => p.id);
-      await db.delete(payments).where(inArray(payments.id, orphanedIds));
-
-      fixes.push({
-        type: 'orphaned_payments',
-        count: orphanedPayments.length,
-        description: 'Deleted orphaned payment records',
-      });
-      totalFixed += orphanedPayments.length;
     }
 
     return NextResponse.json({
@@ -136,3 +105,4 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+

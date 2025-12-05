@@ -60,3 +60,4 @@ export const swrKeys = {
   analytics: () => '/api/analytics/course-statistics',
   requests: () => '/api/admin/requests',
 };
+

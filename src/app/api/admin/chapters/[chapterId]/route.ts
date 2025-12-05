@@ -7,7 +7,7 @@ import { eq } from 'drizzle-orm';
 // PATCH - Update chapter
 export async function PATCH(request: NextRequest, { params }: { params: { chapterId: string } }) {
   try {
-    const token = request.cookies.get('token')?.value;
+    const token = request.cookies.get('adminToken')?.value;
     if (!token) {
       return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });
     }
@@ -45,7 +45,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { chapte
 // DELETE - Delete chapter
 export async function DELETE(request: NextRequest, { params }: { params: { chapterId: string } }) {
   try {
-    const token = request.cookies.get('token')?.value;
+    const token = request.cookies.get('adminToken')?.value;
     if (!token) {
       return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });
     }

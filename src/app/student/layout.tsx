@@ -4,7 +4,8 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState, useEffect, useRef } from 'react';
 
-const navigation = [
+// Create navigation as a function so we can update it dynamically
+const getNavigation = (hasDailyVideo: boolean) => [
   {
     name: 'Dashboard',
     href: '/student/dashboard',
@@ -34,6 +35,20 @@ const navigation = [
     ),
   },
   {
+    name: 'Q-Bank',
+    href: '/student/qbank',
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"
+        />
+      </svg>
+    ),
+  },
+  {
     name: 'Daily Video',
     href: '/student/daily-video',
     icon: (
@@ -52,7 +67,7 @@ const navigation = [
         />
       </svg>
     ),
-    badge: '1 New',
+    badge: hasDailyVideo ? '1 New' : undefined,
   },
   {
     name: 'Progress',
@@ -91,6 +106,7 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
   const [showNotifications, setShowNotifications] = useState(false);
   const notificationsRef = useRef<HTMLDivElement>(null);
   const [user, setUser] = useState<any>(null);
+  const [hasDailyVideo, setHasDailyVideo] = useState(false);
 
   async function handleLogout() {
     try {
@@ -158,6 +174,33 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
       fetchNotifications();
       // Poll for new notifications every 120 seconds (2 minutes)
       const interval = setInterval(fetchNotifications, 120000);
+      return () => clearInterval(interval);
+    }
+  }, [user]);
+
+  // Check for daily video availability
+  useEffect(() => {
+    const checkDailyVideo = async () => {
+      try {
+        const response = await fetch('/api/student/daily-video', {
+          credentials: 'include',
+        });
+        if (response.ok) {
+          const data = await response.json();
+          // Show badge if there's a video and it's not completed
+          setHasDailyVideo(data.video && !data.video.completed);
+        } else {
+          setHasDailyVideo(false);
+        }
+      } catch (error) {
+        setHasDailyVideo(false);
+      }
+    };
+
+    if (user) {
+      checkDailyVideo();
+      // Check every 5 minutes
+      const interval = setInterval(checkDailyVideo, 300000);
       return () => clearInterval(interval);
     }
   }, [user]);
@@ -309,7 +352,7 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
 
             {/* Desktop Navigation */}
             <div className="hidden md:flex items-center space-x-1">
-              {navigation.map((item) => {
+              {getNavigation(hasDailyVideo).map((item) => {
                 const isActive = pathname === item.href;
                 return (
                   <Link
@@ -542,7 +585,7 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
         {isMobileMenuOpen && (
           <div className="md:hidden border-t border-gray-100 bg-white">
             <div className="px-4 py-3 space-y-1">
-              {navigation.map((item) => {
+              {getNavigation(hasDailyVideo).map((item) => {
                 const isActive = pathname === item.href;
                 return (
                   <Link

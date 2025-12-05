@@ -6,9 +6,12 @@ import { eq } from 'drizzle-orm';
 
 export async function POST(request: NextRequest) {
   try {
-    const token = request.cookies.get('token')?.value;
+    // Check both admin and student tokens
+    const adminToken = request.cookies.get('adminToken')?.value;
+    const studentToken = request.cookies.get('studentToken')?.value;
+    const token = adminToken || studentToken;
 
-    console.log('🔄 Token refresh request - Token exists:', !!token);
+    console.log('🔄 Token refresh request - adminToken:', !!adminToken, 'studentToken:', !!studentToken);
 
     if (!token) {
       console.log('❌ Token refresh failed - No token provided');
@@ -107,10 +110,13 @@ export async function POST(request: NextRequest) {
       });
 
       // Always set the cookie to ensure it's properly configured
-      response.cookies.set('token', newToken, {
+      // Set appropriate cookie based on user role
+      const cookieName = user.role === 'admin' ? 'adminToken' : 'studentToken';
+      response.cookies.set(cookieName, newToken, {
         httpOnly: true,
         sameSite: 'lax',
-        secure: false, // Set to false for localhost development
+        secure: process.env.NODE_ENV === 'production', // Dynamic for dev and production
+        maxAge: 60 * 60 * 24 * 7, // 7 days
         path: '/',
         maxAge: 7 * 24 * 60 * 60, // 7 days
       });

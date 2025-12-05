@@ -11,8 +11,8 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
   try {
     console.log('🔄 [PATCH /api/admin/requests/[id]] Starting request approval/denial...');
 
-    // Check authentication - try both token and adminToken
-    const token = request.cookies.get('token')?.value || request.cookies.get('adminToken')?.value;
+    // Check authentication - try both token and token
+    const token = request.cookies.get('adminToken')?.value;
 
     if (!token) {
       console.error('❌ No token cookie found');

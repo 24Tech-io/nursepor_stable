@@ -127,7 +127,8 @@ export default function StudentDashboard() {
   // Fetch real courses from API
   useEffect(() => {
     if (!user?.id) return;
-    if (user.role !== 'student') {
+    // Allow both students and admins to view (admins can test student view)
+    if (user.role !== 'student' && user.role !== 'admin') {
       setIsLoadingCourses(false);
       setCourses([]);
       return;
@@ -204,6 +205,8 @@ export default function StudentDashboard() {
   // Fetch stats, enrolled courses, and pending requests
   useEffect(() => {
     if (!user?.id) return;
+    // Allow both students and admins
+    if (user.role !== 'student' && user.role !== 'admin') return;
 
     let isMounted = true;
     const abortController = new AbortController();

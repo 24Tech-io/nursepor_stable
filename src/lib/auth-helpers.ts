@@ -7,7 +7,7 @@ import { eq } from 'drizzle-orm';
 
 // Get authenticated user from request
 export async function getAuthenticatedUser(request: NextRequest): Promise<AuthUser | null> {
-  const token = request.cookies.get('token')?.value;
+  const token = request.cookies.get('studentToken')?.value || request.cookies.get('adminToken')?.value;
   if (!token) {
     return null;
   }
@@ -39,7 +39,7 @@ export async function getAuthenticatedUser(request: NextRequest): Promise<AuthUs
 export async function requireAdmin(
   request: NextRequest
 ): Promise<{ user: AuthUser } | NextResponse> {
-  const token = request.cookies.get('token')?.value;
+  const token = request.cookies.get('adminToken')?.value;
 
   console.log('🔐 requireAdmin check - Token exists:', !!token, 'Path:', request.nextUrl.pathname);
 

@@ -7,7 +7,7 @@ import { eq } from 'drizzle-orm';
 // GET - Fetch single daily video
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const token = request.cookies.get('token')?.value;
+    const token = request.cookies.get('adminToken')?.value;
     if (!token) {
       return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });
     }
@@ -61,7 +61,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 // PUT - Update daily video
 export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const token = request.cookies.get('token')?.value;
+    const token = request.cookies.get('adminToken')?.value;
     if (!token) {
       return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });
     }
@@ -183,7 +183,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
 // DELETE - Delete daily video
 export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const token = request.cookies.get('token')?.value;
+    const token = request.cookies.get('adminToken')?.value;
     if (!token) {
       return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });
     }

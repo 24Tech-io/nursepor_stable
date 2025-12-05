@@ -1,134 +1,80 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { verifyToken } from '@/lib/auth';
 import { getDatabase } from '@/lib/db';
 import { blogPosts } from '@/lib/db/schema';
-import { desc, eq } from 'drizzle-orm';
+import { eq, desc } from 'drizzle-orm';
 
+// GET - Fetch all blog posts
 export async function GET(request: NextRequest) {
   try {
-    const db = getDatabase();
-    const status = request.nextUrl.searchParams.get('status');
-
-    let query = db.select().from(blogPosts);
-
-    if (status) {
-      query = query.where(eq(blogPosts.status, status)) as any;
+    const token = request.cookies.get('adminToken')?.value;
+    if (!token) {
+      return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });
     }
 
-    const allBlogs = await query.orderBy(desc(blogPosts.createdAt));
+    const decoded = verifyToken(token);
+    if (!decoded || decoded.role !== 'admin') {
+      return NextResponse.json({ message: 'Admin access required' }, { status: 403 });
+    }
 
-    return NextResponse.json({
-      blogs: allBlogs.map((blog: any) => {
-        const parsedTags = JSON.parse(blog.tags || '{}');
-        const tagsArray = parsedTags.tags || parsedTags || [];
-        const metadataObj = parsedTags.metadata || {};
+    const db = getDatabase();
 
-        return {
-          id: blog.id.toString(),
-          title: blog.title,
-          slug: blog.slug,
-          content: blog.content,
-          author: blog.author,
-          cover: blog.cover,
-          tags: Array.isArray(tagsArray) ? tagsArray : [],
-          status: blog.status,
-          excerpt: metadataObj.excerpt || '',
-          featured: metadataObj.featured || false,
-          seoTitle: metadataObj.seoTitle || blog.title,
-          seoDescription: metadataObj.seoDescription || '',
-          scheduledPublish: metadataObj.scheduledPublish || null,
-          readingTime: metadataObj.readingTime || null,
-          category: metadataObj.category || '',
-          createdAt: blog.createdAt?.toISOString(),
-          updatedAt: blog.updatedAt?.toISOString(),
-        };
-      }),
-    });
+    const blogs = await db.select().from(blogPosts).orderBy(desc(blogPosts.createdAt));
+
+    return NextResponse.json({ blogs });
   } catch (error: any) {
     console.error('Get blogs error:', error);
     return NextResponse.json(
-      {
-        message: 'Failed to get blogs',
-        error: process.env.NODE_ENV === 'development' ? error.message : undefined,
-      },
+      { message: 'Failed to fetch blogs', error: error.message },
       { status: 500 }
     );
   }
 }
 
+// POST - Create new blog post
 export async function POST(request: NextRequest) {
   try {
-    const db = getDatabase();
-    const data = await request.json();
+    const token = request.cookies.get('adminToken')?.value;
+    if (!token) {
+      return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });
+    }
 
-    if (!data.title || !data.slug || !data.content || !data.author) {
+    const decoded = verifyToken(token);
+    if (!decoded || decoded.role !== 'admin') {
+      return NextResponse.json({ message: 'Admin access required' }, { status: 403 });
+    }
+
+    const { title, slug, content, author, cover, tags, status } = await request.json();
+
+    if (!title || !slug || !content || !author) {
       return NextResponse.json(
         { message: 'Title, slug, content, and author are required' },
         { status: 400 }
       );
     }
 
-    // Store additional metadata in tags JSON (we'll enhance schema later)
-    const metadata = {
-      excerpt: data.excerpt || '',
-      featured: data.featured || false,
-      seoTitle: data.seoTitle || data.title,
-      seoDescription: data.seoDescription || data.excerpt || '',
-      scheduledPublish: data.scheduledPublish || null,
-      readingTime: data.readingTime || null,
-      category: data.category || '',
-    };
+    const db = getDatabase();
 
-    // Combine tags with metadata
-    const enhancedTags = {
-      tags: data.tags || [],
-      metadata: metadata,
-    };
-
-    const newBlog = await db
+    const result = await db
       .insert(blogPosts)
       .values({
-        title: data.title,
-        slug: data.slug,
-        content: data.content,
-        author: data.author,
-        cover: data.cover || null,
-        tags: JSON.stringify(enhancedTags),
-        status: data.status || 'draft',
+        title,
+        slug,
+        content,
+        author,
+        cover: cover || null,
+        tags: JSON.stringify(tags || []),
+        status: status || 'draft',
       })
       .returning();
 
-    const parsedTags = JSON.parse(newBlog[0].tags || '{}');
-    const tagsArray = parsedTags.tags || parsedTags || [];
-    const metadataObj = parsedTags.metadata || {};
+    console.log('✅ Blog post created:', result[0]);
 
-    return NextResponse.json({
-      blog: {
-        id: newBlog[0].id.toString(),
-        title: newBlog[0].title,
-        slug: newBlog[0].slug,
-        content: newBlog[0].content,
-        author: newBlog[0].author,
-        cover: newBlog[0].cover,
-        tags: Array.isArray(tagsArray) ? tagsArray : [],
-        status: newBlog[0].status,
-        excerpt: metadataObj.excerpt || '',
-        featured: metadataObj.featured || false,
-        seoTitle: metadataObj.seoTitle || newBlog[0].title,
-        seoDescription: metadataObj.seoDescription || '',
-        scheduledPublish: metadataObj.scheduledPublish || null,
-        readingTime: metadataObj.readingTime || null,
-        category: metadataObj.category || '',
-        createdAt: newBlog[0].createdAt?.toISOString(),
-        updatedAt: newBlog[0].updatedAt?.toISOString(),
-      },
-    });
+    return NextResponse.json({ blog: result[0] });
   } catch (error: any) {
     console.error('Create blog error:', error);
     return NextResponse.json(
-      {
-        message: 'Failed to create blog',
-        error: process.env.NODE_ENV === 'development' ? error.message : undefined,
-      },
+      { message: 'Failed to create blog post', error: error.message },
       { status: 500 }
     );
   }

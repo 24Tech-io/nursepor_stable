@@ -324,8 +324,15 @@ export default function NurseProAdminUltimate({
             <NavItem
               icon={<Database size={18} />}
               label="Q-Bank Manager"
-              active={currentModule.includes('qbank')}
+              active={currentModule.includes('qbank') && currentModule !== 'qbank_analytics'}
               onClick={() => nav('qbank')}
+              badge={undefined}
+            />
+            <NavItem
+              icon={<TrendingUp size={18} />}
+              label="Q-Bank Analytics"
+              active={currentModule === 'qbank_analytics'}
+              onClick={() => nav('qbank_analytics')}
               badge={undefined}
             />
             <NavItem
@@ -436,6 +443,7 @@ export default function NurseProAdminUltimate({
         {currentModule === 'qbank_editor' && (
           <UniversalQuestionEditor question={activeItem} back={() => nav('qbank')} />
         )}
+        {currentModule === 'qbank_analytics' && <QBankAnalytics nav={nav} />}
         {currentModule === 'admin_profile' && <AdminProfile nav={nav} adminUser={adminUser} />}
       </main>
     </div>
@@ -3273,12 +3281,16 @@ const QBankList = ({
   const [showCategoryModal, setShowCategoryModal] = React.useState(false);
   const [showBulkMoveModal, setShowBulkMoveModal] = React.useState(false);
   const [showCourseAssignModal, setShowCourseAssignModal] = React.useState(false);
+  const [showQuizAssignModal, setShowQuizAssignModal] = React.useState(false);
   const [showEditFolderModal, setShowEditFolderModal] = React.useState(false);
   const [editingFolder, setEditingFolder] = React.useState<any>(null);
   const [searchTerm, setSearchTerm] = React.useState('');
   const [draggedQuestion, setDraggedQuestion] = React.useState<any>(null);
   const [dragOverFolder, setDragOverFolder] = React.useState<number | null>(null);
   const [selectedCourseForAssign, setSelectedCourseForAssign] = React.useState<number | null>(null);
+  const [selectedQuizForAssign, setSelectedQuizForAssign] = React.useState<number | null>(null);
+  const [availableQuizzes, setAvailableQuizzes] = React.useState<any[]>([]);
+  const [selectedCourseFilter, setSelectedCourseFilter] = React.useState<number | null>(null);
 
   // ⚡ PERFORMANCE: Use React Query for categories with caching
   const { data: categories = [], refetch: refetchCategories } = useQuery({
@@ -3301,15 +3313,21 @@ const QBankList = ({
     isLoading,
     refetch: refetchQuestions,
   } = useQuery({
-    queryKey: ['qbank-questions', selectedCategory],
+    queryKey: ['qbank-questions', selectedCategory, selectedCourseFilter],
     queryFn: async () => {
-      const url = selectedCategory
-        ? `/api/qbank?limit=50&categoryId=${selectedCategory}`
-        : '/api/qbank?limit=50';
+      const params = new URLSearchParams({ limit: '50' });
+      if (selectedCategory) {
+        params.append('categoryId', selectedCategory.toString());
+      }
+      if (selectedCourseFilter) {
+        params.append('courseId', selectedCourseFilter.toString());
+      }
+      
+      const url = `/api/qbank?${params.toString()}`;
       const response = await fetch(url, { credentials: 'include' });
       if (response.ok) {
         const data = await response.json();
-        console.log('⚡ Questions loaded and cached');
+        console.log('⚡ Questions loaded and cached (filtered by course:', selectedCourseFilter, ')');
         return data.questions || [];
       }
       return [];
@@ -3395,6 +3413,69 @@ const QBankList = ({
     } catch (error) {
       console.error('Error assigning to course:', error);
       notification.showError('Failed to assign questions to course');
+    }
+  };
+
+  // ✅ NEW: Assign selected questions to a quiz
+  const assignQuestionsToQuiz = async () => {
+    if (!selectedQuizForAssign) {
+      notification.showError('Please select a quiz first');
+      return;
+    }
+
+    if (selectedQuestions.size === 0) {
+      notification.showError('Please select questions first');
+      return;
+    }
+
+    const questionIds = Array.from(selectedQuestions);
+
+    console.log(`📚 Assigning ${questionIds.length} questions to quiz ${selectedQuizForAssign}`);
+
+    try {
+      const response = await fetch(`/api/quizzes/${selectedQuizForAssign}/questions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ questionIds }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        notification.showSuccess(
+          'Questions Assigned to Quiz!',
+          `${questionIds.length} questions added to the quiz. Students can now take it.`
+        );
+        setShowQuizAssignModal(false);
+        setSelectedQuizForAssign(null);
+        setSelectedQuestions(new Set()); // Clear selection
+      } else {
+        const error = await response.json().catch(() => ({ message: 'Unknown error' }));
+        console.error('❌ Quiz assignment failed:', error);
+        notification.showError(error.message || 'Failed to assign questions to quiz');
+      }
+    } catch (error) {
+      console.error('Error assigning to quiz:', error);
+      notification.showError('Failed to assign questions to quiz');
+    }
+  };
+
+  // ✅ NEW: Fetch available quizzes when modal opens
+  React.useEffect(() => {
+    if (showQuizAssignModal) {
+      fetchAvailableQuizzes();
+    }
+  }, [showQuizAssignModal]);
+
+  const fetchAvailableQuizzes = async () => {
+    try {
+      const response = await fetch('/api/quizzes/all', { credentials: 'include' });
+      if (response.ok) {
+        const data = await response.json();
+        setAvailableQuizzes(data.quizzes || []);
+      }
+    } catch (error) {
+      console.error('Error fetching quizzes:', error);
     }
   };
 
@@ -3617,6 +3698,25 @@ const QBankList = ({
       {/* Folder Sidebar */}
       <div className="w-72 flex-shrink-0">
         <div className="bg-[#161922] border border-slate-800/60 rounded-2xl p-4 h-full flex flex-col">
+          {/* Course Filter Dropdown */}
+          <div className="mb-4">
+            <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">
+              Filter by Course
+            </label>
+            <select
+              value={selectedCourseFilter || ''}
+              onChange={(e) => setSelectedCourseFilter(e.target.value ? parseInt(e.target.value) : null)}
+              className="w-full bg-[#1a1d26] border border-slate-700 text-white rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+            >
+              <option value="">All Courses</option>
+              {courses.map((course: any) => (
+                <option key={course.id} value={course.id}>
+                  {course.title}
+                </option>
+              ))}
+            </select>
+          </div>
+          
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-bold text-white uppercase tracking-wide">Folders</h3>
             <button
@@ -3776,6 +3876,13 @@ const QBankList = ({
               {selectedQuestions.size} question{selectedQuestions.size > 1 ? 's' : ''} selected
             </span>
             <div className="flex gap-2">
+              <button
+                onClick={() => setShowQuizAssignModal(true)}
+                className="text-xs px-3 py-1.5 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white rounded font-bold transition flex items-center gap-1"
+                title="Assign selected questions to a quiz"
+              >
+                ⚡ Add to Quiz
+              </button>
               <button
                 onClick={() => setShowBulkMoveModal(true)}
                 className="text-xs px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded font-bold transition"
@@ -4035,6 +4142,73 @@ const QBankList = ({
                   className="flex-1 px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white rounded-lg font-bold transition disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Assign Questions
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ✅ NEW: Quiz Assignment Modal */}
+        {showQuizAssignModal && (
+          <div
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+            onClick={() => setShowQuizAssignModal(false)}
+          >
+            <div
+              className="bg-[#161922] border border-slate-800 rounded-2xl p-6 w-[500px]"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className="text-xl font-bold text-white mb-2">⚡ Assign Questions to Quiz</h3>
+              <div className="text-sm mb-4 p-3 rounded-lg bg-green-900/20 border border-green-500/30 text-green-300">
+                📚 Ready to assign: <strong>{selectedQuestions.size} selected questions</strong>
+                <br />
+                <span className="text-xs">
+                  These questions will be added to the quiz you select below.
+                </span>
+              </div>
+
+              {availableQuizzes.length === 0 ? (
+                <div className="text-center py-8 text-slate-400">
+                  <p className="mb-2">No quizzes found.</p>
+                  <p className="text-xs">Create a quiz in the Course Builder first.</p>
+                </div>
+              ) : (
+                <div className="space-y-3 max-h-96 overflow-y-auto custom-scrollbar mb-6">
+                  {availableQuizzes.map((quiz) => (
+                    <button
+                      key={quiz.id}
+                      onClick={() => setSelectedQuizForAssign(quiz.id)}
+                      className={`w-full text-left p-4 rounded-lg transition border ${
+                        selectedQuizForAssign === quiz.id
+                          ? 'bg-green-600/20 border-green-500'
+                          : 'bg-[#1a1d26] border-slate-800 hover:border-green-500/50'
+                      }`}
+                    >
+                      <div className="font-bold text-white">{quiz.title}</div>
+                      <div className="text-xs text-slate-400 mt-1">
+                        Pass Mark: {quiz.passMark}% • Max Attempts: {quiz.maxAttempts}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    setShowQuizAssignModal(false);
+                    setSelectedQuizForAssign(null);
+                  }}
+                  className="flex-1 px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg font-bold transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={assignQuestionsToQuiz}
+                  disabled={!selectedQuizForAssign || availableQuizzes.length === 0}
+                  className="flex-1 px-4 py-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white rounded-lg font-bold transition disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Assign to Quiz
                 </button>
               </div>
             </div>
@@ -5918,6 +6092,364 @@ const FaceEnrollmentComponent = ({ onComplete }: { onComplete: () => void }) => 
           </button>
         </>
       )}
+    </div>
+  );
+};
+
+// --- Q-BANK ANALYTICS MODULE ---
+const QBankAnalytics = ({ nav }: { nav: (mod: string) => void }) => {
+  const [students, setStudents] = React.useState<any[]>([]);
+  const [selectedStudent, setSelectedStudent] = React.useState<any>(null);
+  const [studentDetails, setStudentDetails] = React.useState<any>(null);
+  const [isLoading, setIsLoading] = React.useState(true);
+  const [isLoadingDetails, setIsLoadingDetails] = React.useState(false);
+  const notification = useNotification();
+
+  React.useEffect(() => {
+    fetchStudentsAnalytics();
+  }, []);
+
+  const fetchStudentsAnalytics = async () => {
+    try {
+      setIsLoading(true);
+      const response = await fetch('/api/analytics/qbank-students', { credentials: 'include' });
+      if (response.ok) {
+        const data = await response.json();
+        setStudents(data.students || []);
+      }
+    } catch (error) {
+      console.error('Error fetching Q-Bank analytics:', error);
+      notification.showError('Failed to load Q-Bank analytics');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const fetchStudentDetails = async (studentId: number) => {
+    try {
+      setIsLoadingDetails(true);
+      const response = await fetch(`/api/analytics/qbank-students/${studentId}`, {
+        credentials: 'include',
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setStudentDetails(data);
+      }
+    } catch (error) {
+      console.error('Error fetching student details:', error);
+      notification.showError('Failed to load student details');
+    } finally {
+      setIsLoadingDetails(false);
+    }
+  };
+
+  const handleSelectStudent = (student: any) => {
+    setSelectedStudent(student);
+    fetchStudentDetails(student.id);
+  };
+
+  const handleBack = () => {
+    setSelectedStudent(null);
+    setStudentDetails(null);
+  };
+
+  const exportToCSV = () => {
+    const csv = [
+      ['Name', 'Email', 'Tests Taken', 'Completed', 'Avg Score', 'Questions Attempted', 'Accuracy', 'Last Activity'].join(','),
+      ...students.map((s) =>
+        [
+          s.name,
+          s.email,
+          s.totalTests,
+          s.completedTests,
+          `${s.avgScore}%`,
+          s.questionsAttempted,
+          `${s.accuracy}%`,
+          s.lastTestDate ? new Date(s.lastTestDate).toLocaleDateString() : 'Never',
+        ].join(',')
+      ),
+    ].join('\n');
+
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `qbank-analytics-${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+    notification.showSuccess('Report exported successfully!');
+  };
+
+  if (selectedStudent && studentDetails) {
+    return (
+      <div className="p-8 overflow-y-auto h-full">
+        <button
+          onClick={handleBack}
+          className="flex items-center gap-2 text-purple-400 hover:text-purple-300 mb-6 transition"
+        >
+          <ArrowLeft size={20} />
+          Back to All Students
+        </button>
+
+        <div className="mb-8">
+          <h2 className="text-3xl font-bold text-white mb-2">
+            {studentDetails.student.name}'s Q-Bank Performance
+          </h2>
+          <p className="text-slate-400">{studentDetails.student.email}</p>
+        </div>
+
+        {/* Summary Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+          <div className="bg-[#161922] border border-slate-800 rounded-xl p-4">
+            <div className="text-3xl font-bold text-purple-400 mb-1">
+              {studentDetails.summary.totalTests}
+            </div>
+            <div className="text-sm text-slate-400">Total Tests</div>
+          </div>
+          <div className="bg-[#161922] border border-slate-800 rounded-xl p-4">
+            <div className="text-3xl font-bold text-green-400 mb-1">
+              {studentDetails.summary.completedTests}
+            </div>
+            <div className="text-sm text-slate-400">Completed</div>
+          </div>
+          <div className="bg-[#161922] border border-slate-800 rounded-xl p-4">
+            <div className="text-3xl font-bold text-blue-400 mb-1">
+              {studentDetails.summary.uniqueQuestions}
+            </div>
+            <div className="text-sm text-slate-400">Questions Attempted</div>
+          </div>
+          <div className="bg-[#161922] border border-slate-800 rounded-xl p-4">
+            <div className="text-3xl font-bold text-yellow-400 mb-1">
+              {studentDetails.summary.overallAccuracy}%
+            </div>
+            <div className="text-sm text-slate-400">Overall Accuracy</div>
+          </div>
+        </div>
+
+        {/* Subject Performance */}
+        <div className="bg-[#161922] border border-slate-800 rounded-xl p-6 mb-6">
+          <h3 className="text-xl font-bold text-white mb-4">Performance by Subject</h3>
+          <div className="space-y-3">
+            {studentDetails.subjectPerformance.map((subj: any) => (
+              <div key={subj.subject} className="flex items-center justify-between">
+                <div className="flex-1">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-slate-300 font-medium">{subj.subject}</span>
+                    <span className="text-slate-400 text-sm">
+                      {subj.correct}/{subj.total} ({subj.accuracy}%)
+                    </span>
+                  </div>
+                  <div className="h-2 bg-slate-700 rounded-full overflow-hidden">
+                    <div
+                      className={`h-full transition-all ${
+                        subj.accuracy >= 70
+                          ? 'bg-green-500'
+                          : subj.accuracy >= 50
+                            ? 'bg-yellow-500'
+                            : 'bg-red-500'
+                      }`}
+                      style={{ width: `${subj.accuracy}%` }}
+                    />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Test History */}
+        <div className="bg-[#161922] border border-slate-800 rounded-xl p-6">
+          <h3 className="text-xl font-bold text-white mb-4">Test History</h3>
+          <div className="space-y-2">
+            {studentDetails.tests.map((test: any) => (
+              <div
+                key={test.id}
+                className="bg-[#1a1d26] border border-slate-700 rounded-lg p-4 flex items-center justify-between"
+              >
+                <div>
+                  <div className="text-white font-medium">{test.title || test.testId}</div>
+                  <div className="text-sm text-slate-400">
+                    {test.totalQuestions} questions • {test.mode} • {test.testType}
+                  </div>
+                  <div className="text-xs text-slate-500 mt-1">
+                    {new Date(test.createdAt).toLocaleString()}
+                  </div>
+                </div>
+                <div className="text-right">
+                  {test.status === 'completed' ? (
+                    <div>
+                      <div
+                        className={`text-2xl font-bold ${
+                          test.percentage >= 70
+                            ? 'text-green-400'
+                            : test.percentage >= 50
+                              ? 'text-yellow-400'
+                              : 'text-red-400'
+                        }`}
+                      >
+                        {test.percentage}%
+                      </div>
+                      <div className="text-xs text-slate-500">
+                        {test.score}/{test.maxScore}
+                      </div>
+                    </div>
+                  ) : (
+                    <span className="text-sm text-slate-400 px-3 py-1 bg-yellow-500/20 rounded">
+                      {test.status}
+                    </span>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Main list view
+  return (
+    <div className="p-8 overflow-y-auto h-full">
+      <div className="flex items-center justify-between mb-8">
+        <div>
+          <h2 className="text-3xl font-bold text-white">Q-Bank Analytics</h2>
+          <p className="text-slate-400 mt-2">Monitor student Q-Bank performance and usage</p>
+        </div>
+        <button
+          onClick={exportToCSV}
+          disabled={students.length === 0}
+          className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white px-6 py-3 rounded-xl font-bold transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+        >
+          <Download size={20} />
+          Export CSV
+        </button>
+      </div>
+
+      {/* Stats Summary */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div className="bg-[#161922] border border-slate-800 rounded-xl p-6">
+          <div className="text-4xl font-bold text-purple-400 mb-2">
+            {students.filter(s => s.totalTests > 0).length}
+          </div>
+          <div className="text-slate-400">Active Students</div>
+          <div className="text-xs text-slate-500 mt-1">
+            {students.length} total with Q-Bank access
+          </div>
+        </div>
+        <div className="bg-[#161922] border border-slate-800 rounded-xl p-6">
+          <div className="text-4xl font-bold text-green-400 mb-2">
+            {students.reduce((sum, s) => sum + s.completedTests, 0)}
+          </div>
+          <div className="text-slate-400">Total Tests Completed</div>
+        </div>
+        <div className="bg-[#161922] border border-slate-800 rounded-xl p-6">
+          <div className="text-4xl font-bold text-blue-400 mb-2">
+            {students.length > 0
+              ? Math.round(students.reduce((sum, s) => sum + s.avgScore, 0) / students.length)
+              : 0}%
+          </div>
+          <div className="text-slate-400">Average Score</div>
+        </div>
+      </div>
+
+      {/* Students Table */}
+      <div className="bg-[#161922] border border-slate-800 rounded-xl overflow-hidden">
+        {isLoading ? (
+          <div className="p-12 text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-4 border-purple-500 border-t-transparent mx-auto mb-4"></div>
+            <p className="text-slate-400">Loading analytics...</p>
+          </div>
+        ) : students.length === 0 ? (
+          <div className="p-12 text-center">
+            <p className="text-slate-400">No Q-Bank activity yet</p>
+          </div>
+        ) : (
+          <table className="w-full">
+            <thead className="bg-[#1a1d26] border-b border-slate-800">
+              <tr>
+                <th className="text-left p-4 text-sm font-bold text-slate-400 uppercase">Student</th>
+                <th className="text-center p-4 text-sm font-bold text-slate-400 uppercase">Tests</th>
+                <th className="text-center p-4 text-sm font-bold text-slate-400 uppercase">Completed</th>
+                <th className="text-center p-4 text-sm font-bold text-slate-400 uppercase">Avg Score</th>
+                <th className="text-center p-4 text-sm font-bold text-slate-400 uppercase">Questions</th>
+                <th className="text-center p-4 text-sm font-bold text-slate-400 uppercase">Accuracy</th>
+                <th className="text-center p-4 text-sm font-bold text-slate-400 uppercase">Last Activity</th>
+                <th className="text-center p-4 text-sm font-bold text-slate-400 uppercase">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {students.map((student) => (
+                <tr
+                  key={student.id}
+                  className="border-b border-slate-800 hover:bg-[#1a1d26] transition cursor-pointer"
+                  onClick={() => handleSelectStudent(student)}
+                >
+                  <td className="p-4">
+                    <div className="text-white font-medium">{student.name}</div>
+                    <div className="text-sm text-slate-400">{student.email}</div>
+                  </td>
+                  <td className="text-center p-4">
+                    <span className="text-white font-bold">{student.totalTests}</span>
+                  </td>
+                  <td className="text-center p-4">
+                    <span className="text-green-400 font-bold">{student.completedTests}</span>
+                  </td>
+                  <td className="text-center p-4">
+                    <span
+                      className={`font-bold ${
+                        student.avgScore >= 70
+                          ? 'text-green-400'
+                          : student.avgScore >= 50
+                            ? 'text-yellow-400'
+                            : 'text-red-400'
+                      }`}
+                    >
+                      {student.avgScore}%
+                    </span>
+                  </td>
+                  <td className="text-center p-4">
+                    <span className="text-blue-400 font-bold">{student.questionsAttempted}</span>
+                    <div className="text-xs text-slate-500">{student.totalAttempts} attempts</div>
+                  </td>
+                  <td className="text-center p-4">
+                    <span
+                      className={`font-bold ${
+                        student.accuracy >= 70
+                          ? 'text-green-400'
+                          : student.accuracy >= 50
+                            ? 'text-yellow-400'
+                            : 'text-red-400'
+                      }`}
+                    >
+                      {student.accuracy}%
+                    </span>
+                  </td>
+                  <td className="text-center p-4">
+                    <span className="text-sm text-slate-400">
+                      {student.lastTestDate
+                        ? new Date(student.lastTestDate).toLocaleDateString()
+                        : 'Never'}
+                    </span>
+                  </td>
+                  <td className="text-center p-4">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleSelectStudent(student);
+                      }}
+                      className="text-xs px-3 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded font-bold transition"
+                    >
+                      View Details
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
     </div>
   );
 };

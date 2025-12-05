@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/auth';
 import { getDatabase } from '@/lib/db';
-import { courses } from '@/lib/db/schema';
+import { courses, questionBanks } from '@/lib/db/schema';
 import { desc, sql } from 'drizzle-orm';
 import { logActivity } from '@/lib/activity-log';
 
@@ -166,6 +166,24 @@ export async function POST(request: NextRequest) {
     console.log(
       `✅ Course created successfully: ${newCourse.title} (ID: ${newCourse.id}, Status: ${newCourse.status})`
     );
+
+    // AUTO-CREATE Q-BANK FOLDER for this course
+    try {
+      const [newQBank] = await db
+        .insert(questionBanks)
+        .values({
+          courseId: newCourse.id,
+          name: `${newCourse.title} Q-Bank`,
+          description: `Practice questions for ${newCourse.title}`,
+          isActive: true,
+        })
+        .returning();
+      
+      console.log(`✅ Auto-created Q-Bank folder (ID: ${newQBank.id}) for course ${newCourse.id}`);
+    } catch (qbankError: any) {
+      console.error('⚠️ Failed to auto-create Q-Bank folder:', qbankError.message);
+      // Don't fail course creation if Q-Bank creation fails
+    }
 
     // Log activity
     await logActivity({

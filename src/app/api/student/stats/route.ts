@@ -9,7 +9,7 @@ import { retryDatabase } from '@/lib/retry';
 
 export async function GET(request: NextRequest) {
   try {
-    const token = request.cookies.get('token')?.value;
+    const token = request.cookies.get('studentToken')?.value;
 
     if (!token) {
       return createAuthError('Not authenticated');

@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
   try {
     // This endpoint can be called by a cron job or scheduled task
     // For security, we can require an API key or make it admin-only
-    const token = request.cookies.get('token')?.value || request.cookies.get('adminToken')?.value;
+    const token = request.cookies.get('token')?.value || request.cookies.get('token')?.value;
     const apiKey = request.headers.get('x-api-key');
 
     // Allow either authenticated user or API key
@@ -115,3 +115,4 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+

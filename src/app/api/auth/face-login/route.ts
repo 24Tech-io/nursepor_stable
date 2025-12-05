@@ -2,117 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getDatabase } from '@/lib/db';
 import { users } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
-import { createSession } from '@/lib/auth';
-import { base64ToDescriptor } from '@/lib/face-recognition';
-import { verifyFace } from '@/lib/face-recognition';
-
-// Note: This is a simplified version. In production, you'd need to:
-// 1. Receive video frame or image from client
-// 2. Process it server-side or use client-side verification
-// 3. For security, consider using a challenge-response system
-
-export async function POST(request: NextRequest) {
-  try {
-    const { email, descriptor, role } = await request.json();
-
-    if (!email || !descriptor) {
-      return NextResponse.json(
-        { message: 'Email and face descriptor are required' },
-        { status: 400 }
-      );
-    }
-
-    // Get database instance
-    const db = getDatabase();
-
-    // Get user from database - filter by role if specified, default to student for student login page
-    const targetRole = role || 'student';
-    const userResult = await db
-      .select()
-      .from(users)
-      .where(
-        and(
-          eq(users.email, email.toLowerCase().trim()),
-          eq(users.role, targetRole),
-          eq(users.isActive, true)
-        )
-      )
-      .limit(1);
-
-    if (!userResult.length) {
-      return NextResponse.json(
-        {
-          message: `No ${targetRole} account found with this email. Please check your credentials or register a ${targetRole} account.`,
-        },
-        { status: 404 }
-      );
-    }
-
-    const user = userResult[0];
-
-    if (!user.faceIdEnrolled || !user.faceTemplate) {
-      return NextResponse.json(
-        { message: 'Face ID not enrolled for this account' },
-        { status: 400 }
-      );
-    }
-
-    // Convert stored template back to Float32Array
-    const storedDescriptor = base64ToDescriptor(user.faceTemplate);
-    const providedDescriptor = new Float32Array(descriptor);
-
-    // Calculate distance (simplified - in production, do this server-side with proper image processing)
-    // For now, we'll do a basic comparison
-    // In production, you should:
-    // 1. Receive actual image/video frame
-    // 2. Process it server-side using face-api.js or similar
-    // 3. Compare descriptors server-side
-
-    const distance = calculateEuclideanDistance(storedDescriptor, providedDescriptor);
-    const threshold = 0.5;
-    const match = distance < threshold;
-
-    if (!match) {
-      return NextResponse.json({ message: 'Face verification failed' }, { status: 401 });
-    }
-
-    // Create session
-    const sessionToken = await createSession(user.id);
-
-    const response = NextResponse.json({
-      message: 'Face login successful',
-      user: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-      },
-    });
-
-    // Set secure cookie
-    response.cookies.set('token', sessionToken, {
-      httpOnly: true,
-      sameSite: 'strict',
-      secure: process.env.NODE_ENV === 'production',
-      path: '/',
-      maxAge: 7 * 24 * 60 * 60,
-    });
-
-    // Update last login
-    await db.update(users).set({ lastLogin: new Date() }).where(eq(users.id, user.id));
-
-    return response;
-  } catch (error: any) {
-    console.error('Face login error:', error);
-    return NextResponse.json(
-      {
-        message: 'Face login failed',
-        error: process.env.NODE_ENV === 'development' ? error.message : undefined,
-      },
-      { status: 500 }
-    );
-  }
-}
+import { generateToken } from '@/lib/auth';
 
 // Helper function to calculate Euclidean distance
 function calculateEuclideanDistance(a: Float32Array, b: Float32Array): number {
@@ -127,3 +17,149 @@ function calculateEuclideanDistance(a: Float32Array, b: Float32Array): number {
   }
   return Math.sqrt(sum);
 }
+
+// Helper to convert base64 to Float32Array
+function base64ToFloat32Array(base64: string): Float32Array {
+  try {
+    // Try parsing as JSON first (for simple-face-auth format)
+    try {
+      const jsonData = JSON.parse(atob(base64));
+      if (Array.isArray(jsonData)) {
+        return new Float32Array(jsonData);
+      }
+    } catch (e) {
+      // Not JSON, try as binary
+    }
+
+    // Parse as binary data
+    const buffer = Buffer.from(base64, 'base64');
+    return new Float32Array(buffer.buffer, buffer.byteOffset, buffer.byteLength / 4);
+  } catch (error) {
+    console.error('Error converting base64 to Float32Array:', error);
+    throw new Error('Invalid face template format');
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const { email, descriptor, faceTemplate } = await request.json();
+
+    if (!email || (!descriptor && !faceTemplate)) {
+      return NextResponse.json({ message: 'Email and face data are required' }, { status: 400 });
+    }
+
+    const db = getDatabase();
+
+    // Get admin user from database
+    const userResult = await db
+      .select()
+      .from(users)
+      .where(
+        and(
+          eq(users.email, email.toLowerCase().trim()),
+          eq(users.role, 'admin'),
+          eq(users.isActive, true)
+        )
+      )
+      .limit(1);
+
+    if (!userResult.length) {
+      return NextResponse.json({ message: 'Admin user not found' }, { status: 404 });
+    }
+
+    const user = userResult[0];
+
+    if (!user.faceIdEnrolled || !user.faceTemplate) {
+      return NextResponse.json(
+        { message: 'Face ID not enrolled for this account' },
+        { status: 400 }
+      );
+    }
+
+    // Convert stored template to Float32Array
+    let storedDescriptor: Float32Array;
+    try {
+      storedDescriptor = base64ToFloat32Array(user.faceTemplate);
+    } catch (error) {
+      return NextResponse.json({ message: 'Invalid stored face template' }, { status: 500 });
+    }
+
+    // Convert provided descriptor
+    let providedDescriptor: Float32Array;
+    if (faceTemplate) {
+      // From simple-face-auth format
+      try {
+        const jsonData = JSON.parse(atob(faceTemplate));
+        if (Array.isArray(jsonData)) {
+          providedDescriptor = new Float32Array(jsonData);
+        } else {
+          return NextResponse.json({ message: 'Invalid face template format' }, { status: 400 });
+        }
+      } catch (e) {
+        return NextResponse.json({ message: 'Invalid face template format' }, { status: 400 });
+      }
+    } else if (descriptor && Array.isArray(descriptor)) {
+      providedDescriptor = new Float32Array(descriptor);
+    } else {
+      return NextResponse.json({ message: 'Invalid face descriptor format' }, { status: 400 });
+    }
+
+    // Calculate distance
+    const distance = calculateEuclideanDistance(storedDescriptor, providedDescriptor);
+    const threshold = 0.6; // Slightly higher threshold for admin
+    const match = distance < threshold;
+
+    if (!match) {
+      return NextResponse.json(
+        { message: 'Face verification failed. Please try again.' },
+        { status: 401 }
+      );
+    }
+
+    // Generate token (unified for all users)
+    const token = generateToken({
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      isActive: user.isActive,
+    });
+
+    // Update last login
+    await db.update(users).set({ lastLogin: new Date() }).where(eq(users.id, user.id));
+
+    const response = NextResponse.json({
+      message: 'Face login successful',
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+      },
+    });
+
+    // Set appropriate token cookie based on role
+    const cookieName = user.role === 'admin' ? 'adminToken' : 'studentToken';
+    response.cookies.set(cookieName, token, {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production',
+      maxAge: 60 * 60 * 24 * 7, // 7 days
+      path: '/',
+      maxAge: 7 * 24 * 60 * 60, // 7 days
+    });
+
+    console.log('✅ Token cookie set for face login');
+    return response;
+  } catch (error: any) {
+    console.error('Face login error:', error);
+    return NextResponse.json(
+      {
+        message: 'Face login failed',
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+      },
+      { status: 500 }
+    );
+  }
+}
+

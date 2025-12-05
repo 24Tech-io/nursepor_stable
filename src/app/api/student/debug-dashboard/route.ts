@@ -3,7 +3,7 @@ import { verifyToken } from '@/lib/auth';
 
 export async function GET(request: NextRequest) {
   try {
-    const token = request.cookies.get('token')?.value;
+    const token = request.cookies.get('studentToken')?.value;
 
     if (!token) {
       return NextResponse.json({ error: 'No token' }, { status: 401 });
@@ -18,16 +18,16 @@ export async function GET(request: NextRequest) {
     // Fetch all the data the dashboard needs
     const [coursesRes, enrolledRes, statsRes, requestsRes] = await Promise.all([
       fetch(`http://localhost:${process.env.PORT || 3000}/api/student/courses`, {
-        headers: { Cookie: `token=${token}` },
+        headers: { Cookie: `studentToken=${token}` },
       }),
       fetch(`http://localhost:${process.env.PORT || 3000}/api/student/enrolled-courses`, {
-        headers: { Cookie: `token=${token}` },
+        headers: { Cookie: `studentToken=${token}` },
       }),
       fetch(`http://localhost:${process.env.PORT || 3000}/api/student/stats`, {
-        headers: { Cookie: `token=${token}` },
+        headers: { Cookie: `studentToken=${token}` },
       }),
       fetch(`http://localhost:${process.env.PORT || 3000}/api/student/requests`, {
-        headers: { Cookie: `token=${token}` },
+        headers: { Cookie: `studentToken=${token}` },
       }),
     ]);
 

@@ -20,7 +20,7 @@ async function retryOperation<T>(operation: () => Promise<T>, retries = 3): Prom
 
 export async function GET(request: NextRequest) {
   try {
-    const token = request.cookies.get('token')?.value;
+    const token = request.cookies.get('studentToken')?.value;
 
     if (!token) {
       console.log('❌ No token found in cookies');

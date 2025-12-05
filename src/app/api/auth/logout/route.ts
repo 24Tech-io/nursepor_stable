@@ -1,20 +1,36 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { destroySession } from '@/lib/auth';
 
 export async function POST(request: NextRequest) {
   try {
-    const token = request.cookies.get('token')?.value;
+    console.log('🔓 [/api/auth/logout] Logout requested');
 
-    if (token) {
-      await destroySession(token);
-    }
+    const response = NextResponse.json({ message: 'Logged out successfully' }, { status: 200 });
 
-    const response = NextResponse.json({ message: 'Logged out successfully' });
-    response.cookies.delete('token');
+    // Clear BOTH admin and student token cookies
+    response.cookies.set('adminToken', '', {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production',
+      path: '/',
+      maxAge: 0, // Immediately expire the cookie
+    });
+
+    response.cookies.set('studentToken', '', {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production',
+      path: '/',
+      maxAge: 0, // Immediately expire the cookie
+    });
+
+    console.log('✅ [/api/auth/logout] Both adminToken and studentToken cookies cleared');
 
     return response;
-  } catch (error) {
-    console.error('Logout error:', error);
-    return NextResponse.json({ message: 'Internal server error' }, { status: 500 });
+  } catch (error: any) {
+    console.error('❌ [/api/auth/logout] Error:', error);
+    return NextResponse.json(
+      { message: 'Failed to logout', error: error.message },
+      { status: 500 }
+    );
   }
 }

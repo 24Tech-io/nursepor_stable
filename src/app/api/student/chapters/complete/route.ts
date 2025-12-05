@@ -9,7 +9,7 @@ import { markChapterComplete } from '@/lib/data-manager/helpers/progress-helper'
 export async function POST(request: NextRequest) {
   try {
     // Verify authentication
-    const token = request.cookies.get('token')?.value;
+    const token = request.cookies.get('studentToken')?.value;
 
     if (!token) {
       return NextResponse.json({ message: 'Unauthorized - No token provided' }, { status: 401 });

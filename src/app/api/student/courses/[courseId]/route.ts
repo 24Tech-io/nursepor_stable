@@ -6,7 +6,7 @@ import { eq, and } from 'drizzle-orm';
 
 export async function GET(request: NextRequest, { params }: { params: { courseId: string } }) {
   try {
-    const token = request.cookies.get('token')?.value;
+    const token = request.cookies.get('studentToken')?.value;
 
     if (!token) {
       return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });

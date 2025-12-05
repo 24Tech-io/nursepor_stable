@@ -8,7 +8,7 @@ import { getSyncStatus } from '@/lib/sync-service';
  */
 export async function GET(request: NextRequest) {
   try {
-    const token = request.cookies.get('token')?.value || request.cookies.get('adminToken')?.value;
+    const token = request.cookies.get('token')?.value || request.cookies.get('token')?.value;
 
     if (!token) {
       return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });
@@ -42,3 +42,4 @@ export async function GET(request: NextRequest) {
     );
   }
 }
+

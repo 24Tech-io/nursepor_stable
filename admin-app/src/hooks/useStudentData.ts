@@ -77,3 +77,4 @@ export function useStudentData(studentId: number | null) {
       (data?.requests || []).some((r: any) => r.courseId === courseId && r.status === 'pending'),
   };
 }
+

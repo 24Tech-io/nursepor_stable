@@ -420,34 +420,150 @@ export default function CourseDetailPage({ params }: { params: { courseId: strin
             {/* Modal Content */}
             <div className="p-6">
               {selectedChapter.type === 'video' && selectedChapter.videoUrl && (
-                <div className="aspect-video bg-black rounded-xl overflow-hidden mb-6">
-                  {selectedChapter.videoProvider === 'youtube' ? (
-                    <iframe
-                      className="w-full h-full"
-                      src={selectedChapter.videoUrl}
-                      title={selectedChapter.title}
-                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                      allowFullScreen
-                    />
-                  ) : selectedChapter.videoProvider === 'vimeo' ? (
-                    <iframe
-                      className="w-full h-full"
-                      src={selectedChapter.videoUrl}
-                      title={selectedChapter.title}
-                      allow="autoplay; fullscreen; picture-in-picture"
-                      allowFullScreen
-                    />
-                  ) : (
-                    <div className="flex items-center justify-center h-full text-white">
-                      <p>Unsupported video provider</p>
-                    </div>
-                  )}
+                <div className="mb-6">
+                  <div className="aspect-video bg-black rounded-xl overflow-hidden shadow-lg">
+                    {(() => {
+                      // Get the video URL
+                      let videoUrl = selectedChapter.videoUrl;
+                      const provider = selectedChapter.videoProvider || 'youtube';
+                      
+                      // Convert to proper embed URL with privacy settings
+                      if (provider === 'youtube') {
+                        // Extract video ID from various YouTube URL formats
+                        const youtubePatterns = [
+                          /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/v\/)([^&\n?#]+)/,
+                          /youtube\.com\/.*[?&]v=([^&\n?#]+)/,
+                        ];
+                        
+                        let videoId = null;
+                        for (const pattern of youtubePatterns) {
+                          const match = videoUrl.match(pattern);
+                          if (match && match[1]) {
+                            videoId = match[1].split('&')[0].split('#')[0].split('?')[0];
+                            break;
+                          }
+                        }
+                        
+                        if (videoId) {
+                          // Use youtube-nocookie.com for extra privacy and add parameters to hide branding
+                          videoUrl = `https://www.youtube-nocookie.com/embed/${videoId}?modestbranding=1&rel=0&showinfo=0&iv_load_policy=3&fs=1&color=white&disablekb=0`;
+                        }
+                        
+                        return (
+                          <iframe
+                            className="w-full h-full"
+                            src={videoUrl}
+                            title={selectedChapter.title}
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
+                            allowFullScreen
+                            frameBorder="0"
+                          />
+                        );
+                      } else if (provider === 'vimeo') {
+                        // Extract Vimeo video ID
+                        const vimeoPatterns = [
+                          /(?:vimeo\.com\/|player\.vimeo\.com\/video\/)(\d+)/,
+                          /vimeo\.com\/channels\/[^\/]+\/(\d+)/,
+                          /vimeo\.com\/groups\/[^\/]+\/videos\/(\d+)/,
+                        ];
+                        
+                        let videoId = null;
+                        for (const pattern of vimeoPatterns) {
+                          const match = videoUrl.match(pattern);
+                          if (match && match[1]) {
+                            videoId = match[1];
+                            break;
+                          }
+                        }
+                        
+                        if (videoId) {
+                          // Hide all Vimeo branding
+                          videoUrl = `https://player.vimeo.com/video/${videoId}?title=0&byline=0&portrait=0&badge=0&color=8b5cf6`;
+                        }
+                        
+                        return (
+                          <iframe
+                            className="w-full h-full"
+                            src={videoUrl}
+                            title={selectedChapter.title}
+                            allow="autoplay; fullscreen; picture-in-picture"
+                            allowFullScreen
+                            frameBorder="0"
+                          />
+                        );
+                      } else {
+                        return (
+                          <div className="flex items-center justify-center h-full text-white">
+                            <p>Unsupported video provider</p>
+                          </div>
+                        );
+                      }
+                    })()}
+                  </div>
+                  <p className="text-sm text-gray-500 mt-3 flex items-center gap-2">
+                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                      <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
+                      <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
+                    </svg>
+                    Video is now playing. Use the player controls to pause, adjust volume, or enable captions.
+                  </p>
                 </div>
               )}
 
               {selectedChapter.type === 'textbook' && selectedChapter.textbookContent && (
-                <div className="prose prose-lg max-w-none mb-6">
-                  <div dangerouslySetInnerHTML={{ __html: selectedChapter.textbookContent }} />
+                <div className="bg-white rounded-xl p-8 shadow-sm border border-gray-200 mb-6">
+                  <div 
+                    className="prose prose-lg max-w-none [&_*]:!text-gray-900 [&_h1]:!text-gray-900 [&_h2]:!text-gray-900 [&_h3]:!text-gray-900 [&_h4]:!text-gray-900 [&_h5]:!text-gray-900 [&_h6]:!text-gray-900 [&_p]:!text-gray-900 [&_span]:!text-gray-900 [&_div]:!text-gray-900 [&_li]:!text-gray-900 [&_strong]:!text-gray-900 [&_b]:!text-gray-900 [&_a]:!text-blue-600 [&_a]:!underline"
+                    style={{ color: '#111827' }}
+                    dangerouslySetInnerHTML={{ __html: selectedChapter.textbookContent }} 
+                  />
+                </div>
+              )}
+
+              {selectedChapter.type === 'document' && (selectedChapter as any).textbookFileUrl && (
+                <div className="mb-6">
+                  <div className="bg-white rounded-xl overflow-hidden border-2 border-gray-200 shadow-lg">
+                    {/* Document Viewer - Coursera-style */}
+                    <div className="bg-gradient-to-r from-purple-600 to-blue-600 px-4 py-3 flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-white">
+                        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clipRule="evenodd" />
+                        </svg>
+                        <span className="font-semibold">Document Viewer</span>
+                      </div>
+                      <a
+                        href={(selectedChapter as any).textbookFileUrl}
+                        download
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-4 py-1.5 bg-white/20 hover:bg-white/30 rounded-lg text-sm font-medium text-white transition-colors flex items-center gap-2"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                        </svg>
+                        Download
+                      </a>
+                    </div>
+                    <div className="bg-gray-50 p-4">
+                      <iframe
+                        src={`https://docs.google.com/viewer?url=${encodeURIComponent((selectedChapter as any).textbookFileUrl)}&embedded=true`}
+                        className="w-full h-[700px] border-0 rounded-lg bg-white"
+                        title={selectedChapter.title}
+                        style={{ backgroundColor: '#ffffff' }}
+                        allow="fullscreen"
+                      />
+                    </div>
+                  </div>
+                  <div className="mt-4 bg-blue-50 border border-blue-200 rounded-xl p-4">
+                    <p className="text-sm text-blue-900 flex items-start gap-2">
+                      <svg className="w-5 h-5 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                      </svg>
+                      <span>
+                        <strong>Tip:</strong> If the document doesn't load, click the Download button to view it locally. The viewer works best with PDF files.
+                      </span>
+                    </p>
+                  </div>
                 </div>
               )}
 

@@ -34,6 +34,11 @@ const nextConfig = {
     ignoreBuildErrors: true,
   },
   
+  // ESLint configuration
+  eslint: {
+    ignoreDuringBuilds: false,
+  },
+  
   // Fix for face-api.js trying to use 'fs' module in browser
   webpack: (config, { isServer }) => {
     if (!isServer) {

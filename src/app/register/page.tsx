@@ -243,13 +243,44 @@ export default function RegisterPage() {
               </div>
             )}
 
-            <div>
+            <div className="space-y-3">
+              {/* Primary button - Register directly without Face ID */}
+              <button
+                type="button"
+                onClick={async (e) => {
+                  e.preventDefault();
+                  setError('');
+                  
+                  // Validate form
+                  if (formData.password !== formData.confirmPassword) {
+                    setError('Passwords do not match');
+                    return;
+                  }
+                  if (formData.password.length < 6) {
+                    setError('Password must be at least 6 characters long');
+                    return;
+                  }
+                  
+                  // Register without face setup
+                  await submitRegistration(null);
+                }}
+                disabled={isLoading}
+                className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-xl text-white bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 shadow-lg shadow-blue-500/30 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isLoading ? 'Creating account...' : 'Create Account'}
+              </button>
+
+              {/* Secondary button - Setup Face ID (optional) */}
               <button
                 type="submit"
-                className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-xl text-white bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200"
+                className="w-full flex justify-center py-3 px-4 border-2 border-blue-600 text-sm font-medium rounded-xl text-blue-600 bg-white hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200"
               >
-                Continue to Face Setup
+                Continue to Face Setup <span className="ml-1 text-xs text-gray-500">(Optional)</span>
               </button>
+
+              <p className="text-xs text-center text-gray-500 italic">
+                💡 You can add Face ID later from your profile settings
+              </p>
             </div>
 
             <div className="text-center">

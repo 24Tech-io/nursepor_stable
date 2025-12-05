@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/auth';
 import { getDatabase } from '@/lib/db';
 import { courses, enrollments, accessRequests } from '@/lib/db/schema';
-import { eq, and, or, sql } from 'drizzle-orm';
-import cache, { CacheKeys, CacheTTL, setInCache, getFromCache } from '@/lib/cache';
+import { eq, and, sql } from 'drizzle-orm';
+import cache, { CacheKeys, CacheTTL } from '@/lib/cache';
+import { getPublishedCourseFilter } from '@/lib/enrollment-helpers';
 
 /**
  * Analytics Course Statistics API
@@ -25,14 +26,15 @@ export async function GET(request: NextRequest) {
 
     // Check cache first
     const cacheKey = CacheKeys.courseStats();
-    const cached = await getFromCache(cacheKey);
+    const cached = cache.get(cacheKey);
     if (cached) {
+      console.log('✅ Serving course statistics from cache');
       return NextResponse.json(cached);
     }
 
     const db = getDatabase();
 
-    // Get all published/active courses
+    // Get all published/active courses using standardized filter
     const allCourses = await db
       .select({
         id: courses.id,
@@ -40,18 +42,11 @@ export async function GET(request: NextRequest) {
         status: courses.status,
       })
       .from(courses)
-      .where(
-        or(
-          eq(courses.status, 'published'),
-          eq(courses.status, 'active'),
-          eq(courses.status, 'Published'),
-          eq(courses.status, 'Active')
-        )
-      );
+      .where(getPublishedCourseFilter());
 
     // Calculate statistics for each course using SQL aggregation
     // This is much faster than fetching individual student details
-    const courseStatsPromises = allCourses.map(async (course: any) => {
+    const courseStatsPromises = allCourses.map(async (course) => {
       // Get enrollment count and average progress from enrollments table (single source of truth)
       const enrollmentStats = await db
         .select({
@@ -135,7 +130,8 @@ export async function GET(request: NextRequest) {
     };
 
     // Cache the result
-    await setInCache(cacheKey, result, CacheTTL.analytics);
+    cache.set(cacheKey, result, CacheTTL.analytics);
+    console.log('📊 Fetched and cached course statistics');
 
     return NextResponse.json(result);
   } catch (error: any) {

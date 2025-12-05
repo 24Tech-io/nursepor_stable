@@ -89,3 +89,4 @@ export function useStudentData() {
     getCourse: (courseId: number) => (data?.courses || []).find((c) => c.id === courseId),
   };
 }
+

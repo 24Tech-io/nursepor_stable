@@ -1,72 +1,125 @@
 /**
- * Unified Student Data API
- * Single endpoint that returns ALL student data
+ * Unified Student Data API - Admin Version
+ * Single endpoint that returns ALL student data for admin view
  *
- * This replaces multiple fragmented endpoints:
- * - /api/student/courses
- * - /api/student/enrolled-courses
- * - /api/student/stats
- * - /api/student/requests
- *
- * Benefits:
- * - Single database transaction (atomic)
- * - Consistent data across all pages
- * - Built-in caching
- * - Reduced API calls (1 instead of 4+)
+ * Same as student version but:
+ * - Uses token cookie
+ * - Accepts studentId query parameter
+ * - Requires admin role
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/auth';
-import { unifiedDataService } from '@/lib/services/unified-data-service';
-import { createAuthError } from '@/lib/error-handler';
-import type { UnifiedStudentData } from '@/types/unified-data';
+import { getDatabase } from '@/lib/db';
+import { studentProgress, enrollments, accessRequests, courses } from '@/lib/db/schema';
+import { eq, or } from 'drizzle-orm';
+
+// Reuse the same merge logic as student app
+function mergeEnrollmentData(progressRecords: any[], enrollmentRecords: any[]) {
+  const map = new Map();
+
+  // Add enrollments first (source of truth)
+  enrollmentRecords.forEach((e: any) => {
+    map.set(e.courseId, {
+      courseId: e.courseId,
+      progress: e.progress || 0,
+      status: e.status || 'active',
+      enrolledAt: e.enrolledAt,
+      lastAccessed: null,
+      source: 'enrollments',
+    });
+  });
+
+  // Add from studentProgress only if not in enrollments
+  progressRecords.forEach((p: any) => {
+    if (!map.has(p.courseId)) {
+      map.set(p.courseId, {
+        courseId: p.courseId,
+        progress: p.totalProgress || 0,
+        status: 'active',
+        enrolledAt: p.createdAt,
+        lastAccessed: p.lastAccessed || null,
+        source: 'studentProgress',
+      });
+    } else {
+      const existing = map.get(p.courseId);
+      if (p.lastAccessed && (!existing.lastAccessed || p.lastAccessed > existing.lastAccessed)) {
+        existing.lastAccessed = p.lastAccessed;
+      }
+    }
+  });
+
+  return Array.from(map.values());
+}
 
 export async function GET(request: NextRequest) {
   try {
-    // Authenticate user
+    // Authenticate admin
     const token = request.cookies.get('token')?.value;
     if (!token) {
-      return createAuthError('Not authenticated');
+      return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });
     }
 
     const decoded = verifyToken(token);
-    if (!decoded || !decoded.id) {
-      return createAuthError('Invalid token');
+    if (!decoded || decoded.role !== 'admin') {
+      return NextResponse.json({ message: 'Admin access required' }, { status: 403 });
     }
 
-    console.log(`📊 [Unified API] Fetching data for user ${decoded.id}`);
-
-    // Check if cache bypass is requested
+    // Get studentId from query params
     const { searchParams } = new URL(request.url);
-    const bypassCache = searchParams.get('fresh') === 'true';
+    const studentIdParam = searchParams.get('studentId');
 
-    // Get ALL data from unified service
-    const snapshot = await unifiedDataService.getStudentData(decoded.id, { bypassCache });
+    if (!studentIdParam) {
+      return NextResponse.json({ message: 'studentId parameter required' }, { status: 400 });
+    }
 
-    // Transform to API response format
-    const response: UnifiedStudentData = {
-      user: {
-        id: decoded.id,
-        email: decoded.email,
-        name: decoded.name || '',
-        role: decoded.role,
-      },
-      enrollments: snapshot.enrollments,
-      enrolledCourseIds: snapshot.enrollments.map((e) => e.courseId),
-      requests: snapshot.requests,
-      pendingRequests: snapshot.requests.filter((r) => r.status === 'pending'),
-      courses: snapshot.availableCourses,
-      stats: snapshot.stats,
-      timestamp: snapshot.timestamp,
-    };
+    const studentId = parseInt(studentIdParam);
+    console.log(`📊 [Admin Unified API] Fetching data for student ${studentId}`);
+
+    // Get database
+    const db = getDatabase();
+
+    // Fetch ALL data in single transaction
+    const snapshot = await db.transaction(async (tx) => {
+      const [progressRecords, enrollmentRecords, requestRecords, allCourses] = await Promise.all([
+        tx.select().from(studentProgress).where(eq(studentProgress.studentId, studentId)),
+        tx.select().from(enrollments).where(eq(enrollments.userId, studentId)),
+        tx.select().from(accessRequests).where(eq(accessRequests.studentId, studentId)),
+        tx
+          .select()
+          .from(courses)
+          .where(
+            or(
+              eq(courses.status, 'published'),
+              eq(courses.status, 'active'),
+              eq(courses.status, 'Active')
+            )
+          ),
+      ]);
+
+      const mergedEnrollments = mergeEnrollmentData(progressRecords, enrollmentRecords);
+
+      return {
+        studentId,
+        enrollments: mergedEnrollments,
+        requests: requestRecords,
+        courses: allCourses,
+        stats: {
+          coursesEnrolled: mergedEnrollments.length,
+          coursesCompleted: mergedEnrollments.filter((e: any) => e.progress >= 100).length,
+          pendingRequests: requestRecords.filter((r: any) => r.status === 'pending').length,
+        },
+        timestamp: Date.now(),
+      };
+    });
 
     console.log(
-      `✅ [Unified API] Returning data: ${response.enrollments.length} enrollments, ${response.courses.length} courses, ${response.requests.length} requests`
+      `✅ [Admin Unified API] Returning data: ${snapshot.enrollments.length} enrollments, ${snapshot.courses.length} courses`
     );
 
-    return NextResponse.json(response);
+    return NextResponse.json(snapshot);
   } catch (error: any) {
-    console.error('❌ [Unified API] Error:', error);
+    console.error('❌ [Admin Unified API] Error:', error);
     return NextResponse.json(
       {
         message: 'Failed to fetch student data',
@@ -77,36 +130,4 @@ export async function GET(request: NextRequest) {
   }
 }
 
-/**
- * POST - Invalidate cache (for manual refresh)
- */
-export async function POST(request: NextRequest) {
-  try {
-    const token = request.cookies.get('token')?.value;
-    if (!token) {
-      return createAuthError('Not authenticated');
-    }
 
-    const decoded = verifyToken(token);
-    if (!decoded || !decoded.id) {
-      return createAuthError('Invalid token');
-    }
-
-    // Invalidate cache for this user
-    unifiedDataService.invalidateCache(decoded.id);
-
-    return NextResponse.json({
-      message: 'Cache invalidated',
-      userId: decoded.id,
-    });
-  } catch (error: any) {
-    console.error('❌ [Unified API] Cache invalidation error:', error);
-    return NextResponse.json(
-      {
-        message: 'Failed to invalidate cache',
-        error: process.env.NODE_ENV === 'development' ? error.message : undefined,
-      },
-      { status: 500 }
-    );
-  }
-}

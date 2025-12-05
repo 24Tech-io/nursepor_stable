@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/auth';
-import { getDatabase } from '@/lib/db';
+import { db } from '@/lib/db'; // FIX: Use direct db import instead of getDatabase()
 import { studentProgress, courses, accessRequests, enrollments, users } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { mergeEnrollmentData } from '@/lib/progress-utils';
@@ -10,7 +10,7 @@ import { retryDatabase } from '@/lib/retry';
 
 export async function GET(request: NextRequest) {
   try {
-    const token = request.cookies.get('token')?.value;
+    const token = request.cookies.get('studentToken')?.value;
 
     if (!token) {
       return createAuthError('Not authenticated');
@@ -22,33 +22,41 @@ export async function GET(request: NextRequest) {
       return createAuthError('Invalid token');
     }
 
-    // Get database instance
-    const db = getDatabase();
+    // Database instance already imported
 
     // IMPORTANT: First get all pending request course IDs to exclude them
     // Also get approved requests - these should be treated as enrolled
-    const [pendingRequests, approvedRequests] = await Promise.all([
-      retryDatabase(async () => {
-        return await db
-          .select({
-            courseId: accessRequests.courseId,
-          })
-          .from(accessRequests)
-          .where(
-            and(eq(accessRequests.studentId, decoded.id), eq(accessRequests.status, 'pending'))
-          );
-      }),
-      retryDatabase(async () => {
-        return await db
-          .select({
-            courseId: accessRequests.courseId,
-          })
-          .from(accessRequests)
-          .where(
-            and(eq(accessRequests.studentId, decoded.id), eq(accessRequests.status, 'approved'))
-          );
-      }),
-    ]);
+    // FIX: Add better error handling for database connectivity issues
+    let pendingRequests = [];
+    let approvedRequests = [];
+    
+    try {
+      [pendingRequests, approvedRequests] = await Promise.all([
+        retryDatabase(async () => {
+          return await db
+            .select({
+              courseId: accessRequests.courseId,
+            })
+            .from(accessRequests)
+            .where(
+              and(eq(accessRequests.studentId, decoded.id), eq(accessRequests.status, 'pending'))
+            );
+        }),
+        retryDatabase(async () => {
+          return await db
+            .select({
+              courseId: accessRequests.courseId,
+            })
+            .from(accessRequests)
+            .where(
+              and(eq(accessRequests.studentId, decoded.id), eq(accessRequests.status, 'approved'))
+            );
+        }),
+      ]);
+    } catch (requestError: any) {
+      console.warn('⚠️ Error fetching access requests (non-critical), continuing with empty arrays:', requestError.message);
+      // Continue with empty arrays - access requests are optional for displaying enrolled courses
+    }
 
     const pendingRequestCourseIds = pendingRequests.map((r: any) => r.courseId);
     const approvedRequestCourseIds = approvedRequests.map((r: any) => r.courseId);

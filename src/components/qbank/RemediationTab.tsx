@@ -164,9 +164,9 @@ export default function RemediationTab({ courseId }: RemediationTabProps) {
           <h2 className="text-xl font-bold text-gray-900">Remediation</h2>
         </div>
         <p className="text-gray-700">
-          Leverage Archer's Remediation feature to meticulously improvise your learning by
-          categorizing questions according to your confidence level and master the subject
-          effortlessly.
+          Use Nurse Pro Academy's intelligent remediation system to enhance your learning by
+          organizing questions based on your performance and confidence level. Focus your
+          study time where it matters most and master subjects efficiently.
         </p>
       </div>
 

@@ -7,7 +7,7 @@ import { eq, and, gte } from 'drizzle-orm';
 // GET - Fetch today's daily video
 export async function GET(request: NextRequest) {
   try {
-    const token = request.cookies.get('token')?.value;
+    const token = request.cookies.get('studentToken')?.value;
 
     if (!token) {
       return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });
@@ -116,7 +116,7 @@ export async function GET(request: NextRequest) {
 // POST - Mark daily video as complete
 export async function POST(request: NextRequest) {
   try {
-    const token = request.cookies.get('token')?.value;
+    const token = request.cookies.get('studentToken')?.value;
 
     if (!token) {
       return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });

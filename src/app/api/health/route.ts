@@ -1,82 +1,31 @@
-/**
- * Health Check Endpoint
- * Used for monitoring and load balancer health checks
- */
-
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { getDatabase } from '@/lib/db';
+import { sql } from 'drizzle-orm';
 
 export async function GET(request: NextRequest) {
-  const startTime = Date.now();
-
   try {
-    // Check database connection
-    let dbStatus = 'healthy';
-    let dbResponseTime = 0;
+    // Test database connection
+    const db = getDatabase();
 
-    try {
-      const dbStart = Date.now();
-      await db.query.users.findFirst();
-      dbResponseTime = Date.now() - dbStart;
-    } catch (error) {
-      dbStatus = 'unhealthy';
-      console.error('Database health check failed:', error);
-    }
+    // Try a simple query using Drizzle
+    const result = await db.execute(sql`SELECT 1 as test`);
 
-    // Check overall health
-    const isHealthy = dbStatus === 'healthy';
-    const responseTime = Date.now() - startTime;
-
-    const healthData = {
-      status: isHealthy ? 'healthy' : 'degraded',
+    return NextResponse.json({
+      status: 'ok',
+      database: 'connected',
+      testQuery: result.rows?.[0] || 'query executed',
       timestamp: new Date().toISOString(),
-      uptime: process.uptime(),
-      environment: process.env.NODE_ENV || 'development',
-      version: process.env.npm_package_version || '1.0.0',
-      checks: {
-        database: {
-          status: dbStatus,
-          responseTime: `${dbResponseTime}ms`,
-        },
-        server: {
-          status: 'healthy',
-          responseTime: `${responseTime}ms`,
-        },
-        memory: {
-          status: 'healthy',
-          usage: {
-            rss: `${Math.round(process.memoryUsage().rss / 1024 / 1024)}MB`,
-            heapUsed: `${Math.round(process.memoryUsage().heapUsed / 1024 / 1024)}MB`,
-            heapTotal: `${Math.round(process.memoryUsage().heapTotal / 1024 / 1024)}MB`,
-          },
-        },
-      },
-    };
-
-    // Return 200 if healthy, 503 if degraded
-    const statusCode = isHealthy ? 200 : 503;
-
-    return NextResponse.json(healthData, { status: statusCode });
+    });
   } catch (error: any) {
-    console.error('Health check error:', error);
-
+    console.error('❌ Health check failed:', error);
     return NextResponse.json(
       {
-        status: 'unhealthy',
+        status: 'error',
+        database: 'disconnected',
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined,
         timestamp: new Date().toISOString(),
-        error: error.message || 'Unknown error',
       },
-      { status: 503 }
+      { status: 500 }
     );
-  }
-}
-
-// Also support HEAD requests for simple health checks
-export async function HEAD(request: NextRequest) {
-  try {
-    await db.query.users.findFirst();
-    return new NextResponse(null, { status: 200 });
-  } catch {
-    return new NextResponse(null, { status: 503 });
   }
 }

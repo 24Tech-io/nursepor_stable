@@ -7,7 +7,7 @@ import { eq, desc } from 'drizzle-orm';
 // GET - Fetch all chapters for a module
 export async function GET(request: NextRequest, { params }: { params: { moduleId: string } }) {
   try {
-    const token = request.cookies.get('token')?.value;
+    const token = request.cookies.get('adminToken')?.value;
     if (!token) {
       return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });
     }
@@ -39,7 +39,7 @@ export async function GET(request: NextRequest, { params }: { params: { moduleId
 // POST - Create new chapter
 export async function POST(request: NextRequest, { params }: { params: { moduleId: string } }) {
   try {
-    const token = request.cookies.get('token')?.value;
+    const token = request.cookies.get('adminToken')?.value;
     if (!token) {
       return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });
     }

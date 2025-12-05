@@ -71,7 +71,7 @@ export async function POST(request: NextRequest) {
     response.cookies.set('token', sessionToken, {
       httpOnly: true,
       sameSite: 'lax',
-      secure: false,
+      secure: process.env.NODE_ENV === 'production',
       path: '/',
       maxAge: 7 * 24 * 60 * 60,
     });

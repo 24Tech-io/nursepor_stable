@@ -117,3 +117,4 @@ async function addEnrollmentsColumns() {
 // Run migration
 addEnrollmentsColumns();
 
+

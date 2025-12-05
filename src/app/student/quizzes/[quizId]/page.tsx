@@ -41,8 +41,8 @@ export default function QuizPage() {
 
   const handleComplete = async (score: number, passed: boolean) => {
     // Quiz submission is handled by QuizCard component
-    // This is just for navigation after completion
-    router.push(`/student/quizzes/${quizId}/results?score=${score}&passed=${passed}`);
+    // Results are shown inline in QuizCard, no need to redirect
+    console.log(`✅ Quiz completed: Score ${score}%, Passed: ${passed}`);
   };
 
   if (isLoading) {

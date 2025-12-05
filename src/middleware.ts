@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { securityLogger } from '@/lib/edge-logger';
+import { verifyTokenEdge } from '@/lib/auth-edge';
 
 // Rate limiting store (in-memory, use Redis in production)
 const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
@@ -17,7 +18,65 @@ const ALLOWED_ORIGINS = [
 const RATE_LIMIT_WINDOW = 60 * 1000; // 1 minute
 const RATE_LIMIT_MAX = 100; // requests per window
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
+  const pathname = request.nextUrl.pathname;
+
+  // === ADMIN ROUTE PROTECTION ===
+  // Protect all /admin routes except public ones
+  if (pathname.startsWith('/admin')) {
+    const publicAdminRoutes = [
+      '/admin',
+      '/admin/login',
+      '/admin/register',
+    ];
+    
+    const isPublicRoute = publicAdminRoutes.some(route => pathname === route);
+    
+    if (!isPublicRoute && !pathname.startsWith('/api/')) {
+      // Check for admin authentication
+      const adminToken = request.cookies.get('adminToken')?.value;
+      
+      if (!adminToken) {
+        console.log(`🔒 [Middleware] No adminToken for admin route: ${pathname}, redirecting to login`);
+        return NextResponse.redirect(new URL('/admin/login', request.url));
+      }
+      
+      try {
+        const user = await verifyTokenEdge(adminToken);
+        if (!user || user.role !== 'admin') {
+          console.log(`🔒 [Middleware] Not admin for route: ${pathname}, redirecting`);
+          return NextResponse.redirect(new URL('/admin/login', request.url));
+        }
+        console.log(`✅ [Middleware] Admin access granted for: ${pathname}`);
+      } catch (error) {
+        console.log(`🔒 [Middleware] Invalid adminToken for admin route: ${pathname}`);
+        return NextResponse.redirect(new URL('/admin/login', request.url));
+      }
+    }
+  }
+
+  // === STUDENT ROUTE PROTECTION ===
+  // Protect /student routes
+  if (pathname.startsWith('/student') && !pathname.startsWith('/student/blogs')) {
+    const studentToken = request.cookies.get('studentToken')?.value;
+    
+    if (!studentToken) {
+      console.log(`🔒 [Middleware] No studentToken for student route: ${pathname}`);
+      return NextResponse.redirect(new URL('/login', request.url));
+    }
+    
+    try {
+      const user = await verifyTokenEdge(studentToken);
+      if (!user || user.role !== 'student') {
+        console.log(`🔒 [Middleware] Not student for route: ${pathname}`);
+        return NextResponse.redirect(new URL('/login', request.url));
+      }
+    } catch (error) {
+      console.log(`🔒 [Middleware] Invalid studentToken for student route: ${pathname}`);
+      return NextResponse.redirect(new URL('/login', request.url));
+    }
+  }
+
   const response = NextResponse.next();
 
   // CORS headers
@@ -44,11 +103,12 @@ export function middleware(request: NextRequest) {
   // Content Security Policy
   const csp = [
     "default-src 'self'",
-    "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com",
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: https:",
     "font-src 'self' data:",
     "connect-src 'self' https:",
+    "frame-src 'self' https://js.stripe.com https://www.youtube.com https://www.youtube-nocookie.com https://player.vimeo.com https://docs.google.com https://drive.google.com",
     "frame-ancestors 'none'",
   ].join('; ');
   response.headers.set('Content-Security-Policy', csp);

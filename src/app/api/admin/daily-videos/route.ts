@@ -7,7 +7,7 @@ import { eq, desc } from 'drizzle-orm';
 // GET - Fetch all configured daily videos
 export async function GET(request: NextRequest) {
   try {
-    const token = request.cookies.get('token')?.value;
+    const token = request.cookies.get('adminToken')?.value;
     if (!token) {
       return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });
     }
@@ -72,7 +72,7 @@ export async function GET(request: NextRequest) {
 // POST - Create new daily video configuration
 export async function POST(request: NextRequest) {
   try {
-    const token = request.cookies.get('token')?.value;
+    const token = request.cookies.get('adminToken')?.value;
     if (!token) {
       return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });
     }

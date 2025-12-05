@@ -96,11 +96,13 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    const cookieName = user.role === 'admin' ? 'adminToken' : 'token';
+    // Use appropriate token cookie based on role
+    const cookieName = user.role === 'admin' ? 'adminToken' : 'studentToken';
     response.cookies.set(cookieName, token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
+      maxAge: 60 * 60 * 24 * 7, // 7 days
       maxAge: 60 * 60 * 24 * 7, // 7 days
       path: '/',
     });

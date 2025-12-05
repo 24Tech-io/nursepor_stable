@@ -1,55 +1,92 @@
-import { NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { NextRequest, NextResponse } from 'next/server';
+import { verifyToken } from '@/lib/auth';
+import { getDatabase } from '@/lib/db';
 import { dailyVideos, chapters } from '@/lib/db/schema';
 import { eq, desc } from 'drizzle-orm';
-import { securityLogger } from '@/lib/logger';
 
-export async function GET(request: Request) {
+// GET - Fetch all configured daily videos
+export async function GET(request: NextRequest) {
   try {
-    const allVideos = await db
+    const token = request.cookies.get('adminToken')?.value;
+    if (!token) {
+      return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });
+    }
+
+    const decoded = verifyToken(token);
+    if (!decoded || decoded.role !== 'admin') {
+      return NextResponse.json({ message: 'Admin access required' }, { status: 403 });
+    }
+
+    const db = getDatabase();
+
+    const videos = await db
       .select({
         id: dailyVideos.id,
+        chapterId: dailyVideos.chapterId,
+        chapterTitle: chapters.title,
         title: dailyVideos.title,
         description: dailyVideos.description,
         day: dailyVideos.day,
         isActive: dailyVideos.isActive,
-        chapterId: dailyVideos.chapterId,
-        chapterTitle: chapters.title,
+        createdAt: dailyVideos.createdAt,
       })
       .from(dailyVideos)
-      .leftJoin(chapters, eq(dailyVideos.chapterId, chapters.id))
+      .innerJoin(chapters, eq(dailyVideos.chapterId, chapters.id))
       .orderBy(dailyVideos.day);
 
-    return NextResponse.json({ dailyVideos: allVideos });
-  } catch (error) {
+    return NextResponse.json({ dailyVideos: videos });
+  } catch (error: any) {
     console.error('Get daily videos error:', error);
-    return NextResponse.json({ message: 'Internal server error' }, { status: 500 });
+    return NextResponse.json(
+      { message: 'Failed to fetch daily videos', error: error.message },
+      { status: 500 }
+    );
   }
 }
 
-export async function POST(request: Request) {
+// POST - Create new daily video configuration
+export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
+    const token = request.cookies.get('adminToken')?.value;
+    if (!token) {
+      return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });
+    }
 
-    const newVideo = await db
+    const decoded = verifyToken(token);
+    if (!decoded || decoded.role !== 'admin') {
+      return NextResponse.json({ message: 'Admin access required' }, { status: 403 });
+    }
+
+    const { chapterId, title, description, day } = await request.json();
+
+    if (!chapterId || !title || day === undefined) {
+      return NextResponse.json(
+        { message: 'Chapter ID, title, and day are required' },
+        { status: 400 }
+      );
+    }
+
+    const db = getDatabase();
+
+    const result = await db
       .insert(dailyVideos)
       .values({
-        chapterId: parseInt(body.chapterId),
-        title: body.title,
-        description: body.description,
-        day: body.day,
+        chapterId: parseInt(chapterId),
+        title,
+        description: description || '',
+        day: parseInt(day),
         isActive: true,
       })
       .returning();
 
-    securityLogger.info('Daily Video Created', { videoId: newVideo[0].id });
+    console.log('✅ Daily video created:', result[0]);
 
-    return NextResponse.json({
-      message: 'Daily video created successfully',
-      dailyVideo: newVideo[0],
-    });
-  } catch (error) {
+    return NextResponse.json({ dailyVideo: result[0] });
+  } catch (error: any) {
     console.error('Create daily video error:', error);
-    return NextResponse.json({ message: 'Internal server error' }, { status: 500 });
+    return NextResponse.json(
+      { message: 'Failed to create daily video', error: error.message },
+      { status: 500 }
+    );
   }
 }

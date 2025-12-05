@@ -15,10 +15,15 @@ export default function BlogsPage() {
   useEffect(() => {
     const fetchBlogs = async () => {
       try {
-        const response = await fetch('/api/blogs?status=published');
+        const response = await fetch('/api/student/blogs');
         if (response.ok) {
           const data = await response.json();
-          setAllBlogs(data.blogs || []);
+          // Parse tags if they're JSON strings
+          const blogsWithParsedTags = (data.blogs || []).map((blog: any) => ({
+            ...blog,
+            tags: typeof blog.tags === 'string' ? JSON.parse(blog.tags) : (Array.isArray(blog.tags) ? blog.tags : [])
+          }));
+          setAllBlogs(blogsWithParsedTags);
         }
       } catch (error) {
         console.error('Failed to fetch blogs:', error);
@@ -31,7 +36,10 @@ export default function BlogsPage() {
   }, []);
 
   // Get all unique tags
-  const allTags = Array.from(new Set(allBlogs.flatMap((blog) => blog.tags || [])));
+  const allTags = Array.from(new Set(allBlogs.flatMap((blog) => {
+    const tags = blog.tags || [];
+    return Array.isArray(tags) ? tags : [];
+  })));
 
   // Filter blogs
   const filteredBlogs = allBlogs.filter((blog) => {
@@ -64,6 +72,38 @@ export default function BlogsPage() {
 
   if (loading) {
     return <LoadingSpinner message="Loading blogs..." fullScreen />;
+  }
+
+  // Show empty state if no blogs
+  if (allBlogs.length === 0) {
+    return (
+      <div className="max-w-4xl mx-auto px-4 py-20">
+        <div className="bg-white rounded-3xl shadow-xl p-12 text-center border border-gray-100">
+          <div className="w-24 h-24 bg-gradient-to-br from-purple-100 to-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
+            <svg
+              className="w-12 h-12 text-purple-600"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z"
+              />
+            </svg>
+          </div>
+          <h2 className="text-3xl font-bold text-gray-900 mb-4">No Blogs Yet</h2>
+          <p className="text-gray-600 text-lg mb-2">
+            Our blog section is currently empty.
+          </p>
+          <p className="text-gray-500">
+            Check back soon for exciting articles, tutorials, and insights!
+          </p>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -232,7 +272,7 @@ export default function BlogsPage() {
             </div>
             <div className="p-8 flex flex-col justify-center">
               <div className="flex items-center space-x-2 mb-4">
-                {featuredBlog.tags.slice(0, 2).map((tag: string) => (
+                {(Array.isArray(featuredBlog.tags) ? featuredBlog.tags : []).slice(0, 2).map((tag: string) => (
                   <span
                     key={tag}
                     className="px-3 py-1 bg-purple-100 text-purple-700 text-xs font-semibold rounded-full uppercase"
@@ -304,7 +344,7 @@ export default function BlogsPage() {
                   </div>
                   <div className="p-6">
                     <div className="flex items-center space-x-2 mb-3">
-                      {blog.tags.slice(0, 2).map((tag: string) => (
+                      {(Array.isArray(blog.tags) ? blog.tags : []).slice(0, 2).map((tag: string) => (
                         <span
                           key={tag}
                           className="px-2 py-1 bg-purple-100 text-purple-700 text-xs font-semibold rounded-full uppercase"

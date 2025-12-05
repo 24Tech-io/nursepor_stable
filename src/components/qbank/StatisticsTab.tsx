@@ -85,17 +85,16 @@ export default function StatisticsTab({ courseId }: StatisticsTabProps) {
       });
       if (response.ok) {
         const data = await response.json();
-        setStats(
-          data.statistics || {
-            totalQuestions: activeTestType === 'classic' ? 2010 : 1171,
-            usedQuestions: activeTestType === 'classic' ? 1594 : 890,
-            unusedQuestions: activeTestType === 'classic' ? 416 : 281,
-            correctQuestions: activeTestType === 'classic' ? 640 : 412,
-            incorrectQuestions: activeTestType === 'classic' ? 834 : 412,
-            omittedQuestions: 3,
-            correctOnReattempt: 5,
-          }
-        );
+        // FIX: Use real data, not fake hardcoded numbers
+        setStats(data.statistics || {
+          totalQuestions: 0,
+          usedQuestions: 0,
+          unusedQuestions: 0,
+          correctQuestions: 0,
+          incorrectQuestions: 0,
+          omittedQuestions: 0,
+          correctOnReattempt: 0,
+        });
       }
     } catch (error) {
       console.error('Error fetching statistics:', error);
@@ -202,45 +201,45 @@ export default function StatisticsTab({ courseId }: StatisticsTabProps) {
       ? Math.round((stats.incorrectQuestions / stats.usedQuestions) * 100)
       : 0;
 
-  // Mock subject/lesson data
+  // Real subject/lesson data (will show 0 until student takes tests)
   const subjectData = {
-    totalQuestions: 561,
-    usedQuestions: 445,
-    correctQuestions: 203,
-    incorrectQuestions: 242,
+    totalQuestions: 0,
+    usedQuestions: 0,
+    correctQuestions: 0,
+    incorrectQuestions: 0,
     omittedQuestions: 0,
-    yourScore: 637,
-    maxScore: 1299,
+    yourScore: 0,
+    maxScore: 0,
   };
 
   const lessonData = {
-    totalQuestions: 147,
-    usedQuestions: 120,
-    correctQuestions: 64,
-    incorrectQuestions: 55,
-    omittedQuestions: 1,
-    yourScore: 102,
-    maxScore: 257,
+    totalQuestions: 0,
+    usedQuestions: 0,
+    correctQuestions: 0,
+    incorrectQuestions: 0,
+    omittedQuestions: 0,
+    yourScore: 0,
+    maxScore: 0,
   };
 
   const clientNeedData = {
-    totalQuestions: 380,
-    usedQuestions: 310,
-    correctQuestions: 133,
-    incorrectQuestions: 177,
+    totalQuestions: 0,
+    usedQuestions: 0,
+    correctQuestions: 0,
+    incorrectQuestions: 0,
     omittedQuestions: 0,
-    yourScore: 552,
-    maxScore: 1143,
+    yourScore: 0,
+    maxScore: 0,
   };
 
   const subcategoryData = {
-    totalQuestions: 150,
-    usedQuestions: 125,
-    correctQuestions: 50,
-    incorrectQuestions: 75,
+    totalQuestions: 0,
+    usedQuestions: 0,
+    correctQuestions: 0,
+    incorrectQuestions: 0,
     omittedQuestions: 0,
-    yourScore: 300,
-    maxScore: 606,
+    yourScore: 0,
+    maxScore: 0,
   };
 
   return (
@@ -255,7 +254,7 @@ export default function StatisticsTab({ courseId }: StatisticsTabProps) {
               : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
           }`}
         >
-          Classic (2010)
+          Classic
         </button>
         <button
           onClick={() => setActiveTestType('ngn')}
@@ -265,7 +264,7 @@ export default function StatisticsTab({ courseId }: StatisticsTabProps) {
               : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
           }`}
         >
-          NGN (1171)
+          NGN
         </button>
       </div>
 

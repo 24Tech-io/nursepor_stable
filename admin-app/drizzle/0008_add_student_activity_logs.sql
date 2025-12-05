@@ -39,3 +39,4 @@ CREATE INDEX IF NOT EXISTS "student_activity_logs_activity_type_idx" ON "student
 
 
 
+

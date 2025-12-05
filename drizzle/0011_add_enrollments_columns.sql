@@ -41,3 +41,4 @@ UPDATE enrollments
 SET updated_at = enrolled_at 
 WHERE updated_at IS NULL OR updated_at < enrolled_at;
 
+

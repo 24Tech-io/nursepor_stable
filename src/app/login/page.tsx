@@ -15,6 +15,7 @@ export default function LoginPage() {
   const [otpSent, setOtpSent] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [rememberMe, setRememberMe] = useState(false);
   const router = useRouter();
 
   const handleEmailLogin = async (e: React.FormEvent) => {
@@ -26,7 +27,7 @@ export default function LoginPage() {
       const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password, role: 'student' }),
+        body: JSON.stringify({ email, password, role: 'student', rememberMe }),
         credentials: 'include',
       });
 
@@ -234,6 +235,8 @@ export default function LoginPage() {
                 <label className="flex items-center">
                   <input
                     type="checkbox"
+                    checked={rememberMe}
+                    onChange={(e) => setRememberMe(e.target.checked)}
                     className="rounded border-white/30 bg-white/10 text-purple-600 focus:ring-purple-500"
                   />
                   <span className="ml-2 text-purple-200">Remember me</span>

@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { authenticateUser, createSession } from '@/lib/auth';
+import { authenticateUser, createSession, verifyPassword, generateToken } from '@/lib/auth';
+import { getDatabase } from '@/lib/db';
+import { users } from '@/lib/db/schema';
+import { eq, and } from 'drizzle-orm';
 import {
   sanitizeString,
   validateEmail,
@@ -56,7 +59,7 @@ export async function POST(request: NextRequest) {
     } catch (e) {
       return NextResponse.json({ message: 'Invalid JSON in request body' }, { status: 400 });
     }
-    let { email, password } = data;
+    let { email, password, rememberMe } = data;
 
     if (!email || !password) {
       return NextResponse.json({ message: 'Email and password are required' }, { status: 400 });
@@ -87,10 +90,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Authenticate with admin role only
-    const user = await authenticateUser(email, password, targetRole);
-
-    if (!user) {
+    // Authenticate user - will return any account with this email
+    const result = await authenticateUser(email, password);
+    
+    if (!result || !result.user) {
       console.log('Authentication failed: Invalid email or password');
 
       // Record failed attempt
@@ -118,15 +121,60 @@ export async function POST(request: NextRequest) {
       return response;
     }
 
-    console.log('User authenticated:', { id: user.id, email: user.email, role: user.role });
+    let user = result.user;
 
-    // Only allow admin role
+    // If user is not admin, check if there's an admin account with same email
     if (user.role !== 'admin') {
-      return NextResponse.json(
-        { message: 'This account is not an admin account.' },
-        { status: 403 }
-      );
+      console.log('First account is student, checking for admin account...');
+      
+      try {
+        const db = getDatabase();
+        const adminResult = await db
+          .select()
+          .from(users)
+          .where(and(eq(users.email, email), eq(users.role, 'admin')))
+          .limit(1);
+
+        if (adminResult.length > 0) {
+          // Found admin account, verify password matches
+          const isValidPassword = await verifyPassword(password, adminResult[0].password);
+          if (isValidPassword) {
+            user = {
+              id: adminResult[0].id,
+              name: adminResult[0].name,
+              email: adminResult[0].email,
+              phone: adminResult[0].phone,
+              bio: adminResult[0].bio,
+              role: adminResult[0].role,
+              isActive: adminResult[0].isActive,
+              faceIdEnrolled: adminResult[0].faceIdEnrolled || false,
+              fingerprintEnrolled: adminResult[0].fingerprintEnrolled || false,
+              twoFactorEnabled: adminResult[0].twoFactorEnabled || false,
+              joinedDate: adminResult[0].createdAt,
+            };
+            console.log('Found admin account:', { id: user.id, email: user.email, role: user.role });
+          } else {
+            return NextResponse.json(
+              { message: 'This account is not an admin account.' },
+              { status: 403 }
+            );
+          }
+        } else {
+          return NextResponse.json(
+            { message: 'This account is not an admin account.' },
+            { status: 403 }
+          );
+        }
+      } catch (dbError) {
+        console.error('Error checking for admin account:', dbError);
+        return NextResponse.json(
+          { message: 'This account is not an admin account.' },
+          { status: 403 }
+        );
+      }
     }
+
+    console.log('User authenticated:', { id: user.id, email: user.email, role: user.role });
 
     if (!user.isActive) {
       console.log('Account is deactivated:', user.email);
@@ -140,13 +188,13 @@ export async function POST(request: NextRequest) {
     recordSuccessfulLogin(clientIP, email);
     securityLogger.info('successful_auth', { ip: clientIP, email });
 
-    // Create session with user data
-    console.log('Creating session for user:', user.id);
-    const sessionToken = await createSession(user.id, undefined, user);
-    console.log('Session created, token length:', sessionToken.length);
+    // Generate JWT token (matching middleware expectation)
+    console.log('Generating JWT token for user:', user.id);
+    const token = generateToken(user);
+    console.log('JWT token generated, length:', token.length);
 
     // Always redirect to admin dashboard
-    const redirectUrl = '/dashboard';
+    const redirectUrl = '/admin/dashboard';
     console.log('=== LOGIN API SUCCESS - Redirecting to:', redirectUrl);
 
     const jsonResponse = NextResponse.json({
@@ -167,17 +215,19 @@ export async function POST(request: NextRequest) {
       redirectUrl: redirectUrl,
     });
 
-    // Set cookie in JSON response
-    jsonResponse.cookies.set('token', sessionToken, {
+    // Set JWT token cookie with appropriate expiry based on rememberMe
+    const maxAge = rememberMe ? 60 * 60 * 24 * 30 : 60 * 60 * 24 * 7; // 30 days vs 7 days
+
+    jsonResponse.cookies.set('adminToken', token, {
       httpOnly: true,
       sameSite: 'lax',
-      secure: false, // Set to false for localhost development (http://)
+      secure: process.env.NODE_ENV === 'production',
+      maxAge: maxAge,
       path: '/',
-      maxAge: 7 * 24 * 60 * 60, // 7 days
       domain: undefined, // Don't set domain for localhost
     });
 
-    console.log('✓ Cookie set in JSON response for user:', user.email);
+    console.log('✓ JWT token cookie set for user:', user.email);
     console.log('✓ Redirect URL in response:', redirectUrl);
 
     return jsonResponse;

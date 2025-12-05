@@ -7,7 +7,7 @@ import { eq, and, desc } from 'drizzle-orm';
 // GET - Get continue learning recommendations
 export async function GET(request: NextRequest) {
   try {
-    const token = request.cookies.get('token')?.value;
+    const token = request.cookies.get('studentToken')?.value;
 
     if (!token) {
       return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });

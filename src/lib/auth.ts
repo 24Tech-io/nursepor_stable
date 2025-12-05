@@ -149,62 +149,65 @@ export async function createSession(
         id: userResult[0].id,
         name: userResult[0].name,
         email: userResult[0].email,
-        phone: userResult[0].phone || null,
-        bio: userResult[0].bio || null,
+        phone: userResult[0].phone,
+        bio: userResult[0].bio,
         role: userResult[0].role,
         isActive: userResult[0].isActive,
-        faceIdEnrolled: userResult[0].faceIdEnrolled || false,
-        fingerprintEnrolled: userResult[0].fingerprintEnrolled || false,
-        twoFactorEnabled: userResult[0].twoFactorEnabled || false,
-        joinedDate: userResult[0].joinedDate || null,
+        faceIdEnrolled: userResult[0].faceIdEnrolled,
+        fingerprintEnrolled: userResult[0].fingerprintEnrolled,
+        twoFactorEnabled: userResult[0].twoFactorEnabled,
+        joinedDate: userResult[0].createdAt,
       };
     }
 
-    const sessionToken = generateToken(user);
+    const sessionToken = generateSecureToken();
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
 
-    try {
-      await db.insert(sessions).values({
-        userId,
-        sessionToken,
-        deviceInfo: deviceInfo ? JSON.stringify(deviceInfo) : null,
-        expiresAt,
-      });
-    } catch (insertError: any) {
-      console.error('❌ Error inserting session:', insertError);
-      // If session insert fails, we can still return the token
-      // The token itself is valid, just the session record failed
-      console.warn('⚠️ Session record insert failed, but returning token anyway');
-    }
+    await db.insert(sessions).values({
+      userId,
+      sessionToken,
+      expiresAt,
+      deviceInfo: deviceInfo ? JSON.stringify(deviceInfo) : null,
+    });
 
     return sessionToken;
   } catch (error: any) {
-    console.error('❌ Error in createSession:', error);
-    throw error;
+    console.error('❌ Error creating session:', error);
+    throw new Error(`Failed to create session: ${error.message || 'Unknown error'}`);
   }
 }
 
 export async function validateSession(sessionToken: string): Promise<AuthUser | null> {
-  const user = verifyToken(sessionToken);
-  if (!user) {
+  try {
+    const db = getDatabase();
+    const session = await db
+      .select()
+      .from(sessions)
+      .where(and(eq(sessions.sessionToken, sessionToken), sql`${sessions.expiresAt} > NOW()`))
+      .limit(1);
+
+    if (!session.length) return null;
+
+    const userResult = await db.select().from(users).where(eq(users.id, session[0].userId)).limit(1);
+
+    if (!userResult.length) return null;
+
+    return {
+      id: userResult[0].id,
+      name: userResult[0].name,
+      email: userResult[0].email,
+      phone: userResult[0].phone,
+      bio: userResult[0].bio,
+      role: userResult[0].role,
+      isActive: userResult[0].isActive,
+      faceIdEnrolled: userResult[0].faceIdEnrolled,
+      fingerprintEnrolled: userResult[0].fingerprintEnrolled,
+      twoFactorEnabled: userResult[0].twoFactorEnabled,
+      joinedDate: userResult[0].createdAt,
+    };
+  } catch (error) {
     return null;
   }
-
-  // Get database instance
-  const db = getDatabase();
-
-  // Check if session exists in database
-  const session = await db
-    .select()
-    .from(sessions)
-    .where(and(eq(sessions.sessionToken, sessionToken), eq(sessions.userId, user.id)))
-    .limit(1);
-
-  if (!session.length || session[0].expiresAt < new Date()) {
-    return null;
-  }
-
-  return user;
 }
 
 export async function destroySession(sessionToken: string): Promise<void> {
@@ -219,205 +222,217 @@ export async function destroyAllUserSessions(userId: number): Promise<void> {
 
 export async function authenticateUser(
   email: string,
-  password: string,
-  role?: string
-): Promise<AuthUser | null> {
-  // Get database instance
-  const db = getDatabase();
+  password: string
+): Promise<{ user: AuthUser; token: string } | null> {
+  try {
+    const db = getDatabase();
+    if (!db) {
+      console.error('❌ Database not available');
+      return null;
+    }
 
-  // If role is specified, authenticate that specific role
-  // Otherwise, get the first matching account (for backward compatibility)
-  const whereConditions = role
-    ? and(eq(users.email, email), eq(users.role, role), eq(users.isActive, true))
-    : and(eq(users.email, email), eq(users.isActive, true));
+    const userResult = await db.select().from(users).where(eq(users.email, email)).limit(1);
 
-  const user = await db.select().from(users).where(whereConditions).limit(1);
+    if (!userResult.length) {
+      console.log('❌ User not found:', email);
+      return null;
+    }
 
-  if (!user.length) {
+    const user = userResult[0];
+    const isValidPassword = await verifyPassword(password, user.password);
+
+    if (!isValidPassword) {
+      console.log('❌ Invalid password for user:', email);
+      return null;
+    }
+
+    if (!user.isActive) {
+      console.log('❌ User is not active:', email);
+      return null;
+    }
+
+    const authUser: AuthUser = {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      phone: user.phone,
+      bio: user.bio,
+      role: user.role,
+      isActive: user.isActive,
+      faceIdEnrolled: user.faceIdEnrolled,
+      fingerprintEnrolled: user.fingerprintEnrolled,
+      twoFactorEnabled: user.twoFactorEnabled,
+      joinedDate: user.createdAt,
+    };
+
+    const token = generateToken(authUser);
+
+    return { user: authUser, token };
+  } catch (error: any) {
+    console.error('❌ Authentication error:', error);
     return null;
   }
-
-  const isValidPassword = await verifyPassword(password, user[0].password);
-  if (!isValidPassword) {
-    return null;
-  }
-
-  // Update last login
-  await db.update(users).set({ lastLogin: new Date() }).where(eq(users.id, user[0].id));
-
-  return {
-    id: user[0].id,
-    name: user[0].name,
-    email: user[0].email,
-    phone: user[0].phone || null,
-    bio: user[0].bio || null,
-    role: user[0].role,
-    isActive: user[0].isActive,
-    faceIdEnrolled: user[0].faceIdEnrolled || false,
-    fingerprintEnrolled: user[0].fingerprintEnrolled || false,
-    twoFactorEnabled: user[0].twoFactorEnabled || false,
-    joinedDate: user[0].joinedDate || null,
-  };
 }
 
-// Get all accounts (roles) for an email
 export async function getUserAccounts(email: string): Promise<AuthUser[]> {
-  const db = getDatabase();
-  // Use case-insensitive email comparison
-  const normalizedEmail = email.toLowerCase().trim();
-  const accounts = await db
-    .select()
-    .from(users)
-    .where(and(sql`LOWER(${users.email}) = LOWER(${normalizedEmail})`, eq(users.isActive, true)));
+  try {
+    const db = getDatabase();
+    if (!db) return [];
 
-  console.log('getUserAccounts - Email searched:', normalizedEmail);
-  console.log('getUserAccounts - Accounts found:', accounts.length);
-  console.log(
-    'getUserAccounts - Accounts:',
-    accounts.map((a: any) => ({
-      id: a.id,
-      email: a.email,
-      role: a.role,
-      name: a.name,
-      isActive: a.isActive,
-    }))
-  );
+    const userResults = await db.select().from(users).where(eq(users.email, email));
 
-  return accounts.map((user: any) => ({
-    id: user.id,
-    name: user.name,
-    email: user.email,
-    phone: user.phone || null,
-    bio: user.bio || null,
-    role: user.role,
-    isActive: user.isActive,
-    faceIdEnrolled: user.faceIdEnrolled || false,
-    fingerprintEnrolled: user.fingerprintEnrolled || false,
-    twoFactorEnabled: user.twoFactorEnabled || false,
-    joinedDate: user.joinedDate || null,
-  }));
+    return userResults.map((user) => ({
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      phone: user.phone,
+      bio: user.bio,
+      role: user.role,
+      isActive: user.isActive,
+      faceIdEnrolled: user.faceIdEnrolled,
+      fingerprintEnrolled: user.fingerprintEnrolled,
+      twoFactorEnabled: user.twoFactorEnabled,
+      joinedDate: user.createdAt,
+    }));
+  } catch (error) {
+    console.error('Get user accounts error:', error);
+    return [];
+  }
 }
+
 export async function createUser(userData: {
   name: string;
   email: string;
   password: string;
   phone?: string;
   role?: string;
-}): Promise<AuthUser> {
+  isActive?: boolean;
+}): Promise<AuthUser | null> {
   try {
-    console.log('createUser called with:', { email: userData.email, role: userData.role });
-
-    // Get database instance
     const db = getDatabase();
+    if (!db) return null;
 
     const hashedPassword = await hashPassword(userData.password);
-    console.log('Password hashed successfully');
 
-    const newUser = await db
+    const [newUser] = await db
       .insert(users)
       .values({
         name: userData.name,
         email: userData.email,
         password: hashedPassword,
-        phone: userData.phone,
+        phone: userData.phone || null,
         role: userData.role || 'student',
+        isActive: userData.isActive !== undefined ? userData.isActive : true,
+        faceIdEnrolled: false,
+        fingerprintEnrolled: false,
+        twoFactorEnabled: false,
       })
       .returning();
 
-    if (!newUser || newUser.length === 0) {
-      throw new Error('Failed to create user - no data returned from database');
-    }
-
-    console.log('User inserted successfully:', {
-      id: newUser[0].id,
-      email: newUser[0].email,
-      phone: newUser[0].phone,
-    });
-
     return {
-      id: newUser[0].id,
-      name: newUser[0].name,
-      email: newUser[0].email,
-      phone: newUser[0].phone || null,
-      bio: newUser[0].bio || null,
-      role: newUser[0].role,
-      isActive: newUser[0].isActive,
-      faceIdEnrolled: newUser[0].faceIdEnrolled || false,
-      fingerprintEnrolled: newUser[0].fingerprintEnrolled || false,
-      twoFactorEnabled: newUser[0].twoFactorEnabled || false,
-      joinedDate: newUser[0].joinedDate || null,
+      id: newUser.id,
+      name: newUser.name,
+      email: newUser.email,
+      phone: newUser.phone,
+      bio: newUser.bio,
+      role: newUser.role,
+      isActive: newUser.isActive,
+      faceIdEnrolled: newUser.faceIdEnrolled,
+      fingerprintEnrolled: newUser.fingerprintEnrolled,
+      twoFactorEnabled: newUser.twoFactorEnabled,
+      joinedDate: newUser.createdAt,
     };
-  } catch (error: any) {
-    console.error('createUser function error:', error);
-    console.error('Error details:', {
-      message: error?.message,
-      code: error?.code,
-      detail: error?.detail,
-      constraint: error?.constraint,
-    });
-    throw error; // Re-throw to let the caller handle it
+  } catch (error) {
+    console.error('Create user error:', error);
+    return null;
   }
 }
 
 export async function generateResetToken(email: string): Promise<string | null> {
-  const db = getDatabase();
-  const user = await db.select().from(users).where(eq(users.email, email)).limit(1);
+  try {
+    const db = getDatabase();
+    if (!db) return null;
 
-  if (!user.length) {
+    const userResult = await db.select().from(users).where(eq(users.email, email)).limit(1);
+
+    if (!userResult.length) return null;
+
+    const resetToken = generateSecureToken();
+    const resetTokenExpiry = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
+    await db
+      .update(users)
+      .set({ resetToken, resetTokenExpiry })
+      .where(eq(users.email, email));
+
+    return resetToken;
+  } catch (error) {
+    console.error('Generate reset token error:', error);
     return null;
   }
-
-  // Use cryptographically secure random token
-  const resetToken = generateSecureToken(32);
-  const resetTokenExpiry = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
-
-  await db
-    .update(users)
-    .set({
-      resetToken,
-      resetTokenExpiry,
-    })
-    .where(eq(users.id, user[0].id));
-
-  return resetToken;
 }
 
 export async function verifyResetToken(email: string, token: string): Promise<boolean> {
-  const db = getDatabase();
-  const user = await db
-    .select()
-    .from(users)
-    .where(and(eq(users.email, email), eq(users.resetToken, token)))
-    .limit(1);
+  try {
+    const db = getDatabase();
+    if (!db) return false;
 
-  if (!user.length || !user[0].resetTokenExpiry) {
+    const userResult = await db.select().from(users).where(eq(users.email, email)).limit(1);
+
+    if (!userResult.length) return false;
+
+    const user = userResult[0];
+    return user.resetToken === token && user.resetTokenExpiry && user.resetTokenExpiry > new Date();
+  } catch (error) {
     return false;
   }
-
-  return user[0].resetTokenExpiry > new Date();
 }
 
 export async function resetPassword(
   email: string,
-  token: string,
+  resetToken: string,
   newPassword: string
 ): Promise<boolean> {
-  const isValid = await verifyResetToken(email, token);
-  if (!isValid) {
+  try {
+    const db = getDatabase();
+    if (!db) return false;
+
+    const isValid = await verifyResetToken(email, resetToken);
+    if (!isValid) return false;
+
+    const hashedPassword = await hashPassword(newPassword);
+    await db
+      .update(users)
+      .set({
+        password: hashedPassword,
+        resetToken: null,
+        resetTokenExpiry: null,
+      })
+      .where(eq(users.email, email));
+
+    return true;
+  } catch (error) {
+    console.error('Reset password error:', error);
     return false;
   }
+}
 
-  const db = getDatabase();
-  const hashedPassword = await hashPassword(newPassword);
+// Helper function for API routes to verify auth from request
+export async function verifyAuth(request: any): Promise<AuthUser | null> {
+  try {
+    // Check both admin and student tokens
+    const adminToken = request.cookies.get('adminToken')?.value;
+    const studentToken = request.cookies.get('studentToken')?.value;
+    const token = adminToken || studentToken;
 
-  await db
-    .update(users)
-    .set({
-      password: hashedPassword,
-      resetToken: null,
-      resetTokenExpiry: null,
-    })
-    .where(eq(users.email, email));
+    if (!token) {
+      return null;
+    }
 
-  return true;
+    const user = verifyToken(token);
+    return user;
+  } catch (error) {
+    console.error('verifyAuth error:', error);
+    return null;
+  }
 }

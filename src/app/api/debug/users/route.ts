@@ -6,7 +6,7 @@ import { verifyToken } from '@/lib/auth';
 export async function GET(request: NextRequest) {
   try {
     // Check authentication
-    const token = request.cookies.get('token')?.value;
+    const token = request.cookies.get('adminToken')?.value;
     if (!token) {
       return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });
     }
