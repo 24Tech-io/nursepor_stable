@@ -154,11 +154,8 @@ export default function StudentDashboard() {
         const response = await fetch('/api/student/courses', {
           credentials: 'include',
           signal: abortController.signal,
-          cache: 'no-store',
-          headers: {
-            'Cache-Control': 'no-cache, no-store, must-revalidate',
-            Pragma: 'no-cache',
-          },
+          // Enable caching for better performance
+          next: { revalidate: 30 },
         });
 
         if (!isMounted) return;
