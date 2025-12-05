@@ -7,16 +7,41 @@ import { verifyTokenEdge } from '@/lib/auth-edge';
 const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
 
 // CORS configuration
-const ALLOWED_ORIGINS = [
-  'http://localhost:3000',
-  'http://localhost:3001',
-  process.env.NEXT_PUBLIC_APP_URL,
-  process.env.NEXT_PUBLIC_ADMIN_URL,
-  // Allow AWS Amplify domains (wildcard pattern)
-  ...(process.env.NEXT_PUBLIC_APP_URL?.includes('amplifyapp.com') 
-    ? [process.env.NEXT_PUBLIC_APP_URL] 
-    : []),
-].filter(Boolean);
+// Build allowed origins list dynamically
+const getAllowedOrigins = () => {
+  const origins: string[] = [
+    'http://localhost:3000',
+    'http://localhost:3001',
+  ];
+  
+  // Add configured URLs
+  if (process.env.NEXT_PUBLIC_APP_URL) {
+    origins.push(process.env.NEXT_PUBLIC_APP_URL);
+    // Also add without trailing slash if it has one
+    if (process.env.NEXT_PUBLIC_APP_URL.endsWith('/')) {
+      origins.push(process.env.NEXT_PUBLIC_APP_URL.slice(0, -1));
+    }
+  }
+  
+  if (process.env.NEXT_PUBLIC_ADMIN_URL) {
+    origins.push(process.env.NEXT_PUBLIC_ADMIN_URL);
+    if (process.env.NEXT_PUBLIC_ADMIN_URL.endsWith('/')) {
+      origins.push(process.env.NEXT_PUBLIC_ADMIN_URL.slice(0, -1));
+    }
+  }
+  
+  // Allow any amplifyapp.com domain if NEXT_PUBLIC_APP_URL contains it
+  if (process.env.NEXT_PUBLIC_APP_URL?.includes('amplifyapp.com')) {
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL.replace(/\/$/, ''); // Remove trailing slash
+    origins.push(baseUrl);
+    // Also allow the protocol-less version
+    origins.push(baseUrl.replace(/^https?:\/\//, ''));
+  }
+  
+  return origins.filter(Boolean);
+};
+
+const ALLOWED_ORIGINS = getAllowedOrigins();
 
 // Rate limiting configuration
 const RATE_LIMIT_WINDOW = 60 * 1000; // 1 minute
@@ -99,11 +124,31 @@ export async function middleware(request: NextRequest) {
 
   // CORS headers
   const origin = request.headers.get('origin');
-  if (origin && ALLOWED_ORIGINS.includes(origin)) {
+  
+  // Log CORS check in development
+  if (process.env.NODE_ENV === 'development' && origin) {
+    console.log('🌐 CORS check:', {
+      origin,
+      allowedOrigins: ALLOWED_ORIGINS,
+      isAllowed: ALLOWED_ORIGINS.includes(origin),
+    });
+  }
+  
+  // Check if origin is allowed (exact match or starts with allowed domain)
+  const isAllowed = origin && (
+    ALLOWED_ORIGINS.includes(origin) ||
+    ALLOWED_ORIGINS.some(allowed => origin.startsWith(allowed)) ||
+    // Allow if origin is from amplifyapp.com and we have an amplify URL configured
+    (origin.includes('amplifyapp.com') && process.env.NEXT_PUBLIC_APP_URL?.includes('amplifyapp.com'))
+  );
+  
+  if (isAllowed && origin) {
     response.headers.set('Access-Control-Allow-Origin', origin);
     response.headers.set('Access-Control-Allow-Credentials', 'true');
     response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
-    response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+  } else if (origin && process.env.NODE_ENV === 'development') {
+    console.warn('⚠️ CORS blocked origin:', origin, 'Allowed origins:', ALLOWED_ORIGINS);
   }
 
   // Handle preflight requests

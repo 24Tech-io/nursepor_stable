@@ -87,11 +87,52 @@ export function rateLimit(
 }
 
 // Get client IP for rate limiting
+// Handles AWS Amplify/CloudFront, proxies, and direct connections
 export function getClientIP(request: NextRequest): string {
+  // AWS Amplify/CloudFront specific headers
+  const cloudFrontViewer = request.headers.get('cloudfront-viewer-address');
+  if (cloudFrontViewer) {
+    // Format: "IP:PORT" - extract just the IP
+    const ip = cloudFrontViewer.split(':')[0]?.trim();
+    if (ip) return ip;
+  }
+  
+  // Check for CloudFront-Viewer-Address (alternative header name)
+  const cfViewer = request.headers.get('CloudFront-Viewer-Address');
+  if (cfViewer) {
+    const ip = cfViewer.split(':')[0]?.trim();
+    if (ip) return ip;
+  }
+  
+  // Standard proxy headers (x-forwarded-for can contain multiple IPs)
   const forwarded = request.headers.get('x-forwarded-for');
+  if (forwarded) {
+    // Take the first IP (client IP) from the chain
+    const firstIP = forwarded.split(',')[0]?.trim();
+    if (firstIP && firstIP !== 'unknown') return firstIP;
+  }
+  
+  // Real IP header (some proxies use this)
   const realIP = request.headers.get('x-real-ip');
-  const ip = forwarded?.split(',')[0] || realIP || request.ip || 'unknown';
-  return ip;
+  if (realIP && realIP !== 'unknown') return realIP.trim();
+  
+  // Fallback to Next.js request IP
+  if (request.ip && request.ip !== 'unknown') return request.ip;
+  
+  // Last resort: use 'unknown' but log a warning in development
+  if (process.env.NODE_ENV === 'development') {
+    console.warn('⚠️ Could not determine client IP, using "unknown"', {
+      headers: {
+        'x-forwarded-for': request.headers.get('x-forwarded-for'),
+        'x-real-ip': request.headers.get('x-real-ip'),
+        'cloudfront-viewer-address': request.headers.get('cloudfront-viewer-address'),
+        'CloudFront-Viewer-Address': request.headers.get('CloudFront-Viewer-Address'),
+      },
+      requestIp: request.ip,
+    });
+  }
+  
+  return 'unknown';
 }
 
 // XSS protection - escape HTML

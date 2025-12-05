@@ -46,20 +46,44 @@ export async function POST(request: NextRequest) {
 
     // Rate limiting - stricter for login
     const clientIP = getClientIP(request);
+    
+    // Log IP detection for debugging (development only)
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🔍 Admin login - IP detection:', {
+        detectedIP: clientIP,
+        headers: {
+          'x-forwarded-for': request.headers.get('x-forwarded-for'),
+          'x-real-ip': request.headers.get('x-real-ip'),
+          'cloudfront-viewer-address': request.headers.get('cloudfront-viewer-address'),
+        },
+        requestIp: request.ip,
+      });
+    }
 
-    // Check brute force protection
-    if (isIPBlocked(clientIP)) {
+    // Check brute force protection (skip if disabled via env var for AWS troubleshooting)
+    const disableBruteForce = process.env.DISABLE_BRUTE_FORCE === 'true';
+    if (!disableBruteForce && isIPBlocked(clientIP)) {
       securityLogger.info('Blocked IP attempted login', { ip: clientIP });
       return NextResponse.json(
-        { message: 'Too many failed login attempts. Please try again later.' },
+        { 
+          message: 'Too many failed login attempts. Please try again later.',
+          error: process.env.NODE_ENV === 'development' ? `IP ${clientIP} is blocked` : undefined
+        },
         { status: 429 }
       );
     }
 
-    const rateLimitResult = rateLimit(`login:${clientIP}`, 5, 15 * 60 * 1000); // 5 attempts per 15 minutes
+    // More lenient rate limiting in production (especially for AWS shared IPs)
+    const maxLoginAttempts = process.env.NODE_ENV === 'production' ? 10 : 5;
+    const rateLimitResult = rateLimit(`login:${clientIP}`, maxLoginAttempts, 15 * 60 * 1000);
     if (!rateLimitResult.allowed) {
       return NextResponse.json(
-        { message: 'Too many login attempts. Please try again later.' },
+        { 
+          message: 'Too many login attempts. Please try again later.',
+          error: process.env.NODE_ENV === 'development' 
+            ? `Rate limit exceeded for IP: ${clientIP}` 
+            : undefined
+        },
         {
           status: 429,
           headers: {
@@ -253,25 +277,44 @@ export async function POST(request: NextRequest) {
     // Set JWT token cookie with appropriate expiry based on rememberMe
     const maxAge = rememberMe ? 60 * 60 * 24 * 30 : 60 * 60 * 24 * 7; // 30 days vs 7 days
 
+    // Set cookie with proper configuration for production
+    const isProduction = process.env.NODE_ENV === 'production';
     jsonResponse.cookies.set('adminToken', token, {
       httpOnly: true,
-      sameSite: 'lax',
-      secure: process.env.NODE_ENV === 'production',
+      secure: isProduction, // Require HTTPS in production
+      sameSite: 'lax', // Works for both same-site and cross-site top-level navigations
       maxAge: maxAge,
       path: '/',
-      domain: undefined, // Don't set domain for localhost
+      // Don't set domain - let browser use default (works for subdomains and main domain)
     });
+    
+    // Log cookie setting in development
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🍪 Admin token cookie set:', {
+        secure: isProduction,
+        sameSite: 'lax',
+        maxAge,
+        path: '/',
+      });
+    }
 
     console.log('✓ JWT token cookie set for user:', user.email);
     console.log('✓ Redirect URL in response:', redirectUrl);
 
     return jsonResponse;
   } catch (error: any) {
-    console.error('Login error:', error);
-    console.error('Error details:', {
+    // Enhanced error logging for debugging
+    console.error('❌ Admin login error:', {
       message: error?.message,
+      stack: error?.stack,
       code: error?.code,
       detail: error?.detail,
+      nodeEnv: process.env.NODE_ENV,
+      hasJwtSecret: !!process.env.JWT_SECRET,
+      hasDbUrl: !!process.env.DATABASE_URL,
+      origin: request.headers.get('origin'),
+      userAgent: request.headers.get('user-agent'),
+      clientIP: getClientIP(request),
     });
 
     // Handle database connection errors

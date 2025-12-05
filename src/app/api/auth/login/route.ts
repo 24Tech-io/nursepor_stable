@@ -164,17 +164,40 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    // Set cookie with proper configuration for production
+    const isProduction = process.env.NODE_ENV === 'production';
     response.cookies.set('studentToken', token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      secure: isProduction, // Require HTTPS in production
+      sameSite: isProduction ? 'lax' : 'lax', // 'lax' works for both same-site and cross-site top-level navigations
       maxAge: maxAge,
       path: '/',
+      // Don't set domain - let browser use default (works for subdomains)
     });
+    
+    // Log cookie setting in development
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🍪 Student token cookie set:', {
+        secure: isProduction,
+        sameSite: 'lax',
+        maxAge,
+        path: '/',
+      });
+    }
 
     return response;
   } catch (error: any) {
-    console.error('❌ Login error:', error);
+    // Enhanced error logging for debugging
+    console.error('❌ Student login error:', {
+      message: error?.message,
+      stack: error?.stack,
+      code: error?.code,
+      nodeEnv: process.env.NODE_ENV,
+      hasJwtSecret: !!process.env.JWT_SECRET,
+      hasDbUrl: !!process.env.DATABASE_URL,
+      origin: request.headers.get('origin'),
+      userAgent: request.headers.get('user-agent'),
+    });
     
     // Handle specific error types
     if (error?.message?.includes('JWT_SECRET') || error?.message?.includes('jwt')) {

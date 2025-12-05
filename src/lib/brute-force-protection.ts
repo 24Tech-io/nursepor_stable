@@ -16,10 +16,14 @@ const usernameAttempts = new Map<string, LoginAttempt>();
 const blockedIPs = new Set<string>();
 
 // Configuration
-const MAX_ATTEMPTS = 5; // Maximum failed attempts
+// In production (especially AWS with shared IPs), be more lenient
+const isProduction = process.env.NODE_ENV === 'production';
+const MAX_ATTEMPTS = isProduction ? 10 : 5; // More attempts allowed in production
 const ATTEMPT_WINDOW = 15 * 60 * 1000; // 15 minutes
-const BLOCK_DURATION = 60 * 60 * 1000; // 1 hour block
-const PROGRESSIVE_DELAY = [0, 1000, 2000, 5000, 10000]; // Progressive delays in ms
+const BLOCK_DURATION = isProduction ? 30 * 60 * 1000 : 60 * 60 * 1000; // 30 min in prod, 1 hour in dev
+const PROGRESSIVE_DELAY = isProduction 
+  ? [0, 500, 1000, 2000, 5000] // Shorter delays in production
+  : [0, 1000, 2000, 5000, 10000]; // Progressive delays in ms
 
 // Clean up old attempts every 10 minutes
 setInterval(
