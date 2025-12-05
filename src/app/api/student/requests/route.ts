@@ -4,6 +4,9 @@ import { getDatabase } from '@/lib/db';
 import { accessRequests, courses, enrollments, studentProgress } from '@/lib/db/schema';
 import { eq, and, desc } from 'drizzle-orm';
 
+// Cache for 30 seconds - allows stale-while-revalidate
+export const revalidate = 30;
+
 // GET - Fetch student's own access requests
 export async function GET(request: NextRequest) {
   try {

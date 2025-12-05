@@ -56,7 +56,7 @@ export default function StudentDashboard() {
         }
       }
 
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      // Removed artificial delay for better performance
 
       try {
         if (process.env.NODE_ENV === 'development') {
@@ -64,7 +64,8 @@ export default function StudentDashboard() {
         }
         const response = await fetch('/api/auth/me', {
           credentials: 'include',
-          cache: 'no-store',
+          // Enable caching for better performance
+          next: { revalidate: 60 },
           headers: { 'Content-Type': 'application/json' },
         });
 
@@ -97,7 +98,7 @@ export default function StudentDashboard() {
               try {
                 const retryResponse = await fetch('/api/auth/me', {
                   credentials: 'include',
-                  cache: 'no-store',
+                  next: { revalidate: 60 },
                 });
                 if (retryResponse.ok) {
                   const retryData = await retryResponse.json();
@@ -210,7 +211,7 @@ export default function StudentDashboard() {
     };
   }, [user?.id]);
 
-  // Fetch stats, enrolled courses, and pending requests
+  // Fetch all dashboard data using unified endpoint for better performance
   useEffect(() => {
     if (!user?.id) return;
     // Allow both students and admins
@@ -219,81 +220,68 @@ export default function StudentDashboard() {
     let isMounted = true;
     const abortController = new AbortController();
 
-    const fetchStats = async () => {
+    const fetchDashboardData = async () => {
       if (!isMounted) return;
 
       setIsFetchingStats(true);
+      setIsFetchingCourses(true);
+      
       try {
-        const [statsResponse, coursesResponse, requestsResponse] = await Promise.all([
-          fetch('/api/student/stats', {
-            credentials: 'include',
-            signal: abortController.signal,
-            cache: 'no-store',
-          }),
-          fetch('/api/student/enrolled-courses', {
-            credentials: 'include',
-            signal: abortController.signal,
-            cache: 'no-store',
-          }),
-          fetch('/api/student/requests', {
-            credentials: 'include',
-            signal: abortController.signal,
-            cache: 'no-store',
-          }),
-        ]);
+        // Use unified endpoint - single request instead of 3+ separate requests
+        const response = await fetch('/api/student/dashboard-data', {
+          credentials: 'include',
+          signal: abortController.signal,
+          // Enable caching for better performance
+          next: { revalidate: 30 },
+        });
 
         if (!isMounted) return;
 
-        if (statsResponse.ok) {
-          const statsData = await statsResponse.json();
-          setStats(statsData.stats);
-          if (process.env.NODE_ENV === 'development') {
-            console.log('✅ Stats fetched (REAL DATA):', statsData.stats);
+        if (response.ok) {
+          const data = await response.json();
+          
+          // Set all data at once from unified response
+          if (data.stats) {
+            setStats(data.stats);
+            if (process.env.NODE_ENV === 'development') {
+              console.log('✅ Stats fetched (UNIFIED):', data.stats);
+            }
           }
-        } else {
-          console.error('❌ Failed to fetch stats:', statsResponse.status);
-        }
 
-        if (coursesResponse.ok) {
-          const coursesData = await coursesResponse.json();
-          // CRITICAL: Convert to string for consistent comparison
-          const courseIds = coursesData.enrolledCourses.map((ec: any) => String(ec.courseId));
-          setEnrolledCourseIds(courseIds);
-          setEnrolledCoursesData(coursesData.enrolledCourses);
-          if (process.env.NODE_ENV === 'development') {
-            console.log('✅ Enrolled courses fetched (REAL DATA):', courseIds);
-            console.log('✅ Enrolled course data:', coursesData.enrolledCourses);
+          if (data.enrolledCourses) {
+            // CRITICAL: Convert to string for consistent comparison
+            const courseIds = data.enrolledCourses.map((ec: any) => String(ec.courseId));
+            setEnrolledCourseIds(courseIds);
+            setEnrolledCoursesData(data.enrolledCourses);
+            if (process.env.NODE_ENV === 'development') {
+              console.log('✅ Enrolled courses fetched (UNIFIED):', courseIds);
+            }
           }
-        } else {
-          console.error('❌ Failed to fetch enrolled courses:', coursesResponse.status);
-        }
 
-        if (requestsResponse.ok) {
-          const requestsData = await requestsResponse.json();
-          const pendingCourseIds = (requestsData.requests || [])
-            .filter((r: any) => r.status === 'pending')
-            .map((r: any) => r.courseId.toString());
-          setPendingRequestCourseIds(pendingCourseIds);
-          if (process.env.NODE_ENV === 'development') {
-            console.log('✅ Pending requests fetched:', pendingCourseIds);
+          if (data.requests) {
+            const pendingCourseIds = (data.requests || [])
+              .filter((r: any) => r.status === 'pending')
+              .map((r: any) => r.courseId.toString());
+            setPendingRequestCourseIds(pendingCourseIds);
+            if (process.env.NODE_ENV === 'development') {
+              console.log('✅ Pending requests fetched (UNIFIED):', pendingCourseIds);
+            }
           }
         } else {
-          console.error('❌ Failed to fetch requests:', requestsResponse.status);
+          console.error('❌ Failed to fetch dashboard data:', response.status);
         }
       } catch (error: any) {
         if (error.name === 'AbortError') return;
-        console.error('Error fetching stats/courses/requests:', error);
+        console.error('Error fetching dashboard data:', error);
       } finally {
         if (isMounted) {
           setIsFetchingStats(false);
+          setIsFetchingCourses(false);
         }
       }
     };
 
-    fetchStats();
-
-    // REMOVED: Sync client auto-refresh (too frequent)
-    // Stats will only refresh on page load or user action
+    fetchDashboardData();
 
     return () => {
       isMounted = false;

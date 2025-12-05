@@ -8,6 +8,9 @@ import { getPublishedCourseFilter } from '@/lib/enrollment-helpers';
 import { createErrorResponse, createAuthError } from '@/lib/error-handler';
 import { retryDatabase } from '@/lib/retry';
 
+// Cache for 30 seconds - allows stale-while-revalidate
+export const revalidate = 30;
+
 export async function GET(request: NextRequest) {
   try {
     const token = request.cookies.get('studentToken')?.value;
