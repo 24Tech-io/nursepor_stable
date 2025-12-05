@@ -12,11 +12,14 @@ import { generateSecureToken } from './security';
 // JWT_SECRET must be set - no fallback for security
 function getJWTSecret(): string {
   try {
-    if (!process.env.JWT_SECRET || process.env.JWT_SECRET === 'your-secret-key') {
+    // Trim whitespace in case AWS/environment added any
+    const jwtSecret = process.env.JWT_SECRET?.trim();
+    
+    if (!jwtSecret || jwtSecret === 'your-secret-key') {
       if (process.env.NODE_ENV === 'production') {
         throw new Error(
           'JWT_SECRET must be set in environment variables and must be at least 32 characters long. ' +
-            'Please set a strong random secret in .env.local'
+            'Please set a strong random secret in AWS Amplify environment variables'
         );
       }
       // Use a default secret in development only (for hot reload)
@@ -25,14 +28,14 @@ function getJWTSecret(): string {
       );
       return 'dev-secret-key-change-this-in-production-at-least-32-chars-long';
     }
-    if (process.env.JWT_SECRET.length < 32) {
+    if (jwtSecret.length < 32) {
       console.warn('⚠️ JWT_SECRET is less than 32 characters. Using default in development.');
       if (process.env.NODE_ENV === 'production') {
-        throw new Error('JWT_SECRET must be at least 32 characters long');
+        throw new Error(`JWT_SECRET must be at least 32 characters long (got ${jwtSecret.length})`);
       }
       return 'dev-secret-key-change-this-in-production-at-least-32-chars-long';
     }
-    return process.env.JWT_SECRET;
+    return jwtSecret;
   } catch (error: any) {
     console.error('❌ Error getting JWT_SECRET:', error.message);
     // In development, use a default to prevent crashes

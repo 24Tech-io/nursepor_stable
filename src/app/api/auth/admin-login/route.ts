@@ -22,12 +22,26 @@ import { securityLogger } from '@/lib/edge-logger';
 export async function POST(request: NextRequest) {
   try {
     // Check critical environment variables first
-    if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32) {
-      console.error('❌ JWT_SECRET is missing or invalid');
+    // Trim whitespace in case AWS added any during copy/paste
+    const jwtSecret = process.env.JWT_SECRET?.trim();
+    
+    if (!jwtSecret || jwtSecret.length < 32) {
+      // Enhanced logging for debugging
+      console.error('❌ JWT_SECRET validation failed:', {
+        exists: !!process.env.JWT_SECRET,
+        rawLength: process.env.JWT_SECRET?.length || 0,
+        trimmedLength: jwtSecret?.length || 0,
+        firstChars: process.env.JWT_SECRET?.substring(0, 10),
+        lastChars: process.env.JWT_SECRET?.substring((process.env.JWT_SECRET?.length || 0) - 10),
+        nodeEnv: process.env.NODE_ENV,
+      });
+      
       return NextResponse.json(
         { 
           message: 'Server configuration error. JWT_SECRET is missing or invalid.',
-          error: process.env.NODE_ENV === 'development' ? 'JWT_SECRET must be at least 32 characters' : undefined
+          error: process.env.NODE_ENV === 'development' 
+            ? `JWT_SECRET must be at least 32 characters (got ${jwtSecret?.length || 0})` 
+            : undefined
         },
         { status: 500 }
       );
