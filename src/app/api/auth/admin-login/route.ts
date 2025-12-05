@@ -34,20 +34,8 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    // Test JWT_SECRET by trying to get it (will throw if invalid)
-    try {
-      // This will throw if JWT_SECRET is invalid, which is handled by generateToken's try-catch
-      // We don't need to validate here since generateToken() will validate it
-    } catch (jwtError: any) {
-      console.error('❌ JWT_SECRET validation failed:', jwtError.message);
-      return NextResponse.json(
-        { 
-          message: 'Server configuration error. JWT_SECRET is missing or invalid.',
-          error: process.env.NODE_ENV === 'development' ? jwtError.message : undefined
-        },
-        { status: 500 }
-      );
-    }
+    // JWT_SECRET validation is handled by generateToken() via getJWTSecret()
+    // No need to duplicate validation here - generateToken() will throw if JWT_SECRET is invalid
 
     // Rate limiting - stricter for login
     const clientIP = getClientIP(request);
