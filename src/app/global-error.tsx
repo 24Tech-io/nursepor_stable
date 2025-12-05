@@ -1,5 +1,7 @@
 'use client';
 
+import { useEffect } from 'react';
+
 export default function GlobalError({
   error,
   reset,
@@ -7,6 +9,31 @@ export default function GlobalError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  useEffect(() => {
+    console.error('Global error:', error);
+    
+    // Check if it's a module resolution error
+    const errorMessage = error.message || '';
+    const isModuleError = errorMessage.includes('Cannot find module') ||
+                          (errorMessage.includes('./') && errorMessage.match(/\.\/\d+\.js/));
+    
+    if (isModuleError) {
+      console.warn('Module resolution error detected, attempting to clear cache and reload...');
+      
+      // Clear all caches
+      if ('caches' in window) {
+        caches.keys().then(names => {
+          names.forEach(name => caches.delete(name));
+        });
+      }
+      
+      // Reload after a short delay
+      setTimeout(() => {
+        window.location.href = '/';
+      }, 2000);
+    }
+  }, [error]);
+
   return (
     <html lang="en">
       <body>

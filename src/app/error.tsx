@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 
 export default function Error({
   error,
@@ -9,8 +9,36 @@ export default function Error({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  const [isChunkError, setIsChunkError] = useState(false);
+
   useEffect(() => {
     console.error('Application error:', error);
+    
+    // Check if it's a chunk loading error or module resolution error
+    const errorMessage = error.message || '';
+    const isChunk = errorMessage.includes('chunk') || 
+                    errorMessage.includes('Loading chunk') ||
+                    errorMessage.includes('ChunkLoadError') ||
+                    errorMessage.includes('Cannot find module') ||
+                    errorMessage.includes('./') && errorMessage.match(/\.\/\d+\.js/);
+    
+    setIsChunkError(isChunk);
+    
+    // Auto-reload on chunk/module errors
+    if (isChunk) {
+      console.warn('Chunk/module loading error detected, reloading in 2 seconds...');
+      const timer = setTimeout(() => {
+        // Clear cache and reload
+        if ('caches' in window) {
+          caches.keys().then(names => {
+            names.forEach(name => caches.delete(name));
+          });
+        }
+        window.location.reload();
+      }, 2000);
+      
+      return () => clearTimeout(timer);
+    }
   }, [error]);
 
   return (
@@ -32,22 +60,35 @@ export default function Error({
               />
             </svg>
           </div>
-          <h2 className="text-2xl font-bold text-white mb-2">Something went wrong!</h2>
-          <p className="text-slate-300 mb-6">{error.message || 'An unexpected error occurred'}</p>
-          <div className="flex gap-3 justify-center">
-            <button
-              onClick={reset}
-              className="px-6 py-3 bg-gradient-to-r from-indigo-600 to-fuchsia-600 text-white rounded-xl font-semibold hover:from-indigo-700 hover:to-fuchsia-700 transition shadow-lg"
-            >
-              Try again
-            </button>
-            <button
-              onClick={() => (window.location.href = '/')}
-              className="px-6 py-3 bg-white/10 text-white rounded-xl font-semibold hover:bg-white/20 transition border border-white/20"
-            >
-              Go home
-            </button>
-          </div>
+          <h2 className="text-2xl font-bold text-white mb-2">
+            {isChunkError ? 'Loading Error' : 'Something went wrong!'}
+          </h2>
+          <p className="text-slate-300 mb-6">
+            {isChunkError 
+              ? 'Failed to load application resources. Reloading page...' 
+              : error.message || 'An unexpected error occurred'}
+          </p>
+          {isChunkError ? (
+            <div className="flex items-center justify-center gap-2 text-slate-400">
+              <div className="animate-spin rounded-full h-5 w-5 border-2 border-slate-400 border-t-transparent"></div>
+              <span>Reloading...</span>
+            </div>
+          ) : (
+            <div className="flex gap-3 justify-center">
+              <button
+                onClick={reset}
+                className="px-6 py-3 bg-gradient-to-r from-indigo-600 to-fuchsia-600 text-white rounded-xl font-semibold hover:from-indigo-700 hover:to-fuchsia-700 transition shadow-lg"
+              >
+                Try again
+              </button>
+              <button
+                onClick={() => (window.location.href = '/')}
+                className="px-6 py-3 bg-white/10 text-white rounded-xl font-semibold hover:bg-white/20 transition border border-white/20"
+              >
+                Go home
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>

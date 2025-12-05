@@ -469,7 +469,9 @@ const Dashboard = ({ nav }: { nav: (mod: string) => void }) => {
         studentsRes.json(),
       ]);
 
-      console.log('⚡ Dashboard stats loaded from optimized count queries');
+      if (process.env.NODE_ENV === 'development') {
+        console.log('⚡ Dashboard stats loaded from optimized count queries');
+      }
 
       return {
         courses: courses.count || 0,
@@ -708,9 +710,8 @@ const RequestsInbox = ({ nav }: { nav: (mod: string) => void }) => {
         const data = await response.json();
         setRequests(data.requests || []);
       } else {
-        console.error('Failed to fetch requests:', response.status);
         const errorData = await response.json().catch(() => ({}));
-        console.error('Error details:', errorData);
+        console.error('Failed to fetch requests:', response.status, errorData);
       }
     } catch (error) {
       console.error('Error fetching requests:', error);
@@ -734,7 +735,9 @@ const RequestsInbox = ({ nav }: { nav: (mod: string) => void }) => {
 
         // The PATCH endpoint always deletes requests after processing
         // So we should always refresh, but with a small delay to ensure DB transaction is committed
-        console.log(`✅ [Frontend] Request ${requestId} ${action}d, refreshing list...`);
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`✅ [Frontend] Request ${requestId} ${action}d, refreshing list...`);
+        }
 
         // Refresh immediately (optimistic update)
         await fetchRequests();
@@ -742,20 +745,12 @@ const RequestsInbox = ({ nav }: { nav: (mod: string) => void }) => {
         // Also refresh after a short delay to ensure database transaction is fully committed
         // This handles any race conditions where the GET request might run before deletion completes
         setTimeout(async () => {
-          console.log(`🔄 [Frontend] Secondary refresh for request ${requestId}...`);
           await fetchRequests();
         }, 300);
 
         // Show success message
         const message = data.message || `Request ${action}d and removed successfully`;
         notification.showSuccess(message);
-
-        // If approved, the enrollment sync utility will handle enrollment automatically
-        if (action === 'approve') {
-          console.log(
-            `✅ [Frontend] Request ${requestId} approved - enrollment will be synced automatically`
-          );
-        }
       } else {
         // Try to get error message from response
         let errorMessage = `Failed to ${action} request`;
@@ -987,7 +982,6 @@ const StudentsList = ({
       const response = await fetch('/api/students', { credentials: 'include' });
       if (response.ok) {
         const data = await response.json();
-        console.log('⚡ Students loaded and cached');
         return data.students || [];
       }
       throw new Error('Failed to fetch students');
@@ -1360,13 +1354,17 @@ const Analytics = ({ nav }: { nav: (mod: string) => void }) => {
               });
             });
           } else {
-            console.warn(`⚠️ [Analytics] Student detail data is missing for index ${index}`);
+            if (process.env.NODE_ENV === 'development') {
+              console.warn(`⚠️ [Analytics] Student detail data is missing for index ${index}`);
+            }
           }
         });
 
-        console.log(
-          `📊 [Analytics] Total engagement data items: ${engagementData.length}, Total progress sum: ${totalProgress}, Enrollment count: ${enrollmentCount}`
-        );
+        if (process.env.NODE_ENV === 'development') {
+          console.log(
+            `📊 [Analytics] Total engagement data items: ${engagementData.length}, Total progress sum: ${totalProgress}, Enrollment count: ${enrollmentCount}`
+          );
+        }
 
         const averageProgress =
           enrollmentCount > 0 ? Math.round(totalProgress / enrollmentCount) : 0;

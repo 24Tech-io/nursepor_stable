@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { BookOpen, TrendingUp, Clock, ArrowRight, Target, Award } from 'lucide-react';
+import { BookOpen, Clock, ArrowRight } from '@/components/icons/Icons';
 
 interface QBankCourse {
   courseId: number;

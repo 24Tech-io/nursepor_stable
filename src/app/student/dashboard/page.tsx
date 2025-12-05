@@ -45,7 +45,11 @@ export default function StudentDashboard() {
       if (storedUserData) {
         try {
           const parsedUser = JSON.parse(storedUserData);
-          console.log('📦 Using user data from sessionStorage:', parsedUser);
+          if (process.env.NODE_ENV === 'development') {
+            if (process.env.NODE_ENV === 'development') {
+            console.log('📦 Using user data from sessionStorage:', parsedUser);
+          }
+          }
           setUser(parsedUser);
           hasStoredData = true;
           setIsLoading(false);
@@ -57,18 +61,24 @@ export default function StudentDashboard() {
       await new Promise((resolve) => setTimeout(resolve, 1000));
 
       try {
-        console.log('🔍 Fetching user data from /api/auth/me...');
+        if (process.env.NODE_ENV === 'development') {
+          console.log('🔍 Fetching user data from /api/auth/me...');
+        }
         const response = await fetch('/api/auth/me', {
           credentials: 'include',
           cache: 'no-store',
           headers: { 'Content-Type': 'application/json' },
         });
 
-        console.log('📡 Response status:', response.status);
+        if (process.env.NODE_ENV === 'development') {
+          console.log('📡 Response status:', response.status);
+        }
 
         if (response.ok) {
           const data = await response.json();
-          console.log('✅ User data received from API:', data.user);
+          if (process.env.NODE_ENV === 'development') {
+            console.log('✅ User data received from API:', data.user);
+          }
           if (data.user) {
             setUser(data.user);
             setIsLoading(false);
@@ -239,7 +249,9 @@ export default function StudentDashboard() {
         if (statsResponse.ok) {
           const statsData = await statsResponse.json();
           setStats(statsData.stats);
-          console.log('✅ Stats fetched (REAL DATA):', statsData.stats);
+          if (process.env.NODE_ENV === 'development') {
+            console.log('✅ Stats fetched (REAL DATA):', statsData.stats);
+          }
         } else {
           console.error('❌ Failed to fetch stats:', statsResponse.status);
         }
@@ -250,8 +262,10 @@ export default function StudentDashboard() {
           const courseIds = coursesData.enrolledCourses.map((ec: any) => String(ec.courseId));
           setEnrolledCourseIds(courseIds);
           setEnrolledCoursesData(coursesData.enrolledCourses);
-          console.log('✅ Enrolled courses fetched (REAL DATA):', courseIds);
-          console.log('✅ Enrolled course data:', coursesData.enrolledCourses);
+          if (process.env.NODE_ENV === 'development') {
+            console.log('✅ Enrolled courses fetched (REAL DATA):', courseIds);
+            console.log('✅ Enrolled course data:', coursesData.enrolledCourses);
+          }
         } else {
           console.error('❌ Failed to fetch enrolled courses:', coursesResponse.status);
         }
@@ -262,7 +276,9 @@ export default function StudentDashboard() {
             .filter((r: any) => r.status === 'pending')
             .map((r: any) => r.courseId.toString());
           setPendingRequestCourseIds(pendingCourseIds);
-          console.log('✅ Pending requests fetched:', pendingCourseIds);
+          if (process.env.NODE_ENV === 'development') {
+            console.log('✅ Pending requests fetched:', pendingCourseIds);
+          }
         } else {
           console.error('❌ Failed to fetch requests:', requestsResponse.status);
         }

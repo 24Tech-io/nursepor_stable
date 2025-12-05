@@ -283,7 +283,6 @@ const NotificationItem: React.FC<{
               className="w-full mt-2 px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:border-white/40 text-sm"
               placeholder={notification.message || 'Enter value...'}
               autoFocus
-              value={inputValue}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && notification.onConfirm) {
                   (notification as any).onInputChange?.(inputValue);

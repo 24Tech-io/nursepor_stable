@@ -3,14 +3,13 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getAchievements, getNotifications } from '../../../lib/data';
 import BiometricEnrollment from '@/components/auth/BiometricEnrollment';
 import LoadingSpinner from '@/components/student/LoadingSpinner';
 import { syncClient } from '@/lib/sync-client';
 
 export default function ProfilePage() {
   const [activeTab, setActiveTab] = useState<
-    'profile' | 'achievements' | 'notifications' | 'settings'
+    'profile' | 'notifications' | 'settings'
   >('profile');
   const [user, setUser] = useState<any>(null);
   const [showFaceEnrollment, setShowFaceEnrollment] = useState(false);
@@ -23,6 +22,8 @@ export default function ProfilePage() {
     hoursLearned: 0,
     avgRating: 0,
   });
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [isLoadingNotifications, setIsLoadingNotifications] = useState(false);
 
   useEffect(() => {
     const abortController = new AbortController();
@@ -36,7 +37,9 @@ export default function ProfilePage() {
       if (storedUserData && isMounted) {
         try {
           const parsedUser = JSON.parse(storedUserData);
-          console.log('📦 Profile: Using user data from sessionStorage:', parsedUser);
+          if (process.env.NODE_ENV === 'development') {
+            console.log('📦 Profile: Using user data from sessionStorage:', parsedUser);
+          }
           setUser({
             ...parsedUser,
             // Use real data from API, ensure phone is a string
@@ -63,7 +66,9 @@ export default function ProfilePage() {
       if (!isMounted) return;
 
       try {
-        console.log('🔍 Profile: Fetching user data from /api/auth/me...');
+        if (process.env.NODE_ENV === 'development') {
+          console.log('🔍 Profile: Fetching user data from /api/auth/me...');
+        }
         const response = await fetch('/api/auth/me', {
           credentials: 'include',
           signal: abortController.signal,
@@ -77,13 +82,9 @@ export default function ProfilePage() {
 
         if (response.ok) {
           const data = await response.json();
-          console.log('✅ Profile: User data received from API:', data.user);
-          console.log(
-            '✅ Profile: Phone number from API:',
-            data.user?.phone,
-            'Type:',
-            typeof data.user?.phone
-          );
+          if (process.env.NODE_ENV === 'development') {
+            console.log('✅ Profile: User data received from API:', data.user);
+          }
           if (data.user) {
             // Update with fresh data from API
             setUser({
@@ -121,7 +122,9 @@ export default function ProfilePage() {
             setTimeout(async () => {
               if (!isMounted) return;
               try {
-                console.log('🔄 Profile: Retrying /api/auth/me...');
+                if (process.env.NODE_ENV === 'development') {
+                  console.log('🔄 Profile: Retrying /api/auth/me...');
+                }
                 const retryResponse = await fetch('/api/auth/me', {
                   credentials: 'include',
                   signal: abortController.signal,
@@ -130,7 +133,9 @@ export default function ProfilePage() {
                 if (retryResponse.ok && isMounted) {
                   const retryData = await retryResponse.json();
                   if (retryData.user) {
-                    console.log('✅ Profile: Retry successful - updating user data');
+                    if (process.env.NODE_ENV === 'development') {
+                      console.log('✅ Profile: Retry successful - updating user data');
+                    }
                     setUser({
                       ...retryData.user,
                       // Use real data from API, ensure phone is a string
@@ -214,7 +219,9 @@ export default function ProfilePage() {
     // Start sync client for auto-refresh
     syncClient.start();
     const handleSync = (syncData: any) => {
-      console.log('🔄 Profile: Sync update received:', syncData);
+      if (process.env.NODE_ENV === 'development') {
+        console.log('🔄 Profile: Sync update received:', syncData);
+      }
       fetchStats(); // Refresh stats on sync
     };
     syncClient.on('sync', handleSync);
@@ -225,9 +232,70 @@ export default function ProfilePage() {
     };
   }, [user]);
 
-  // For now, show empty achievements - in future, fetch from database
-  const achievements: any[] = []; // TODO: Fetch real achievements from API
-  const notifications = getNotifications();
+  // Helper function to format time ago
+  const formatTimeAgo = (date: Date) => {
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins} minute${diffMins > 1 ? 's' : ''} ago`;
+    if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+    if (diffDays < 7) return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+    return date.toLocaleDateString();
+  };
+
+  // Fetch real notifications
+  useEffect(() => {
+    const fetchNotifications = async () => {
+      if (!user) return;
+
+      setIsLoadingNotifications(true);
+      try {
+        const response = await fetch('/api/notifications', {
+          credentials: 'include',
+          cache: 'no-store',
+          headers: {
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+          },
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          const notifs = (data.notifications || []).map((n: any) => ({
+            id: n.id,
+            message: n.message,
+            title: n.title || n.message,
+            time: formatTimeAgo(new Date(n.createdAt)),
+            read: n.isRead,
+            type: n.type || 'info',
+            createdAt: new Date(n.createdAt),
+          }));
+          setNotifications(notifs);
+          if (process.env.NODE_ENV === 'development') {
+            console.log('✅ Profile: Notifications fetched (REAL DATA):', notifs.length);
+          }
+        } else {
+          console.error('❌ Profile: Failed to fetch notifications:', response.status);
+          setNotifications([]);
+        }
+      } catch (error) {
+        console.error('❌ Profile: Error fetching notifications:', error);
+        setNotifications([]);
+      } finally {
+        setIsLoadingNotifications(false);
+      }
+    };
+
+    if (user) {
+      fetchNotifications();
+      // Poll for new notifications every 120 seconds (2 minutes)
+      const interval = setInterval(fetchNotifications, 120000);
+      return () => clearInterval(interval);
+    }
+  }, [user]);
 
   // Handle profile picture upload
   const handlePictureUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -292,7 +360,6 @@ export default function ProfilePage() {
 
   const tabs = [
     { id: 'profile', label: 'Profile', icon: '👤' },
-    { id: 'achievements', label: 'Achievements', icon: '🏆' },
     { id: 'notifications', label: 'Notifications', icon: '🔔' },
     { id: 'settings', label: 'Settings', icon: '⚙️' },
   ];
@@ -581,105 +648,126 @@ export default function ProfilePage() {
             </div>
           )}
 
-          {/* Achievements Tab */}
-          {activeTab === 'achievements' && (
-            <div className="space-y-6">
-              <div className="text-center mb-8">
-                <h2 className="text-2xl font-bold text-gray-900 mb-2">Your Achievements</h2>
-                <p className="text-gray-600">Celebrate your learning milestones</p>
-              </div>
-
-              {achievements.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {achievements.map((achievement) => (
-                    <div
-                      key={achievement.id}
-                      className="bg-white border border-gray-200 rounded-2xl p-6 hover:shadow-lg transition-shadow"
-                    >
-                      <div className="flex items-center space-x-4">
-                        <div
-                          className={`w-16 h-16 rounded-2xl flex items-center justify-center text-2xl ${achievement.color}`}
-                        >
-                          {achievement.icon}
-                        </div>
-                        <div className="flex-1">
-                          <h3 className="font-bold text-gray-900 mb-1">{achievement.title}</h3>
-                          <p className="text-sm text-gray-600 mb-2">{achievement.description}</p>
-                          {achievement.unlockedAt && (
-                            <p className="text-xs text-green-600 font-medium">
-                              Unlocked {achievement.unlockedAt.toLocaleDateString()}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="bg-white border border-gray-200 rounded-2xl p-12 text-center">
-                  <div className="text-6xl mb-4">🎯</div>
-                  <h3 className="text-xl font-bold text-gray-900 mb-2">No Achievements Yet</h3>
-                  <p className="text-gray-600">
-                    Start learning to unlock achievements and track your progress!
-                  </p>
-                </div>
-              )}
-            </div>
-          )}
-
           {/* Notifications Tab */}
           {activeTab === 'notifications' && (
             <div className="space-y-6">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-2xl font-bold text-gray-900">Notifications</h2>
-                <button className="px-4 py-2 bg-purple-600 text-white rounded-xl font-semibold hover:bg-purple-700 transition">
-                  Mark All Read
-                </button>
+                {notifications.length > 0 && (
+                  <button
+                    onClick={async () => {
+                      try {
+                        // Mark all notifications as read
+                        const unreadNotifications = notifications.filter((n) => !n.read);
+                        await Promise.all(
+                          unreadNotifications.map((n) =>
+                            fetch('/api/notifications', {
+                              method: 'PATCH',
+                              headers: { 'Content-Type': 'application/json' },
+                              credentials: 'include',
+                              body: JSON.stringify({ notificationId: n.id }),
+                            })
+                          )
+                        );
+                        // Update local state
+                        setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+                      } catch (error) {
+                        console.error('Failed to mark all as read:', error);
+                      }
+                    }}
+                    className="px-4 py-2 bg-purple-600 text-white rounded-xl font-semibold hover:bg-purple-700 transition"
+                  >
+                    Mark All Read
+                  </button>
+                )}
               </div>
 
-              <div className="space-y-4">
-                {notifications.map((notification) => (
-                  <div
-                    key={notification.id}
-                    className={`p-6 rounded-2xl border transition ${
-                      notification.read ? 'bg-white border-gray-200' : 'bg-blue-50 border-blue-200'
-                    }`}
-                  >
-                    <div className="flex items-start space-x-4">
-                      <div
-                        className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-                          notification.type === 'success'
-                            ? 'bg-green-100 text-green-600'
-                            : notification.type === 'warning'
-                              ? 'bg-yellow-100 text-yellow-600'
-                              : notification.type === 'error'
-                                ? 'bg-red-100 text-red-600'
-                                : 'bg-blue-100 text-blue-600'
-                        }`}
-                      >
-                        {notification.type === 'success'
-                          ? '✓'
-                          : notification.type === 'warning'
-                            ? '⚠'
-                            : notification.type === 'error'
-                              ? '✕'
-                              : 'ℹ'}
-                      </div>
-                      <div className="flex-1">
-                        <h3 className="font-semibold text-gray-900 mb-1">{notification.title}</h3>
-                        <p className="text-gray-600 mb-2">{notification.message}</p>
-                        <p className="text-sm text-gray-500">
-                          {notification.createdAt.toLocaleDateString()} at{' '}
-                          {notification.createdAt.toLocaleTimeString()}
-                        </p>
-                      </div>
-                      {!notification.read && (
-                        <div className="w-3 h-3 bg-blue-600 rounded-full flex-shrink-0 mt-2"></div>
-                      )}
-                    </div>
+              {isLoadingNotifications ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+                </div>
+              ) : notifications.length === 0 ? (
+                <div className="text-center py-12">
+                  <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <svg
+                      className="w-8 h-8 text-gray-400"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
+                      />
+                    </svg>
                   </div>
-                ))}
-              </div>
+                  <p className="text-gray-500 text-lg font-medium">No notifications</p>
+                  <p className="text-gray-400 text-sm mt-2">You're all caught up!</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {notifications.map((notification) => (
+                    <div
+                      key={notification.id}
+                      className={`p-6 rounded-2xl border transition cursor-pointer hover:shadow-md ${
+                        notification.read ? 'bg-white border-gray-200' : 'bg-blue-50 border-blue-200'
+                      }`}
+                      onClick={async () => {
+                        if (!notification.read) {
+                          try {
+                            await fetch('/api/notifications', {
+                              method: 'PATCH',
+                              headers: { 'Content-Type': 'application/json' },
+                              credentials: 'include',
+                              body: JSON.stringify({ notificationId: notification.id }),
+                            });
+                            // Update local state
+                            setNotifications((prev) =>
+                              prev.map((n) =>
+                                n.id === notification.id ? { ...n, read: true } : n
+                              )
+                            );
+                          } catch (error) {
+                            console.error('Failed to mark notification as read:', error);
+                          }
+                        }
+                      }}
+                    >
+                      <div className="flex items-start space-x-4">
+                        <div
+                          className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
+                            notification.type === 'success'
+                              ? 'bg-green-100 text-green-600'
+                              : notification.type === 'warning'
+                                ? 'bg-yellow-100 text-yellow-600'
+                                : notification.type === 'error'
+                                  ? 'bg-red-100 text-red-600'
+                                  : 'bg-blue-100 text-blue-600'
+                          }`}
+                        >
+                          {notification.type === 'success'
+                            ? '✓'
+                            : notification.type === 'warning'
+                              ? '⚠'
+                              : notification.type === 'error'
+                                ? '✕'
+                                : 'ℹ'}
+                        </div>
+                        <div className="flex-1">
+                          <h3 className="font-semibold text-gray-900 mb-1">{notification.title}</h3>
+                          <p className="text-gray-600 mb-2">{notification.message}</p>
+                          <p className="text-sm text-gray-500">{notification.time}</p>
+                        </div>
+                        {!notification.read && (
+                          <div className="w-3 h-3 bg-blue-600 rounded-full flex-shrink-0 mt-2"></div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 

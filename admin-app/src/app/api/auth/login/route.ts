@@ -30,28 +30,39 @@ export async function POST(request: NextRequest) {
 
     // Check if database is available
     try {
-      console.log('🔐 Attempting admin login for:', email);
+      if (process.env.NODE_ENV === 'development') {
+        console.log('🔐 Attempting admin login for:', email);
+        console.log('🔍 Environment check:', {
+          hasDatabaseUrl: !!process.env.DATABASE_URL,
+          hasJwtSecret: !!process.env.JWT_SECRET,
+          nodeEnv: process.env.NODE_ENV,
+        });
+      }
+      
       const user = await authenticateAdmin(email, password);
 
       if (!user) {
-        console.log('❌ Admin login failed: Invalid credentials for', email);
+        if (process.env.NODE_ENV === 'development') {
+          console.log('❌ Admin login failed: Invalid credentials for', email);
+        }
         return NextResponse.json(
           { message: 'Invalid email or password. Please check your credentials.' },
           { status: 401 }
         );
       }
 
-      console.log('✅ Admin login successful:', {
-        id: user.id,
-        email: user.email,
-        role: user.role,
-      });
+      if (process.env.NODE_ENV === 'development') {
+        console.log('✅ Admin login successful:', {
+          id: user.id,
+          email: user.email,
+          role: user.role,
+        });
+      }
 
       // Generate token with error handling
       let token;
       try {
         token = generateToken(user);
-        console.log('✅ Token generated successfully');
       } catch (tokenError: any) {
         console.error('❌ Error generating token:', tokenError);
         return NextResponse.json(
@@ -88,13 +99,13 @@ export async function POST(request: NextRequest) {
             maxAge: 7 * 24 * 60 * 60, // 7 days
             domain: undefined, // Explicitly set domain to undefined for localhost
           });
-          console.log('🍪 Cookie set in response. Token length:', token.length);
+          if (process.env.NODE_ENV === 'development') {
+            console.log('🍪 Cookie set in response. Token length:', token.length);
+          }
         } catch (cookieError: any) {
           console.error('❌ Error setting cookie:', cookieError);
           // Don't fail the login if cookie setting fails, but log it
         }
-
-        console.log('📤 Sending login response with cookie');
         return response;
       } catch (responseError: any) {
         console.error('❌ Error creating response:', responseError);

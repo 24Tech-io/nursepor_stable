@@ -5,12 +5,17 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useState, useEffect, useRef } from 'react';
 
 // Create navigation as a function so we can update it dynamically
-const getNavigation = (hasDailyVideo: boolean) => [
+const getNavigation = (hasDailyVideo: boolean): Array<{
+  name: string;
+  href: string;
+  icon: React.ReactNode;
+  badge?: string;
+}> => [
   {
     name: 'Dashboard',
     href: '/student/dashboard',
     icon: (
-      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path
           strokeLinecap="round"
           strokeLinejoin="round"
@@ -21,10 +26,10 @@ const getNavigation = (hasDailyVideo: boolean) => [
     ),
   },
   {
-    name: 'My Courses',
+    name: 'Courses',
     href: '/student/courses',
     icon: (
-      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path
           strokeLinecap="round"
           strokeLinejoin="round"
@@ -38,7 +43,7 @@ const getNavigation = (hasDailyVideo: boolean) => [
     name: 'Q-Bank',
     href: '/student/qbank',
     icon: (
-      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path
           strokeLinecap="round"
           strokeLinejoin="round"
@@ -49,10 +54,10 @@ const getNavigation = (hasDailyVideo: boolean) => [
     ),
   },
   {
-    name: 'Daily Video',
+    name: 'Video',
     href: '/student/daily-video',
     icon: (
-      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path
           strokeLinecap="round"
           strokeLinejoin="round"
@@ -67,13 +72,12 @@ const getNavigation = (hasDailyVideo: boolean) => [
         />
       </svg>
     ),
-    badge: hasDailyVideo ? '1 New' : undefined,
   },
   {
     name: 'Progress',
     href: '/student/progress',
     icon: (
-      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path
           strokeLinecap="round"
           strokeLinejoin="round"
@@ -87,7 +91,7 @@ const getNavigation = (hasDailyVideo: boolean) => [
     name: 'Blogs',
     href: '/student/blogs',
     icon: (
-      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path
           strokeLinecap="round"
           strokeLinejoin="round"
@@ -159,7 +163,9 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
           }));
           setNotifications(notifs);
           setUnreadCount(notifs.filter((n: any) => !n.read).length);
-          console.log('✅ Notifications fetched (REAL DATA):', notifs.length);
+          if (process.env.NODE_ENV === 'development') {
+            console.log('✅ Notifications fetched (REAL DATA):', notifs.length);
+          }
         } else {
           console.error('❌ Failed to fetch notifications:', response.status);
           setNotifications([]);
@@ -216,7 +222,9 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
       if (storedUserData && isMounted) {
         try {
           const parsedUser = JSON.parse(storedUserData);
-          console.log('📦 Layout: Using user data from sessionStorage:', parsedUser);
+          if (process.env.NODE_ENV === 'development') {
+            console.log('📦 Layout: Using user data from sessionStorage:', parsedUser);
+          }
           setUser(parsedUser);
         } catch (e) {
           console.error('Failed to parse stored user data:', e);
@@ -229,7 +237,9 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
       if (!isMounted) return;
 
       try {
-        console.log('🔍 Layout: Fetching user data from /api/auth/me...');
+        if (process.env.NODE_ENV === 'development') {
+          console.log('🔍 Layout: Fetching user data from /api/auth/me...');
+        }
         const response = await fetch('/api/auth/me', {
           credentials: 'include',
           signal: abortController.signal,
@@ -243,7 +253,9 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
 
         if (response.ok) {
           const data = await response.json();
-          console.log('✅ Layout: User data received from API:', data.user);
+          if (process.env.NODE_ENV === 'development') {
+            console.log('✅ Layout: User data received from API:', data.user);
+          }
           if (data.user) {
             setUser(data.user);
             // Clear sessionStorage only after successful API fetch
@@ -344,14 +356,14 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
                     />
                   </svg>
                 </div>
-                <span className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
+                <span className="text-xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
                   Nurse Pro Academy
                 </span>
               </Link>
             </div>
 
             {/* Desktop Navigation */}
-            <div className="hidden md:flex items-center space-x-1">
+            <div className="hidden md:flex items-center space-x-0.5">
               {getNavigation(hasDailyVideo).map((item) => {
                 const isActive = pathname === item.href;
                 return (
@@ -359,7 +371,7 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
                     key={item.name}
                     href={item.href}
                     className={`
-                      relative px-4 py-2 rounded-xl font-medium text-sm transition-all duration-200 flex items-center space-x-2
+                      relative px-3 py-2 rounded-xl font-medium text-xs transition-all duration-200 flex items-center space-x-1.5 whitespace-nowrap
                       ${
                         isActive
                           ? 'bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-lg'
@@ -370,7 +382,7 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
                     {item.icon}
                     <span>{item.name}</span>
                     {item.badge && !isActive && (
-                      <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">
+                      <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs px-1.5 py-0.5 rounded-full">
                         {item.badge}
                       </span>
                     )}

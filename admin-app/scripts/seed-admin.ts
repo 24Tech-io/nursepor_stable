@@ -40,7 +40,7 @@ async function seedAdmin() {
       email: 'admin@nursepro.com',
       password: hashedPassword,
       role: 'admin',
-      isApproved: true,
+      isActive: true,
       profilePicture: null,
     });
 

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/auth';
-import { getDatabase } from '@/lib/db';
+import { getDatabase, getDatabaseWithRetry } from '@/lib/db';
 import { courses } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 
@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: 'Admin access required' }, { status: 403 });
     }
 
-    const db = getDatabase();
+    const db = await getDatabaseWithRetry();
 
     // Fetch all courses
     const allCourses = await db.select().from(courses);
@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Publish all courses
-    const results = [];
+    const results: Array<{ id: number; title: string; wasStatus: string; nowStatus: string }> = [];
     for (const course of allCourses) {
       await db
         .update(courses)

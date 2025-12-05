@@ -142,7 +142,9 @@ export default function CoursesPage() {
     // Start sync client for auto-updates with proper cleanup
     const handleSync = (syncData: any) => {
       if (isMounted) {
-        console.log('🔄 [Courses Page] Sync update received:', syncData);
+        if (process.env.NODE_ENV === 'development') {
+          console.log('🔄 [Courses Page] Sync update received:', syncData);
+        }
         setHasFetched(false); // Allow refetch on sync
       }
     };

@@ -3,6 +3,7 @@ import { Pool } from '@neondatabase/serverless';
 import * as schema from './schema';
 import { sql } from 'drizzle-orm';
 import { retry } from '@/lib/retry';
+import { shouldLogInit } from './build-optimization';
 
 let db: any;
 let lastHealthCheck: number = 0;
@@ -23,15 +24,31 @@ function initializeDatabase() {
   try {
     // Neon Postgres configuration with optimized settings
     // Using neon-serverless with Pool for transaction support
-    const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+    const pool = new Pool({
+      connectionString: process.env.DATABASE_URL,
+      // Performance optimizations
+      max: 20, // Maximum pool size
+      idleTimeoutMillis: 30000, // Close idle clients after 30 seconds
+      connectionTimeoutMillis: 10000, // Timeout after 10 seconds
+    });
     db = drizzle(pool, {
       schema,
-      // Optimize for performance
+      // Optimize for performance - only log queries in development
       logger: process.env.NODE_ENV === 'development' ? true : false,
     });
-    console.log(
-      '✅ Database connection initialized (Neon Postgres - Serverless with Transaction Support)'
-    );
+    
+    // Suppress all logs during build to prevent multiple messages from worker processes
+    const isBuildTime = process.env.NEXT_PHASE === 'phase-production-build' || 
+                        (process.env.NODE_ENV === 'production' && process.env.NEXT_PHASE);
+    
+    // Only log during development (not during build)
+    if (!isBuildTime && shouldLogInit() && !process.env.__DB_INITIALIZED__) {
+      console.log(
+        '✅ Database connection initialized (Neon Postgres - Serverless with Transaction Support)'
+      );
+      process.env.__DB_INITIALIZED__ = 'true';
+      global.dbInitialized = true;
+    }
     return db;
   } catch (error: any) {
     console.error('❌ Failed to initialize database connection:', error?.message || error);

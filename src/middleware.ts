@@ -12,6 +12,10 @@ const ALLOWED_ORIGINS = [
   'http://localhost:3001',
   process.env.NEXT_PUBLIC_APP_URL,
   process.env.NEXT_PUBLIC_ADMIN_URL,
+  // Allow AWS Amplify domains (wildcard pattern)
+  ...(process.env.NEXT_PUBLIC_APP_URL?.includes('amplifyapp.com') 
+    ? [process.env.NEXT_PUBLIC_APP_URL] 
+    : []),
 ].filter(Boolean);
 
 // Rate limiting configuration
@@ -37,19 +41,27 @@ export async function middleware(request: NextRequest) {
       const adminToken = request.cookies.get('adminToken')?.value;
       
       if (!adminToken) {
-        console.log(`🔒 [Middleware] No adminToken for admin route: ${pathname}, redirecting to login`);
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`🔒 [Middleware] No adminToken for admin route: ${pathname}, redirecting to login`);
+        }
         return NextResponse.redirect(new URL('/admin/login', request.url));
       }
       
       try {
         const user = await verifyTokenEdge(adminToken);
         if (!user || user.role !== 'admin') {
-          console.log(`🔒 [Middleware] Not admin for route: ${pathname}, redirecting`);
+          if (process.env.NODE_ENV === 'development') {
+            console.log(`🔒 [Middleware] Not admin for route: ${pathname}, redirecting`);
+          }
           return NextResponse.redirect(new URL('/admin/login', request.url));
         }
-        console.log(`✅ [Middleware] Admin access granted for: ${pathname}`);
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`✅ [Middleware] Admin access granted for: ${pathname}`);
+        }
       } catch (error) {
-        console.log(`🔒 [Middleware] Invalid adminToken for admin route: ${pathname}`);
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`🔒 [Middleware] Invalid adminToken for admin route: ${pathname}`);
+        }
         return NextResponse.redirect(new URL('/admin/login', request.url));
       }
     }
@@ -61,18 +73,24 @@ export async function middleware(request: NextRequest) {
     const studentToken = request.cookies.get('studentToken')?.value;
     
     if (!studentToken) {
-      console.log(`🔒 [Middleware] No studentToken for student route: ${pathname}`);
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`🔒 [Middleware] No studentToken for student route: ${pathname}`);
+      }
       return NextResponse.redirect(new URL('/login', request.url));
     }
     
     try {
       const user = await verifyTokenEdge(studentToken);
       if (!user || user.role !== 'student') {
-        console.log(`🔒 [Middleware] Not student for route: ${pathname}`);
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`🔒 [Middleware] Not student for route: ${pathname}`);
+        }
         return NextResponse.redirect(new URL('/login', request.url));
       }
     } catch (error) {
-      console.log(`🔒 [Middleware] Invalid studentToken for student route: ${pathname}`);
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`🔒 [Middleware] Invalid studentToken for student route: ${pathname}`);
+      }
       return NextResponse.redirect(new URL('/login', request.url));
     }
   }
@@ -93,14 +111,15 @@ export async function middleware(request: NextRequest) {
     return new NextResponse(null, { status: 200, headers: response.headers });
   }
 
-  // Security headers
+  // Enhanced Security headers
   response.headers.set('X-Content-Type-Options', 'nosniff');
   response.headers.set('X-Frame-Options', 'DENY');
   response.headers.set('X-XSS-Protection', '1; mode=block');
   response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
   response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
 
-  // Content Security Policy
+  // Enhanced Content Security Policy
   const csp = [
     "default-src 'self'",
     "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com",
@@ -110,6 +129,8 @@ export async function middleware(request: NextRequest) {
     "connect-src 'self' https:",
     "frame-src 'self' https://js.stripe.com https://www.youtube.com https://www.youtube-nocookie.com https://player.vimeo.com https://docs.google.com https://drive.google.com",
     "frame-ancestors 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
   ].join('; ');
   response.headers.set('Content-Security-Policy', csp);
 

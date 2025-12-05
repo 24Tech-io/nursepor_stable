@@ -49,7 +49,9 @@ export class SyncClient {
       this.connectionState = 'connecting';
       const token = this.getToken();
       if (!token) {
-        console.warn('⚠️ No token found, falling back to polling');
+        if (process.env.NODE_ENV === 'development') {
+          console.warn('⚠️ No token found, falling back to polling');
+        }
         this.startPolling();
         return;
       }
@@ -63,7 +65,9 @@ export class SyncClient {
       this.eventSource.onopen = () => {
         this.connectionState = 'connected';
         this.reconnectAttempts = 0;
-        console.log('✅ SSE connection established');
+        if (process.env.NODE_ENV === 'development') {
+          console.log('✅ SSE connection established');
+        }
         this.emit('connected', { method: 'sse' });
       };
 
@@ -72,10 +76,14 @@ export class SyncClient {
           const data = JSON.parse(event.data);
 
           if (data.type === 'connected') {
-            console.log('✅ SSE connection confirmed:', data);
+            if (process.env.NODE_ENV === 'development') {
+              console.log('✅ SSE connection confirmed:', data);
+            }
           } else if (data.type === 'sync') {
             this.emit('sync', data.event);
-            console.log('📡 SSE sync event received:', data.event);
+            if (process.env.NODE_ENV === 'development') {
+              console.log('📡 SSE sync event received:', data.event);
+            }
           } else if (data.type === 'heartbeat') {
             // Heartbeat received, connection is alive
           }
@@ -85,16 +93,20 @@ export class SyncClient {
       };
 
       this.eventSource.onerror = (error) => {
-        console.error('❌ SSE connection error:', error);
+        if (process.env.NODE_ENV === 'development') {
+          console.error('❌ SSE connection error:', error);
+        }
         this.connectionState = 'disconnected';
 
         // Try to reconnect
         if (this.reconnectAttempts < this.maxReconnectAttempts) {
           this.reconnectAttempts++;
           this.connectionState = 'reconnecting';
-          console.log(
-            `🔄 Attempting SSE reconnect (${this.reconnectAttempts}/${this.maxReconnectAttempts})...`
-          );
+          if (process.env.NODE_ENV === 'development') {
+            console.log(
+              `🔄 Attempting SSE reconnect (${this.reconnectAttempts}/${this.maxReconnectAttempts})...`
+            );
+          }
 
           setTimeout(() => {
             if (this.isConnected) {
@@ -103,7 +115,9 @@ export class SyncClient {
           }, 2000 * this.reconnectAttempts); // Exponential backoff
         } else {
           // Fallback to polling
-          console.log('⚠️ SSE failed after max attempts, falling back to polling');
+          if (process.env.NODE_ENV === 'development') {
+            console.log('⚠️ SSE failed after max attempts, falling back to polling');
+          }
           this.useSSE = false;
           this.startPolling();
         }
@@ -122,7 +136,9 @@ export class SyncClient {
     this.useSSE = false;
     this.poll();
     this.intervalId = setInterval(() => this.poll(), this.pollInterval);
-    console.log('🔄 Sync client started (polling mode)');
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🔄 Sync client started (polling mode)');
+    }
     this.emit('connected', { method: 'polling' });
   }
 
@@ -135,7 +151,8 @@ export class SyncClient {
     const cookies = document.cookie.split(';');
     for (const cookie of cookies) {
       const [name, value] = cookie.trim().split('=');
-      if (name === 'token' || name === 'adminToken') {
+      // Check for all possible token cookie names
+      if (name === 'token' || name === 'adminToken' || name === 'studentToken') {
         return value;
       }
     }
@@ -149,9 +166,11 @@ export class SyncClient {
     this.subscribers = Math.max(0, this.subscribers - 1);
 
     if (this.subscribers > 0) {
-      console.log(
-        `🔄 Sync client has ${this.subscribers} remaining subscribers, keeping connection alive`
-      );
+          if (process.env.NODE_ENV === 'development') {
+            console.log(
+              `🔄 Sync client has ${this.subscribers} remaining subscribers, keeping connection alive`
+            );
+          }
       return;
     }
 
@@ -169,7 +188,9 @@ export class SyncClient {
 
     this.isConnected = false;
     this.connectionState = 'disconnected';
-    console.log('🛑 Sync client stopped (no subscribers)');
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🛑 Sync client stopped (no subscribers)');
+    }
   }
 
   /**
@@ -217,7 +238,9 @@ export class SyncClient {
       if (response.ok) {
         const data = await response.json();
         this.emit('sync', data.sync);
-        console.log('✅ Sync poll successful:', data.sync);
+        if (process.env.NODE_ENV === 'development') {
+          console.log('✅ Sync poll successful:', data.sync);
+        }
       } else {
         console.error('❌ Sync poll failed:', response.status);
       }

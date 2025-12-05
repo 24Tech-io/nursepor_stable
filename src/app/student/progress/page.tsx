@@ -57,7 +57,9 @@ export default function ProgressPage() {
     // Start sync client for auto-updates
     syncClient.start();
     syncClient.on('sync', (syncData: any) => {
-      console.log('🔄 [Progress Page] Sync update received:', syncData);
+      if (process.env.NODE_ENV === 'development') {
+        console.log('🔄 [Progress Page] Sync update received:', syncData);
+      }
       // Refresh progress when sync update is received
       fetchProgress();
     });

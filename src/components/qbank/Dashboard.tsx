@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { BookOpen, BarChart3, History, TrendingUp, Plus, ArrowLeft } from 'lucide-react';
+import { BookOpen, BarChart3, History, TrendingUp, Plus, ArrowLeft } from '@/components/icons/Icons';
 import StatisticsTab from './StatisticsTab';
 import CreateTestModal from './CreateTestModal';
 import PreviousTestsTab from './PreviousTestsTab';

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDatabase } from '@/lib/db';
+import { getDatabase, getDatabaseWithRetry } from '@/lib/db';
 import { users } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { verifyPassword, generateToken } from '@/lib/auth';
@@ -18,6 +18,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Log environment check for debugging (development only)
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🔍 Student login attempt:', {
+        email: email.toLowerCase(),
+        hasDatabaseUrl: !!process.env.DATABASE_URL,
+        hasJwtSecret: !!process.env.JWT_SECRET,
+        nodeEnv: process.env.NODE_ENV,
+      });
+    }
+
     // If admin is trying to use this endpoint, redirect them
     if (role === 'admin') {
       return NextResponse.json(
@@ -29,14 +39,39 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const db = getDatabase();
+    let db;
+    try {
+      // Use retry logic for better stability
+      db = await getDatabaseWithRetry();
+    } catch (dbError: any) {
+      console.error('❌ Database connection failed:', dbError);
+      return NextResponse.json(
+        { 
+          message: 'Database connection error. Please check your DATABASE_URL configuration.',
+          error: process.env.NODE_ENV === 'development' ? dbError.message : undefined
+        },
+        { status: 503 } // Service Unavailable
+      );
+    }
 
     // Find user by email and role (student)
-    const userResult = await db
-      .select()
-      .from(users)
-      .where(and(eq(users.email, email.toLowerCase()), eq(users.role, role || 'student')))
-      .limit(1);
+    let userResult;
+    try {
+      userResult = await db
+        .select()
+        .from(users)
+        .where(and(eq(users.email, email.toLowerCase()), eq(users.role, role || 'student')))
+        .limit(1);
+    } catch (queryError: any) {
+      console.error('❌ Database query failed:', queryError);
+      return NextResponse.json(
+        { 
+          message: 'Database query failed. Please try again.',
+          error: process.env.NODE_ENV === 'development' ? queryError.message : undefined
+        },
+        { status: 500 }
+      );
+    }
 
     if (userResult.length === 0) {
       return NextResponse.json(

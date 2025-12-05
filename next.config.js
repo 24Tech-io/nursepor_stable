@@ -13,20 +13,11 @@ const nextConfig = {
   // Uncomment if deploying to Docker/containers
   // output: 'standalone',
   
-  // Next.js 15 optimizations
+  // Next.js optimizations
   experimental: {
-    // Enable Webpack build worker for faster builds
+    // Enable webpack build worker to eliminate warnings and improve build performance
+    // This is safe now that we have proper webpack configuration
     webpackBuildWorker: true,
-    
-    // Turbopack for faster development (Next.js 15+)
-    turbo: {
-      rules: {
-        '*.svg': {
-          loaders: ['@svgr/webpack'],
-          as: '*.js',
-        },
-      },
-    },
   },
   
   // Temporarily ignore TypeScript errors during build (until all type issues are fixed)
@@ -40,7 +31,13 @@ const nextConfig = {
   },
   
   // Fix for face-api.js trying to use 'fs' module in browser
-  webpack: (config, { isServer }) => {
+  // Suppress webpack configuration warnings (they're just informational)
+  webpack: (config, { isServer, webpack }) => {
+    // Suppress webpack build worker warnings
+    if (config.infrastructureLogging) {
+      config.infrastructureLogging.level = 'error';
+    }
+    
     if (!isServer) {
       config.resolve.fallback = {
         ...config.resolve.fallback,
@@ -49,6 +46,62 @@ const nextConfig = {
         crypto: false,
       };
     }
+    
+    // Fix webpack module resolution issues
+    config.resolve.extensionAlias = {
+      '.js': ['.js', '.ts', '.tsx'],
+      '.jsx': ['.jsx', '.tsx'],
+    };
+    
+    // PERMANENT FIX: Use content hash for stable chunk IDs
+    config.optimization = {
+      ...config.optimization,
+      // Use content hash instead of numeric IDs for stability
+      moduleIds: 'deterministic',
+      chunkIds: 'deterministic',
+      // Prevent dynamic chunk ID generation issues
+      realContentHash: true,
+      // Note: usedExports removed - conflicts with Next.js cacheUnaffected
+      // Tree shaking is handled automatically by Next.js
+      splitChunks: {
+        chunks: 'all',
+        cacheGroups: {
+          default: false,
+          vendors: false,
+          // Create more stable chunks
+          common: {
+            name: 'common',
+            minChunks: 2,
+            priority: 10,
+            reuseExistingChunk: true,
+          },
+        },
+      },
+    };
+    
+    // PERMANENT FIX: Ignore problematic dynamic chunk imports
+    // Only ignore numeric chunk files in webpack-runtime context
+    config.plugins.push(
+      new webpack.IgnorePlugin({
+        checkResource(resource, context) {
+          // Only ignore numeric chunk files (e.g., ./8592.js) in webpack-runtime
+          if (context && context.includes('webpack-runtime')) {
+            return /^\.\/\d+\.js$/.test(resource);
+          }
+          return false;
+        },
+      })
+    );
+    
+    // Handle missing chunks gracefully - retry on failure
+    if (!isServer) {
+      config.output = {
+        ...config.output,
+        chunkLoadTimeout: 30000,
+        crossOriginLoading: 'anonymous',
+      };
+    }
+    
     return config;
   },
   

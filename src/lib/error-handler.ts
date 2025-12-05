@@ -1,324 +1,182 @@
 /**
- * Unified Error Handler
- * Provides consistent error handling and response formatting across all APIs
+ * Comprehensive Error Handling System
+ * Handles all types of errors with proper logging, recovery, and user feedback
  */
-
-import { NextResponse } from 'next/server';
 
 export enum ErrorType {
-  VALIDATION = 'VALIDATION_ERROR',
-  AUTHENTICATION = 'AUTHENTICATION_ERROR',
-  AUTHORIZATION = 'AUTHORIZATION_ERROR',
-  NOT_FOUND = 'NOT_FOUND_ERROR',
-  DATABASE = 'DATABASE_ERROR',
-  EXTERNAL_SERVICE = 'EXTERNAL_SERVICE_ERROR',
-  BUSINESS_LOGIC = 'BUSINESS_LOGIC_ERROR',
-  RATE_LIMIT = 'RATE_LIMIT_ERROR',
-  INTERNAL = 'INTERNAL_ERROR',
+  NETWORK = 'NETWORK',
+  TIMEOUT = 'TIMEOUT',
+  DATABASE = 'DATABASE',
+  AUTH = 'AUTH',
+  VALIDATION = 'VALIDATION',
+  UNKNOWN = 'UNKNOWN',
 }
 
-export interface ErrorResponse {
+export interface ErrorInfo {
+  type: ErrorType;
   message: string;
-  error?: string;
-  type?: ErrorType;
-  code?: string;
-  details?: any;
+  originalError?: any;
+  context?: Record<string, any>;
   retryable?: boolean;
+  timestamp: Date;
 }
 
-/**
- * Check if error is a database connection error
- */
-export function isDatabaseConnectionError(error: any): boolean {
-  return (
-    error?.message?.includes('DATABASE_URL') ||
-    error?.message?.includes('Database is not available') ||
-    error?.message?.includes('connection') ||
-    error?.message?.includes('ECONNREFUSED') ||
-    error?.code === 'ECONNREFUSED' ||
-    error?.cause?.code === 'ECONNREFUSED' ||
-    error?.name === 'NeonDbError' ||
-    (error?.message?.includes('fetch failed') && error?.cause)
-  );
-}
+class ErrorHandler {
+  private errorLog: ErrorInfo[] = [];
+  private maxLogSize = 100;
 
-/**
- * Check if error is a database table/column error
- */
-export function isDatabaseSchemaError(error: any): boolean {
-  return (
-    error?.message?.includes('does not exist') ||
-    error?.code === '42P01' || // PostgreSQL: relation does not exist
-    error?.code === '42703' || // PostgreSQL: column does not exist
-    error?.code === '42883' // PostgreSQL: function does not exist
-  );
-}
+  /**
+   * Classify error type
+   */
+  classifyError(error: any): ErrorType {
+    if (!error) return ErrorType.UNKNOWN;
 
-/**
- * Check if error is a unique constraint violation
- */
-export function isUniqueConstraintError(error: any): boolean {
-  const errorCode = error?.code || error?.cause?.code;
-  const errorMessage = (error?.message || '').toLowerCase();
-  const errorDetail = (error?.detail || error?.cause?.detail || '').toLowerCase();
-  const errorConstraint = error?.constraint || error?.cause?.constraint || '';
+    const message = String(error.message || error).toLowerCase();
 
-  return (
-    errorCode === '23505' || // PostgreSQL: unique_violation
-    errorMessage.includes('duplicate key') ||
-    errorMessage.includes('unique constraint') ||
-    errorDetail.includes('already exists') ||
-    errorConstraint.includes('unique')
-  );
-}
+    if (message.includes('network') || message.includes('fetch') || message.includes('connection')) {
+      return ErrorType.NETWORK;
+    }
+    if (message.includes('timeout') || message.includes('timed out')) {
+      return ErrorType.TIMEOUT;
+    }
+    if (message.includes('database') || message.includes('sql') || message.includes('query')) {
+      return ErrorType.DATABASE;
+    }
+    if (message.includes('auth') || message.includes('unauthorized') || message.includes('token')) {
+      return ErrorType.AUTH;
+    }
+    if (message.includes('validation') || message.includes('invalid')) {
+      return ErrorType.VALIDATION;
+    }
 
-/**
- * Check if error is retryable (transient failure)
- */
-export function isRetryableError(error: any): boolean {
-  // Database connection errors are retryable
-  if (isDatabaseConnectionError(error)) {
-    return true;
+    return ErrorType.UNKNOWN;
   }
 
-  // Network errors are retryable
-  if (
-    error?.code === 'ETIMEDOUT' ||
-    error?.code === 'ECONNRESET' ||
-    error?.code === 'ENOTFOUND' ||
-    error?.message?.includes('timeout') ||
-    error?.message?.includes('network')
-  ) {
-    return true;
+  /**
+   * Check if error is retryable
+   */
+  isRetryable(error: any): boolean {
+    const type = this.classifyError(error);
+    return [ErrorType.NETWORK, ErrorType.TIMEOUT, ErrorType.DATABASE].includes(type);
   }
 
-  // Rate limiting errors are retryable (after delay)
-  if (error?.code === '429' || error?.status === 429) {
-    return true;
+  /**
+   * Get user-friendly error message
+   */
+  getUserMessage(error: any, type?: ErrorType): string {
+    const errorType = type || this.classifyError(error);
+
+    switch (errorType) {
+      case ErrorType.NETWORK:
+        return 'Network connection error. Please check your internet connection and try again.';
+      case ErrorType.TIMEOUT:
+        return 'Request timed out. Please try again.';
+      case ErrorType.DATABASE:
+        return 'Database error occurred. Please try again in a moment.';
+      case ErrorType.AUTH:
+        return 'Authentication failed. Please log in again.';
+      case ErrorType.VALIDATION:
+        return 'Invalid input. Please check your data and try again.';
+      default:
+        return 'An unexpected error occurred. Please try again.';
+    }
   }
 
-  return false;
+  /**
+   * Log error
+   */
+  logError(error: any, context?: Record<string, any>): ErrorInfo {
+    const errorInfo: ErrorInfo = {
+      type: this.classifyError(error),
+      message: error?.message || String(error),
+      originalError: error,
+      context,
+      retryable: this.isRetryable(error),
+      timestamp: new Date(),
+    };
+
+    // Add to log (keep only recent errors)
+    this.errorLog.push(errorInfo);
+    if (this.errorLog.length > this.maxLogSize) {
+      this.errorLog.shift();
+    }
+
+    // Log to console in development
+    if (process.env.NODE_ENV === 'development') {
+      console.error('🔴 Error:', errorInfo);
+    }
+
+    // Send to error tracking service in production (optional)
+    if (process.env.NODE_ENV === 'production') {
+      // TODO: Integrate with error tracking service (Sentry, LogRocket, etc.)
+    }
+
+    return errorInfo;
+  }
+
+  /**
+   * Get recent errors
+   */
+  getRecentErrors(limit = 10): ErrorInfo[] {
+    return this.errorLog.slice(-limit);
+  }
+
+  /**
+   * Clear error log
+   */
+  clearLog(): void {
+    this.errorLog = [];
+  }
 }
 
+export const errorHandler = new ErrorHandler();
+
 /**
- * Create standardized error response
+ * Create standardized error responses for API routes
  */
 export function createErrorResponse(
-  error: any,
-  defaultMessage: string = 'An error occurred',
-  statusCode: number = 500
-): NextResponse<ErrorResponse> {
-  // Database connection errors
-  if (isDatabaseConnectionError(error)) {
-    return NextResponse.json(
-      {
-        message: 'Database connection error. Please try again later.',
-        error: process.env.NODE_ENV === 'development' ? error.message : undefined,
-        type: ErrorType.DATABASE,
-        code: 'DB_CONNECTION_ERROR',
-        retryable: true,
-      },
-      { status: 503 } // Service Unavailable
-    );
-  }
-
-  // Database schema errors
-  if (isDatabaseSchemaError(error)) {
-    return NextResponse.json(
-      {
-        message: 'Database configuration error. Please contact support.',
-        error: process.env.NODE_ENV === 'development' ? error.message : undefined,
-        type: ErrorType.DATABASE,
-        code: 'DB_SCHEMA_ERROR',
-        retryable: false,
-      },
-      { status: 500 }
-    );
-  }
-
-  // Unique constraint violations
-  if (isUniqueConstraintError(error)) {
-    return NextResponse.json(
-      {
-        message: defaultMessage || 'This record already exists.',
-        error: process.env.NODE_ENV === 'development' ? error.message : undefined,
-        type: ErrorType.VALIDATION,
-        code: 'DUPLICATE_ENTRY',
-        retryable: false,
-      },
-      { status: 409 } // Conflict
-    );
-  }
-
-  // Validation errors (400)
-  if (error?.status === 400 || error?.name === 'ValidationError') {
-    return NextResponse.json(
-      {
-        message: error.message || defaultMessage,
-        error: process.env.NODE_ENV === 'development' ? error.stack : undefined,
-        type: ErrorType.VALIDATION,
-        code: error.code || 'VALIDATION_ERROR',
-        retryable: false,
-      },
-      { status: 400 }
-    );
-  }
-
-  // Authentication errors (401)
-  if (error?.status === 401 || error?.name === 'AuthenticationError') {
-    return NextResponse.json(
-      {
-        message: error.message || 'Authentication required',
-        error: process.env.NODE_ENV === 'development' ? error.stack : undefined,
-        type: ErrorType.AUTHENTICATION,
-        code: error.code || 'AUTH_ERROR',
-        retryable: false,
-      },
-      { status: 401 }
-    );
-  }
-
-  // Authorization errors (403)
-  if (error?.status === 403 || error?.name === 'AuthorizationError') {
-    return NextResponse.json(
-      {
-        message: error.message || 'Access denied',
-        error: process.env.NODE_ENV === 'development' ? error.stack : undefined,
-        type: ErrorType.AUTHORIZATION,
-        code: error.code || 'AUTHZ_ERROR',
-        retryable: false,
-      },
-      { status: 403 }
-    );
-  }
-
-  // Not found errors (404)
-  if (error?.status === 404 || error?.name === 'NotFoundError') {
-    return NextResponse.json(
-      {
-        message: error.message || 'Resource not found',
-        error: process.env.NODE_ENV === 'development' ? error.stack : undefined,
-        type: ErrorType.NOT_FOUND,
-        code: error.code || 'NOT_FOUND',
-        retryable: false,
-      },
-      { status: 404 }
-    );
-  }
-
-  // Rate limit errors (429)
-  if (error?.status === 429 || error?.code === '429') {
-    return NextResponse.json(
-      {
-        message: error.message || 'Too many requests. Please try again later.',
-        error: process.env.NODE_ENV === 'development' ? error.stack : undefined,
-        type: ErrorType.RATE_LIMIT,
-        code: 'RATE_LIMIT_EXCEEDED',
-        retryable: true,
-      },
-      { status: 429 }
-    );
-  }
-
-  // Default: Internal server error
-  const retryable = isRetryableError(error);
-  return NextResponse.json(
+  message: string,
+  status: number = 500,
+  error?: any
+): Response {
+  const errorInfo = error ? errorHandler.logError(error) : null;
+  return new Response(
+    JSON.stringify({
+      error: message,
+      message: errorHandler.getUserMessage(error || new Error(message)),
+      ...(process.env.NODE_ENV === 'development' && error ? { details: error.message } : {}),
+    }),
     {
-      message: defaultMessage,
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
-      type: ErrorType.INTERNAL,
-      code: error.code || 'INTERNAL_ERROR',
-      details:
-        process.env.NODE_ENV === 'development'
-          ? {
-              stack: error.stack,
-              name: error.name,
-            }
-          : undefined,
-      retryable,
-    },
-    { status: statusCode }
-  );
-}
-
-/**
- * Wrap API handler with error handling
- */
-export function withErrorHandling<T extends any[]>(
-  handler: (...args: T) => Promise<NextResponse>,
-  defaultMessage: string = 'An error occurred'
-) {
-  return async (...args: T): Promise<NextResponse> => {
-    try {
-      return await handler(...args);
-    } catch (error: any) {
-      console.error('API Error:', error);
-      return createErrorResponse(error, defaultMessage);
+      status,
+      headers: { 'Content-Type': 'application/json' },
     }
-  };
-}
-
-/**
- * Create validation error response
- */
-export function createValidationError(message: string, details?: any): NextResponse<ErrorResponse> {
-  return NextResponse.json(
-    {
-      message,
-      type: ErrorType.VALIDATION,
-      code: 'VALIDATION_ERROR',
-      details,
-      retryable: false,
-    },
-    { status: 400 }
   );
 }
 
 /**
  * Create authentication error response
  */
-export function createAuthError(
-  message: string = 'Authentication required'
-): NextResponse<ErrorResponse> {
-  return NextResponse.json(
-    {
-      message,
-      type: ErrorType.AUTHENTICATION,
-      code: 'AUTH_ERROR',
-      retryable: false,
-    },
-    { status: 401 }
-  );
+export function createAuthError(message: string = 'Not authenticated'): Response {
+  return createErrorResponse(message, 401);
 }
 
 /**
  * Create authorization error response
  */
-export function createAuthzError(message: string = 'Access denied'): NextResponse<ErrorResponse> {
-  return NextResponse.json(
-    {
-      message,
-      type: ErrorType.AUTHORIZATION,
-      code: 'AUTHZ_ERROR',
-      retryable: false,
-    },
-    { status: 403 }
-  );
+export function createAuthzError(message: string = 'Access denied'): Response {
+  return createErrorResponse(message, 403);
+}
+
+/**
+ * Create validation error response
+ */
+export function createValidationError(message: string = 'Validation failed'): Response {
+  return createErrorResponse(message, 400);
 }
 
 /**
  * Create not found error response
  */
-export function createNotFoundError(
-  message: string = 'Resource not found'
-): NextResponse<ErrorResponse> {
-  return NextResponse.json(
-    {
-      message,
-      type: ErrorType.NOT_FOUND,
-      code: 'NOT_FOUND',
-      retryable: false,
-    },
-    { status: 404 }
-  );
+export function createNotFoundError(message: string = 'Resource not found'): Response {
+  return createErrorResponse(message, 404);
 }

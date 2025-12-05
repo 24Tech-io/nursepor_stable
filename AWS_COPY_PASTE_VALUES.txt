@@ -1,0 +1,45 @@
+==========================================
+AWS AMPLIFY - COPY-PASTE VALUES
+==========================================
+
+Go to: AWS Amplify Console → Your App → App settings → Environment variables
+
+Then add these variables one by one:
+
+------------------------------------------
+VARIABLE 1: DATABASE_URL
+------------------------------------------
+Variable Name: DATABASE_URL
+Value: postgresql://neondb_owner:npg_pt4xwuEAB7Ml@ep-wild-frost-a4nflquy-pooler.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require
+
+------------------------------------------
+VARIABLE 2: JWT_SECRET
+------------------------------------------
+Variable Name: JWT_SECRET
+Value: 4Jaej0rbLXsSnRDulk25WfwpV1qYM8AK9ZPzh6U7ExNOQ3yoFvdHBItigGcCmT
+
+------------------------------------------
+VARIABLE 3: NEXT_PUBLIC_APP_URL
+------------------------------------------
+Variable Name: NEXT_PUBLIC_APP_URL
+Value: https://main.d37ba296v07j95.amplifyapp.com
+
+------------------------------------------
+VARIABLE 4: NODE_ENV
+------------------------------------------
+Variable Name: NODE_ENV
+Value: production
+
+==========================================
+INSTRUCTIONS:
+==========================================
+1. Open AWS Amplify Console
+2. Select your app: main.d37ba296v07j95.amplifyapp.com
+3. Go to: App settings → Environment variables
+4. Click "Add environment variable" for each one
+5. Copy the Variable Name and Value exactly as shown above
+6. Click "Save" after adding all variables
+7. Click "Redeploy this version"
+
+==========================================
+

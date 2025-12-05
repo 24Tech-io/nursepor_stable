@@ -1,31 +1,53 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getDatabase } from '@/lib/db';
-import { sql } from 'drizzle-orm';
+import { NextResponse } from 'next/server';
+import { getDatabaseHealth } from '@/lib/db';
+import { performanceMonitor } from '@/lib/performance';
+import { connectionMonitor } from '@/lib/connection-monitor';
+import { apiClient } from '@/lib/api-client';
 
-export async function GET(request: NextRequest) {
+/**
+ * Health check endpoint with performance metrics
+ */
+export async function GET() {
+  const startTime = performance.now();
+
   try {
-    // Test database connection
-    const db = getDatabase();
+    // Check database health
+    const dbHealthy = await getDatabaseHealth();
 
-    // Try a simple query using Drizzle
-    const result = await db.execute(sql`SELECT 1 as test`);
+    // Get performance metrics
+    const perfReport = performanceMonitor.getReport();
+
+    // Get connection info
+    const connectionInfo = connectionMonitor.getInfo();
+
+    // Get API client stats
+    const apiStats = apiClient.getCacheStats();
+
+    const responseTime = performance.now() - startTime;
 
     return NextResponse.json({
-      status: 'ok',
-      database: 'connected',
-      testQuery: result.rows?.[0] || 'query executed',
+      status: 'healthy',
       timestamp: new Date().toISOString(),
+      responseTime: `${responseTime.toFixed(2)}ms`,
+      database: {
+        connected: dbHealthy,
+        status: dbHealthy ? 'healthy' : 'unhealthy',
+      },
+      performance: {
+        longTasks: perfReport.longTasks.length,
+        averageTaskTime: `${perfReport.averageTaskTime.toFixed(2)}ms`,
+      },
+      connection: connectionInfo,
+      cache: apiStats,
     });
   } catch (error: any) {
-    console.error('❌ Health check failed:', error);
     return NextResponse.json(
       {
-        status: 'error',
-        database: 'disconnected',
-        error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+        status: 'unhealthy',
         timestamp: new Date().toISOString(),
+        error: error.message,
       },
-      { status: 500 }
+      { status: 503 }
     );
   }
 }

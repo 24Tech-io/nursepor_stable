@@ -48,19 +48,15 @@ export default function RoleSwitcher() {
 
           if (accountsResponse.ok) {
             const accountsData = await accountsResponse.json();
-            console.log('RoleSwitcher - Accounts received:', accountsData);
+            if (process.env.NODE_ENV === 'development') {
+              console.log('RoleSwitcher - Accounts received:', accountsData);
+            }
             if (accountsData.accounts) {
               setAccounts(accountsData.accounts);
-              console.log(
-                'RoleSwitcher - Set accounts:',
-                accountsData.accounts.length,
-                accountsData.accounts
-              );
             }
           } else {
-            console.error('RoleSwitcher - Failed to fetch accounts:', accountsResponse.status);
             const errorData = await accountsResponse.json().catch(() => ({}));
-            console.error('RoleSwitcher - Error data:', errorData);
+            console.error('RoleSwitcher - Failed to fetch accounts:', accountsResponse.status, errorData);
           }
         }
       } catch (error) {
@@ -123,11 +119,13 @@ export default function RoleSwitcher() {
   const hasMultipleAccounts = accounts.length > 1;
   const isAdmin = currentUser.role === 'admin';
 
-  // Debug logging
-  console.log('RoleSwitcher - Current user:', currentUser);
-  console.log('RoleSwitcher - Accounts:', accounts);
-  console.log('RoleSwitcher - Has multiple accounts:', hasMultipleAccounts);
-  console.log('RoleSwitcher - Other account:', otherAccount);
+  // Debug logging (development only)
+  if (process.env.NODE_ENV === 'development') {
+    console.log('RoleSwitcher - Current user:', currentUser);
+    console.log('RoleSwitcher - Accounts:', accounts);
+    console.log('RoleSwitcher - Has multiple accounts:', hasMultipleAccounts);
+    console.log('RoleSwitcher - Other account:', otherAccount);
+  }
 
   return (
     <div className="relative">

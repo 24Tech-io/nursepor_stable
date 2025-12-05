@@ -1,4 +1,8 @@
 import bcrypt from 'bcryptjs';
+
+// Performance: Increase bcrypt rounds for better security (but slower)
+// Using 12 rounds for good balance between security and performance
+const BCRYPT_ROUNDS = 12;
 import jwt from 'jsonwebtoken';
 import { getDatabase } from './db';
 import { users, sessions } from './db/schema';
@@ -66,7 +70,8 @@ export interface AuthUser {
 }
 
 export async function hashPassword(password: string): Promise<string> {
-  return bcrypt.hash(password, 12);
+  // Use optimized rounds for security-performance balance
+  return bcrypt.hash(password, BCRYPT_ROUNDS);
 }
 
 export async function verifyPassword(password: string, hashedPassword: string): Promise<boolean> {
