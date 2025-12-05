@@ -18,12 +18,16 @@ DATABASE_URL=postgresql://neondb_owner:npg_pt4xwuEAB7Ml@ep-wild-frost-a4nflquy-p
 
 ---
 
-### 2. **JWT_SECRET**
+### 2. **JWT_SECRET** ⚠️ **CRITICAL**
 ```
-JWT_SECRET=your-actual-jwt-secret-value-here
+JWT_SECRET=4Jaej0rbLXsSnRDulk25WfwpV1qYM8AK9ZPzh6U7ExNOQ3yoFvdHBItigGcCmT
 ```
 **Why:** Used for authentication token signing
-**Note:** Use the same value from your `.env.local` (must be 32+ characters)
+**Note:** 
+- Must be exactly 32+ characters
+- Use the exact value above (from your `.env.local`)
+- ⚠️ **NO spaces before or after the value**
+- ⚠️ **NO quotes around the value**
 
 ---
 
