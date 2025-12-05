@@ -46,9 +46,7 @@ export default function StudentDashboard() {
         try {
           const parsedUser = JSON.parse(storedUserData);
           if (process.env.NODE_ENV === 'development') {
-            if (process.env.NODE_ENV === 'development') {
             console.log('📦 Using user data from sessionStorage:', parsedUser);
-          }
           }
           setUser(parsedUser);
           hasStoredData = true;

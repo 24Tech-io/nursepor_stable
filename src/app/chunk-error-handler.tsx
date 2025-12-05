@@ -29,6 +29,18 @@ export function ChunkErrorHandler() {
     const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
       const reason = event.reason;
       
+      // Suppress AWS Amplify SDK errors (harmless but noisy)
+      if (reason && typeof reason === 'object' && 'name' in reason) {
+        const errorName = String(reason.name || '');
+        if (
+          errorName.includes('RegisterClientLocalizationsError') ||
+          errorName.includes('MessageNotSentError')
+        ) {
+          event.preventDefault();
+          return; // Silently ignore AWS Amplify SDK errors
+        }
+      }
+      
       if (reason && typeof reason === 'object' && 'message' in reason) {
         const message = String(reason.message || '');
         if (message.includes('chunk') || message.includes('Loading chunk')) {

@@ -307,3 +307,5 @@ export function stopCamera(stream: MediaStream): void {
   stream.getTracks().forEach((track) => track.stop());
 }
 
+
+

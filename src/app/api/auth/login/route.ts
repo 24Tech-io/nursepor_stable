@@ -8,6 +8,29 @@ import { verifyPassword, generateToken } from '@/lib/auth';
 // Admin login uses /api/auth/admin-login
 export async function POST(request: NextRequest) {
   try {
+    // Check critical environment variables first
+    if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32) {
+      console.error('❌ JWT_SECRET is missing or invalid');
+      return NextResponse.json(
+        { 
+          message: 'Server configuration error. JWT_SECRET is missing or invalid.',
+          error: process.env.NODE_ENV === 'development' ? 'JWT_SECRET must be at least 32 characters' : undefined
+        },
+        { status: 500 }
+      );
+    }
+
+    if (!process.env.DATABASE_URL) {
+      console.error('❌ DATABASE_URL is missing');
+      return NextResponse.json(
+        { 
+          message: 'Server configuration error. DATABASE_URL is missing.',
+          error: process.env.NODE_ENV === 'development' ? 'DATABASE_URL must be set in environment variables' : undefined
+        },
+        { status: 500 }
+      );
+    }
+
     const body = await request.json();
     const { email, password, role, rememberMe } = body;
 
@@ -101,19 +124,31 @@ export async function POST(request: NextRequest) {
     }
 
     // Generate token
-    const token = generateToken({
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      phone: user.phone || null,
-      bio: user.bio || null,
-      role: user.role,
-      isActive: user.isActive,
-      faceIdEnrolled: user.faceIdEnrolled || false,
-      fingerprintEnrolled: user.fingerprintEnrolled || false,
-      twoFactorEnabled: user.twoFactorEnabled || false,
-      joinedDate: user.joinedDate || null,
-    });
+    let token;
+    try {
+      token = generateToken({
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone || null,
+        bio: user.bio || null,
+        role: user.role,
+        isActive: user.isActive,
+        faceIdEnrolled: user.faceIdEnrolled || false,
+        fingerprintEnrolled: user.fingerprintEnrolled || false,
+        twoFactorEnabled: user.twoFactorEnabled || false,
+        joinedDate: user.joinedDate || null,
+      });
+    } catch (tokenError: any) {
+      console.error('❌ Token generation failed:', tokenError);
+      return NextResponse.json(
+        { 
+          message: 'Authentication error. Please contact support.',
+          error: process.env.NODE_ENV === 'development' ? tokenError.message : undefined
+        },
+        { status: 500 }
+      );
+    }
 
     // Set cookie with appropriate expiry based on rememberMe
     const maxAge = rememberMe ? 60 * 60 * 24 * 30 : 60 * 60 * 24 * 7; // 30 days vs 7 days
@@ -139,9 +174,34 @@ export async function POST(request: NextRequest) {
 
     return response;
   } catch (error: any) {
-    console.error('Login error:', error);
+    console.error('❌ Login error:', error);
+    
+    // Handle specific error types
+    if (error?.message?.includes('JWT_SECRET') || error?.message?.includes('jwt')) {
+      return NextResponse.json(
+        { 
+          message: 'Server configuration error. Please contact support.',
+          error: process.env.NODE_ENV === 'development' ? error.message : undefined
+        },
+        { status: 500 }
+      );
+    }
+    
+    if (error?.message?.includes('DATABASE_URL') || error?.code === 'ECONNREFUSED') {
+      return NextResponse.json(
+        { 
+          message: 'Database connection error. Please try again later.',
+          error: process.env.NODE_ENV === 'development' ? error.message : undefined
+        },
+        { status: 503 }
+      );
+    }
+    
     return NextResponse.json(
-      { message: 'Login failed', error: error.message },
+      { 
+        message: 'Login failed. Please try again.',
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      },
       { status: 500 }
     );
   }
