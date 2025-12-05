@@ -91,9 +91,8 @@ export default function RoleSwitcher() {
       if (response.ok) {
         const data = await response.json();
         // Redirect to appropriate dashboard
-        // Admin routes are on separate port 3001
         if (data.user.role === 'admin') {
-          window.location.href = 'http://localhost:3001/dashboard';
+          window.location.href = '/admin/dashboard';
         } else {
           window.location.href = '/student/dashboard';
         }
