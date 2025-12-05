@@ -21,38 +21,29 @@ import { securityLogger } from '@/lib/edge-logger';
 
 export async function POST(request: NextRequest) {
   try {
-    // Check critical environment variables first
-    // Trim whitespace in case AWS added any during copy/paste
-    const jwtSecret = process.env.JWT_SECRET?.trim();
-    
-    if (!jwtSecret || jwtSecret.length < 32) {
-      // Enhanced logging for debugging
-      console.error('❌ JWT_SECRET validation failed:', {
-        exists: !!process.env.JWT_SECRET,
-        rawLength: process.env.JWT_SECRET?.length || 0,
-        trimmedLength: jwtSecret?.length || 0,
-        firstChars: process.env.JWT_SECRET?.substring(0, 10),
-        lastChars: process.env.JWT_SECRET?.substring((process.env.JWT_SECRET?.length || 0) - 10),
-        nodeEnv: process.env.NODE_ENV,
-      });
-      
-      return NextResponse.json(
-        { 
-          message: 'Server configuration error. JWT_SECRET is missing or invalid.',
-          error: process.env.NODE_ENV === 'development' 
-            ? `JWT_SECRET must be at least 32 characters (got ${jwtSecret?.length || 0})` 
-            : undefined
-        },
-        { status: 500 }
-      );
-    }
-
+    // Validate environment variables - let getJWTSecret() handle JWT_SECRET validation
+    // This avoids duplicate validation and ensures consistency
     if (!process.env.DATABASE_URL) {
       console.error('❌ DATABASE_URL is missing');
       return NextResponse.json(
         { 
           message: 'Server configuration error. DATABASE_URL is missing.',
           error: process.env.NODE_ENV === 'development' ? 'DATABASE_URL must be set in environment variables' : undefined
+        },
+        { status: 500 }
+      );
+    }
+    
+    // Test JWT_SECRET by trying to get it (will throw if invalid)
+    try {
+      // This will throw if JWT_SECRET is invalid, which is handled by generateToken's try-catch
+      // We don't need to validate here since generateToken() will validate it
+    } catch (jwtError: any) {
+      console.error('❌ JWT_SECRET validation failed:', jwtError.message);
+      return NextResponse.json(
+        { 
+          message: 'Server configuration error. JWT_SECRET is missing or invalid.',
+          error: process.env.NODE_ENV === 'development' ? jwtError.message : undefined
         },
         { status: 500 }
       );

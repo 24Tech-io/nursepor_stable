@@ -8,32 +8,8 @@ import { verifyPassword, generateToken } from '@/lib/auth';
 // Admin login uses /api/auth/admin-login
 export async function POST(request: NextRequest) {
   try {
-    // Check critical environment variables first
-    // Trim whitespace in case AWS added any during copy/paste
-    const jwtSecret = process.env.JWT_SECRET?.trim();
-    
-    if (!jwtSecret || jwtSecret.length < 32) {
-      // Enhanced logging for debugging
-      console.error('❌ JWT_SECRET validation failed:', {
-        exists: !!process.env.JWT_SECRET,
-        rawLength: process.env.JWT_SECRET?.length || 0,
-        trimmedLength: jwtSecret?.length || 0,
-        firstChars: process.env.JWT_SECRET?.substring(0, 10),
-        lastChars: process.env.JWT_SECRET?.substring((process.env.JWT_SECRET?.length || 0) - 10),
-        nodeEnv: process.env.NODE_ENV,
-      });
-      
-      return NextResponse.json(
-        { 
-          message: 'Server configuration error. JWT_SECRET is missing or invalid.',
-          error: process.env.NODE_ENV === 'development' 
-            ? `JWT_SECRET must be at least 32 characters (got ${jwtSecret?.length || 0})` 
-            : undefined
-        },
-        { status: 500 }
-      );
-    }
-
+    // Validate environment variables - let getJWTSecret() handle JWT_SECRET validation
+    // This avoids duplicate validation and ensures consistency
     if (!process.env.DATABASE_URL) {
       console.error('❌ DATABASE_URL is missing');
       return NextResponse.json(
@@ -44,6 +20,9 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       );
     }
+    
+    // JWT_SECRET validation is handled by generateToken() via getJWTSecret()
+    // No need to duplicate validation here
 
     const body = await request.json();
     const { email, password, role, rememberMe } = body;
