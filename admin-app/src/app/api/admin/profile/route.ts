@@ -5,6 +5,10 @@ import { users } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { logActivity } from '@/lib/activity-log';
 
+// Route configuration
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
 // GET - Fetch admin profile
 export async function GET(request: NextRequest) {
   try {
@@ -83,20 +87,29 @@ export async function PUT(request: NextRequest) {
       .where(eq(users.id, decoded.id))
       .returning();
 
-    // Log the activity
-    await logActivity({
-      adminId: decoded.id,
-      adminName: decoded.name,
-      action: 'updated',
-      entityType: 'admin',
-      entityId: decoded.id,
-      entityName: 'Profile',
-      details: {
-        changes: {
-          name: name !== decoded.name ? { from: decoded.name, to: name } : undefined,
+    if (!updatedAdmin) {
+      return NextResponse.json({ message: 'Admin not found' }, { status: 404 });
+    }
+
+    // Log the activity (wrap in try-catch to prevent failures)
+    try {
+      await logActivity({
+        adminId: decoded.id,
+        adminName: decoded.name,
+        action: 'updated',
+        entityType: 'admin',
+        entityId: decoded.id,
+        entityName: 'Profile',
+        details: {
+          changes: {
+            name: name !== decoded.name ? { from: decoded.name, to: name } : undefined,
+          },
         },
-      },
-    });
+      });
+    } catch (logError) {
+      // Don't fail the request if logging fails
+      console.error('Failed to log activity:', logError);
+    }
 
     return NextResponse.json({
       user: {

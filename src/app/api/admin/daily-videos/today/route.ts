@@ -1,18 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-// GET - Get today's day of year number
+// GET - Get today's date in dd-mm-yyyy format
 export async function GET(request: NextRequest) {
   try {
-    // Calculate today's day of year (1-365)
     const today = new Date();
-    const startOfYear = new Date(today.getFullYear(), 0, 0);
-    const diff = today.getTime() - startOfYear.getTime();
-    const dayOfYear = Math.floor(diff / (1000 * 60 * 60 * 24));
+    const day = String(today.getDate()).padStart(2, '0');
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const year = today.getFullYear();
+    const todayDate = `${day}-${month}-${year}`;
 
     return NextResponse.json({
-      dayOfYear,
-      date: today.toISOString(),
-      dateFormatted: today.toLocaleDateString('en-US', {
+      date: todayDate,
+      dateFormatted: today.toLocaleDateString('en-GB', {
         year: 'numeric',
         month: 'long',
         day: 'numeric',
@@ -21,11 +20,12 @@ export async function GET(request: NextRequest) {
   } catch (error: any) {
     console.error('Get today error:', error);
     return NextResponse.json(
-      { message: 'Failed to get today\'s day', error: error.message },
+      { message: 'Failed to get today\'s date', error: error.message },
       { status: 500 }
     );
   }
 }
+
 
 
 

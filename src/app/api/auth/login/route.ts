@@ -13,14 +13,14 @@ export async function POST(request: NextRequest) {
     if (!process.env.DATABASE_URL) {
       console.error('❌ DATABASE_URL is missing');
       return NextResponse.json(
-        { 
+        {
           message: 'Server configuration error. DATABASE_URL is missing.',
           error: process.env.NODE_ENV === 'development' ? 'DATABASE_URL must be set in environment variables' : undefined
         },
         { status: 500 }
       );
     }
-    
+
     // JWT_SECRET validation is handled by generateToken() via getJWTSecret()
     // No need to duplicate validation here
 
@@ -32,6 +32,26 @@ export async function POST(request: NextRequest) {
         { message: 'Email and password are required' },
         { status: 400 }
       );
+    }
+
+    // Check environment variables configuration
+    const hasDbUrl = !!process.env.DATABASE_URL;
+    const hasJwtSecret = !!process.env.JWT_SECRET;
+
+    // Log configuration status in production for debugging deployment issues
+    if (process.env.NODE_ENV === 'production') {
+      console.log('🔒 Login attempt config check:', {
+        hasDbUrl,
+        hasJwtSecret,
+        nodeEnv: process.env.NODE_ENV,
+      });
+
+      if (!hasDbUrl || !hasJwtSecret) {
+        console.error('❌ CRITICAL: Missing environment variables in production!', {
+          missingDb: !hasDbUrl,
+          missingJwt: !hasJwtSecret
+        });
+      }
     }
 
     // Log environment check for debugging (development only)
@@ -47,7 +67,7 @@ export async function POST(request: NextRequest) {
     // If admin is trying to use this endpoint, redirect them
     if (role === 'admin') {
       return NextResponse.json(
-        { 
+        {
           message: 'Admin login is at /api/auth/admin-login',
           redirectTo: '/admin/login'
         },
@@ -62,7 +82,7 @@ export async function POST(request: NextRequest) {
     } catch (dbError: any) {
       console.error('❌ Database connection failed:', dbError);
       return NextResponse.json(
-        { 
+        {
           message: 'Database connection error. Please check your DATABASE_URL configuration.',
           error: process.env.NODE_ENV === 'development' ? dbError.message : undefined
         },
@@ -81,7 +101,7 @@ export async function POST(request: NextRequest) {
     } catch (queryError: any) {
       console.error('❌ Database query failed:', queryError);
       return NextResponse.json(
-        { 
+        {
           message: 'Database query failed. Please try again.',
           error: process.env.NODE_ENV === 'development' ? queryError.message : undefined
         },
@@ -135,7 +155,7 @@ export async function POST(request: NextRequest) {
     } catch (tokenError: any) {
       console.error('❌ Token generation failed:', tokenError);
       return NextResponse.json(
-        { 
+        {
           message: 'Authentication error. Please contact support.',
           error: process.env.NODE_ENV === 'development' ? tokenError.message : undefined
         },
@@ -167,7 +187,7 @@ export async function POST(request: NextRequest) {
       path: '/',
       // Don't set domain - let browser use default (works for subdomains)
     });
-    
+
     // Log cookie setting in development
     if (process.env.NODE_ENV === 'development') {
       console.log('🍪 Student token cookie set:', {
@@ -191,30 +211,30 @@ export async function POST(request: NextRequest) {
       origin: request.headers.get('origin'),
       userAgent: request.headers.get('user-agent'),
     });
-    
+
     // Handle specific error types
     if (error?.message?.includes('JWT_SECRET') || error?.message?.includes('jwt')) {
       return NextResponse.json(
-        { 
+        {
           message: 'Server configuration error. Please contact support.',
           error: process.env.NODE_ENV === 'development' ? error.message : undefined
         },
         { status: 500 }
       );
     }
-    
+
     if (error?.message?.includes('DATABASE_URL') || error?.code === 'ECONNREFUSED') {
       return NextResponse.json(
-        { 
+        {
           message: 'Database connection error. Please try again later.',
           error: process.env.NODE_ENV === 'development' ? error.message : undefined
         },
         { status: 503 }
       );
     }
-    
+
     return NextResponse.json(
-      { 
+      {
         message: 'Login failed. Please try again.',
         error: process.env.NODE_ENV === 'development' ? error.message : undefined
       },

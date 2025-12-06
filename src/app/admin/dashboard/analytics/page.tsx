@@ -1,13 +1,14 @@
 'use client';
 
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import NurseProAdminUltimate from '@/components/admin/UnifiedAdminSuite';
 import { NotificationProvider } from '@/components/admin/NotificationProvider';
+import { getQueryClient } from '@/lib/query-client';
 
 export default function AnalyticsPage() {
-  const [queryClient] = useState(() => new QueryClient());
+  const [queryClient] = useState(() => getQueryClient());
   const router = useRouter();
 
   useEffect(() => {

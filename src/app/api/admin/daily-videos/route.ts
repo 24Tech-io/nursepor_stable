@@ -115,10 +115,25 @@ export async function POST(request: NextRequest) {
       priority: priority || 0,
     };
 
+    // Ensure description is always a plain string, not a JSON string
+    let cleanDescription = description || '';
+    
+    // If the incoming description is already a JSON string, parse it first
+    if (typeof cleanDescription === 'string' && cleanDescription.trim().startsWith('{')) {
+      try {
+        const testParse = JSON.parse(cleanDescription);
+        if (typeof testParse === 'object' && testParse.description) {
+          cleanDescription = testParse.description;
+        }
+      } catch (e) {
+        // Not a JSON string, use as-is
+      }
+    }
+
     // Combine description with metadata
-    const enhancedDescription = description
+    const enhancedDescription = cleanDescription
       ? {
-          description: description,
+          description: cleanDescription, // Always use plain string
           metadata: metadata,
         }
       : { metadata: metadata };
@@ -129,7 +144,7 @@ export async function POST(request: NextRequest) {
         chapterId: parseInt(chapterId),
         title,
         description: JSON.stringify(enhancedDescription),
-        day: parseInt(day),
+        day: day, // Date string in dd-mm-yyyy format
         isActive: isActive !== undefined ? isActive : true,
       })
       .returning();

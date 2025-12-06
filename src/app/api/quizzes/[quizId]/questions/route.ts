@@ -47,7 +47,7 @@ export async function POST(request: NextRequest, { params }: { params: { quizId:
       );
     } else {
       // Regular quiz question - create new question
-      const { question, options, correctAnswer, explanation, order } = body;
+      const { question, options, correctAnswer, explanation, order, questionType, imageUrl } = body;
 
       if (!question) {
         return NextResponse.json({ message: 'Question text is required' }, { status: 400 });
@@ -66,9 +66,11 @@ export async function POST(request: NextRequest, { params }: { params: { quizId:
         .values({
           quizId,
           question,
+          questionType: questionType || 'mcq', // Support question type (default to mcq)
           options: typeof options === 'string' ? options : JSON.stringify(options || []),
           correctAnswer: normalizedCorrectAnswer, // Store as plain string
           explanation: explanation || '',
+          imageUrl: imageUrl || null, // Handle image URL
           order: order || 0,
         })
         .returning();

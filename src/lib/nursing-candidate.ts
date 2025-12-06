@@ -6,6 +6,9 @@ import type {
   NursingExperienceEntry,
   NursingPersonalDetails,
   NursingRegistrationEntry,
+  StructuredAddress,
+  NclexExamAttempt,
+  OtherSchoolEntry,
 } from '@/types/nursing-candidate';
 import { sanitizeString, validateEmail } from './security';
 
@@ -27,11 +30,40 @@ const educationSections = [
   },
 ] as const;
 
+const normalizeStructuredAddress = (value: unknown): StructuredAddress => {
+  if (value && typeof value === 'object' && 'addressLine' in value) {
+    const addr = value as Partial<StructuredAddress>;
+    return {
+      addressLine: cleanString(addr.addressLine),
+      city: cleanString(addr.city),
+      postalCode: cleanString(addr.postalCode),
+      country: cleanString(addr.country),
+    };
+  }
+  // Fallback: if it's a string, put it in addressLine
+  if (typeof value === 'string') {
+    return {
+      addressLine: cleanString(value),
+      city: 'N/A',
+      postalCode: 'N/A',
+      country: 'N/A',
+    };
+  }
+  return {
+    addressLine: 'N/A',
+    city: 'N/A',
+    postalCode: 'N/A',
+    country: 'N/A',
+  };
+};
+
 const defaultEducationEntry = (programType: string): NursingEducationEntry => ({
   institutionName: 'N/A',
-  address: 'N/A',
+  address: normalizeStructuredAddress('N/A'),
   programType,
   studyPeriod: { from: 'N/A', to: 'N/A' },
+  languageOfInstruction: 'N/A',
+  isCollegeOperational: 'N/A',
 });
 
 const cleanString = (value: unknown, fallback = 'N/A', maxLength = 1024) =>
@@ -115,6 +147,8 @@ export function normalizeNursingCandidatePayload(payload: any): NursingCandidate
     lastName,
     collegeNameVariant: cleanString(personalPayload.collegeNameVariant),
     hasNameChange: getYesNo(personalPayload.hasNameChange),
+    nameChangeDetails: cleanString(personalPayload.nameChangeDetails),
+    needsAffidavit: Boolean(personalPayload.needsAffidavit),
     maidenName: cleanString(personalPayload.maidenName),
     motherMaidenName: cleanString(personalPayload.motherMaidenName),
     dateOfBirth: cleanString(personalPayload.dateOfBirth),
@@ -122,7 +156,7 @@ export function normalizeNursingCandidatePayload(payload: any): NursingCandidate
     gender: ['Male', 'Female', 'Other'].includes(personalPayload.gender)
       ? personalPayload.gender
       : 'Other',
-    address: cleanString(personalPayload.address, 'N/A', 2048),
+    address: normalizeStructuredAddress(personalPayload.address),
     phoneNumber,
     email,
     firstLanguage: cleanString(personalPayload.firstLanguage),
@@ -134,9 +168,13 @@ export function normalizeNursingCandidatePayload(payload: any): NursingCandidate
       const sectionPayload = educationSource[section.key] || {};
       acc[section.key] = {
         institutionName: cleanString(sectionPayload.institutionName),
-        address: cleanString(sectionPayload.address),
+        address: normalizeStructuredAddress(sectionPayload.address),
         programType: cleanString(sectionPayload.programType || section.programType),
         studyPeriod: normalizeDateRange(sectionPayload.studyPeriod),
+        languageOfInstruction: cleanString(sectionPayload.languageOfInstruction),
+        isCollegeOperational: sectionPayload.isCollegeOperational === 'Yes' || sectionPayload.isCollegeOperational === 'No'
+          ? sectionPayload.isCollegeOperational
+          : undefined,
       };
       return acc;
     },
@@ -200,7 +238,31 @@ export function normalizeNursingCandidatePayload(payload: any): NursingCandidate
     canadaEmploymentHistory.push(buildCanadaExperience({}));
   }
 
+  // Normalize NCLEX exam history
+  const nclexExamHistory = {
+    hasWrittenExam: getYesNo(payload.nclexExamHistory?.hasWrittenExam || payload.hasWrittenNclexExam),
+    attempts: (payload.nclexExamHistory?.attempts || payload.nclexAttempts || []).map((attempt: any, index: number): NclexExamAttempt => ({
+      examDate: cleanString(attempt.examDate),
+      country: cleanString(attempt.country),
+      province: cleanString(attempt.province),
+      state: cleanString(attempt.state),
+      result: ['Pass', 'Fail', 'Pending'].includes(attempt.result) ? attempt.result : undefined,
+      attemptNumber: attempt.attemptNumber || index + 1,
+    })),
+  };
+
+  // Normalize other schools
+  const otherSchools: OtherSchoolEntry[] = (payload.otherSchools || []).map((school: any): OtherSchoolEntry => ({
+    gradeStudied: cleanString(school.gradeStudied),
+    institutionName: cleanString(school.institutionName),
+    address: normalizeStructuredAddress(school.address),
+    studyPeriod: normalizeDateRange(school.studyPeriod),
+  }));
+
   return {
+    country: (payload.country === 'USA' || payload.country === 'Canada' || payload.country === 'Australia') 
+      ? payload.country 
+      : 'Canada',
     personalDetails,
     educationDetails,
     registrationDetails: {
@@ -209,8 +271,13 @@ export function normalizeNursingCandidatePayload(payload: any): NursingCandidate
       ),
       entries: registrationEntries,
     },
+    nclexExamHistory,
     employmentHistory,
     canadaEmploymentHistory,
+    otherSchools,
+    canadianImmigrationApplied: payload.canadianImmigrationApplied === 'Yes' || payload.canadianImmigrationApplied === 'No'
+      ? payload.canadianImmigrationApplied
+      : undefined,
     documentChecklistAcknowledged: Boolean(payload.documentChecklistAcknowledged),
   };
 }

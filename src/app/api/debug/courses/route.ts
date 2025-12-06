@@ -3,6 +3,10 @@ import { getDatabase } from '@/lib/db';
 import { courses, questionBanks } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 
+// Prevent static generation - this route requires database access
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
 /**
  * Debug endpoint to check all courses in the database
  */

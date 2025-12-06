@@ -15,18 +15,21 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
     }
 
+    // Determine base URL for server-side fetches
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || `http://localhost:${process.env.PORT || 3000}`;
+
     // Fetch all the data the dashboard needs
     const [coursesRes, enrolledRes, statsRes, requestsRes] = await Promise.all([
-      fetch(`http://localhost:${process.env.PORT || 3000}/api/student/courses`, {
+      fetch(`${baseUrl}/api/student/courses`, {
         headers: { Cookie: `studentToken=${token}` },
       }),
-      fetch(`http://localhost:${process.env.PORT || 3000}/api/student/enrolled-courses`, {
+      fetch(`${baseUrl}/api/student/enrolled-courses`, {
         headers: { Cookie: `studentToken=${token}` },
       }),
-      fetch(`http://localhost:${process.env.PORT || 3000}/api/student/stats`, {
+      fetch(`${baseUrl}/api/student/stats`, {
         headers: { Cookie: `studentToken=${token}` },
       }),
-      fetch(`http://localhost:${process.env.PORT || 3000}/api/student/requests`, {
+      fetch(`${baseUrl}/api/student/requests`, {
         headers: { Cookie: `studentToken=${token}` },
       }),
     ]);

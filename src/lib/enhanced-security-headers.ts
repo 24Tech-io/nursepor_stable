@@ -238,7 +238,8 @@ export function isTrustedOrigin(origin: string | null): boolean {
     'https://localhost:3000',
   ];
 
-  return trustedOrigins.some((trusted) => origin.startsWith(trusted || ''));
+  return trustedOrigins.some((trusted) => origin.startsWith(trusted || '')) ||
+    origin.endsWith('.amplifyapp.com');
 }
 
 /**

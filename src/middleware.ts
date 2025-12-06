@@ -13,7 +13,7 @@ const getAllowedOrigins = () => {
     'http://localhost:3000',
     'http://localhost:3001',
   ];
-  
+
   // Add configured URLs
   if (process.env.NEXT_PUBLIC_APP_URL) {
     origins.push(process.env.NEXT_PUBLIC_APP_URL);
@@ -22,14 +22,14 @@ const getAllowedOrigins = () => {
       origins.push(process.env.NEXT_PUBLIC_APP_URL.slice(0, -1));
     }
   }
-  
+
   if (process.env.NEXT_PUBLIC_ADMIN_URL) {
     origins.push(process.env.NEXT_PUBLIC_ADMIN_URL);
     if (process.env.NEXT_PUBLIC_ADMIN_URL.endsWith('/')) {
       origins.push(process.env.NEXT_PUBLIC_ADMIN_URL.slice(0, -1));
     }
   }
-  
+
   // Allow any amplifyapp.com domain if NEXT_PUBLIC_APP_URL contains it
   if (process.env.NEXT_PUBLIC_APP_URL?.includes('amplifyapp.com')) {
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL.replace(/\/$/, ''); // Remove trailing slash
@@ -37,7 +37,7 @@ const getAllowedOrigins = () => {
     // Also allow the protocol-less version
     origins.push(baseUrl.replace(/^https?:\/\//, ''));
   }
-  
+
   return origins.filter(Boolean);
 };
 
@@ -50,6 +50,17 @@ const RATE_LIMIT_MAX = 100; // requests per window
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
 
+  // Early return for static assets and favicon
+  if (
+    pathname === '/favicon.ico' ||
+    pathname === '/icon.png' ||
+    pathname === '/apple-icon.png' ||
+    pathname.startsWith('/_next/') ||
+    pathname.match(/\.(ico|png|jpg|jpeg|svg|gif|webp|woff|woff2|ttf|eot)$/i)
+  ) {
+    return NextResponse.next();
+  }
+
   // === ADMIN ROUTE PROTECTION ===
   // Protect all /admin routes except public ones
   if (pathname.startsWith('/admin')) {
@@ -58,20 +69,20 @@ export async function middleware(request: NextRequest) {
       '/admin/login',
       '/admin/register',
     ];
-    
+
     const isPublicRoute = publicAdminRoutes.some(route => pathname === route);
-    
+
     if (!isPublicRoute && !pathname.startsWith('/api/')) {
       // Check for admin authentication
       const adminToken = request.cookies.get('adminToken')?.value;
-      
+
       if (!adminToken) {
         if (process.env.NODE_ENV === 'development') {
           console.log(`🔒 [Middleware] No adminToken for admin route: ${pathname}, redirecting to login`);
         }
         return NextResponse.redirect(new URL('/admin/login', request.url));
       }
-      
+
       try {
         const user = await verifyTokenEdge(adminToken);
         if (!user || user.role !== 'admin') {
@@ -96,14 +107,14 @@ export async function middleware(request: NextRequest) {
   // Protect /student routes
   if (pathname.startsWith('/student') && !pathname.startsWith('/student/blogs')) {
     const studentToken = request.cookies.get('studentToken')?.value;
-    
+
     if (!studentToken) {
       if (process.env.NODE_ENV === 'development') {
         console.log(`🔒 [Middleware] No studentToken for student route: ${pathname}`);
       }
       return NextResponse.redirect(new URL('/login', request.url));
     }
-    
+
     try {
       const user = await verifyTokenEdge(studentToken);
       if (!user || user.role !== 'student') {
@@ -124,7 +135,7 @@ export async function middleware(request: NextRequest) {
 
   // CORS headers
   const origin = request.headers.get('origin');
-  
+
   // Log CORS check in development
   if (process.env.NODE_ENV === 'development' && origin) {
     console.log('🌐 CORS check:', {
@@ -133,15 +144,17 @@ export async function middleware(request: NextRequest) {
       isAllowed: ALLOWED_ORIGINS.includes(origin),
     });
   }
-  
+
   // Check if origin is allowed (exact match or starts with allowed domain)
   const isAllowed = origin && (
     ALLOWED_ORIGINS.includes(origin) ||
     ALLOWED_ORIGINS.some(allowed => origin.startsWith(allowed)) ||
-    // Allow if origin is from amplifyapp.com and we have an amplify URL configured
+    // Allow any amplifyapp.com domain (fail-safe for AWS deployments)
+    origin.endsWith('.amplifyapp.com') ||
+    // Allow if origin is from amplifyapp.com and we have an amplify URL configured (legacy check)
     (origin.includes('amplifyapp.com') && process.env.NEXT_PUBLIC_APP_URL?.includes('amplifyapp.com'))
   );
-  
+
   if (isAllowed && origin) {
     response.headers.set('Access-Control-Allow-Origin', origin);
     response.headers.set('Access-Control-Allow-Credentials', 'true');

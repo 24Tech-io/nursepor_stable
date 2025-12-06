@@ -24,7 +24,7 @@ export async function verifyTokenEdge(token: string): Promise<TokenPayload | nul
   try {
     const secret = new TextEncoder().encode(JWT_SECRET);
     const { payload } = await jwtVerify(token, secret);
-    
+
     return {
       id: payload.id as number,
       name: payload.name as string,

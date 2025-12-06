@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { MCQQuestion } from '../../lib/types';
 
 interface QuizCardProps {
@@ -20,6 +21,7 @@ export default function QuizCard({
   quizId,
   onComplete,
 }: QuizCardProps) {
+  const router = useRouter();
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [selectedAnswers, setSelectedAnswers] = useState<Record<number, string>>({});
   const [isSubmitted, setIsSubmitted] = useState(false);
@@ -281,7 +283,13 @@ export default function QuizCard({
         )}
 
         <button
-          onClick={() => window.location.reload()}
+          onClick={() => {
+            // Reset quiz state instead of full page reload
+            setCurrentQuestion(0);
+            setSelectedAnswers({});
+            setIsSubmitted(false);
+            setTimeRemaining(timeLimit ? timeLimit * 60 : null);
+          }}
           className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-8 py-3 rounded-xl font-semibold hover:from-blue-700 hover:to-purple-700 transition"
         >
           Retake Quiz

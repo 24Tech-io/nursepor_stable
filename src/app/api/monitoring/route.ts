@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db, isDatabaseAvailable } from '@/lib/db';
 import { performanceLogger } from '@/lib/logger';
 
+// Prevent static generation - this route requires database access
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
 interface SystemMetrics {
   status: 'healthy' | 'degraded' | 'unhealthy';
   timestamp: string;

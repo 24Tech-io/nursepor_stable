@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Course } from '../../lib/types';
 import PaymentButton from './PaymentButton';
@@ -126,6 +127,7 @@ function FreeEnrollButton({
   onSuccess?: () => void;
   isRequested?: boolean;
 }) {
+  const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [requestSubmitted, setRequestSubmitted] = useState(isRequested);
@@ -158,9 +160,9 @@ function FreeEnrollButton({
             // Approved but not yet enrolled - enrollment sync might be in progress
             setRequestStatus('approved');
             setRequestSubmitted(true);
-            // Refresh page to check if enrollment completed
-            setTimeout(() => {
-              window.location.reload();
+            // Re-check status instead of full page reload
+            setTimeout(async () => {
+              await checkRequestStatus();
             }, 2000);
           } else if (course.hasPendingRequest) {
             setRequestStatus('pending');
@@ -336,6 +338,7 @@ export default function CourseCard({
   hasApprovedRequest = false,
   isPublic = false,
 }: CourseCardProps) {
+  const router = useRouter();
   // Use course props if available, otherwise use passed props
   const finalHasPendingRequest = course.hasPendingRequest ?? hasPendingRequest;
   const finalHasApprovedRequest = course.hasApprovedRequest ?? hasApprovedRequest;
@@ -469,12 +472,13 @@ export default function CourseCard({
             <DirectEnrollButton
               courseId={course.id}
               onSuccess={() => {
-                // Enrollment successful - refresh page or update state
+                // Enrollment successful - refresh or update state
                 console.log('✅ Direct enrollment successful callback triggered');
                 if (onRequestAccess) {
                   onRequestAccess();
                 } else {
-                  window.location.reload();
+                  // Use router.refresh() for server component revalidation without full reload
+                  router.refresh();
                 }
               }}
             />

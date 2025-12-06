@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { Shield, Users, BookOpen, Database, BarChart, Settings } from 'lucide-react';
+import Logo from '@/components/common/Logo';
 
 export default function AdminWelcomePage() {
   return (
@@ -15,8 +16,7 @@ export default function AdminWelcomePage() {
         <header className="border-b border-white/10 backdrop-blur-sm bg-white/5">
           <div className="container mx-auto px-6 py-4 flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <Shield className="w-8 h-8 text-emerald-400" />
-              <span className="text-2xl font-bold">Nurse Pro Academy</span>
+              <Logo size="md" className="text-white" />
               <span className="text-sm text-emerald-400 font-semibold">Admin Portal</span>
             </div>
             <Link

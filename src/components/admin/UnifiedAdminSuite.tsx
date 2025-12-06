@@ -64,6 +64,7 @@ import DocumentEditModal from './DocumentEditModal';
 import ReadingEditModal from './ReadingEditModal';
 import QuizEditModal from './QuizEditModal';
 import StudentActivityModal from './StudentActivityModal';
+import Logo from '@/components/common/Logo';
 import { Upload, Link as LinkIcon } from 'lucide-react';
 import { convertToEmbedUrl, parseVideoUrl } from '@/lib/video-utils';
 import {
@@ -132,6 +133,15 @@ const QuestionTypeBuilder = dynamic(() => import('./qbank/QuestionTypeBuilder'),
   ),
 });
 
+const AdminRegistrations = dynamic(() => import('./RegistrationsView'), {
+  loading: () => (
+    <div className="flex items-center justify-center h-screen">
+      <div className="animate-spin rounded-full h-12 w-12 border-4 border-purple-600 border-t-transparent"></div>
+    </div>
+  ),
+  ssr: false,
+});
+
 // --- ROOT COMPONENT ---
 export default function NurseProAdminUltimate({
   initialModule = 'dashboard',
@@ -160,8 +170,11 @@ export default function NurseProAdminUltimate({
         '/admin/dashboard/analytics': 'analytics',
         '/admin/dashboard/students': 'students',
         '/admin/dashboard/requests': 'requests',
+        '/admin/dashboard/registrations': 'registrations',
+        '/admin/registrations': 'registrations',
         '/admin/dashboard/courses': 'courses',
         '/admin/dashboard/qbank': 'qbank',
+        '/admin/dashboard/qbank-analytics': 'qbank_analytics',
         '/admin/dashboard/profile': 'admin_profile',
         '/admin/dashboard/daily-videos': 'daily_videos',
         '/admin/dashboard/blogs': 'blogs',
@@ -234,10 +247,12 @@ export default function NurseProAdminUltimate({
         students: '/admin/dashboard/students',
         student_profile: id ? `/admin/dashboard/students/${id}` : '/admin/dashboard/students',
         requests: '/admin/dashboard/requests',
+        registrations: '/admin/dashboard/registrations',
         courses: '/admin/dashboard/courses',
         course_editor: id ? `/admin/dashboard/courses/${id}` : '/admin/dashboard/courses',
         qbank: '/admin/dashboard/qbank',
         qbank_editor: id ? `/admin/dashboard/qbank/${id}` : '/admin/dashboard/qbank',
+        qbank_analytics: '/admin/dashboard/qbank-analytics',
         admin_profile: '/admin/dashboard/profile',
         daily_videos: '/admin/dashboard/daily-videos',
         blogs: '/admin/dashboard/blogs',
@@ -253,7 +268,7 @@ export default function NurseProAdminUltimate({
   React.useEffect(() => {
     const fetchAdminUser = async () => {
       try {
-        const response = await fetch('/api/auth/me', {
+        const response = await fetch('/api/auth/me?type=admin', {
           credentials: 'include',
         });
         if (response.ok) {
@@ -272,13 +287,8 @@ export default function NurseProAdminUltimate({
       {/* SIDEBAR */}
       <aside className="w-72 bg-[#11131a] border-r border-slate-800/50 flex flex-col flex-shrink-0 z-30">
         <div className="p-8">
-          <h1 className="text-2xl font-bold tracking-tight flex items-center gap-3 text-white">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-purple-600 to-pink-500 flex items-center justify-center text-white shadow-lg shadow-purple-500/20">
-              <Book size={20} />
-            </div>
-            NursePro
-          </h1>
-          <p className="text-[10px] text-slate-500 mt-2 font-bold uppercase tracking-widest ml-1">
+          <Logo size="md" className="text-white" />
+          <p className="text-[10px] text-slate-500 mt-2 font-bold uppercase tracking-widest">
             Academy Command v3.1
           </p>
         </div>
@@ -307,6 +317,13 @@ export default function NurseProAdminUltimate({
               label="Access Requests"
               active={currentModule === 'requests'}
               onClick={() => nav('requests')}
+              badge={undefined}
+            />
+            <NavItem
+              icon={<FileText size={18} />}
+              label="Registration Forms"
+              active={currentModule === 'registrations'}
+              onClick={() => nav('registrations')}
               badge={undefined}
             />
           </NavSection>
@@ -358,11 +375,11 @@ export default function NurseProAdminUltimate({
             <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-600 to-pink-500 flex items-center justify-center text-sm font-bold text-white shadow-lg shadow-purple-500/20 flex-shrink-0">
               {adminUser?.name
                 ? adminUser.name
-                    .split(' ')
-                    .map((n: string) => n[0])
-                    .join('')
-                    .toUpperCase()
-                    .slice(0, 2)
+                  .split(' ')
+                  .map((n: string) => n[0])
+                  .join('')
+                  .toUpperCase()
+                  .slice(0, 2)
                 : 'AD'}
             </div>
             <div className="text-left flex-1 min-w-0">
@@ -429,6 +446,7 @@ export default function NurseProAdminUltimate({
           />
         )}
         {currentModule === 'requests' && <RequestsInbox nav={nav} />}
+        {currentModule === 'registrations' && <AdminRegistrations />}
         {currentModule === 'analytics' && <Analytics nav={nav} />}
         {currentModule === 'daily_videos' && <DailyVideoManager nav={nav} />}
         {currentModule === 'blogs' && <BlogManager nav={nav} />}
@@ -461,6 +479,16 @@ const Dashboard = ({ nav }: { nav: (mod: string) => void }) => {
         fetch('/api/students?countOnly=true', { credentials: 'include' }),
       ]);
 
+      // Check if all responses are ok
+      if (!coursesRes.ok || !questionsRes.ok || !studentsRes.ok) {
+        console.error('Failed to fetch dashboard stats');
+        return {
+          courses: 0,
+          questions: 0,
+          students: 0,
+        };
+      }
+
       const [courses, questions, students] = await Promise.all([
         coursesRes.json(),
         questionsRes.json(),
@@ -476,6 +504,8 @@ const Dashboard = ({ nav }: { nav: (mod: string) => void }) => {
       };
     },
     staleTime: 2 * 60 * 1000, // 2 minutes
+    retry: 1, // Only retry once
+    retryDelay: 1000, // Wait 1 second before retry
   });
 
   // ⚡ PERFORMANCE: Use React Query for activity logs
@@ -483,13 +513,16 @@ const Dashboard = ({ nav }: { nav: (mod: string) => void }) => {
     queryKey: ['activity-logs'],
     queryFn: async () => {
       const response = await fetch('/api/activity-logs?limit=10', { credentials: 'include' });
-      if (response.ok) {
-        const data = await response.json();
-        return data.logs || [];
+      if (!response.ok) {
+        console.error('Failed to fetch activity logs:', response.status);
+        return [];
       }
-      return [];
+      const data = await response.json();
+      return data.logs || [];
     },
     staleTime: 60 * 1000, // 1 minute
+    retry: 1, // Only retry once
+    retryDelay: 1000, // Wait 1 second before retry
   });
 
   return (
@@ -983,14 +1016,17 @@ const StudentsList = ({
     queryKey: ['students', refreshTrigger],
     queryFn: async () => {
       const response = await fetch('/api/students', { credentials: 'include' });
-      if (response.ok) {
-        const data = await response.json();
-        console.log('⚡ Students loaded and cached');
-        return data.students || [];
+      if (!response.ok) {
+        console.error('Failed to fetch students:', response.status);
+        return [];
       }
-      throw new Error('Failed to fetch students');
+      const data = await response.json();
+      console.log('⚡ Students loaded and cached');
+      return data.students || [];
     },
     staleTime: 30 * 1000, // 30 seconds - fresh for quick navigation
+    retry: 1, // Only retry once
+    retryDelay: 1000, // Wait 1 second before retry
   });
 
   const toggleActive = async (studentId: number, e: React.MouseEvent) => {
@@ -1152,11 +1188,10 @@ const StudentsList = ({
                     <td className="p-4 text-center">
                       <button
                         onClick={(e) => toggleActive(student.id, e)}
-                        className={`px-3 py-1 rounded-full text-xs font-bold ${
-                          student.isActive
-                            ? 'bg-green-500/10 text-green-400'
-                            : 'bg-slate-700/30 text-slate-400'
-                        }`}
+                        className={`px-3 py-1 rounded-full text-xs font-bold ${student.isActive
+                          ? 'bg-green-500/10 text-green-400'
+                          : 'bg-slate-700/30 text-slate-400'
+                          }`}
                       >
                         {student.isActive ? 'Active' : 'Inactive'}
                       </button>
@@ -1819,13 +1854,21 @@ const DailyVideoManager = ({ nav }: { nav: (mod: string) => void }) => {
   const [modules, setModules] = React.useState<any[]>([]);
   const [selectedChapter, setSelectedChapter] = React.useState<string>('');
   const [chapters, setChapters] = React.useState<any[]>([]);
-  const [day, setDay] = React.useState<number>(0);
+
+  // Helper function to get today's date in dd-mm-yyyy format
+  const getTodayDate = () => {
+    const today = new Date();
+    const day = String(today.getDate()).padStart(2, '0');
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const year = today.getFullYear();
+    return `${day}-${month}-${year}`;
+  };
+
+  const [day, setDay] = React.useState<string>(getTodayDate());
   const [title, setTitle] = React.useState<string>('');
   const [description, setDescription] = React.useState<string>('');
   const [videoUrl, setVideoUrl] = React.useState<string>('');
   const [videoProvider, setVideoProvider] = React.useState<string>('youtube');
-  const [videoSourceType, setVideoSourceType] = React.useState<'url' | 'upload'>('url');
-  const [uploadedVideoUrl, setUploadedVideoUrl] = React.useState<string>('');
   const [videoDuration, setVideoDuration] = React.useState<number | null>(null);
   const [thumbnail, setThumbnail] = React.useState<string>('');
   const [scheduledDate, setScheduledDate] = React.useState<string>('');
@@ -1908,22 +1951,16 @@ const DailyVideoManager = ({ nav }: { nav: (mod: string) => void }) => {
         : '/api/admin/daily-videos';
       const method = editingVideo ? 'PUT' : 'POST';
 
-      // Determine final video URL and provider based on source type
+      // Convert video URL to embed format (hides branding)
       let finalVideoUrl = '';
       let finalProvider = videoProvider;
 
-      if (videoSourceType === 'upload') {
-        finalVideoUrl = uploadedVideoUrl;
-        finalProvider = 'uploaded';
+      if (videoUrl) {
+        const parsed = parseVideoUrl(videoUrl);
+        finalVideoUrl = parsed.embedUrl; // Use embed URL with privacy settings
+        finalProvider = parsed.provider; // Auto-detect provider
       } else {
-        // Convert video URL to embed format (hides branding)
-        if (videoUrl) {
-          const parsed = parseVideoUrl(videoUrl);
-          finalVideoUrl = parsed.embedUrl; // Use embed URL with privacy settings
-          finalProvider = parsed.provider; // Auto-detect provider
-        } else {
-          finalVideoUrl = videoUrl;
-        }
+        finalVideoUrl = videoUrl;
       }
 
       const response = await fetch(url, {
@@ -1934,7 +1971,7 @@ const DailyVideoManager = ({ nav }: { nav: (mod: string) => void }) => {
           chapterId: selectedChapter,
           title,
           description,
-          day: parseInt(day.toString()),
+          day: day, // Date string in dd-mm-yyyy format
           videoUrl: finalVideoUrl || null,
           videoProvider: finalProvider,
           videoDuration: videoDuration || null,
@@ -1966,19 +2003,11 @@ const DailyVideoManager = ({ nav }: { nav: (mod: string) => void }) => {
     setSelectedCourse(video.courseId?.toString() || '');
     setTitle(video.title);
     setDescription(video.description || '');
-    setDay(video.day);
+    setDay(video.day || getTodayDate()); // Use existing day or today's date
 
-    // Determine source type based on provider
+    // Set video URL (only URL supported now)
     const provider = video.videoProvider || 'youtube';
-    if (provider === 'uploaded') {
-      setVideoSourceType('upload');
-      setUploadedVideoUrl(video.videoUrl || '');
-      setVideoUrl('');
-    } else {
-      setVideoSourceType('url');
-      setVideoUrl(video.videoUrl || '');
-      setUploadedVideoUrl('');
-    }
+    setVideoUrl(video.videoUrl || '');
 
     setVideoProvider(provider);
     setVideoDuration(video.videoDuration || null);
@@ -1995,11 +2024,9 @@ const DailyVideoManager = ({ nav }: { nav: (mod: string) => void }) => {
   const resetForm = () => {
     setTitle('');
     setDescription('');
-    setDay(0);
+    setDay(getTodayDate()); // Use today's date instead of 0
     setVideoUrl('');
     setVideoProvider('youtube');
-    setVideoSourceType('url');
-    setUploadedVideoUrl('');
     setVideoDuration(null);
     setThumbnail('');
     setScheduledDate('');
@@ -2111,50 +2138,45 @@ const DailyVideoManager = ({ nav }: { nav: (mod: string) => void }) => {
 
             <div>
               <label className="block text-xs font-bold text-slate-400 mb-1">
-                Day Number (0-365)
+                Date Assignment
               </label>
-              <div className="flex gap-2">
-                <input
-                  type="number"
-                  min="0"
-                  max="365"
-                  value={day}
-                  onChange={(e) => setDay(parseInt(e.target.value))}
-                  className="flex-1 px-3 py-2 bg-[#1a1d26] border border-slate-800 rounded-lg text-white text-sm focus:outline-none focus:border-purple-500"
-                  required
-                />
-                <button
-                  type="button"
-                  onClick={async () => {
-                    try {
-                      const response = await fetch('/api/admin/daily-videos/today');
-                      if (response.ok) {
-                        const data = await response.json();
-                        setDay(data.dayOfYear);
-                        alert(`✅ Set to Today: Day ${data.dayOfYear} (${data.dateFormatted})`);
-                      }
-                    } catch (error) {
-                      console.error('Error getting today:', error);
-                      // Fallback calculation
-                      const today = new Date();
-                      const startOfYear = new Date(today.getFullYear(), 0, 0);
-                      const diff = today.getTime() - startOfYear.getTime();
-                      const dayOfYear = Math.floor(diff / (1000 * 60 * 60 * 24));
-                      setDay(dayOfYear);
-                      alert(`✅ Set to Today: Day ${dayOfYear}`);
-                    }
-                  }}
-                  className="px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700 transition text-sm font-semibold whitespace-nowrap"
-                >
-                  Use Today
-                </button>
+              <div className="bg-[#1a1d26] border border-slate-800 rounded-lg p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-white font-semibold">
+                      Rotation based on date (dd-mm-yyyy)
+                    </p>
+                    <p className="text-xs text-slate-400 mt-1">
+                      Today's date is{' '}
+                      <span className="text-purple-400 font-bold">
+                        {getTodayDate()}
+                      </span>
+                    </p>
+                  </div>
+                  {!editingVideo && (
+                    <div className="text-right">
+                      <p className="text-xs text-slate-500 mb-1">Auto-assigned:</p>
+                      <p className="text-lg font-bold text-purple-400">
+                        {day}
+                      </p>
+                    </div>
+                  )}
+                  {editingVideo && (
+                    <div className="text-right">
+                      <p className="text-xs text-slate-500 mb-1">Current assignment:</p>
+                      <p className="text-lg font-bold text-blue-400">
+                        {day}
+                      </p>
+                    </div>
+                  )}
+                </div>
               </div>
-              <p className="text-[10px] text-slate-500 mt-1">
-                Rotation based on day of year. Today is day{' '}
-                <span className="text-purple-400 font-bold">
-                  {Math.floor((new Date().getTime() - new Date(new Date().getFullYear(), 0, 0).getTime()) / (1000 * 60 * 60 * 24))}
-                </span>
-              </p>
+              {!editingVideo && (
+                <p className="text-[10px] text-slate-500 mt-2">
+                  💡 New videos automatically use today's date ({getTodayDate()}).
+                  Edit an existing video to change its date assignment.
+                </p>
+              )}
             </div>
 
             <div>
@@ -2182,107 +2204,54 @@ const DailyVideoManager = ({ nav }: { nav: (mod: string) => void }) => {
             <div className="border-t border-slate-800 pt-4">
               <h4 className="text-xs font-bold text-slate-400 mb-3 uppercase">Video Settings</h4>
 
-              {/* Video Source Type Selector */}
               <div className="mb-4">
-                <label className="block text-xs font-bold text-slate-400 mb-2">Video Source</label>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setVideoSourceType('url');
-                      setUploadedVideoUrl('');
-                    }}
-                    className={`px-3 py-2 rounded-lg border-2 transition-all flex items-center justify-center gap-2 text-xs font-bold ${
-                      videoSourceType === 'url'
-                        ? 'border-purple-500 bg-purple-500/10 text-purple-400'
-                        : 'border-slate-700 text-slate-400 hover:border-slate-600'
-                    }`}
-                  >
-                    <LinkIcon size={14} />
-                    Video URL
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setVideoSourceType('upload');
-                      setVideoUrl('');
-                    }}
-                    className={`px-3 py-2 rounded-lg border-2 transition-all flex items-center justify-center gap-2 text-xs font-bold ${
-                      videoSourceType === 'upload'
-                        ? 'border-purple-500 bg-purple-500/10 text-purple-400'
-                        : 'border-slate-700 text-slate-400 hover:border-slate-600'
-                    }`}
-                  >
-                    <Upload size={14} />
-                    Upload Video
-                  </button>
+                <div className="bg-slate-800/30 border border-slate-700 rounded-lg p-3">
+                  <p className="text-xs text-slate-400">Video URL (YouTube, Vimeo, or direct link)</p>
                 </div>
               </div>
 
               <div className="space-y-3">
-                {videoSourceType === 'url' ? (
-                  <>
-                    <div>
-                      <label className="block text-xs font-bold text-slate-400 mb-1">
-                        Video URL
-                      </label>
-                      <input
-                        type="url"
-                        value={videoUrl}
-                        onChange={(e) => {
-                          setVideoUrl(e.target.value);
-                          // Auto-detect provider
-                          const url = e.target.value;
-                          if (url.includes('youtube.com') || url.includes('youtu.be')) {
-                            setVideoProvider('youtube');
-                          } else if (url.includes('vimeo.com')) {
-                            setVideoProvider('vimeo');
-                          } else if (url.match(/\.(mp4|webm|ogg|mov)$/i)) {
-                            setVideoProvider('direct');
-                          }
-                        }}
-                        className="w-full px-3 py-2 bg-[#1a1d26] border border-slate-800 rounded-lg text-white text-sm focus:outline-none focus:border-purple-500"
-                        placeholder="https://youtube.com/watch?v=... or https://vimeo.com/... or direct video URL (.mp4, .webm, etc.)"
-                      />
-                      <p className="text-[10px] text-slate-500 mt-1">
-                        Supports YouTube, Vimeo, or any publicly accessible video URL
-                      </p>
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold text-slate-400 mb-1">
-                        Provider
-                      </label>
-                      <select
-                        value={videoProvider}
-                        onChange={(e) => setVideoProvider(e.target.value)}
-                        className="w-full px-3 py-2 bg-[#1a1d26] border border-slate-800 rounded-lg text-white text-sm focus:outline-none focus:border-purple-500"
-                      >
-                        <option value="youtube">YouTube</option>
-                        <option value="vimeo">Vimeo</option>
-                        <option value="direct">Direct Link (MP4, WebM, etc.)</option>
-                        <option value="custom">Custom</option>
-                      </select>
-                    </div>
-                  </>
-                ) : (
-                  <div>
-                    <label className="block text-xs font-bold text-slate-400 mb-1">
-                      Upload Video File
-                    </label>
-                    <FileUpload
-                      type="video"
-                      onUploadComplete={(url) => {
-                        setUploadedVideoUrl(url);
-                        setVideoProvider('uploaded');
-                      }}
-                      currentUrl={uploadedVideoUrl}
-                      maxSizeMB={500}
-                    />
-                    <p className="text-[10px] text-slate-500 mt-1">
-                      Maximum file size: 500MB. Supported formats: MP4, WebM, OGG, MOV
-                    </p>
-                  </div>
-                )}
+                <div>
+                  <label className="block text-xs font-bold text-slate-400 mb-1">
+                    Video URL
+                  </label>
+                  <input
+                    type="url"
+                    value={videoUrl}
+                    onChange={(e) => {
+                      setVideoUrl(e.target.value);
+                      // Auto-detect provider
+                      const url = e.target.value;
+                      if (url.includes('youtube.com') || url.includes('youtu.be')) {
+                        setVideoProvider('youtube');
+                      } else if (url.includes('vimeo.com')) {
+                        setVideoProvider('vimeo');
+                      } else if (url.match(/\.(mp4|webm|ogg|mov)$/i)) {
+                        setVideoProvider('direct');
+                      }
+                    }}
+                    className="w-full px-3 py-2 bg-[#1a1d26] border border-slate-800 rounded-lg text-white text-sm focus:outline-none focus:border-purple-500"
+                    placeholder="https://youtube.com/watch?v=... or https://vimeo.com/... or direct video URL (.mp4, .webm, etc.)"
+                  />
+                  <p className="text-[10px] text-slate-500 mt-1">
+                    Supports YouTube, Vimeo, or any publicly accessible video URL
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-400 mb-1">
+                    Provider
+                  </label>
+                  <select
+                    value={videoProvider}
+                    onChange={(e) => setVideoProvider(e.target.value)}
+                    className="w-full px-3 py-2 bg-[#1a1d26] border border-slate-800 rounded-lg text-white text-sm focus:outline-none focus:border-purple-500"
+                  >
+                    <option value="youtube">YouTube</option>
+                    <option value="vimeo">Vimeo</option>
+                    <option value="direct">Direct Link (MP4, WebM, etc.)</option>
+                    <option value="custom">Custom</option>
+                  </select>
+                </div>
 
                 <div>
                   <label className="block text-xs font-bold text-slate-400 mb-1">
@@ -2464,19 +2433,22 @@ const CourseList = ({
     queryKey: ['courses'],
     queryFn: async () => {
       const response = await fetch('/api/courses', { credentials: 'include' });
-      if (response.ok) {
-        const data = await response.json();
-        const mappedCourses = (data.courses || []).map((c: any) => ({
-          ...c,
-          author: c.instructor,
-          status: c.status === 'published' ? 'Active' : 'Draft',
-        }));
-        console.log('⚡ Courses loaded and cached');
-        return mappedCourses;
+      if (!response.ok) {
+        console.error('Failed to fetch courses:', response.status);
+        return [];
       }
-      throw new Error('Failed to fetch courses');
+      const data = await response.json();
+      const mappedCourses = (data.courses || []).map((c: any) => ({
+        ...c,
+        author: c.instructor,
+        status: c.status === 'published' ? 'Active' : 'Draft',
+      }));
+      console.log('⚡ Courses loaded and cached');
+      return mappedCourses;
     },
     staleTime: 60 * 1000, // 1 minute
+    retry: 1, // Only retry once
+    retryDelay: 1000, // Wait 1 second before retry
   });
 
   const handleDelete = async (id: number) => {
@@ -2661,23 +2633,41 @@ const CourseBuilder = ({ course, back }: { course: any; back: () => void }) => {
 
   const fetchModules = async (id: number) => {
     try {
+      setIsLoading(true);
       const response = await fetch(`/api/courses/${id}/modules`, { credentials: 'include' });
       if (response.ok) {
         const data = await response.json();
+
+        // Optimistic UI: Show modules immediately with empty items (instant feedback)
+        const modulesWithEmptyItems = data.modules.map((m: any) => ({
+          ...m,
+          items: [],
+          isLoading: true, // Flag to show loading state for chapters
+        }));
+        setModules(modulesWithEmptyItems);
+        setIsLoading(false); // Stop loading state immediately
+
+        // Load chapters in background (progressive enhancement)
         const modulesWithChapters = await Promise.all(
           data.modules.map(async (m: any) => {
-            const chapRes = await fetch(`/api/modules/${m.id}/chapters`, {
-              credentials: 'include',
-            });
-            const chapData = await chapRes.json();
-            return { ...m, items: chapData.chapters || [] };
+            try {
+              const chapRes = await fetch(`/api/modules/${m.id}/chapters`, {
+                credentials: 'include',
+              });
+              const chapData = await chapRes.json();
+              return { ...m, items: chapData.chapters || [], isLoading: false };
+            } catch (error) {
+              console.error(`Error fetching chapters for module ${m.id}:`, error);
+              return { ...m, items: [], isLoading: false };
+            }
           })
         );
+
+        // Update modules with chapters (progressive update)
         setModules(modulesWithChapters);
       }
     } catch (error) {
       console.error('Error fetching modules:', error);
-    } finally {
       setIsLoading(false);
     }
   };
@@ -2689,6 +2679,12 @@ const CourseBuilder = ({ course, back }: { course: any; back: () => void }) => {
         'Please fill in all required fields: Title, Description, and Instructor'
       );
       return;
+    }
+
+    // For new courses, show optimistic feedback immediately
+    const isNewCourse = !courseId;
+    if (isNewCourse) {
+      notification.showInfo('Creating course...', 'Please wait');
     }
 
     try {
@@ -2749,6 +2745,24 @@ const CourseBuilder = ({ course, back }: { course: any; back: () => void }) => {
     const title = await notification.showPrompt('Add Module', 'Enter module title:', '');
     if (!title) return;
 
+    // Optimistic update - add module immediately (0ms delay)
+    const tempId = Date.now(); // Temporary ID
+
+    // Get current modules length for order calculation
+    const currentOrder = modules.length;
+
+    const optimisticModule = {
+      id: tempId,
+      title,
+      order: currentOrder,
+      duration: 0,
+      items: [],
+      isPending: true, // Flag for pending state
+    };
+
+    // Update UI immediately (instant feedback) - use functional update
+    setModules(prev => [...prev, optimisticModule]);
+
     try {
       const response = await fetch(`/api/courses/${courseId}/modules`, {
         method: 'POST',
@@ -2756,17 +2770,31 @@ const CourseBuilder = ({ course, back }: { course: any; back: () => void }) => {
         credentials: 'include',
         body: JSON.stringify({
           title,
-          order: modules.length,
+          order: currentOrder,
           duration: 0,
         }),
       });
 
       if (response.ok) {
         const data = await response.json();
-        setModules([...modules, { ...data.module, items: [] }]);
+        // Replace optimistic module with real data - use functional update to avoid stale closure
+        setModules(prev => prev.map(m =>
+          m.id === tempId
+            ? { ...data.module, items: [] }
+            : m
+        ));
+        notification.showSuccess('Module added successfully');
+      } else {
+        // Revert on failure - use functional update
+        setModules(prev => prev.filter(m => m.id !== tempId));
+        const errorData = await response.json().catch(() => ({ message: 'Failed to add module' }));
+        notification.showError(errorData.message || 'Failed to add module');
       }
     } catch (error) {
+      // Revert on error - use functional update
+      setModules(prev => prev.filter(m => m.id !== tempId));
       console.error('Error adding module:', error);
+      notification.showError('Failed to add module. Please try again.');
     }
   };
 
@@ -2810,9 +2838,9 @@ const CourseBuilder = ({ course, back }: { course: any; back: () => void }) => {
           modules.map((m: any) =>
             m.id === modId
               ? {
-                  ...m,
-                  items: [...m.items, data.chapter],
-                }
+                ...m,
+                items: [...m.items, data.chapter],
+              }
               : m
           )
         );
@@ -2841,16 +2869,15 @@ const CourseBuilder = ({ course, back }: { course: any; back: () => void }) => {
       async () => {
         try {
           await fetch(`/api/chapters/${itemId}`, { method: 'DELETE', credentials: 'include' });
-          setModules(
-            modules.map((m: any) =>
-              m.id === modId
-                ? {
-                    ...m,
-                    items: m.items.filter((i: any) => i.id !== itemId),
-                  }
-                : m
-            )
-          );
+          // Use functional update to avoid stale closure
+          setModules(prev => prev.map((m: any) =>
+            m.id === modId
+              ? {
+                ...m,
+                items: m.items.filter((i: any) => i.id !== itemId),
+              }
+              : m
+          ));
           notification.showSuccess(`${itemTypeLabel} deleted successfully`);
         } catch (error) {
           console.error(`Error deleting ${itemTypeLabel.toLowerCase()}:`, error);
@@ -2982,7 +3009,7 @@ const CourseBuilder = ({ course, back }: { course: any; back: () => void }) => {
             >
               <div className="p-4 bg-[#1a1d26] border-b border-slate-800/60 flex justify-between items-center group">
                 <div className="flex items-center gap-3">
-                  <GripVertical size={16} className="text-slate-600 cursor-grab" />
+                  <GripVertical size={16} className="text-slate-400 cursor-grab" />
                   <h4 className="font-bold text-white">
                     Module {i + 1}: {mod.title}
                   </h4>
@@ -3065,7 +3092,15 @@ const CourseBuilder = ({ course, back }: { course: any; back: () => void }) => {
                 </div>
               </div>
               <div className="p-4 space-y-2">
-                {mod.items.length === 0 && (
+                {mod.isLoading && mod.items.length === 0 && (
+                  <div className="text-center py-8 border-2 border-dashed border-slate-800 rounded-lg text-slate-500 text-sm">
+                    <div className="flex items-center justify-center gap-2">
+                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-slate-500 border-t-transparent"></div>
+                      <span>Loading chapters...</span>
+                    </div>
+                  </div>
+                )}
+                {!mod.isLoading && mod.items.length === 0 && (
                   <div className="text-center py-8 border-2 border-dashed border-slate-800 rounded-lg text-slate-500 text-sm">
                     Drop videos/documents here
                   </div>
@@ -3076,13 +3111,12 @@ const CourseBuilder = ({ course, back }: { course: any; back: () => void }) => {
                     className="flex items-center p-3 bg-[#13151d] border border-slate-800/50 rounded-lg hover:border-purple-500/30 transition-colors"
                   >
                     <div
-                      className={`mr-3 p-2 rounded-lg ${
-                        item.type === 'mcq' || item.type === 'qbank'
-                          ? 'bg-purple-500/10 text-purple-400'
-                          : item.type === 'document'
-                            ? 'bg-orange-500/10 text-orange-400'
-                            : 'bg-blue-500/10 text-blue-400'
-                      }`}
+                      className={`mr-3 p-2 rounded-lg ${item.type === 'mcq' || item.type === 'qbank'
+                        ? 'bg-purple-500/10 text-purple-400'
+                        : item.type === 'document'
+                          ? 'bg-orange-500/10 text-orange-400'
+                          : 'bg-blue-500/10 text-blue-400'
+                        }`}
                     >
                       {item.type === 'video' ? (
                         <Video size={16} />
@@ -3298,16 +3332,14 @@ const CourseBuilder = ({ course, back }: { course: any; back: () => void }) => {
 
               if (response.ok) {
                 const data = await response.json();
-                setModules(
-                  modules.map((m: any) =>
-                    m.id === currentModuleId
-                      ? {
-                          ...m,
-                          items: [...m.items, data.chapter],
-                        }
-                      : m
-                  )
-                );
+                setModules(prev => prev.map((m: any) =>
+                  m.id === currentModuleId
+                    ? {
+                      ...m,
+                      items: [...m.items, data.chapter],
+                    }
+                    : m
+                ));
                 setShowVideoModal(false);
                 setCurrentModuleId(null);
               }
@@ -3353,25 +3385,25 @@ const CourseBuilder = ({ course, back }: { course: any; back: () => void }) => {
                     credentials: 'include',
                     body: JSON.stringify({
                       question: question.question,
+                      questionType: question.format || question.type || 'mcq', // Support question type
                       options: JSON.stringify(question.options),
                       correctAnswer: JSON.stringify(question.correctAnswer),
                       explanation: question.explanation,
+                      imageUrl: question.imageUrl || null, // Support image URL
                       order: quizData.questions.indexOf(question),
                     }),
                   });
                 }
 
-                // Update UI
-                setModules(
-                  modules.map((m: any) =>
-                    m.id === currentModuleId
-                      ? {
-                          ...m,
-                          items: [...m.items, { ...quizResult.chapter, quiz: quizResult.quiz }],
-                        }
-                      : m
-                  )
-                );
+                // Update UI - use functional update
+                setModules(prev => prev.map((m: any) =>
+                  m.id === currentModuleId
+                    ? {
+                      ...m,
+                      items: [...m.items, { ...quizResult.chapter, quiz: quizResult.quiz }],
+                    }
+                    : m
+                ));
 
                 setShowQuizModal(false);
                 setCurrentModuleId(null);
@@ -3420,9 +3452,9 @@ const CourseBuilder = ({ course, back }: { course: any; back: () => void }) => {
                   modules.map((m: any) =>
                     m.id === currentModuleId
                       ? {
-                          ...m,
-                          items: [...m.items, data.chapter],
-                        }
+                        ...m,
+                        items: [...m.items, data.chapter],
+                      }
                       : m
                   )
                 );
@@ -3468,9 +3500,9 @@ const CourseBuilder = ({ course, back }: { course: any; back: () => void }) => {
                   modules.map((m: any) =>
                     m.id === currentModuleId
                       ? {
-                          ...m,
-                          items: [...m.items, data.chapter],
-                        }
+                        ...m,
+                        items: [...m.items, data.chapter],
+                      }
                       : m
                   )
                 );
@@ -3682,14 +3714,18 @@ const QBankList = ({
     queryKey: ['qbank-categories'],
     queryFn: async () => {
       const response = await fetch('/api/qbank/categories', { credentials: 'include' });
-      if (response.ok) {
-        const data = await response.json();
-        console.log('⚡ Categories loaded and cached');
-        return data.categories || [];
+      if (!response.ok) {
+        // Don't throw - return empty array to prevent React Query from retrying
+        console.error('Failed to fetch categories:', response.status);
+        return [];
       }
-      return [];
+      const data = await response.json();
+      console.log('⚡ Categories loaded and cached');
+      return data.categories || [];
     },
     staleTime: 2 * 60 * 1000, // 2 minutes
+    retry: 1, // Only retry once
+    retryDelay: 1000, // Wait 1 second before retry
   });
 
   // ⚡ PERFORMANCE: Use React Query for questions with caching
@@ -3707,17 +3743,20 @@ const QBankList = ({
       if (selectedCourseFilter) {
         params.append('courseId', selectedCourseFilter.toString());
       }
-      
+
       const url = `/api/qbank?${params.toString()}`;
       const response = await fetch(url, { credentials: 'include' });
-      if (response.ok) {
-        const data = await response.json();
-        console.log('⚡ Questions loaded and cached (filtered by course:', selectedCourseFilter, ')');
-        return data.questions || [];
+      if (!response.ok) {
+        console.error('Failed to fetch questions:', response.status);
+        return [];
       }
-      return [];
+      const data = await response.json();
+      console.log('⚡ Questions loaded and cached (filtered by course:', selectedCourseFilter, ')');
+      return data.questions || [];
     },
     staleTime: 30 * 1000, // 30 seconds
+    retry: 1, // Only retry once
+    retryDelay: 1000, // Wait 1 second before retry
   });
 
   // ⚡ PERFORMANCE: Use React Query for courses (reuse from cache)
@@ -4101,7 +4140,7 @@ const QBankList = ({
               ))}
             </select>
           </div>
-          
+
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-bold text-white uppercase tracking-wide">Folders</h3>
             <button
@@ -4117,11 +4156,10 @@ const QBankList = ({
               onDragOver={(e) => handleDragOver(e, null)}
               onDragLeave={() => setDragOverFolder(null)}
               onDrop={(e) => handleDrop(e, null)}
-              className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-all cursor-pointer ${
-                selectedCategory === null
-                  ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold'
-                  : 'text-slate-300 hover:bg-[#1a1d26] border-2 border-dashed border-transparent hover:border-purple-500/30'
-              }`}
+              className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-all cursor-pointer ${selectedCategory === null
+                ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold'
+                : 'text-slate-300 hover:bg-[#1a1d26] border-2 border-dashed border-transparent hover:border-purple-500/30'
+                }`}
               onClick={() => setSelectedCategory(null)}
             >
               <div className="flex items-center justify-between">
@@ -4135,13 +4173,12 @@ const QBankList = ({
                 onDragOver={(e) => handleDragOver(e, cat.id)}
                 onDragLeave={() => setDragOverFolder(null)}
                 onDrop={(e) => handleDrop(e, cat.id)}
-                className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-all cursor-pointer group ${
-                  selectedCategory === cat.id
-                    ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold'
-                    : dragOverFolder === cat.id
-                      ? 'bg-green-600/30 border-2 border-dashed border-green-400 scale-105'
-                      : 'text-slate-300 hover:bg-[#1a1d26] border-2 border-dashed border-transparent hover:border-purple-500/30'
-                }`}
+                className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-all cursor-pointer group ${selectedCategory === cat.id
+                  ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold'
+                  : dragOverFolder === cat.id
+                    ? 'bg-green-600/30 border-2 border-dashed border-green-400 scale-105'
+                    : 'text-slate-300 hover:bg-[#1a1d26] border-2 border-dashed border-transparent hover:border-purple-500/30'
+                  }`}
                 style={{
                   borderLeft: selectedCategory === cat.id ? `3px solid ${cat.color}` : 'none',
                 }}
@@ -4327,11 +4364,10 @@ const QBankList = ({
                     key={i}
                     draggable
                     onDragStart={(e) => handleDragStart(e, q)}
-                    className={`grid grid-cols-12 p-3 rounded-lg items-center transition-all group cursor-move border ${
-                      isSelected
-                        ? 'bg-purple-600/20 border-purple-500/50'
-                        : 'border-transparent hover:bg-[#1f222e] hover:border-slate-800'
-                    }`}
+                    className={`grid grid-cols-12 p-3 rounded-lg items-center transition-all group cursor-move border ${isSelected
+                      ? 'bg-purple-600/20 border-purple-500/50'
+                      : 'border-transparent hover:bg-[#1f222e] hover:border-slate-800'
+                      }`}
                   >
                     <div className="col-span-1 flex items-center gap-2">
                       <input
@@ -4466,11 +4502,10 @@ const QBankList = ({
                 return (
                   <>
                     <div
-                      className={`text-sm mb-4 p-3 rounded-lg ${
-                        questionCount === 0
-                          ? 'bg-red-900/20 border border-red-500/30 text-red-300'
-                          : 'bg-purple-900/20 border border-purple-500/30 text-purple-300'
-                      }`}
+                      className={`text-sm mb-4 p-3 rounded-lg ${questionCount === 0
+                        ? 'bg-red-900/20 border border-red-500/30 text-red-300'
+                        : 'bg-purple-900/20 border border-purple-500/30 text-purple-300'
+                        }`}
                     >
                       {questionCount === 0 ? (
                         <>
@@ -4495,11 +4530,10 @@ const QBankList = ({
                   <button
                     key={course.id}
                     onClick={() => setSelectedCourseForAssign(course.id)}
-                    className={`w-full text-left p-4 rounded-lg transition border ${
-                      selectedCourseForAssign === course.id
-                        ? 'bg-purple-600/20 border-purple-500'
-                        : 'bg-[#1a1d26] border-slate-800 hover:border-purple-500/50'
-                    }`}
+                    className={`w-full text-left p-4 rounded-lg transition border ${selectedCourseForAssign === course.id
+                      ? 'bg-purple-600/20 border-purple-500'
+                      : 'bg-[#1a1d26] border-slate-800 hover:border-purple-500/50'
+                      }`}
                   >
                     <div className="font-bold text-white">{course.title}</div>
                     <div className="text-xs text-slate-400 mt-1">{course.instructor}</div>
@@ -4563,11 +4597,10 @@ const QBankList = ({
                     <button
                       key={quiz.id}
                       onClick={() => setSelectedQuizForAssign(quiz.id)}
-                      className={`w-full text-left p-4 rounded-lg transition border ${
-                        selectedQuizForAssign === quiz.id
-                          ? 'bg-green-600/20 border-green-500'
-                          : 'bg-[#1a1d26] border-slate-800 hover:border-green-500/50'
-                      }`}
+                      className={`w-full text-left p-4 rounded-lg transition border ${selectedQuizForAssign === quiz.id
+                        ? 'bg-green-600/20 border-green-500'
+                        : 'bg-[#1a1d26] border-slate-800 hover:border-green-500/50'
+                        }`}
                     >
                       <div className="font-bold text-white">{quiz.title}</div>
                       <div className="text-xs text-slate-400 mt-1">
@@ -5573,7 +5606,7 @@ const UniversalQuestionEditor = ({ question, back }: { question: any; back: () =
                   NGN MODE
                 </button>
               </div>
-              <span className="text-slate-600">|</span>
+              <span className="text-slate-400">|</span>
               {/* TYPE SELECTOR */}
               <select
                 value={type}
@@ -5612,11 +5645,10 @@ const UniversalQuestionEditor = ({ question, back }: { question: any; back: () =
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab.toLowerCase())}
-                  className={`px-4 py-2 text-xs font-bold rounded-lg transition-all duration-200 ${
-                    activeTab === tab.toLowerCase()
-                      ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg shadow-purple-500/20'
-                      : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800/30'
-                  }`}
+                  className={`px-4 py-2 text-xs font-bold rounded-lg transition-all duration-200 ${activeTab === tab.toLowerCase()
+                    ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg shadow-purple-500/20'
+                    : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800/30'
+                    }`}
                 >
                   {tab}
                 </button>
@@ -5659,11 +5691,10 @@ const UniversalQuestionEditor = ({ question, back }: { question: any; back: () =
                   <button
                     key={s.step}
                     onClick={() => setActiveStep(s.step)}
-                    className={`w-10 h-10 rounded-lg flex items-center justify-center text-xs font-bold transition-all duration-200 ${
-                      activeStep === s.step
-                        ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg shadow-purple-500/30'
-                        : 'bg-slate-800 text-slate-500 hover:bg-slate-700 hover:text-slate-300'
-                    }`}
+                    className={`w-10 h-10 rounded-lg flex items-center justify-center text-xs font-bold transition-all duration-200 ${activeStep === s.step
+                      ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg shadow-purple-500/30'
+                      : 'bg-slate-800 text-slate-500 hover:bg-slate-700 hover:text-slate-300'
+                      }`}
                   >
                     {s.step}
                   </button>
@@ -5983,6 +6014,7 @@ const BowTieColumn = ({
 
 // --- ADMIN PROFILE MODULE ---
 const AdminProfile = ({ nav, adminUser }: { nav: (mod: string) => void; adminUser: any }) => {
+  const router = useRouter();
   const [user, setUser] = React.useState(adminUser);
   const [isLoading, setIsLoading] = React.useState(!adminUser);
   const [isSaving, setIsSaving] = React.useState(false);
@@ -6050,8 +6082,8 @@ const AdminProfile = ({ nav, adminUser }: { nav: (mod: string) => void; adminUse
         const data = await response.json();
         setUser(data.user);
         setEditMode(false);
-        // Refresh admin user in parent component
-        window.location.reload();
+        // Refresh admin user data without full page reload
+        router.refresh();
       } else {
         const error = await response.json();
         alert(error.message || 'Failed to save profile');
@@ -6122,11 +6154,11 @@ const AdminProfile = ({ nav, adminUser }: { nav: (mod: string) => void; adminUse
               <div className="w-24 h-24 rounded-full bg-gradient-to-br from-purple-600 to-pink-500 flex items-center justify-center text-3xl font-bold text-white shadow-lg shadow-purple-500/30">
                 {user?.name
                   ? user.name
-                      .split(' ')
-                      .map((n: string) => n[0])
-                      .join('')
-                      .toUpperCase()
-                      .slice(0, 2)
+                    .split(' ')
+                    .map((n: string) => n[0])
+                    .join('')
+                    .toUpperCase()
+                    .slice(0, 2)
                   : 'AD'}
               </div>
               <div className="flex-1">
@@ -6197,7 +6229,7 @@ const AdminProfile = ({ nav, adminUser }: { nav: (mod: string) => void; adminUse
                       placeholder="Enter phone number"
                     />
                   ) : (
-                    <p className="text-slate-200 font-medium">{user?.phone || 'Not provided'}</p>
+                    <p className="text-slate-200 font-medium">{user?.phone && user.phone.trim() ? user.phone : 'Not provided'}</p>
                   )}
                 </div>
               </div>
@@ -6628,13 +6660,12 @@ const QBankAnalytics = ({ nav }: { nav: (mod: string) => void }) => {
                   </div>
                   <div className="h-2 bg-slate-700 rounded-full overflow-hidden">
                     <div
-                      className={`h-full transition-all ${
-                        subj.accuracy >= 70
-                          ? 'bg-green-500'
-                          : subj.accuracy >= 50
-                            ? 'bg-yellow-500'
-                            : 'bg-red-500'
-                      }`}
+                      className={`h-full transition-all ${subj.accuracy >= 70
+                        ? 'bg-green-500'
+                        : subj.accuracy >= 50
+                          ? 'bg-yellow-500'
+                          : 'bg-red-500'
+                        }`}
                       style={{ width: `${subj.accuracy}%` }}
                     />
                   </div>
@@ -6666,13 +6697,12 @@ const QBankAnalytics = ({ nav }: { nav: (mod: string) => void }) => {
                   {test.status === 'completed' ? (
                     <div>
                       <div
-                        className={`text-2xl font-bold ${
-                          test.percentage >= 70
-                            ? 'text-green-400'
-                            : test.percentage >= 50
-                              ? 'text-yellow-400'
-                              : 'text-red-400'
-                        }`}
+                        className={`text-2xl font-bold ${test.percentage >= 70
+                          ? 'text-green-400'
+                          : test.percentage >= 50
+                            ? 'text-yellow-400'
+                            : 'text-red-400'
+                          }`}
                       >
                         {test.percentage}%
                       </div>
@@ -6783,13 +6813,12 @@ const QBankAnalytics = ({ nav }: { nav: (mod: string) => void }) => {
                   </td>
                   <td className="text-center p-4">
                     <span
-                      className={`font-bold ${
-                        student.avgScore >= 70
-                          ? 'text-green-400'
-                          : student.avgScore >= 50
-                            ? 'text-yellow-400'
-                            : 'text-red-400'
-                      }`}
+                      className={`font-bold ${student.avgScore >= 70
+                        ? 'text-green-400'
+                        : student.avgScore >= 50
+                          ? 'text-yellow-400'
+                          : 'text-red-400'
+                        }`}
                     >
                       {student.avgScore}%
                     </span>
@@ -6800,13 +6829,12 @@ const QBankAnalytics = ({ nav }: { nav: (mod: string) => void }) => {
                   </td>
                   <td className="text-center p-4">
                     <span
-                      className={`font-bold ${
-                        student.accuracy >= 70
-                          ? 'text-green-400'
-                          : student.accuracy >= 50
-                            ? 'text-yellow-400'
-                            : 'text-red-400'
-                      }`}
+                      className={`font-bold ${student.accuracy >= 70
+                        ? 'text-green-400'
+                        : student.accuracy >= 50
+                          ? 'text-yellow-400'
+                          : 'text-red-400'
+                        }`}
                     >
                       {student.accuracy}%
                     </span>

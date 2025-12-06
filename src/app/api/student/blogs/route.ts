@@ -3,6 +3,10 @@ import { getDatabase } from '@/lib/db';
 import { blogPosts } from '@/lib/db/schema';
 import { eq, desc } from 'drizzle-orm';
 
+// Prevent static generation - this route requires database access
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
 // GET - Fetch published blog posts (public access for students)
 export async function GET(request: NextRequest) {
   try {

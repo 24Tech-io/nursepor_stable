@@ -1,27 +1,70 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 
 /**
  * Client-side chunk error handler
- * Automatically retries loading failed chunks
+ * Only reloads on actual chunk loading failures (not all errors)
+ * Includes debouncing to prevent multiple rapid reloads
  */
 export function ChunkErrorHandler() {
   const router = useRouter();
+  const reloadTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const lastReloadTimeRef = useRef<number>(0);
+  const reloadCountRef = useRef<number>(0);
 
   useEffect(() => {
-    // Handle chunk loading errors
+    // Debounced reload function - prevents multiple rapid reloads
+    const debouncedReload = () => {
+      const now = Date.now();
+      const timeSinceLastReload = now - lastReloadTimeRef.current;
+      
+      // Prevent reload if we just reloaded less than 5 seconds ago
+      if (timeSinceLastReload < 5000) {
+        console.warn('Chunk error detected but reload was recent, skipping...');
+        return;
+      }
+      
+      // Prevent infinite reload loops (max 3 reloads per 30 seconds)
+      if (timeSinceLastReload < 30000) {
+        reloadCountRef.current++;
+        if (reloadCountRef.current > 3) {
+          console.error('Too many chunk reload attempts, stopping to prevent loop');
+          return;
+        }
+      } else {
+        reloadCountRef.current = 0;
+      }
+      
+      lastReloadTimeRef.current = now;
+      
+      // Clear any existing timeout
+      if (reloadTimeoutRef.current) {
+        clearTimeout(reloadTimeoutRef.current);
+      }
+      
+      // Debounce reload by 2 seconds
+      reloadTimeoutRef.current = setTimeout(() => {
+        console.warn('Chunk loading error detected, reloading page...');
+        window.location.reload();
+      }, 2000);
+    };
+
+    // Handle chunk loading errors - only actual chunk failures
     const handleChunkError = (event: ErrorEvent) => {
       const error = event.error;
+      const message = error?.message || event.message || '';
+      const filename = event.filename || '';
       
-      if (error && error.message && error.message.includes('chunk')) {
-        console.warn('Chunk loading error detected, reloading page...');
-        
-        // Retry by reloading the page
-        setTimeout(() => {
-          window.location.reload();
-        }, 1000);
+      // Only handle actual chunk loading errors, not other errors
+      const isChunkError = 
+        (message.includes('chunk') || message.includes('Loading chunk')) &&
+        (filename.includes('.js') || filename.includes('chunk') || filename.includes('webpack'));
+      
+      if (isChunkError) {
+        event.preventDefault();
+        debouncedReload();
       }
     };
 
@@ -41,15 +84,18 @@ export function ChunkErrorHandler() {
         }
       }
       
+      // Only handle actual chunk loading failures
       if (reason && typeof reason === 'object' && 'message' in reason) {
         const message = String(reason.message || '');
-        if (message.includes('chunk') || message.includes('Loading chunk')) {
-          console.warn('Chunk loading promise rejection, reloading page...');
+        const isChunkError = 
+          message.includes('chunk') || 
+          message.includes('Loading chunk') ||
+          message.includes('Failed to fetch dynamically imported module');
+        
+        if (isChunkError) {
+          console.warn('Chunk loading promise rejection detected');
           event.preventDefault();
-          
-          setTimeout(() => {
-            window.location.reload();
-          }, 1000);
+          debouncedReload();
         }
       }
     };
@@ -60,6 +106,9 @@ export function ChunkErrorHandler() {
     return () => {
       window.removeEventListener('error', handleChunkError);
       window.removeEventListener('unhandledrejection', handleUnhandledRejection);
+      if (reloadTimeoutRef.current) {
+        clearTimeout(reloadTimeoutRef.current);
+      }
     };
   }, [router]);
 

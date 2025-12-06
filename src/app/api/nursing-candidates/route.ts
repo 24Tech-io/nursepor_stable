@@ -8,6 +8,10 @@ import { getClientIP, rateLimit, validateBodySize } from '@/lib/security';
 import { verifyToken } from '@/lib/auth';
 import type { NursingCandidateFormPayload } from '@/types/nursing-candidate';
 
+// Prevent build-time database access
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
 const MAX_BODY_SIZE = 80 * 1024; // 80 KB
 
 export async function POST(request: NextRequest) {
@@ -56,11 +60,13 @@ export async function POST(request: NextRequest) {
       .insert(nursingCandidateForms)
       .values({
         referenceNumber,
+        country: normalized.country || 'Canada',
         personalDetails: normalized.personalDetails,
         educationDetails: normalized.educationDetails,
         registrationDetails: normalized.registrationDetails,
         employmentHistory: normalized.employmentHistory,
         canadaEmploymentHistory: normalized.canadaEmploymentHistory,
+        canadianImmigrationApplied: normalized.canadianImmigrationApplied || null,
         documentChecklistAcknowledged: normalized.documentChecklistAcknowledged,
         disciplinaryAction: normalized.registrationDetails.hasDisciplinaryAction,
         documentEmailStatus: 'pending',
@@ -132,11 +138,13 @@ export async function GET(request: NextRequest) {
       submissions: submissions.map((submission: any) => ({
         id: submission.id,
         referenceNumber: submission.referenceNumber,
+        country: submission.country || 'Canada',
         personalDetails: submission.personalDetails,
         educationDetails: submission.educationDetails,
         registrationDetails: submission.registrationDetails,
         employmentHistory: submission.employmentHistory,
         canadaEmploymentHistory: submission.canadaEmploymentHistory,
+        canadianImmigrationApplied: submission.canadianImmigrationApplied,
         disciplinaryAction: submission.disciplinaryAction,
         documentChecklistAcknowledged: submission.documentChecklistAcknowledged,
         documentEmailStatus: submission.documentEmailStatus,

@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import CourseCard from '@/components/student/CourseCard';
 import LoadingSpinner from '@/components/student/LoadingSpinner';
 import { syncClient } from '@/lib/sync-client';
@@ -33,6 +34,7 @@ function calculateRealProgress(courseId: string, enrolledCourses: any[]): number
 }
 
 export default function CoursesPage() {
+  const router = useRouter();
   const [courses, setCourses] = useState<Course[]>([]);
   const [query, setQuery] = useState('');
   const [note, setNote] = useState('');
@@ -49,7 +51,7 @@ export default function CoursesPage() {
   useEffect(() => {
     const fetchUser = async () => {
       try {
-        const response = await fetch('/api/auth/me', {
+        const response = await fetch('/api/auth/me?type=student', {
           credentials: 'include',
         });
         if (response.ok) {
@@ -265,10 +267,9 @@ export default function CoursesPage() {
             onClick={() => setActiveTab('enrolled')}
             className={`
               py-4 px-1 border-b-2 font-medium text-sm transition-colors
-              ${
-                activeTab === 'enrolled'
-                  ? 'border-purple-600 text-purple-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              ${activeTab === 'enrolled'
+                ? 'border-purple-600 text-purple-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               }
             `}
           >
@@ -284,10 +285,9 @@ export default function CoursesPage() {
             onClick={() => setActiveTab('requested')}
             className={`
               py-4 px-1 border-b-2 font-medium text-sm transition-colors
-              ${
-                activeTab === 'requested'
-                  ? 'border-purple-600 text-purple-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              ${activeTab === 'requested'
+                ? 'border-purple-600 text-purple-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               }
             `}
           >
@@ -303,10 +303,9 @@ export default function CoursesPage() {
             onClick={() => setActiveTab('available')}
             className={`
               py-4 px-1 border-b-2 font-medium text-sm transition-colors
-              ${
-                activeTab === 'available'
-                  ? 'border-purple-600 text-purple-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              ${activeTab === 'available'
+                ? 'border-purple-600 text-purple-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               }
             `}
           >
@@ -429,9 +428,21 @@ export default function CoursesPage() {
                     hasPendingRequest={pendingRequestCourseIds.includes(c.id)}
                     hasApprovedRequest={c.hasApprovedRequest || false}
                     isPublic={c.isPublic || false}
-                    onRequestAccess={() => {
-                      // Refresh data after enrollment/request
-                      window.location.reload();
+                    onRequestAccess={async () => {
+                      // Refresh data after enrollment/request - refetch courses instead of full reload
+                      try {
+                        const response = await fetch('/api/student/courses', {
+                          credentials: 'include',
+                        });
+                        if (response.ok) {
+                          const data = await response.json();
+                          setCourses(data.courses || []);
+                        }
+                      } catch (error) {
+                        console.error('Error refreshing courses:', error);
+                        // Fallback to router refresh if fetch fails
+                        router.refresh();
+                      }
                     }}
                   />
                 ))}

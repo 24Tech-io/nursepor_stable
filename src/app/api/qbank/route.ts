@@ -188,6 +188,7 @@ export async function POST(request: NextRequest) {
             q.type || q.questionType || q.format || q.questionFormat || 'multiple_choice',
           question: q.question || q.questionStem || '',
           explanation: q.explanation || q.rationale || null,
+          imageUrl: q.imageUrl || q.image_url || null, // Handle image URL
           points: q.points || 1,
           options: q.options
             ? typeof q.options === 'string'

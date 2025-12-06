@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 
 interface Test {
   id: number;
@@ -23,6 +24,7 @@ interface PreviousTestsTabProps {
 }
 
 export default function PreviousTestsTab({ courseId }: PreviousTestsTabProps) {
+  const router = useRouter();
   const [tests, setTests] = useState<Test[]>([]);
   const [pendingCount, setPendingCount] = useState(0);
   const [completedCount, setCompletedCount] = useState(0);
@@ -73,13 +75,13 @@ export default function PreviousTestsTab({ courseId }: PreviousTestsTabProps) {
   }
 
   function handleResumeTest(test: Test) {
-    // Navigate to test page
-    window.location.href = `/student/courses/${courseId}/qbank/test/${test.testId}`;
+    // Navigate to test page using client-side navigation
+    router.push(`/student/courses/${courseId}/qbank/test/${test.testId}`);
   }
 
   function handleStartTest(test: Test) {
-    // Navigate to test page
-    window.location.href = `/student/courses/${courseId}/qbank/test/${test.testId}`;
+    // Navigate to test page using client-side navigation
+    router.push(`/student/courses/${courseId}/qbank/test/${test.testId}`);
   }
 
   const filteredTests = tests.filter((test) => {

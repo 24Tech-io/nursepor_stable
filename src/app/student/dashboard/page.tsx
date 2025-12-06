@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import StatCard from '../../../components/student/StatCard';
 import CourseCard from '../../../components/student/CourseCard';
 import LoadingSpinner from '../../../components/student/LoadingSpinner';
@@ -15,6 +16,7 @@ function calculateRealProgress(courseId: string, enrolledCourses: any[]): number
 }
 
 export default function StudentDashboard() {
+  const router = useRouter();
   const [courses, setCourses] = useState<any[]>([]);
   const [showRequestModal, setShowRequestModal] = useState(false);
   const [selectedCourse, setSelectedCourse] = useState<string | null>(null);
@@ -62,10 +64,9 @@ export default function StudentDashboard() {
         if (process.env.NODE_ENV === 'development') {
           console.log('🔍 Fetching user data from /api/auth/me...');
         }
-        const response = await fetch('/api/auth/me', {
+        const response = await fetch('/api/auth/me?type=student', {
           credentials: 'include',
-          // Enable caching for better performance
-          next: { revalidate: 60 },
+          cache: 'no-store',
           headers: { 'Content-Type': 'application/json' },
         });
 
@@ -88,7 +89,7 @@ export default function StudentDashboard() {
             console.error('❌ No user data in API response');
             if (!hasStoredData) {
               setIsLoading(false);
-              setTimeout(() => (window.location.href = '/login'), 2000);
+              router.push('/login');
             }
           }
         } else if (response.status === 401) {
@@ -98,7 +99,7 @@ export default function StudentDashboard() {
               try {
                 const retryResponse = await fetch('/api/auth/me', {
                   credentials: 'include',
-                  next: { revalidate: 60 },
+                  cache: 'no-store',
                 });
                 if (retryResponse.ok) {
                   const retryData = await retryResponse.json();
@@ -113,20 +114,20 @@ export default function StudentDashboard() {
             }, 3000);
           } else {
             setIsLoading(false);
-            setTimeout(() => (window.location.href = '/login'), 2000);
+            router.push('/login');
           }
         } else {
           console.error('❌ Failed to fetch user - status:', response.status);
           if (!hasStoredData) {
             setIsLoading(false);
-            setTimeout(() => (window.location.href = '/login'), 2000);
+            router.push('/login');
           }
         }
       } catch (error) {
         console.error('❌ Exception fetching user:', error);
         if (!hasStoredData) {
           setIsLoading(false);
-          setTimeout(() => (window.location.href = '/login'), 2000);
+          router.push('/login');
         }
       }
     };
@@ -222,7 +223,7 @@ export default function StudentDashboard() {
 
       setIsFetchingStats(true);
       setIsFetchingCourses(true);
-      
+
       try {
         // Use unified endpoint - single request instead of 3+ separate requests
         const response = await fetch('/api/student/dashboard-data', {
@@ -236,7 +237,7 @@ export default function StudentDashboard() {
 
         if (response.ok) {
           const data = await response.json();
-          
+
           // Set all data at once from unified response
           if (data.stats) {
             setStats(data.stats);
@@ -641,9 +642,31 @@ export default function StudentDashboard() {
                   hasPendingRequest={pendingRequestCourseIds.includes(course.id)}
                   hasApprovedRequest={course.hasApprovedRequest || false}
                   isPublic={course.isPublic || false}
-                  onRequestAccess={() => {
-                    // Refresh data after enrollment/request
-                    window.location.reload();
+                  onRequestAccess={async () => {
+                    // Refresh data after enrollment/request - refetch courses instead of full reload
+                    try {
+                      const response = await fetch('/api/student/courses', {
+                        credentials: 'include',
+                      });
+                      if (response.ok) {
+                        const data = await response.json();
+                        setCourses(data.courses || []);
+                        // Also refetch enrolled courses data
+                        const enrolledResponse = await fetch('/api/student/enrolled-courses', {
+                          credentials: 'include',
+                        });
+                        if (enrolledResponse.ok) {
+                          const enrolledData = await enrolledResponse.json();
+                          // Update enrolled course IDs
+                          const enrolledIds = (enrolledData.courses || []).map((c: any) => String(c.id));
+                          // This will trigger a re-render with updated data
+                        }
+                      }
+                    } catch (error) {
+                      console.error('Error refreshing courses:', error);
+                      // Fallback to router refresh if fetch fails
+                      router.refresh();
+                    }
                   }}
                 />
               ))}

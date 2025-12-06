@@ -2,7 +2,6 @@
 
 import React, { useState } from 'react';
 import { X, Video } from 'lucide-react';
-import FileUpload from './FileUpload';
 import { parseVideoUrl } from '@/lib/video-utils';
 
 interface VideoEditModalProps {
@@ -14,7 +13,6 @@ interface VideoEditModalProps {
 export default function VideoEditModal({ chapter, onClose, onSave }: VideoEditModalProps) {
   const [title, setTitle] = useState(chapter.title || '');
   const [videoUrl, setVideoUrl] = useState(chapter.videoUrl || '');
-  const [uploadedVideo, setUploadedVideo] = useState('');
 
   const handleSave = () => {
     if (!title.trim()) {
@@ -22,13 +20,12 @@ export default function VideoEditModal({ chapter, onClose, onSave }: VideoEditMo
       return;
     }
 
-    const finalUrl = videoUrl || uploadedVideo;
-    if (!finalUrl) {
-      alert('Please provide a video URL or upload a video');
+    if (!videoUrl) {
+      alert('Please provide a video URL');
       return;
     }
 
-    onSave(chapter.id, title, finalUrl);
+    onSave(chapter.id, title, videoUrl);
   };
 
   // Parse video URL to show provider
@@ -90,30 +87,6 @@ export default function VideoEditModal({ chapter, onClose, onSave }: VideoEditMo
                 <span className="text-slate-400">Video will be embedded (no branding)</span>
               </div>
             )}
-          </div>
-
-          {/* OR Divider */}
-          <div className="flex items-center gap-4">
-            <div className="flex-1 h-px bg-slate-800"></div>
-            <span className="text-sm text-slate-500 font-medium">OR</span>
-            <div className="flex-1 h-px bg-slate-800"></div>
-          </div>
-
-          {/* File Upload */}
-          <div>
-            <label className="block text-sm font-bold text-slate-400 mb-2">
-              Upload Video File
-            </label>
-            <FileUpload
-              type="video"
-              label=""
-              currentUrl={uploadedVideo}
-              onUploadComplete={(url: string) => {
-                setUploadedVideo(url);
-                setVideoUrl(''); // Clear URL if file uploaded
-              }}
-              maxSizeMB={500}
-            />
           </div>
 
           {/* Current Video Info */}

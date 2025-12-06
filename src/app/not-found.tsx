@@ -1,9 +1,13 @@
 import Link from 'next/link';
+import Logo from '@/components/common/Logo';
 
 export default function NotFound() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-indigo-950 to-black flex items-center justify-center px-4">
       <div className="max-w-md w-full bg-white/10 backdrop-blur-xl rounded-2xl shadow-2xl p-8 border border-white/20 text-center">
+        <div className="flex justify-center mb-6">
+          <Logo size="lg" className="text-white" />
+        </div>
         <div className="w-16 h-16 bg-indigo-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
           <svg
             className="w-8 h-8 text-indigo-400"

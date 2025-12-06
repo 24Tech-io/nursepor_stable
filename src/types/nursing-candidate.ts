@@ -3,17 +3,26 @@ export interface DateRange {
   to: string;
 }
 
+export interface StructuredAddress {
+  addressLine: string;
+  city: string;
+  postalCode: string;
+  country: string;
+}
+
 export interface NursingPersonalDetails {
   firstName: string;
   lastName: string;
   collegeNameVariant: string;
   hasNameChange: 'Yes' | 'No';
+  nameChangeDetails?: string; // If Yes – what's the name
+  needsAffidavit: boolean; // Affidavit reminder checkbox
   maidenName: string;
   motherMaidenName: string;
   dateOfBirth: string;
   placeOfBirth: string;
   gender: 'Male' | 'Female' | 'Other';
-  address: string;
+  address: StructuredAddress;
   phoneNumber: string;
   email: string;
   firstLanguage: string;
@@ -21,9 +30,11 @@ export interface NursingPersonalDetails {
 
 export interface NursingEducationEntry {
   institutionName: string;
-  address: string;
+  address: StructuredAddress;
   programType: string;
   studyPeriod: DateRange;
+  languageOfInstruction?: string;
+  isCollegeOperational?: 'Yes' | 'No';
 }
 
 export interface NursingRegistrationEntry {
@@ -45,7 +56,24 @@ export interface NursingCanadaExperienceEntry extends NursingExperienceEntry {
   hoursPerMonth: string;
 }
 
+export interface NclexExamAttempt {
+  examDate: string;
+  country: string;
+  province?: string; // For Canada
+  state?: string; // For USA
+  result?: 'Pass' | 'Fail' | 'Pending';
+  attemptNumber: number;
+}
+
+export interface OtherSchoolEntry {
+  gradeStudied: string;
+  institutionName: string;
+  address: StructuredAddress;
+  studyPeriod: DateRange;
+}
+
 export interface NursingCandidateFormPayload {
+  country: 'USA' | 'Canada' | 'Australia';
   personalDetails: NursingPersonalDetails;
   educationDetails: {
     gnm: NursingEducationEntry;
@@ -60,8 +88,14 @@ export interface NursingCandidateFormPayload {
     hasDisciplinaryAction: 'Yes' | 'No';
     entries: NursingRegistrationEntry[];
   };
+  nclexExamHistory: {
+    hasWrittenExam: 'Yes' | 'No';
+    attempts: NclexExamAttempt[];
+  };
   employmentHistory: NursingExperienceEntry[];
   canadaEmploymentHistory: NursingCanadaExperienceEntry[];
+  otherSchools: OtherSchoolEntry[];
+  canadianImmigrationApplied?: 'Yes' | 'No';
   referenceNumber?: string;
   documentChecklistAcknowledged: boolean;
 }

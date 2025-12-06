@@ -2,15 +2,16 @@
 
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider } from '@tanstack/react-query';
 import NurseProAdminUltimate from '@/components/admin/UnifiedAdminSuite';
 import { NotificationProvider } from '@/components/admin/NotificationProvider';
+import { getQueryClient } from '@/lib/query-client';
 
 export default function CourseEditorPage() {
   const params = useParams();
   const courseId = params?.id ? parseInt(params.id as string) : null;
   const [course, setCourse] = useState<any>(null);
-  const [queryClient] = useState(() => new QueryClient());
+  const [queryClient] = useState(() => getQueryClient());
 
   useEffect(() => {
     if (courseId) {

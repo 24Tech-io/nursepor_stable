@@ -11,6 +11,10 @@ import {
 } from '@/lib/db/schema';
 import { eq, or, and } from 'drizzle-orm';
 
+// Prevent static generation - this route requires database access
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
 /**
  * Comprehensive test endpoint to create Nurse Pro course with full Q-Bank data
  * Includes: Course, Question Bank, Questions, Tests, Attempts, and Statistics

@@ -135,9 +135,11 @@ export const quizQuestions = pgTable('quiz_questions', {
     .notNull()
     .references(() => quizzes.id, { onDelete: 'cascade' }),
   question: text('question').notNull(),
+  questionType: text('question_type').notNull().default('mcq'), // mcq, sata, ngn_case_study, bowtie, trend, etc.
   options: text('options').notNull(),
   correctAnswer: text('correct_answer').notNull(),
   explanation: text('explanation'),
+  imageUrl: text('image_url'), // URL to uploaded question image
   order: integer('order').notNull(),
 });
 
@@ -217,7 +219,7 @@ export const dailyVideos = pgTable('daily_videos', {
     .references(() => chapters.id, { onDelete: 'cascade' }),
   title: text('title').notNull(),
   description: text('description'),
-  day: integer('day').notNull(),
+  day: text('day').notNull(), // Date in dd-mm-yyyy format (e.g., 05-12-2024)
   isActive: boolean('is_active').notNull().default(true),
   createdAt: timestamp('created_at').notNull().defaultNow(),
 });
@@ -714,6 +716,7 @@ export const courseAnnouncementsRelations = relations(courseAnnouncements, ({ on
 export const nursingCandidateForms = pgTable('nursing_candidate_forms', {
   id: serial('id').primaryKey(),
   referenceNumber: text('reference_number').notNull(),
+  country: text('country').notNull().default('Canada'),
   personalDetails: jsonb('personal_details')
     .$type<NursingCandidateFormPayload['personalDetails']>()
     .notNull(),
@@ -729,6 +732,7 @@ export const nursingCandidateForms = pgTable('nursing_candidate_forms', {
   canadaEmploymentHistory: jsonb('canada_employment_history')
     .$type<NursingCandidateFormPayload['canadaEmploymentHistory']>()
     .notNull(),
+  canadianImmigrationApplied: text('canadian_immigration_applied'),
   documentChecklistAcknowledged: boolean('document_checklist_acknowledged')
     .notNull()
     .default(false),
@@ -784,6 +788,7 @@ export const qbankQuestions = pgTable('qbank_questions', {
   options: text('options').notNull(), // JSON array of options
   correctAnswer: text('correct_answer').notNull(), // JSON array for SATA, single value for MCQ
   explanation: text('explanation'),
+  imageUrl: text('image_url'), // URL to uploaded question image
   subject: text('subject'), // Adult Health, Child Health, etc.
   lesson: text('lesson'), // Cardiovascular, Endocrine, etc.
   clientNeedArea: text('client_need_area'), // Physiological Adaptation, etc.

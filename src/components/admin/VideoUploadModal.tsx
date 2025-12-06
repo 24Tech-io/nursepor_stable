@@ -1,8 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { X, Video, Upload, Link as LinkIcon } from 'lucide-react';
-import FileUpload from './FileUpload';
+import { X, Video } from 'lucide-react';
 import { parseVideoUrl } from '@/lib/video-utils';
 
 interface VideoUploadModalProps {
@@ -13,8 +12,6 @@ interface VideoUploadModalProps {
 export default function VideoUploadModal({ onClose, onSave }: VideoUploadModalProps) {
   const [title, setTitle] = useState('');
   const [videoUrl, setVideoUrl] = useState('');
-  const [videoFile, setVideoFile] = useState('');
-  const [uploadMethod, setUploadMethod] = useState<'url' | 'file'>('url');
 
   const handleSave = () => {
     if (!title) {
@@ -22,24 +19,16 @@ export default function VideoUploadModal({ onClose, onSave }: VideoUploadModalPr
       return;
     }
 
-    if (uploadMethod === 'url' && !videoUrl) {
+    if (!videoUrl) {
       alert('Please enter a video URL');
       return;
     }
 
-    if (uploadMethod === 'file' && !videoFile) {
-      alert('Please upload a video file');
-      return;
-    }
-
     // Convert video URL to embed format if provided (hides branding)
-    let finalVideoUrl = videoUrl;
-    if (uploadMethod === 'url' && videoUrl) {
-      const parsed = parseVideoUrl(videoUrl);
-      finalVideoUrl = parsed.embedUrl; // Use embed URL with privacy settings
-    }
+    const parsed = parseVideoUrl(videoUrl);
+    const finalVideoUrl = parsed.embedUrl;
 
-    onSave(title, finalVideoUrl || videoUrl, videoFile);
+    onSave(title, finalVideoUrl || videoUrl, ''); // Empty string for videoFile
   };
 
   return (
@@ -71,54 +60,15 @@ export default function VideoUploadModal({ onClose, onSave }: VideoUploadModalPr
           </div>
 
           <div>
-            <label className="block text-sm font-bold text-slate-400 mb-3">Upload Method</label>
-            <div className="flex gap-4 mb-4">
-              <button
-                onClick={() => setUploadMethod('url')}
-                className={`flex-1 px-4 py-3 rounded-lg border-2 transition-all flex items-center justify-center gap-2 ${
-                  uploadMethod === 'url'
-                    ? 'border-purple-500 bg-purple-500/10 text-purple-400'
-                    : 'border-slate-700 text-slate-400 hover:border-slate-600'
-                }`}
-              >
-                <LinkIcon size={18} />
-                Video URL (YouTube/Vimeo)
-              </button>
-              <button
-                onClick={() => setUploadMethod('file')}
-                className={`flex-1 px-4 py-3 rounded-lg border-2 transition-all flex items-center justify-center gap-2 ${
-                  uploadMethod === 'file'
-                    ? 'border-purple-500 bg-purple-500/10 text-purple-400'
-                    : 'border-slate-700 text-slate-400 hover:border-slate-600'
-                }`}
-              >
-                <Upload size={18} />
-                Upload Video File
-              </button>
-            </div>
-
-            {uploadMethod === 'url' ? (
-              <div>
-                <label className="block text-sm font-bold text-slate-400 mb-2">Video URL</label>
-                <input
-                  type="url"
-                  value={videoUrl}
-                  onChange={(e) => setVideoUrl(e.target.value)}
-                  placeholder="https://www.youtube.com/watch?v=... or https://vimeo.com/..."
-                  className="w-full px-4 py-2 bg-[#1a1d26] border border-slate-800 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-purple-500"
-                />
-                <p className="text-xs text-slate-500 mt-2">Supports YouTube and Vimeo URLs</p>
-              </div>
-            ) : (
-              <div>
-                <FileUpload
-                  type="video"
-                  label="Upload Video File"
-                  onUploadComplete={(url) => setVideoFile(url)}
-                  maxSizeMB={500}
-                />
-              </div>
-            )}
+            <label className="block text-sm font-bold text-slate-400 mb-2">Video URL</label>
+            <input
+              type="url"
+              value={videoUrl}
+              onChange={(e) => setVideoUrl(e.target.value)}
+              placeholder="https://www.youtube.com/watch?v=... or https://vimeo.com/..."
+              className="w-full px-4 py-2 bg-[#1a1d26] border border-slate-800 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-purple-500"
+            />
+            <p className="text-xs text-slate-500 mt-2">Supports YouTube and Vimeo URLs</p>
           </div>
 
           <div className="flex justify-end gap-3 pt-4 border-t border-slate-800">

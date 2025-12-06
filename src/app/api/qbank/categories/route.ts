@@ -4,6 +4,10 @@ import { getDatabase } from '@/lib/db';
 import { qbankCategories } from '@/lib/db/schema';
 import { desc, eq } from 'drizzle-orm';
 
+// Prevent build-time database access
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
 export async function GET(request: NextRequest) {
   try {
     const token = request.cookies.get('adminToken')?.value;

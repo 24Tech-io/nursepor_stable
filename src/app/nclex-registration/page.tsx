@@ -1,25 +1,29 @@
 import Link from 'next/link';
 import NclexRegistrationForm from '@/components/forms/NclexRegistrationForm';
+import Logo from '@/components/common/Logo';
 
 export default function NclexRegistrationPage() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 py-12 px-4">
       <div className="max-w-6xl mx-auto space-y-8">
         <div className="flex flex-col gap-4">
-          <Link
-            href="/"
-            className="inline-flex items-center gap-2 text-sm text-slate-200 hover:text-white transition self-start"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M15 19l-7-7 7-7"
-              />
-            </svg>
-            Back to homepage
-          </Link>
+          <div className="flex items-center justify-between">
+            <Logo href="/" size="md" className="text-white" />
+            <Link
+              href="/"
+              className="inline-flex items-center gap-2 text-sm text-slate-200 hover:text-white transition"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M15 19l-7-7 7-7"
+                />
+              </svg>
+              Back to homepage
+            </Link>
+          </div>
           <div>
             <p className="text-xs uppercase tracking-[0.4em] text-indigo-300 font-semibold mb-3">
               NCLEX-RN Intake

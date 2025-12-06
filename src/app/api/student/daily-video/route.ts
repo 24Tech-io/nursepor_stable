@@ -18,11 +18,12 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ message: 'Invalid token' }, { status: 403 });
     }
 
-    // Get today's day number (1-365)
+    // Get today's date in dd-mm-yyyy format
     const today = new Date();
-    const startOfYear = new Date(today.getFullYear(), 0, 0);
-    const diff = today.getTime() - startOfYear.getTime();
-    const dayOfYear = Math.floor(diff / (1000 * 60 * 60 * 24));
+    const day = String(today.getDate()).padStart(2, '0');
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const year = today.getFullYear();
+    const todayDate = `${day}-${month}-${year}`;
 
     // Find daily video for today
     const todayVideo = await db
@@ -39,7 +40,7 @@ export async function GET(request: NextRequest) {
       })
       .from(dailyVideos)
       .innerJoin(chapters, eq(dailyVideos.chapterId, chapters.id))
-      .where(and(eq(dailyVideos.day, dayOfYear), eq(dailyVideos.isActive, true)))
+      .where(and(eq(dailyVideos.day, todayDate), eq(dailyVideos.isActive, true)))
       .limit(1);
 
     if (todayVideo.length === 0) {

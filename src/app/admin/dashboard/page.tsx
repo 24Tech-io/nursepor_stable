@@ -1,29 +1,30 @@
 'use client';
 
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import React from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import NurseProAdminUltimate from '@/components/admin/UnifiedAdminSuite';
 import { NotificationProvider } from '@/components/admin/NotificationProvider';
+import { getQueryClient } from '@/lib/query-client';
 
 export default function AdminDashboard() {
-  const [queryClient] = useState(() => new QueryClient());
+  const [queryClient] = useState(() => getQueryClient());
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [module, setModule] = useState<string>('dashboard');
   const router = useRouter();
+  const searchParams = useSearchParams();
 
-  // Get module from URL query parameter - must be called before any conditional returns
+  // Get module from URL query parameter - updates when URL changes
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const params = new URLSearchParams(window.location.search);
-      const moduleParam = params.get('module');
-      if (moduleParam) {
-        setModule(moduleParam);
-      }
+    const moduleParam = searchParams.get('module');
+    if (moduleParam) {
+      setModule(moduleParam);
+    } else {
+      setModule('dashboard'); // Default to dashboard if no module param
     }
-  }, []);
+  }, [searchParams]);
 
   // Check authentication first
   useEffect(() => {
@@ -31,7 +32,7 @@ export default function AdminDashboard() {
       try {
         console.log('🔐 [Dashboard] Starting auth check...');
 
-        const response = await fetch('/api/auth/me', {
+        const response = await fetch('/api/auth/me?type=admin', {
           method: 'GET',
           credentials: 'include',
           cache: 'no-store',
@@ -53,20 +54,20 @@ export default function AdminDashboard() {
             // User exists but not admin - redirect to student login
             console.log('❌ [Dashboard] User is not an admin, redirecting to student login');
             sessionStorage.clear();
-            window.location.replace('/login');
+            router.push('/login');
             return;
           }
         } else {
           // Not authenticated - redirect to admin login
           console.log('❌ [Dashboard] Not authenticated, redirecting to admin login');
           sessionStorage.clear();
-          window.location.replace('/admin/login');
+          router.push('/admin/login');
           return;
         }
       } catch (error) {
         console.error('Auth check error:', error);
         sessionStorage.clear();
-        window.location.replace('/admin/login');
+        router.push('/admin/login');
       } finally {
         setIsLoading(false);
       }

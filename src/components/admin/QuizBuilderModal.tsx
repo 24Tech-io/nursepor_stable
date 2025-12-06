@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
-import { X, Plus, Trash2, GripVertical, Zap } from 'lucide-react';
+import React, { useState, useCallback } from 'react';
+import { X, Plus, Trash2, GripVertical, Zap, Image as ImageIcon } from 'lucide-react';
+import QuestionForm from './qbank/QuestionForm';
 
 interface QuizBuilderModalProps {
   onClose: () => void;
@@ -13,15 +14,27 @@ interface QuizBuilderModalProps {
   }) => void;
 }
 
-type QuestionType = 'mcq' | 'sata' | 'extended_multiple' | 'extended_drag_drop' | 'cloze' | 'matrix' | 'bowtie' | 'trend' | 'ranking' | 'case_study' | 'select_n';
+type QuestionFormat =
+  | 'multiple_choice'
+  | 'sata'
+  | 'extended_multiple_response'
+  | 'extended_drag_drop'
+  | 'cloze_dropdown'
+  | 'matrix_multiple_response'
+  | 'bowtie'
+  | 'trend_item'
+  | 'ranking'
+  | 'case_study'
+  | 'select_n';
 
 interface Question {
   id: string;
-  type: QuestionType;
+  format: QuestionFormat;
   question: string;
-  options: string[];
-  correctAnswer: string | string[];
+  options: string[] | any;
+  correctAnswer: string | string[] | any;
   explanation: string;
+  imageUrl?: string;
 }
 
 export default function QuizBuilderModal({ onClose, onSave }: QuizBuilderModalProps) {
@@ -31,49 +44,42 @@ export default function QuizBuilderModal({ onClose, onSave }: QuizBuilderModalPr
   const [questions, setQuestions] = useState<Question[]>([]);
   const [showQuestionForm, setShowQuestionForm] = useState(false);
   const [currentQuestion, setCurrentQuestion] = useState<Partial<Question>>({
-    type: 'mcq',
+    format: 'multiple_choice',
     question: '',
     options: ['', '', '', ''],
     correctAnswer: '',
     explanation: '',
+    imageUrl: '',
   });
 
-  const questionTypes: { value: QuestionType; label: string; description: string }[] = [
-    { value: 'mcq', label: 'Multiple Choice', description: 'Single correct answer' },
-    { value: 'sata', label: 'Select All That Apply', description: 'Multiple correct answers' },
-    { value: 'extended_multiple', label: 'Extended Multiple Response', description: 'NGN format' },
-    { value: 'extended_drag_drop', label: 'Extended Drag & Drop', description: 'NGN format' },
-    { value: 'cloze', label: 'Cloze (Drop-Down)', description: 'Fill in the blanks' },
-    { value: 'matrix', label: 'Matrix/Grid', description: 'Multiple choice grid' },
-    { value: 'bowtie', label: 'Bowtie/Highlight', description: 'NGN case study' },
-    { value: 'trend', label: 'Trend', description: 'Data analysis' },
-    { value: 'ranking', label: 'Ranking/Ordering', description: 'Priority order' },
-    { value: 'case_study', label: 'Case Study', description: 'Clinical scenario' },
-    { value: 'select_n', label: 'Select N', description: 'Choose specific number' },
-  ];
+  const handleQuestionChange = useCallback((updatedQuestion: any) => {
+    setCurrentQuestion(updatedQuestion);
+  }, []);
 
-  const handleAddQuestion = () => {
-    if (!currentQuestion.question?.trim()) {
+  const handleSaveQuestion = (question: any) => {
+    if (!question.question?.trim()) {
       alert('Please enter a question');
       return;
     }
 
     const newQuestion: Question = {
       id: Date.now().toString(),
-      type: currentQuestion.type || 'mcq',
-      question: currentQuestion.question,
-      options: currentQuestion.options || [],
-      correctAnswer: currentQuestion.correctAnswer || '',
-      explanation: currentQuestion.explanation || '',
+      format: question.format || 'multiple_choice',
+      question: question.question,
+      options: question.options || [],
+      correctAnswer: question.correctAnswer || '',
+      explanation: question.explanation || '',
+      imageUrl: question.imageUrl || '',
     };
 
     setQuestions([...questions, newQuestion]);
     setCurrentQuestion({
-      type: 'mcq',
+      format: 'multiple_choice',
       question: '',
       options: ['', '', '', ''],
       correctAnswer: '',
       explanation: '',
+      imageUrl: '',
     });
     setShowQuestionForm(false);
   };
@@ -184,127 +190,31 @@ export default function QuizBuilderModal({ onClose, onSave }: QuizBuilderModalPr
               <div className="flex items-center justify-between mb-4">
                 <h5 className="text-md font-bold text-white">New Question</h5>
                 <button
-                  onClick={() => setShowQuestionForm(false)}
+                  onClick={() => {
+                    setShowQuestionForm(false);
+                    setCurrentQuestion({
+                      format: 'multiple_choice',
+                      question: '',
+                      options: ['', '', '', ''],
+                      correctAnswer: '',
+                      explanation: '',
+                      imageUrl: '',
+                    });
+                  }}
                   className="text-slate-400 hover:text-white"
                 >
                   <X size={18} />
                 </button>
               </div>
 
-              {/* Question Type Selector */}
-              <div>
-                <label className="block text-sm font-bold text-slate-400 mb-2">Question Type</label>
-                <select
-                  value={currentQuestion.type}
-                  onChange={(e) => setCurrentQuestion({ ...currentQuestion, type: e.target.value as QuestionType })}
-                  className="w-full px-4 py-2 bg-[#161922] border border-slate-700 rounded-lg text-white focus:outline-none focus:border-purple-500"
-                >
-                  {questionTypes.map((type) => (
-                    <option key={type.value} value={type.value}>
-                      {type.label} - {type.description}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Question Text */}
-              <div>
-                <label className="block text-sm font-bold text-slate-400 mb-2">Question</label>
-                <textarea
-                  value={currentQuestion.question}
-                  onChange={(e) => setCurrentQuestion({ ...currentQuestion, question: e.target.value })}
-                  placeholder="Enter your question here..."
-                  className="w-full h-24 px-4 py-2 bg-[#161922] border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-purple-500 resize-none"
-                />
-              </div>
-
-              {/* Options (for MCQ/SATA types) */}
-              {(currentQuestion.type === 'mcq' || currentQuestion.type === 'sata') && (
-                <div>
-                  <label className="block text-sm font-bold text-slate-400 mb-2">Answer Options</label>
-                  <div className="space-y-2">
-                    {currentQuestion.options?.map((option, idx) => (
-                      <div key={idx} className="flex gap-2">
-                        <input
-                          type="text"
-                          value={option}
-                          onChange={(e) => {
-                            const newOptions = [...(currentQuestion.options || [])];
-                            newOptions[idx] = e.target.value;
-                            setCurrentQuestion({ ...currentQuestion, options: newOptions });
-                          }}
-                          placeholder={`Option ${idx + 1}`}
-                          className="flex-1 px-4 py-2 bg-[#161922] border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-purple-500"
-                        />
-                        {idx > 1 && (
-                          <button
-                            onClick={() => {
-                              const newOptions = currentQuestion.options?.filter((_, i) => i !== idx);
-                              setCurrentQuestion({ ...currentQuestion, options: newOptions });
-                            }}
-                            className="p-2 text-red-400 hover:text-red-300"
-                          >
-                            <Trash2 size={18} />
-                          </button>
-                        )}
-                      </div>
-                    ))}
-                    <button
-                      onClick={() => {
-                        setCurrentQuestion({
-                          ...currentQuestion,
-                          options: [...(currentQuestion.options || []), ''],
-                        });
-                      }}
-                      className="text-sm text-purple-400 hover:text-purple-300 flex items-center gap-1"
-                    >
-                      <Plus size={14} />
-                      Add Option
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* Correct Answer */}
-              <div>
-                <label className="block text-sm font-bold text-slate-400 mb-2">
-                  Correct Answer {currentQuestion.type === 'sata' && '(comma-separated for multiple)'}
-                </label>
-                <input
-                  type="text"
-                  value={currentQuestion.correctAnswer}
-                  onChange={(e) => setCurrentQuestion({ ...currentQuestion, correctAnswer: e.target.value })}
-                  placeholder={currentQuestion.type === 'mcq' ? 'e.g., Option 1' : 'e.g., Option 1, Option 3'}
-                  className="w-full px-4 py-2 bg-[#161922] border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-purple-500"
-                />
-              </div>
-
-              {/* Explanation */}
-              <div>
-                <label className="block text-sm font-bold text-slate-400 mb-2">Explanation (Optional)</label>
-                <textarea
-                  value={currentQuestion.explanation}
-                  onChange={(e) => setCurrentQuestion({ ...currentQuestion, explanation: e.target.value })}
-                  placeholder="Explain why this is the correct answer..."
-                  className="w-full h-20 px-4 py-2 bg-[#161922] border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-purple-500 resize-none"
-                />
-              </div>
-
-              {/* Add Question Button */}
-              <div className="flex justify-end gap-2 pt-4 border-t border-slate-700">
-                <button
-                  onClick={() => setShowQuestionForm(false)}
-                  className="px-4 py-2 text-slate-400 hover:text-white transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleAddQuestion}
-                  className="px-6 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-semibold transition-colors"
-                >
-                  Add Question
-                </button>
-              </div>
+              {/* Use QuestionForm component */}
+              <QuestionForm
+                question={currentQuestion}
+                format={currentQuestion.format as QuestionFormat}
+                onChange={handleQuestionChange}
+                onSave={handleSaveQuestion}
+                showSaveButton={true}
+              />
             </div>
           )}
 
@@ -325,8 +235,14 @@ export default function QuizBuilderModal({ onClose, onSave }: QuizBuilderModalPr
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-1">
                             <span className="text-xs font-semibold text-purple-400 uppercase px-2 py-0.5 bg-purple-500/20 rounded">
-                              {questionTypes.find(t => t.value === question.type)?.label || question.type}
+                              {question.format || 'multiple_choice'}
                             </span>
+                            {question.imageUrl && (
+                              <span className="text-xs text-slate-500 flex items-center gap-1">
+                                <ImageIcon size={12} />
+                                Has Image
+                              </span>
+                            )}
                           </div>
                           <p className="text-white font-medium">{question.question}</p>
                         </div>

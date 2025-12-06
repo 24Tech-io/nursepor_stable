@@ -78,9 +78,9 @@ export async function GET(request: NextRequest) {
           const avgScore =
             completedTests.length > 0
               ? Math.round(
-                  completedTests.reduce((sum, t) => sum + (t.percentage || 0), 0) /
-                    completedTests.length
-                )
+                completedTests.reduce((sum, t) => sum + (t.percentage || 0), 0) /
+                completedTests.length
+              )
               : 0;
 
           testStats = {
@@ -120,6 +120,7 @@ export async function GET(request: NextRequest) {
     );
   }
 }
+
 
 
 

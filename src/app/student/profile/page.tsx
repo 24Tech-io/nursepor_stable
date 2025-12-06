@@ -69,7 +69,7 @@ export default function ProfilePage() {
         if (process.env.NODE_ENV === 'development') {
           console.log('🔍 Profile: Fetching user data from /api/auth/me...');
         }
-        const response = await fetch('/api/auth/me', {
+        const response = await fetch('/api/auth/me?type=student', {
           credentials: 'include',
           signal: abortController.signal,
           cache: 'no-store',
@@ -125,7 +125,7 @@ export default function ProfilePage() {
                 if (process.env.NODE_ENV === 'development') {
                   console.log('🔄 Profile: Retrying /api/auth/me...');
                 }
-                const retryResponse = await fetch('/api/auth/me', {
+                const retryResponse = await fetch('/api/auth/me?type=student', {
                   credentials: 'include',
                   signal: abortController.signal,
                   cache: 'no-store',
@@ -443,9 +443,9 @@ export default function ProfilePage() {
               Member since{' '}
               {user.joinedDate
                 ? (typeof user.joinedDate === 'string'
-                    ? new Date(user.joinedDate)
-                    : user.joinedDate
-                  ).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+                  ? new Date(user.joinedDate)
+                  : user.joinedDate
+                ).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
                 : 'Recently'}
             </p>
           </div>
@@ -459,11 +459,10 @@ export default function ProfilePage() {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id as any)}
-              className={`flex-1 py-4 px-6 text-center font-semibold transition ${
-                activeTab === tab.id
-                  ? 'bg-gradient-to-r from-purple-600 to-blue-600 text-white'
-                  : 'text-gray-600 hover:bg-gray-50'
-              }`}
+              className={`flex-1 py-4 px-6 text-center font-semibold transition ${activeTab === tab.id
+                ? 'bg-gradient-to-r from-purple-600 to-blue-600 text-white'
+                : 'text-gray-600 hover:bg-gray-50'
+                }`}
             >
               <span className="mr-2">{tab.icon}</span>
               {tab.label}
@@ -543,7 +542,7 @@ export default function ProfilePage() {
                         <div>
                           <p className="text-sm text-gray-500">Phone Number</p>
                           <p className="font-semibold text-gray-900">
-                            {user.phone || 'Not provided'}
+                            {user.phone && user.phone.trim() ? user.phone : 'Not provided'}
                           </p>
                         </div>
                       </div>
@@ -711,9 +710,8 @@ export default function ProfilePage() {
                   {notifications.map((notification) => (
                     <div
                       key={notification.id}
-                      className={`p-6 rounded-2xl border transition cursor-pointer hover:shadow-md ${
-                        notification.read ? 'bg-white border-gray-200' : 'bg-blue-50 border-blue-200'
-                      }`}
+                      className={`p-6 rounded-2xl border transition cursor-pointer hover:shadow-md ${notification.read ? 'bg-white border-gray-200' : 'bg-blue-50 border-blue-200'
+                        }`}
                       onClick={async () => {
                         if (!notification.read) {
                           try {
@@ -737,15 +735,14 @@ export default function ProfilePage() {
                     >
                       <div className="flex items-start space-x-4">
                         <div
-                          className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
-                            notification.type === 'success'
-                              ? 'bg-green-100 text-green-600'
-                              : notification.type === 'warning'
-                                ? 'bg-yellow-100 text-yellow-600'
-                                : notification.type === 'error'
-                                  ? 'bg-red-100 text-red-600'
-                                  : 'bg-blue-100 text-blue-600'
-                          }`}
+                          className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${notification.type === 'success'
+                            ? 'bg-green-100 text-green-600'
+                            : notification.type === 'warning'
+                              ? 'bg-yellow-100 text-yellow-600'
+                              : notification.type === 'error'
+                                ? 'bg-red-100 text-red-600'
+                                : 'bg-blue-100 text-blue-600'
+                            }`}
                         >
                           {notification.type === 'success'
                             ? '✓'

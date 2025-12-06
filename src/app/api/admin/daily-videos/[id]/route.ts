@@ -83,14 +83,31 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
     }
 
     // Parse existing description/metadata
-    let existingDesc = existing[0].description;
+    let existingDesc = '';
     let existingMetadata = {};
 
     try {
       const parsed = JSON.parse(existing[0].description || '{}');
-      existingDesc = parsed.description || existing[0].description || '';
+      // Extract the actual description string, handling nested JSON strings
+      if (typeof parsed.description === 'string') {
+        // Check if it's a JSON string that needs parsing
+        try {
+          const nestedParsed = JSON.parse(parsed.description);
+          if (typeof nestedParsed === 'object' && nestedParsed.description) {
+            existingDesc = nestedParsed.description;
+          } else {
+            existingDesc = parsed.description;
+          }
+        } catch (e) {
+          // Not a nested JSON string, use as-is
+          existingDesc = parsed.description;
+        }
+      } else {
+        existingDesc = existing[0].description || '';
+      }
       existingMetadata = parsed.metadata || {};
     } catch (e) {
+      // If not JSON, use as plain description
       existingDesc = existing[0].description || '';
     }
 
@@ -98,7 +115,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
     const updateData: any = {};
     if (data.chapterId !== undefined) updateData.chapterId = parseInt(data.chapterId);
     if (data.title !== undefined) updateData.title = data.title;
-    if (data.day !== undefined) updateData.day = parseInt(data.day);
+    if (data.day !== undefined) updateData.day = data.day; // Already a string in dd-mm-yyyy format
     if (data.isActive !== undefined) updateData.isActive = data.isActive;
 
     // Update description and metadata
@@ -134,8 +151,23 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
           data.priority !== undefined ? data.priority : (existingMetadata as any).priority || 0,
       };
 
+      // Ensure description is always a plain string, not a JSON string
+      let cleanDescription = data.description !== undefined ? data.description : existingDesc;
+      
+      // If the incoming description is already a JSON string, parse it first
+      if (typeof cleanDescription === 'string' && cleanDescription.trim().startsWith('{')) {
+        try {
+          const testParse = JSON.parse(cleanDescription);
+          if (typeof testParse === 'object' && testParse.description) {
+            cleanDescription = testParse.description;
+          }
+        } catch (e) {
+          // Not a JSON string, use as-is
+        }
+      }
+
       const enhancedDescription = {
-        description: data.description !== undefined ? data.description : existingDesc,
+        description: cleanDescription, // Always use plain string
         metadata: metadata,
       };
 

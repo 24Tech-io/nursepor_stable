@@ -19,8 +19,8 @@ export async function GET() {
       db = await getDatabaseWithRetry();
     } catch (dbError: any) {
       return NextResponse.json({
-        success: false,
-        error: 'Database connection failed',
+          success: false,
+          error: 'Database connection failed',
         errorMessage: dbError.message,
         environment: envCheck,
       }, { status: 503 }); // Service Unavailable
@@ -35,27 +35,27 @@ export async function GET() {
       adminCount = allUsers.filter(u => u.role === 'admin').length;
     } catch (queryError: any) {
       return NextResponse.json({
-        success: false,
+            success: false,
         error: 'Database query failed',
         errorMessage: queryError.message,
         environment: envCheck,
       }, { status: 500 });
     }
 
-    return NextResponse.json({
-      success: true,
+      return NextResponse.json({
+        success: true,
       message: 'Database connection successful',
       environment: envCheck,
       database: {
         connected: true,
         userCount,
         adminCount,
-      },
-    });
+        },
+      });
   } catch (error: any) {
     return NextResponse.json({
-      success: false,
-      error: 'Unexpected error',
+        success: false,
+        error: 'Unexpected error',
       errorMessage: error.message,
     }, { status: 500 });
   }

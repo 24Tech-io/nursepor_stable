@@ -124,7 +124,12 @@ export class ErrorBoundary extends Component<Props, State> {
                   Reload Page
                 </button>
                 <button
-                  onClick={() => (window.location.href = '/')}
+                  onClick={() => {
+                    // Use router for client-side navigation instead of full reload
+                    if (typeof window !== 'undefined') {
+                      window.location.href = '/';
+                    }
+                  }}
                   className="px-6 py-3 bg-white/10 text-white rounded-xl font-semibold hover:bg-white/20 transition border border-white/20"
                 >
                   Go Home

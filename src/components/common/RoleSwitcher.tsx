@@ -49,7 +49,7 @@ export default function RoleSwitcher() {
           if (accountsResponse.ok) {
             const accountsData = await accountsResponse.json();
             if (process.env.NODE_ENV === 'development') {
-              console.log('RoleSwitcher - Accounts received:', accountsData);
+            console.log('RoleSwitcher - Accounts received:', accountsData);
             }
             if (accountsData.accounts) {
               setAccounts(accountsData.accounts);
@@ -86,11 +86,11 @@ export default function RoleSwitcher() {
 
       if (response.ok) {
         const data = await response.json();
-        // Redirect to appropriate dashboard
+        // Redirect to appropriate dashboard using client-side navigation
         if (data.user.role === 'admin') {
-          window.location.href = '/admin/dashboard';
+          router.push('/admin/dashboard');
         } else {
-          window.location.href = '/student/dashboard';
+          router.push('/student/dashboard');
         }
       } else {
         const errorData = await response.json();
@@ -121,10 +121,10 @@ export default function RoleSwitcher() {
 
   // Debug logging (development only)
   if (process.env.NODE_ENV === 'development') {
-    console.log('RoleSwitcher - Current user:', currentUser);
-    console.log('RoleSwitcher - Accounts:', accounts);
-    console.log('RoleSwitcher - Has multiple accounts:', hasMultipleAccounts);
-    console.log('RoleSwitcher - Other account:', otherAccount);
+  console.log('RoleSwitcher - Current user:', currentUser);
+  console.log('RoleSwitcher - Accounts:', accounts);
+  console.log('RoleSwitcher - Has multiple accounts:', hasMultipleAccounts);
+  console.log('RoleSwitcher - Other account:', otherAccount);
   }
 
   return (

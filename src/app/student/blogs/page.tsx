@@ -229,11 +229,10 @@ export default function BlogsPage() {
         <div className="flex items-center space-x-2 flex-wrap gap-2">
           <button
             onClick={() => setSelectedTag(null)}
-            className={`px-4 py-2 rounded-xl font-medium transition ${
-              !selectedTag
+            className={`px-4 py-2 rounded-xl font-medium transition ${!selectedTag
                 ? 'bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-md'
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
+              }`}
           >
             All Topics
           </button>
@@ -241,11 +240,10 @@ export default function BlogsPage() {
             <button
               key={tag}
               onClick={() => setSelectedTag(tag)}
-              className={`px-4 py-2 rounded-xl font-medium transition capitalize ${
-                selectedTag === tag
+              className={`px-4 py-2 rounded-xl font-medium transition capitalize ${selectedTag === tag
                   ? 'bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-md'
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
+                }`}
             >
               {tag}
             </button>
