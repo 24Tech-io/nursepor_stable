@@ -1,23 +1,32 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { securityLogger } from '@/lib/edge-logger';
+import { config as appConfig } from '@/lib/config';
+import { guardDebugEndpoints } from './middleware/production-guard';
+import { checkRequestSize } from './middleware/request-size-limit';
+// Note: checkRateLimit is imported dynamically below to avoid build-time import of optional Redis packages
+import { validateCSRF } from './middleware/csrf-validation';
 
-// Rate limiting store (in-memory, use Redis in production)
-const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
-
-// CORS configuration
-const ALLOWED_ORIGINS = [
-  'http://localhost:3000',
-  'http://localhost:3001',
-  process.env.NEXT_PUBLIC_APP_URL,
-  process.env.NEXT_PUBLIC_ADMIN_URL,
-].filter(Boolean);
+// CORS configuration - uses centralized config (no hardcoded URLs)
+const ALLOWED_ORIGINS = appConfig.allowedOrigins;
 
 // Rate limiting configuration
 const RATE_LIMIT_WINDOW = 60 * 1000; // 1 minute
 const RATE_LIMIT_MAX = 100; // requests per window
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
+  // Guard debug endpoints in production
+  const debugGuard = guardDebugEndpoints(request);
+  if (debugGuard) {
+    return debugGuard;
+  }
+  
+  // Check request size (sync check in Edge runtime)
+  const sizeCheck = checkRequestSize(request);
+  if (sizeCheck) {
+    return sizeCheck;
+  }
+  
   const response = NextResponse.next();
 
   // CORS headers
@@ -26,12 +35,20 @@ export function middleware(request: NextRequest) {
     response.headers.set('Access-Control-Allow-Origin', origin);
     response.headers.set('Access-Control-Allow-Credentials', 'true');
     response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
-    response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-CSRF-Token');
   }
 
   // Handle preflight requests
   if (request.method === 'OPTIONS') {
     return new NextResponse(null, { status: 200, headers: response.headers });
+  }
+
+  // CSRF validation for state-changing operations
+  if (request.nextUrl.pathname.startsWith('/api')) {
+    const csrfValidation = validateCSRF(request);
+    if (csrfValidation) {
+      return csrfValidation;
+    }
   }
 
   // Security headers
@@ -53,68 +70,48 @@ export function middleware(request: NextRequest) {
   ].join('; ');
   response.headers.set('Content-Security-Policy', csp);
 
-  // Rate limiting for API routes
+  // Rate limiting for API routes (using Redis with fallback)
   if (request.nextUrl.pathname.startsWith('/api')) {
     const ip = request.ip || request.headers.get('x-forwarded-for') || 'unknown';
-    const key = `${ip}:${request.nextUrl.pathname}`;
-    const now = Date.now();
+    const identifier = `${ip}:${request.nextUrl.pathname}`;
 
-    const rateLimit = rateLimitMap.get(key);
+    try {
+      // Import at runtime via shim to avoid build-time issues with optional Redis packages
+      const { checkRateLimit } = await import('@/lib/rate-limit-shim');
+      const rateLimitResult = await checkRateLimit(identifier, RATE_LIMIT_MAX, RATE_LIMIT_WINDOW);
 
-    if (rateLimit) {
-      if (now < rateLimit.resetTime) {
-        if (rateLimit.count >= RATE_LIMIT_MAX) {
-          securityLogger.warn('Rate limit exceeded', {
-            ip,
-            path: request.nextUrl.pathname,
-            count: rateLimit.count
-          });
-          return new NextResponse(
-            JSON.stringify({
-              error: 'Too many requests',
-              message: 'Please try again later',
-              retryAfter: Math.ceil((rateLimit.resetTime - now) / 1000)
-            }),
-            {
-              status: 429,
-              headers: {
-                'Content-Type': 'application/json',
-                'Retry-After': String(Math.ceil((rateLimit.resetTime - now) / 1000)),
-                'X-RateLimit-Limit': String(RATE_LIMIT_MAX),
-                'X-RateLimit-Remaining': '0',
-                'X-RateLimit-Reset': String(rateLimit.resetTime),
-              },
-            }
-          );
-        }
-        rateLimit.count++;
-      } else {
-        rateLimit.count = 1;
-        rateLimit.resetTime = now + RATE_LIMIT_WINDOW;
+      if (!rateLimitResult.allowed) {
+        securityLogger.warn('Rate limit exceeded', {
+          ip,
+          path: request.nextUrl.pathname,
+          remaining: rateLimitResult.remaining
+        });
+        return new NextResponse(
+          JSON.stringify({
+            error: 'Too many requests',
+            message: 'Please try again later',
+            retryAfter: Math.ceil((rateLimitResult.resetTime - Date.now()) / 1000)
+          }),
+          {
+            status: 429,
+            headers: {
+              'Content-Type': 'application/json',
+              'Retry-After': String(Math.ceil((rateLimitResult.resetTime - Date.now()) / 1000)),
+              'X-RateLimit-Limit': String(RATE_LIMIT_MAX),
+              'X-RateLimit-Remaining': String(rateLimitResult.remaining),
+              'X-RateLimit-Reset': String(rateLimitResult.resetTime),
+            },
+          }
+        );
       }
-    } else {
-      rateLimitMap.set(key, {
-        count: 1,
-        resetTime: now + RATE_LIMIT_WINDOW,
-      });
-    }
 
-    // Add rate limit headers
-    const currentLimit = rateLimitMap.get(key);
-    if (currentLimit) {
+      // Add rate limit headers
       response.headers.set('X-RateLimit-Limit', String(RATE_LIMIT_MAX));
-      response.headers.set('X-RateLimit-Remaining', String(Math.max(0, RATE_LIMIT_MAX - currentLimit.count)));
-      response.headers.set('X-RateLimit-Reset', String(currentLimit.resetTime));
-    }
-
-    // Clean up old entries periodically
-    if (Math.random() < 0.01) { // 1% chance
-      const cutoff = now - RATE_LIMIT_WINDOW;
-      for (const [key, value] of rateLimitMap.entries()) {
-        if (value.resetTime < cutoff) {
-          rateLimitMap.delete(key);
-        }
-      }
+      response.headers.set('X-RateLimit-Remaining', String(rateLimitResult.remaining));
+      response.headers.set('X-RateLimit-Reset', String(rateLimitResult.resetTime));
+    } catch (error) {
+      // If rate limiting fails, log but don't block the request
+      securityLogger.warn('Rate limiting check failed', { error, path: request.nextUrl.pathname });
     }
   }
 
