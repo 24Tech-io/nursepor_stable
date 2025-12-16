@@ -3,7 +3,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getAchievements, getNotifications } from '../../../lib/data';
+import { getAchievements } from '../../../lib/data';
 import BiometricEnrollment from '@/components/auth/BiometricEnrollment';
 import LoadingSpinner from '@/components/student/LoadingSpinner';
 import { syncClient } from '@/lib/sync-client';
@@ -11,10 +11,10 @@ import { syncClient } from '@/lib/sync-client';
 export default function ProfilePage() {
   const [activeTab, setActiveTab] = useState<'profile' | 'achievements' | 'notifications' | 'settings'>('profile');
   const [user, setUser] = useState<any>(null);
-  const [showFaceEnrollment, setShowFaceEnrollment] = useState(false);
   const [showFingerprintEnrollment, setShowFingerprintEnrollment] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [uploadingPicture, setUploadingPicture] = useState(false);
+  const [notifications, setNotifications] = useState<any[]>([]);
   const [stats, setStats] = useState({
     coursesEnrolled: 0,
     coursesCompleted: 0,
@@ -43,7 +43,6 @@ export default function ProfilePage() {
             joinedDate: parsedUser.joinedDate ? new Date(parsedUser.joinedDate) : new Date(),
             // Use profile picture if available, otherwise generate avatar from name initials
             avatar: parsedUser.profilePicture || `https://ui-avatars.com/api/?name=${encodeURIComponent(parsedUser.name || 'User')}&background=9333ea&color=fff&size=150`,
-            faceIdEnrolled: parsedUser.faceIdEnrolled || false,
             fingerprintEnrolled: parsedUser.fingerprintEnrolled || false,
           });
           hasStoredData = true;
@@ -85,7 +84,6 @@ export default function ProfilePage() {
               joinedDate: data.user.joinedDate ? new Date(data.user.joinedDate) : new Date(),
               // Use profile picture if available, otherwise generate avatar from name initials
               avatar: data.user.profilePicture || `https://ui-avatars.com/api/?name=${encodeURIComponent(data.user.name || 'User')}&background=9333ea&color=fff&size=150`,
-              faceIdEnrolled: data.user.faceIdEnrolled || false,
               fingerprintEnrolled: data.user.fingerprintEnrolled || false,
             });
             setIsLoading(false);
@@ -126,7 +124,6 @@ export default function ProfilePage() {
                       joinedDate: retryData.user.joinedDate ? new Date(retryData.user.joinedDate) : new Date(),
                       // Use profile picture if available, otherwise generate avatar from name initials
                       avatar: retryData.user.profilePicture || `https://ui-avatars.com/api/?name=${encodeURIComponent(retryData.user.name || 'User')}&background=9333ea&color=fff&size=150`,
-                      faceIdEnrolled: retryData.user.faceIdEnrolled || false,
                       fingerprintEnrolled: retryData.user.fingerprintEnrolled || false,
                     });
                     sessionStorage.removeItem('userData');
@@ -192,7 +189,33 @@ export default function ProfilePage() {
       }
     };
 
+    const fetchNotifications = async () => {
+      try {
+        const response = await fetch('/api/notifications', {
+          credentials: 'include',
+          cache: 'no-store',
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          // Convert dates from strings to Date objects
+          const notificationsList = (data.notifications || []).map((notif: any) => ({
+            ...notif,
+            createdAt: new Date(notif.createdAt)
+          }));
+          setNotifications(notificationsList);
+        } else {
+          // If API fails, show empty notifications instead of fake data
+          setNotifications([]);
+        }
+      } catch (error) {
+        console.error('Error fetching notifications:', error);
+        setNotifications([]); // Show empty notifications on error
+      }
+    };
+
     fetchStats();
+    fetchNotifications();
 
     // Start sync client for auto-refresh
     syncClient.start();
@@ -210,7 +233,26 @@ export default function ProfilePage() {
 
   // For now, show empty achievements - in future, fetch from database
   const achievements: any[] = []; // TODO: Fetch real achievements from API
-  const notifications = getNotifications();
+
+  // Handle marking all notifications as read
+  const handleMarkAllRead = async () => {
+    try {
+      const response = await fetch('/api/notifications/mark-all-read', {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        // Update local state
+        setNotifications(notifications.map(n => ({ ...n, read: true })));
+      }
+    } catch (error) {
+      console.error('Error marking notifications as read:', error);
+    }
+  };
 
   // Handle profile picture upload
   const handlePictureUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -427,21 +469,6 @@ export default function ProfilePage() {
                         </div>
                       </div>
 
-                      {user.faceIdEnrolled && (
-                        <div className="flex items-center justify-between p-4 bg-blue-50 rounded-xl border border-blue-200">
-                          <div className="flex items-center space-x-3">
-                            <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
-                              <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                              </svg>
-                            </div>
-                            <div>
-                              <p className="font-semibold text-blue-900">Face ID Enrolled</p>
-                              <p className="text-sm text-blue-700">Biometric authentication enabled</p>
-                            </div>
-                          </div>
-                        </div>
-                      )}
                     </div>
                   </div>
 
@@ -515,42 +542,54 @@ export default function ProfilePage() {
             <div className="space-y-6">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-2xl font-bold text-gray-900">Notifications</h2>
-                <button className="px-4 py-2 bg-purple-600 text-white rounded-xl font-semibold hover:bg-purple-700 transition">
+                <button 
+                  onClick={handleMarkAllRead}
+                  disabled={notifications.length === 0 || notifications.every(n => n.read)}
+                  className="px-4 py-2 bg-purple-600 text-white rounded-xl font-semibold hover:bg-purple-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                >
                   Mark All Read
                 </button>
               </div>
 
               <div className="space-y-4">
-                {notifications.map(notification => (
-                  <div key={notification.id} className={`p-6 rounded-2xl border transition ${
-                    notification.read
-                      ? 'bg-white border-gray-200'
-                      : 'bg-blue-50 border-blue-200'
-                  }`}>
-                    <div className="flex items-start space-x-4">
-                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-                        notification.type === 'success' ? 'bg-green-100 text-green-600' :
-                        notification.type === 'warning' ? 'bg-yellow-100 text-yellow-600' :
-                        notification.type === 'error' ? 'bg-red-100 text-red-600' :
-                        'bg-blue-100 text-blue-600'
-                      }`}>
-                        {notification.type === 'success' ? '✓' :
-                         notification.type === 'warning' ? '⚠' :
-                         notification.type === 'error' ? '✕' : 'ℹ'}
+                {notifications.length > 0 ? (
+                  notifications.map(notification => (
+                    <div key={notification.id} className={`p-6 rounded-2xl border transition ${
+                      notification.read
+                        ? 'bg-white border-gray-200'
+                        : 'bg-blue-50 border-blue-200'
+                    }`}>
+                      <div className="flex items-start space-x-4">
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                          notification.type === 'success' ? 'bg-green-100 text-green-600' :
+                          notification.type === 'warning' ? 'bg-yellow-100 text-yellow-600' :
+                          notification.type === 'error' ? 'bg-red-100 text-red-600' :
+                          'bg-blue-100 text-blue-600'
+                        }`}>
+                          {notification.type === 'success' ? '✓' :
+                           notification.type === 'warning' ? '⚠' :
+                           notification.type === 'error' ? '✕' : 'ℹ'}
+                        </div>
+                        <div className="flex-1">
+                          <h3 className="font-semibold text-gray-900 mb-1">{notification.title}</h3>
+                          <p className="text-gray-600 mb-2">{notification.message}</p>
+                          <p className="text-sm text-gray-500">
+                            {notification.createdAt.toLocaleDateString()} at {notification.createdAt.toLocaleTimeString()}
+                          </p>
+                        </div>
+                        {!notification.read && (
+                          <div className="w-3 h-3 bg-blue-600 rounded-full flex-shrink-0 mt-2"></div>
+                        )}
                       </div>
-                      <div className="flex-1">
-                        <h3 className="font-semibold text-gray-900 mb-1">{notification.title}</h3>
-                        <p className="text-gray-600 mb-2">{notification.message}</p>
-                        <p className="text-sm text-gray-500">
-                          {notification.createdAt.toLocaleDateString()} at {notification.createdAt.toLocaleTimeString()}
-                        </p>
-                      </div>
-                      {!notification.read && (
-                        <div className="w-3 h-3 bg-blue-600 rounded-full flex-shrink-0 mt-2"></div>
-                      )}
                     </div>
+                  ))
+                ) : (
+                  <div className="bg-white border border-gray-200 rounded-2xl p-12 text-center">
+                    <div className="text-6xl mb-4">🔔</div>
+                    <h3 className="text-xl font-bold text-gray-900 mb-2">No Notifications</h3>
+                    <p className="text-gray-600">You're all caught up! Check back later for new updates.</p>
                   </div>
-                ))}
+                )}
               </div>
             </div>
           )}
@@ -603,39 +642,6 @@ export default function ProfilePage() {
                   <div className="bg-gray-50 rounded-2xl p-6">
                     <h3 className="text-lg font-semibold text-gray-900 mb-4">Security Settings</h3>
                     <div className="space-y-4">
-                      {/* Face ID Authentication */}
-                      <div className="flex items-center justify-between p-4 bg-white rounded-xl border border-gray-200">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-3 mb-2">
-                            <div className="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center">
-                              <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                              </svg>
-                            </div>
-                            <div>
-                              <p className="font-semibold text-gray-900">Face ID Authentication</p>
-                              <p className="text-sm text-gray-600">
-                                {user.faceIdEnrolled ? 'Face ID is enrolled' : 'Use your face for quick login'}
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-3">
-                          {user.faceIdEnrolled ? (
-                            <span className="px-3 py-1 bg-green-100 text-green-700 rounded-lg text-sm font-medium">
-                              Active
-                            </span>
-                          ) : (
-                            <button
-                              onClick={() => setShowFaceEnrollment(true)}
-                              className="px-4 py-2 bg-purple-600 text-white rounded-lg font-semibold hover:bg-purple-700 transition text-sm"
-                            >
-                              Enroll
-                            </button>
-                          )}
-                        </div>
-                      </div>
-
                       {/* Fingerprint Authentication */}
                       <div className="flex items-center justify-between p-4 bg-white rounded-xl border border-gray-200">
                         <div className="flex-1">
@@ -724,25 +730,6 @@ export default function ProfilePage() {
       </div>
 
       {/* Biometric Enrollment Modals */}
-      {showFaceEnrollment && (
-        <BiometricEnrollment
-          type="face"
-          onComplete={() => {
-            setShowFaceEnrollment(false);
-            // Refresh user data
-            fetch('/api/auth/me', { credentials: 'include' })
-              .then(res => res.json())
-              .then(data => setUser({ ...user, faceIdEnrolled: data.user.faceIdEnrolled }))
-              .catch(console.error);
-          }}
-          onError={(error) => {
-            console.error('Face enrollment error:', error);
-            alert(error);
-          }}
-          onCancel={() => setShowFaceEnrollment(false)}
-        />
-      )}
-
       {showFingerprintEnrollment && (
         <BiometricEnrollment
           type="fingerprint"
