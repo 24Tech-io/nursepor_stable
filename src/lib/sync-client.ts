@@ -81,7 +81,9 @@ export class SyncClient {
       };
 
       this.eventSource.onerror = (error) => {
-        console.error('❌ SSE connection error:', error);
+        if (process.env.NODE_ENV === 'development') {
+          console.error('❌ SSE connection error:', error);
+        }
         this.connectionState = 'disconnected';
 
         // Try to reconnect
@@ -135,7 +137,8 @@ export class SyncClient {
     const cookies = document.cookie.split(';');
     for (const cookie of cookies) {
       const [name, value] = cookie.trim().split('=');
-      if (name === 'token' || name === 'adminToken') {
+      // Check for all possible token cookie names
+      if (name === 'token' || name === 'adminToken' || name === 'studentToken') {
         return value;
       }
     }
@@ -215,7 +218,7 @@ export class SyncClient {
         cache: 'no-store',
         headers: {
           'Cache-Control': 'no-cache, no-store, must-revalidate',
-        }
+        },
       });
 
       if (response.ok) {
@@ -302,7 +305,7 @@ export class SyncClient {
   private emit(event: string, data: any) {
     const callbacks = this.callbacks.get(event);
     if (callbacks) {
-      callbacks.forEach(callback => callback(data));
+      callbacks.forEach((callback) => callback(data));
     }
   }
 }

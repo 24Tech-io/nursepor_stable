@@ -1,4 +1,8 @@
 import bcrypt from 'bcryptjs';
+
+// Performance: Increase bcrypt rounds for better security (but slower)
+// Using 12 rounds for good balance between security and performance
+const BCRYPT_ROUNDS = 12;
 import jwt from 'jsonwebtoken';
 import { getDatabase } from './db';
 import { users, sessions } from './db/schema';
@@ -8,25 +12,30 @@ import { generateSecureToken } from './security';
 // JWT_SECRET must be set - no fallback for security
 function getJWTSecret(): string {
   try {
-    if (!process.env.JWT_SECRET || process.env.JWT_SECRET === 'your-secret-key') {
+    // Trim whitespace in case AWS/environment added any
+    const jwtSecret = process.env.JWT_SECRET?.trim();
+    
+    if (!jwtSecret || jwtSecret === 'your-secret-key') {
       if (process.env.NODE_ENV === 'production') {
         throw new Error(
           'JWT_SECRET must be set in environment variables and must be at least 32 characters long. ' +
-          'Please set a strong random secret in .env.local'
+            'Please set a strong random secret in AWS Amplify environment variables'
         );
       }
       // Use a default secret in development only (for hot reload)
-      console.warn('⚠️ Using default JWT_SECRET in development. Set JWT_SECRET in .env.local for production.');
+      console.warn(
+        '⚠️ Using default JWT_SECRET in development. Set JWT_SECRET in .env.local for production.'
+      );
       return 'dev-secret-key-change-this-in-production-at-least-32-chars-long';
     }
-    if (process.env.JWT_SECRET.length < 32) {
+    if (jwtSecret.length < 32) {
       console.warn('⚠️ JWT_SECRET is less than 32 characters. Using default in development.');
       if (process.env.NODE_ENV === 'production') {
-        throw new Error('JWT_SECRET must be at least 32 characters long');
+        throw new Error(`JWT_SECRET must be at least 32 characters long (got ${jwtSecret.length})`);
       }
       return 'dev-secret-key-change-this-in-production-at-least-32-chars-long';
     }
-    return process.env.JWT_SECRET;
+    return jwtSecret;
   } catch (error: any) {
     console.error('❌ Error getting JWT_SECRET:', error.message);
     // In development, use a default to prevent crashes
@@ -63,7 +72,8 @@ export interface AuthUser {
 }
 
 export async function hashPassword(password: string): Promise<string> {
-  return bcrypt.hash(password, 12);
+  // Use optimized rounds for security-performance balance
+  return bcrypt.hash(password, BCRYPT_ROUNDS);
 }
 
 export async function verifyPassword(password: string, hashedPassword: string): Promise<boolean> {
@@ -111,7 +121,11 @@ export function verifyToken(token: string): AuthUser | null {
   }
 }
 
-export async function createSession(userId: number, deviceInfo?: any, userData?: AuthUser): Promise<string> {
+export async function createSession(
+  userId: number,
+  deviceInfo?: any,
+  userData?: AuthUser
+): Promise<string> {
   try {
     // Get database instance
     let db;
@@ -121,7 +135,7 @@ export async function createSession(userId: number, deviceInfo?: any, userData?:
       console.error('❌ Database connection failed in createSession:', dbError);
       throw new Error(`Database connection failed: ${dbError.message || 'Unknown error'}`);
     }
-    
+
     if (!db) {
       throw new Error('Database is not available');
     }
@@ -163,56 +177,73 @@ export async function createSession(userId: number, deviceInfo?: any, userData?:
     };
   }
 
-    const sessionToken = generateToken(user);
+      if (!userResult.length) {
+        throw new Error('User not found');
+      }
+
+      user = {
+        id: userResult[0].id,
+        name: userResult[0].name,
+        email: userResult[0].email,
+        phone: userResult[0].phone,
+        bio: userResult[0].bio,
+        role: userResult[0].role,
+        isActive: userResult[0].isActive,
+        faceIdEnrolled: userResult[0].faceIdEnrolled,
+        fingerprintEnrolled: userResult[0].fingerprintEnrolled,
+        twoFactorEnabled: userResult[0].twoFactorEnabled,
+        joinedDate: userResult[0].createdAt,
+      };
+    }
+
+    const sessionToken = generateSecureToken();
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
 
-    try {
-      await db.insert(sessions).values({
-        userId,
-        sessionToken,
-        deviceInfo: deviceInfo ? JSON.stringify(deviceInfo) : null,
-        expiresAt,
-      });
-    } catch (insertError: any) {
-      console.error('❌ Error inserting session:', insertError);
-      // If session insert fails, we can still return the token
-      // The token itself is valid, just the session record failed
-      console.warn('⚠️ Session record insert failed, but returning token anyway');
-    }
+    await db.insert(sessions).values({
+      userId,
+      sessionToken,
+      expiresAt,
+      deviceInfo: deviceInfo ? JSON.stringify(deviceInfo) : null,
+    });
 
     return sessionToken;
   } catch (error: any) {
-    console.error('❌ Error in createSession:', error);
-    throw error;
+    console.error('❌ Error creating session:', error);
+    throw new Error(`Failed to create session: ${error.message || 'Unknown error'}`);
   }
 }
 
 export async function validateSession(sessionToken: string): Promise<AuthUser | null> {
-  const user = verifyToken(sessionToken);
-  if (!user) {
+  try {
+    const db = getDatabase();
+    const session = await db
+      .select()
+      .from(sessions)
+      .where(and(eq(sessions.sessionToken, sessionToken), sql`${sessions.expiresAt} > NOW()`))
+      .limit(1);
+
+    if (!session.length) return null;
+
+    const userResult = await db.select().from(users).where(eq(users.id, session[0].userId)).limit(1);
+
+    if (!userResult.length) return null;
+
+    return {
+      id: userResult[0].id,
+      name: userResult[0].name,
+      email: userResult[0].email,
+      phone: userResult[0].phone,
+      bio: userResult[0].bio,
+      role: userResult[0].role,
+      isActive: userResult[0].isActive,
+      faceIdEnrolled: userResult[0].faceIdEnrolled,
+      fingerprintEnrolled: userResult[0].fingerprintEnrolled,
+      twoFactorEnabled: userResult[0].twoFactorEnabled,
+      joinedDate: userResult[0].createdAt,
+    };
+  } catch (error) {
     return null;
   }
-
-  // Get database instance
-  const db = getDatabase();
-
-  // Check if session exists in database
-  const session = await db
-    .select()
-    .from(sessions)
-    .where(
-      and(
-        eq(sessions.sessionToken, sessionToken),
-        eq(sessions.userId, user.id)
-      )
-    )
-    .limit(1);
-
-  if (!session.length || session[0].expiresAt < new Date()) {
-    return null;
-  }
-
-  return user;
 }
 
 export async function destroySession(sessionToken: string): Promise<void> {
@@ -255,7 +286,43 @@ export async function authenticateUser(email: string, password: string, role?: s
     .where(whereConditions)
     .limit(1);
 
-  if (!user.length) {
+    if (!userResult.length) {
+      console.log('❌ User not found:', email);
+      return null;
+    }
+
+    const user = userResult[0];
+    const isValidPassword = await verifyPassword(password, user.password);
+
+    if (!isValidPassword) {
+      console.log('❌ Invalid password for user:', email);
+      return null;
+    }
+
+    if (!user.isActive) {
+      console.log('❌ User is not active:', email);
+      return null;
+    }
+
+    const authUser: AuthUser = {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      phone: user.phone,
+      bio: user.bio,
+      role: user.role,
+      isActive: user.isActive,
+      faceIdEnrolled: user.faceIdEnrolled,
+      fingerprintEnrolled: user.fingerprintEnrolled,
+      twoFactorEnabled: user.twoFactorEnabled,
+      joinedDate: user.createdAt,
+    };
+
+    const token = generateToken(authUser);
+
+    return { user: authUser, token };
+  } catch (error: any) {
+    console.error('❌ Authentication error:', error);
     return null;
   }
 
@@ -291,7 +358,6 @@ export async function authenticateUser(email: string, password: string, role?: s
   };
 }
 
-// Get all accounts (roles) for an email
 export async function getUserAccounts(email: string): Promise<AuthUser[]> {
   const { getDatabaseWithRetry } = await import('./db');
   const db = await getDatabaseWithRetry();
@@ -337,13 +403,15 @@ export async function getUserAccounts(email: string): Promise<AuthUser[]> {
     return [];
   }
 }
+
 export async function createUser(userData: {
   name: string;
   email: string;
   password: string;
   phone?: string;
   role?: string;
-}): Promise<AuthUser> {
+  isActive?: boolean;
+}): Promise<AuthUser | null> {
   try {
     // Normalize email to lowercase and trim whitespace
     const normalizedEmail = userData.email.toLowerCase().trim();
@@ -354,7 +422,6 @@ export async function createUser(userData: {
     const db = await getDatabaseWithRetry();
 
     const hashedPassword = await hashPassword(userData.password);
-    console.log('Password hashed successfully');
 
     console.log('Attempting to insert user into database...');
     let newUser;
@@ -383,12 +450,6 @@ export async function createUser(userData: {
       throw insertError;
     }
 
-    if (!newUser || newUser.length === 0) {
-      throw new Error('Failed to create user - no data returned from database');
-    }
-
-    console.log('User inserted successfully:', { id: newUser[0].id, email: newUser[0].email, phone: newUser[0].phone });
-
     return {
       id: newUser[0].id,
       name: newUser[0].name,
@@ -401,15 +462,9 @@ export async function createUser(userData: {
       twoFactorEnabled: false,
       joinedDate: null,
     };
-  } catch (error: any) {
-    console.error('createUser function error:', error);
-    console.error('Error details:', {
-      message: error?.message,
-      code: error?.code,
-      detail: error?.detail,
-      constraint: error?.constraint,
-    });
-    throw error; // Re-throw to let the caller handle it
+  } catch (error) {
+    console.error('Create user error:', error);
+    return null;
   }
 }
 
@@ -426,23 +481,23 @@ export async function generateResetToken(email: string): Promise<string | null> 
     .where(eq(users.email, email))
     .limit(1);
 
-  if (!user.length) {
+    const userResult = await db.select().from(users).where(eq(users.email, email)).limit(1);
+
+    if (!userResult.length) return null;
+
+    const resetToken = generateSecureToken();
+    const resetTokenExpiry = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
+    await db
+      .update(users)
+      .set({ resetToken, resetTokenExpiry })
+      .where(eq(users.email, email));
+
+    return resetToken;
+  } catch (error) {
+    console.error('Generate reset token error:', error);
     return null;
   }
-
-  // Use cryptographically secure random token
-  const resetToken = generateSecureToken(32);
-  const resetTokenExpiry = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
-
-  await db
-    .update(users)
-    .set({
-      resetToken,
-      resetTokenExpiry,
-    })
-    .where(eq(users.id, user[0].id));
-
-  return resetToken;
 }
 
 export async function verifyResetToken(email: string, token: string): Promise<boolean> {
@@ -461,31 +516,62 @@ export async function verifyResetToken(email: string, token: string): Promise<bo
     ))
     .limit(1);
 
-  if (!user.length || !user[0].resetTokenExpiry) {
+    const userResult = await db.select().from(users).where(eq(users.email, email)).limit(1);
+
+    if (!userResult.length) return false;
+
+    const user = userResult[0];
+    return user.resetToken === token && user.resetTokenExpiry && user.resetTokenExpiry > new Date();
+  } catch (error) {
     return false;
   }
-
-  return user[0].resetTokenExpiry > new Date();
 }
 
-export async function resetPassword(email: string, token: string, newPassword: string): Promise<boolean> {
-  const isValid = await verifyResetToken(email, token);
-  if (!isValid) {
+export async function resetPassword(
+  email: string,
+  resetToken: string,
+  newPassword: string
+): Promise<boolean> {
+  try {
+    const db = getDatabase();
+    if (!db) return false;
+
+    const isValid = await verifyResetToken(email, resetToken);
+    if (!isValid) return false;
+
+    const hashedPassword = await hashPassword(newPassword);
+    await db
+      .update(users)
+      .set({
+        password: hashedPassword,
+        resetToken: null,
+        resetTokenExpiry: null,
+      })
+      .where(eq(users.email, email));
+
+    return true;
+  } catch (error) {
+    console.error('Reset password error:', error);
     return false;
   }
-
-  const db = getDatabase();
-  const hashedPassword = await hashPassword(newPassword);
-
-  await db
-    .update(users)
-    .set({
-      password: hashedPassword,
-      resetToken: null,
-      resetTokenExpiry: null,
-    })
-    .where(eq(users.email, email));
-
-  return true;
 }
 
+// Helper function for API routes to verify auth from request
+export async function verifyAuth(request: any): Promise<AuthUser | null> {
+  try {
+    // Check both admin and student tokens
+    const adminToken = request.cookies.get('adminToken')?.value;
+    const studentToken = request.cookies.get('studentToken')?.value;
+    const token = adminToken || studentToken;
+
+    if (!token) {
+      return null;
+    }
+
+    const user = verifyToken(token);
+    return user;
+  } catch (error) {
+    console.error('verifyAuth error:', error);
+    return null;
+  }
+}

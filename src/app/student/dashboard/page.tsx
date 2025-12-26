@@ -110,7 +110,8 @@ export default function StudentDashboard() {
   // Fetch real courses from API
   useEffect(() => {
     if (!user?.id) return;
-    if (user.role !== 'student') {
+    // Allow both students and admins to view (admins can test student view)
+    if (user.role !== 'student' && user.role !== 'admin') {
       setIsLoadingCourses(false);
       setCourses([]);
       return;
@@ -167,17 +168,21 @@ export default function StudentDashboard() {
     };
   }, [user?.id]);
 
-  // Fetch stats, enrolled courses, and pending requests
+  // Fetch all dashboard data using unified endpoint for better performance
   useEffect(() => {
     if (!user?.id) return;
+    // Allow both students and admins
+    if (user.role !== 'student' && user.role !== 'admin') return;
 
     let isMounted = true;
     const abortController = new AbortController();
 
-    const fetchStats = async () => {
+    const fetchDashboardData = async () => {
       if (!isMounted) return;
 
       setIsFetchingStats(true);
+      setIsFetchingCourses(true);
+
       try {
         const [statsData, coursesData, requestsData] = await Promise.all([
           cachedFetch<{ stats: any }>('/api/student/stats', {
@@ -222,10 +227,11 @@ export default function StudentDashboard() {
         }
       } catch (error: any) {
         if (error.name === 'AbortError') return;
-        console.error('Error fetching stats/courses/requests:', error);
+        console.error('Error fetching dashboard data:', error);
       } finally {
         if (isMounted) {
           setIsFetchingStats(false);
+          setIsFetchingCourses(false);
         }
       }
     };
@@ -295,7 +301,7 @@ export default function StudentDashboard() {
         setRequestNote('');
         // Add to pending requests list
         if (selectedCourse) {
-          setPendingRequestCourseIds(prev => [...prev, selectedCourse]);
+          setPendingRequestCourseIds((prev) => [...prev, selectedCourse]);
         }
         setSelectedCourse(null);
         // Refresh requests to get updated status
@@ -355,7 +361,7 @@ export default function StudentDashboard() {
     return hasPendingRequest && !isEnrolled && isPublished;
   });
 
-  const lockedCourses = courses.filter(c => {
+  const lockedCourses = courses.filter((c) => {
     const courseIdStr = String(c.id);
     const titleLower = (c.title || '').toLowerCase();
     const isQuiz = titleLower.includes('quiz') && !titleLower.includes('q-bank') && !titleLower.includes('qbank');
@@ -438,7 +444,12 @@ export default function StudentDashboard() {
         <StatCard
           icon={
             <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
+              />
             </svg>
           }
           label="Courses Enrolled"
@@ -450,7 +461,12 @@ export default function StudentDashboard() {
         <StatCard
           icon={
             <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
             </svg>
           }
           label="Courses Completed"
@@ -462,7 +478,12 @@ export default function StudentDashboard() {
         <StatCard
           icon={
             <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
             </svg>
           }
           label="Hours Learned"
@@ -474,7 +495,12 @@ export default function StudentDashboard() {
         <StatCard
           icon={
             <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"
+              />
             </svg>
           }
           label="Quizzes Completed"
@@ -503,7 +529,7 @@ export default function StudentDashboard() {
           </div>
         ) : enrolledCourses.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {enrolledCourses.map(course => (
+            {enrolledCourses.map((course) => (
               <CourseCard
                 key={course.id}
                 course={course}
@@ -531,7 +557,7 @@ export default function StudentDashboard() {
         <div>
           <h2 className="text-2xl font-bold text-white mb-6">Requested Courses</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {requestedCourses.map(course => (
+            {requestedCourses.map((course) => (
               <CourseCard
                 key={course.id}
                 course={course}
@@ -553,7 +579,7 @@ export default function StudentDashboard() {
           <h2 className="text-2xl font-bold text-white mb-6">Explore More Courses</h2>
           {lockedCourses.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {lockedCourses.map(course => (
+              {lockedCourses.map((course) => (
                 <CourseCard
                   key={course.id}
                   course={course}

@@ -22,13 +22,10 @@ export async function GET(request: NextRequest) {
     );
   }
   try {
-    const token = request.cookies.get('token')?.value;
+    const token = request.cookies.get('adminToken')?.value;
 
     if (!token) {
-      return NextResponse.json(
-        { message: 'Not authenticated' },
-        { status: 401 }
-      );
+      return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });
     }
 
     const decoded = await verifyToken(token);
@@ -65,10 +62,7 @@ export async function GET(request: NextRequest) {
 
     // Step 1: Get ALL courses from database
     try {
-      const allCoursesInDb = await db
-        .select()
-        .from(courses)
-        .orderBy(desc(courses.createdAt));
+      const allCoursesInDb = await db.select().from(courses).orderBy(desc(courses.createdAt));
 
       diagnostic.step1_getAllCourses = {
         status: 'success',
@@ -151,12 +145,7 @@ export async function GET(request: NextRequest) {
       const pendingRequests = await db
         .select({ courseId: accessRequests.courseId })
         .from(accessRequests)
-        .where(
-          and(
-            eq(accessRequests.studentId, decoded.id),
-            eq(accessRequests.status, 'pending')
-          )
-        );
+        .where(and(eq(accessRequests.studentId, decoded.id), eq(accessRequests.status, 'pending')));
 
       diagnostic.step4_getPendingRequests = {
         status: 'success',
@@ -229,13 +218,6 @@ export async function GET(request: NextRequest) {
     );
   }
 }
-
-
-
-
-
-
-
 
 
 

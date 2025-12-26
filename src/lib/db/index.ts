@@ -3,6 +3,7 @@ import { Pool } from '@neondatabase/serverless';
 import * as schema from './schema';
 import { sql } from 'drizzle-orm';
 import { retry } from '@/lib/retry';
+import { shouldLogInit } from './build-optimization';
 
 let db: any;
 let lastHealthCheck: number = 0;
@@ -28,7 +29,7 @@ function initializeDatabase() {
     });
     db = drizzle(pool, {
       schema,
-      // Optimize for performance
+      // Optimize for performance - only log queries in development
       logger: process.env.NODE_ENV === 'development' ? true : false,
     });
     // Only log in development

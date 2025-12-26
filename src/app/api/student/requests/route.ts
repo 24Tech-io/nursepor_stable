@@ -7,6 +7,9 @@ import { logger } from '@/lib/logger';
 import { extractAndValidate, validateQueryParams, validateRouteParams } from '@/lib/api-validation';
 import { z } from 'zod';
 
+// Cache for 30 seconds - allows stale-while-revalidate
+export const revalidate = 30;
+
 // GET - Fetch student's own access requests
 export async function GET(request: NextRequest) {
   try {
@@ -231,7 +234,7 @@ export async function POST(request: NextRequest) {
       studentEmail: decoded.email,
       courseId: parseInt(courseId),
       courseTitle: course.title,
-      reason: reason || 'Requesting access to this course'
+      reason: reason || 'Requesting access to this course',
     });
 
     // Create new request
@@ -264,7 +267,7 @@ export async function POST(request: NextRequest) {
       studentId: result[0].studentId,
       courseId: result[0].courseId,
       status: result[0].status,
-      requestedAt: result[0].requestedAt
+      requestedAt: result[0].requestedAt,
     });
 
     // Verify the request was actually created and is queryable
@@ -296,4 +299,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-

@@ -18,6 +18,8 @@ import { logStudentActivity } from '@/lib/student-activity-log';
 export const dynamic = 'force-dynamic';
 import { securityLogger } from '@/lib/edge-logger';
 
+// Student login endpoint
+// Admin login uses /api/auth/admin-login
 export async function POST(request: NextRequest) {
   try {
     // Rate limiting - stricter for login (with error handling)
@@ -237,7 +239,27 @@ export async function POST(request: NextRequest) {
         message: authError.message,
         stack: authError.stack,
       });
-      // Return a more specific error
+
+      if (!hasDbUrl || !hasJwtSecret) {
+        console.error('❌ CRITICAL: Missing environment variables in production!', {
+          missingDb: !hasDbUrl,
+          missingJwt: !hasJwtSecret
+        });
+      }
+    }
+
+    // Log environment check for debugging (development only)
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🔍 Student login attempt:', {
+        email: email.toLowerCase(),
+        hasDatabaseUrl: !!process.env.DATABASE_URL,
+        hasJwtSecret: !!process.env.JWT_SECRET,
+        nodeEnv: process.env.NODE_ENV,
+      });
+    }
+
+    // If admin is trying to use this endpoint, redirect them
+    if (role === 'admin') {
       return NextResponse.json(
         {
           message: 'Authentication failed',
@@ -328,12 +350,21 @@ export async function POST(request: NextRequest) {
     if (!user.isActive) {
       log.warn('Deactivated account attempted login', { email: user.email });
       return NextResponse.json(
-        { message: 'Account is deactivated. Please contact administrator.' },
+        { message: 'Invalid email or password' },
+        { status: 401 }
+      );
+    }
+
+    // Check if user is active
+    if (!user.isActive) {
+      return NextResponse.json(
+        { message: 'Your account has been deactivated. Please contact support.' },
         { status: 403 }
       );
     }
 
-    // Record successful login (clear failed attempts) (with error handling)
+    // Generate token
+    let token;
     try {
       recordSuccessfulLogin(clientIP, sanitizedEmail);
     } catch (recordError: any) {
@@ -456,6 +487,7 @@ export async function POST(request: NextRequest) {
 
     return jsonResponse;
 
+    return response;
   } catch (error: any) {
     log.error('Login API error', error);
     return handleApiError(error, request.nextUrl.pathname);

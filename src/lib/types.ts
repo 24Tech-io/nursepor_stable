@@ -10,48 +10,48 @@ export interface User {
 }
 
 export interface Course {
-  id: string
-  title: string
-  description: string
-  instructor: string
-  thumbnail: string | null
-  modules?: Module[]
-  pricing?: number
-  status: 'draft' | 'published'
-  isRequestable: boolean
-  isPublic?: boolean
-  isEnrolled?: boolean
-  hasPendingRequest?: boolean
-  hasApprovedRequest?: boolean
-  createdAt?: Date
-  updatedAt?: Date
+  id: string;
+  title: string;
+  description: string;
+  instructor: string;
+  thumbnail: string | null;
+  modules?: Module[];
+  pricing?: number;
+  status: 'draft' | 'published';
+  isRequestable: boolean;
+  isPublic?: boolean;
+  isEnrolled?: boolean;
+  hasPendingRequest?: boolean;
+  hasApprovedRequest?: boolean;
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
 export interface Module {
-  id: string
-  title: string
-  description: string
-  videos: Video[]
-  quizzes: Quiz[]
-  duration: number // in minutes
+  id: string;
+  title: string;
+  description: string;
+  videos: Video[];
+  quizzes: Quiz[];
+  duration: number; // in minutes
 }
 
 export interface Video {
-  id: string
-  title: string
-  url: string
-  provider: 'youtube' | 'vimeo'
-  duration: number // in minutes
-  watchedTime: number // in seconds
+  id: string;
+  title: string;
+  url: string;
+  provider: 'youtube' | 'vimeo';
+  duration: number; // in minutes
+  watchedTime: number; // in seconds
 }
 
 export interface Quiz {
-  id: string
-  title: string
-  questions: MCQQuestion[]
-  passMark: number
-  timeLimit?: number // in minutes
-  showAnswers: boolean
+  id: string;
+  title: string;
+  questions: MCQQuestion[];
+  passMark: number;
+  timeLimit?: number; // in minutes
+  showAnswers: boolean;
 }
 
 export interface MCQQuestion {
@@ -63,57 +63,57 @@ export interface MCQQuestion {
 }
 
 export interface BlogPost {
-  id: string
-  title: string
-  slug: string
-  content: string
-  author: string
-  cover: string
-  tags: string[]
-  status: 'draft' | 'published'
-  createdAt: Date
-  updatedAt?: Date
+  id: string;
+  title: string;
+  slug: string;
+  content: string;
+  author: string;
+  cover: string;
+  tags: string[];
+  status: 'draft' | 'published';
+  createdAt: Date;
+  updatedAt?: Date;
 }
 
 export interface AccessRequest {
-  id: string
-  studentId: string
-  studentName: string
-  courseId: string
-  courseTitle: string
-  reason: string
-  status: 'pending' | 'approved' | 'rejected'
-  requestedAt: Date
-  reviewedAt?: Date
-  reviewedBy?: string
+  id: string;
+  studentId: string;
+  studentName: string;
+  courseId: string;
+  courseTitle: string;
+  reason: string;
+  status: 'pending' | 'approved' | 'rejected';
+  requestedAt: Date;
+  reviewedAt?: Date;
+  reviewedBy?: string;
 }
 
 export interface StudentProgress {
-  studentId: string
-  courseId: string
-  completedModules: string[]
-  completedQuizzes: string[]
-  watchedVideos: string[]
-  quizScores: Record<string, number>
-  totalProgress: number
-  lastAccessed: Date
+  studentId: string;
+  courseId: string;
+  completedModules: string[];
+  completedQuizzes: string[];
+  watchedVideos: string[];
+  quizScores: Record<string, number>;
+  totalProgress: number;
+  lastAccessed: Date;
 }
 
 export interface Achievement {
-  id: string
-  title: string
-  description: string
-  icon: string
-  color: string
-  unlockedAt?: Date
+  id: string;
+  title: string;
+  description: string;
+  icon: string;
+  color: string;
+  unlockedAt?: Date;
 }
 
 
 export interface Notification {
-  id: string
-  title: string
-  message: string
-  type: 'info' | 'success' | 'warning' | 'error'
-  read: boolean
-  createdAt: Date
+  id: string;
+  title: string;
+  message: string;
+  type: 'info' | 'success' | 'warning' | 'error';
+  read: boolean;
+  createdAt: Date;
 }

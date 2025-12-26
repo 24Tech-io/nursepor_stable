@@ -11,62 +11,38 @@ export async function POST(request: NextRequest, { params }: { params: { courseI
     const token = request.cookies.get('token')?.value;
 
     if (!token) {
-      return NextResponse.json(
-        { message: 'Not authenticated' },
-        { status: 401 }
-      );
+      return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });
     }
 
     const decoded = await verifyToken(token);
 
     if (!decoded || !decoded.id) {
-      return NextResponse.json(
-        { message: 'Invalid token' },
-        { status: 401 }
-      );
+      return NextResponse.json({ message: 'Invalid token' }, { status: 401 });
     }
 
     const courseId = parseInt(params.courseId);
     if (isNaN(courseId)) {
-      return NextResponse.json(
-        { message: 'Invalid course ID' },
-        { status: 400 }
-      );
+      return NextResponse.json({ message: 'Invalid course ID' }, { status: 400 });
     }
 
     const db = await getDatabaseWithRetry();
 
     // Check if course exists
-    const course = await db
-      .select()
-      .from(courses)
-      .where(eq(courses.id, courseId))
-      .limit(1);
+    const course = await db.select().from(courses).where(eq(courses.id, courseId)).limit(1);
 
     if (course.length === 0) {
-      return NextResponse.json(
-        { message: 'Course not found' },
-        { status: 404 }
-      );
+      return NextResponse.json({ message: 'Course not found' }, { status: 404 });
     }
 
     // Check if user is enrolled
     const enrollment = await db
       .select()
       .from(studentProgress)
-      .where(
-        and(
-          eq(studentProgress.studentId, decoded.id),
-          eq(studentProgress.courseId, courseId)
-        )
-      )
+      .where(and(eq(studentProgress.studentId, decoded.id), eq(studentProgress.courseId, courseId)))
       .limit(1);
 
     if (enrollment.length === 0) {
-      return NextResponse.json(
-        { message: 'Not enrolled in this course' },
-        { status: 403 }
-      );
+      return NextResponse.json({ message: 'Not enrolled in this course' }, { status: 403 });
     }
 
     // Check if question bank exists
@@ -104,12 +80,11 @@ export async function POST(request: NextRequest, { params }: { params: { courseI
   } catch (error: any) {
     logger.error('Ensure Q-Bank error:', error);
     return NextResponse.json(
-      { 
+      {
         message: 'Failed to ensure question bank',
-        error: process.env.NODE_ENV === 'development' ? error.message : undefined
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined,
       },
       { status: 500 }
     );
   }
 }
-

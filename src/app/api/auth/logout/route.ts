@@ -2,7 +2,6 @@ import { logger } from '@/lib/logger';
 import { extractAndValidate, validateQueryParams, validateRouteParams } from '@/lib/api-validation';
 import { z } from 'zod';
 import { NextRequest, NextResponse } from 'next/server';
-import { destroySession } from '@/lib/auth';
 
 export async function POST(request: NextRequest) {
   try {
@@ -68,7 +67,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     logger.error('Logout error:', error);
     return NextResponse.json(
-      { message: 'Internal server error' },
+      { message: 'Failed to logout', error: error.message },
       { status: 500 }
     );
   }

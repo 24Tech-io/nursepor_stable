@@ -1,7 +1,7 @@
 /**
  * Unified Data Service - Single Source of Truth
  * All enrollment, course, and progress data flows through here
- * 
+ *
  * This service eliminates data fragmentation by:
  * 1. Providing a single method to get ALL student data
  * 2. Using atomic database transactions
@@ -14,7 +14,13 @@ import { enrollments, courses } from '@/lib/db/schema';
 import { studentProgress, accessRequests } from '@/lib/db/schema-indices';
 import { eq, and, or } from 'drizzle-orm';
 import { getPublishedCourseFilter } from '@/lib/enrollment-helpers';
-import type { StudentDataSnapshot, EnrollmentRecord, CourseRequest, CourseData, StudentStats } from '@/types/unified-data';
+import type {
+  StudentDataSnapshot,
+  EnrollmentRecord,
+  CourseRequest,
+  CourseData,
+  StudentStats,
+} from '@/types/unified-data';
 
 export class UnifiedDataService {
   private static instance: UnifiedDataService;
@@ -35,7 +41,7 @@ export class UnifiedDataService {
   /**
    * Get complete student data - enrollments, courses, progress, requests
    * This is the PRIMARY method that should be used everywhere
-   * 
+   *
    * @param userId - Student user ID
    * @param options - Optional configuration
    * @returns Complete student data snapshot
@@ -140,7 +146,7 @@ export class UnifiedDataService {
       const snapshot: StudentDataSnapshot = {
         userId,
         enrollments: mergedEnrollments,
-        requests: requestRecords.map(r => ({
+        requests: requestRecords.map((r) => ({
           id: r.id,
           courseId: r.courseId,
           status: r.status as 'pending' | 'approved' | 'rejected',
@@ -149,7 +155,7 @@ export class UnifiedDataService {
           reviewedAt: r.reviewedAt || null,
           reviewedBy: r.reviewedBy || null,
         })),
-        availableCourses: allCourses.map(c => ({
+        availableCourses: allCourses.map((c) => ({
           id: c.id,
           title: c.title,
           description: c.description || null,
@@ -188,7 +194,7 @@ export class UnifiedDataService {
     const map = new Map<number, EnrollmentRecord>();
 
     // Add enrollments first (new source of truth)
-    enrollmentRecords.forEach(e => {
+    enrollmentRecords.forEach((e) => {
       map.set(e.courseId, {
         courseId: e.courseId,
         progress: e.progress || 0,
@@ -200,7 +206,7 @@ export class UnifiedDataService {
     });
 
     // Add from studentProgress only if not already in enrollments (legacy data)
-    progressRecords.forEach(p => {
+    progressRecords.forEach((p) => {
       if (!map.has(p.courseId)) {
         map.set(p.courseId, {
           courseId: p.courseId,
@@ -225,11 +231,8 @@ export class UnifiedDataService {
   /**
    * Calculate student statistics
    */
-  private calculateStats(
-    enrollments: EnrollmentRecord[],
-    requests: any[]
-  ): StudentStats {
-    const completedCount = enrollments.filter(e => e.progress >= 100).length;
+  private calculateStats(enrollments: EnrollmentRecord[], requests: any[]): StudentStats {
+    const completedCount = enrollments.filter((e) => e.progress >= 100).length;
     const totalHours = enrollments.reduce((sum, e) => sum + (e.progress / 100) * 10, 0); // Estimate
     const pendingCount = requests.filter(r => r.status === 'pending').length;
 
@@ -272,4 +275,7 @@ export class UnifiedDataService {
 
 // Export singleton instance
 export const unifiedDataService = UnifiedDataService.getInstance();
+
+
+
 

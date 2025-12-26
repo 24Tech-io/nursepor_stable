@@ -1,11 +1,4 @@
-/**
- * Course Q&A API
- * Questions and answers for courses
- */
-
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
-import { courseQuestions, courseAnswers } from '@/lib/db/schema';
 import { verifyToken } from '@/lib/auth';
 import { eq, desc } from 'drizzle-orm';
 import { extractAndValidate, validateRouteParams } from '@/lib/api-validation';
@@ -70,13 +63,14 @@ export async function POST(
 ) {
   try {
     const token = request.cookies.get('token')?.value;
+
     if (!token) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });
     }
 
-    const user = verifyToken(token);
-    if (!user) {
-      return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
+    const decoded = verifyToken(token);
+    if (!decoded || decoded.role !== 'admin') {
+      return NextResponse.json({ message: 'Admin access required' }, { status: 403 });
     }
 
     // Validate route params
@@ -110,3 +104,114 @@ export async function POST(
   }
 }
 
+// POST - Assign questions to course/module
+export async function POST(request: NextRequest, { params }: { params: { courseId: string } }) {
+  try {
+    const token = request.cookies.get('token')?.value;
+
+    if (!token) {
+      return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });
+    }
+
+    const decoded = verifyToken(token);
+    if (!decoded || decoded.role !== 'admin') {
+      return NextResponse.json({ message: 'Admin access required' }, { status: 403 });
+    }
+
+    const courseId = parseInt(params.courseId);
+    const body = await request.json();
+    const { questionIds, moduleId, isModuleSpecific } = body;
+
+    if (!questionIds || !Array.isArray(questionIds) || questionIds.length === 0) {
+      return NextResponse.json({ message: 'questionIds array is required' }, { status: 400 });
+    }
+
+    const db = getDatabase();
+
+    // Insert assignments (ignore duplicates)
+    const assignments = questionIds.map((questionId: number, index: number) => ({
+      courseId,
+      moduleId: moduleId || null,
+      questionId,
+      isModuleSpecific: isModuleSpecific || false,
+      sortOrder: index,
+    }));
+
+    const inserted = await db
+      .insert(courseQuestionAssignments)
+      .values(assignments)
+      .onConflictDoNothing()
+      .returning();
+
+    console.log(
+      `✅ Assigned ${inserted.length} questions to course ${courseId}${moduleId ? ` / module ${moduleId}` : ''}`
+    );
+
+    return NextResponse.json(
+      {
+        message: `${inserted.length} questions assigned successfully`,
+        assignments: inserted,
+      },
+      { status: 201 }
+    );
+  } catch (error: any) {
+    console.error('Assign questions error:', error);
+    return NextResponse.json(
+      { message: 'Failed to assign questions', error: error.message },
+      { status: 500 }
+    );
+  }
+}
+
+// DELETE - Remove question assignment
+export async function DELETE(request: NextRequest, { params }: { params: { courseId: string } }) {
+  try {
+    const token = request.cookies.get('token')?.value;
+
+    if (!token) {
+      return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });
+    }
+
+    const decoded = verifyToken(token);
+    if (!decoded || decoded.role !== 'admin') {
+      return NextResponse.json({ message: 'Admin access required' }, { status: 403 });
+    }
+
+    const courseId = parseInt(params.courseId);
+    const body = await request.json();
+    const { questionIds, moduleId } = body;
+
+    const db = getDatabase();
+
+    if (questionIds && Array.isArray(questionIds)) {
+      // Delete specific assignments
+      await db
+        .delete(courseQuestionAssignments)
+        .where(
+          and(
+            eq(courseQuestionAssignments.courseId, courseId),
+            inArray(courseQuestionAssignments.questionId, questionIds),
+            moduleId ? eq(courseQuestionAssignments.moduleId, moduleId) : undefined
+          )
+        );
+    } else {
+      // Delete all for this course/module
+      await db
+        .delete(courseQuestionAssignments)
+        .where(
+          and(
+            eq(courseQuestionAssignments.courseId, courseId),
+            moduleId ? eq(courseQuestionAssignments.moduleId, moduleId) : undefined
+          )
+        );
+    }
+
+    return NextResponse.json({ message: 'Questions removed successfully' });
+  } catch (error: any) {
+    console.error('Remove questions error:', error);
+    return NextResponse.json(
+      { message: 'Failed to remove questions', error: error.message },
+      { status: 500 }
+    );
+  }
+}

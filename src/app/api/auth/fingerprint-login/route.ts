@@ -9,7 +9,8 @@ import { z } from 'zod';
 
 export async function POST(request: NextRequest) {
   try {
-    const { credentialId, authenticatorData, clientDataJSON, signature, userHandle } = await request.json();
+    const { credentialId, authenticatorData, clientDataJSON, signature, userHandle } =
+      await request.json();
 
     if (!credentialId || !authenticatorData || !clientDataJSON || !signature) {
       return NextResponse.json(
@@ -35,10 +36,7 @@ export async function POST(request: NextRequest) {
       .limit(1);
 
     if (!user.length) {
-      return NextResponse.json(
-        { message: 'Fingerprint not recognized' },
-        { status: 401 }
-      );
+      return NextResponse.json({ message: 'Fingerprint not recognized' }, { status: 401 });
     }
 
     // Verify the signature (simplified - in production, use proper WebAuthn verification)
@@ -59,10 +57,7 @@ export async function POST(request: NextRequest) {
     });
 
     // Update last login
-    await db
-      .update(users)
-      .set({ lastLogin: new Date() })
-      .where(eq(users.id, user[0].id));
+    await db.update(users).set({ lastLogin: new Date() }).where(eq(users.id, user[0].id));
 
     const response = NextResponse.json({
       message: 'Login successful',
@@ -97,4 +92,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-

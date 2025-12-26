@@ -15,7 +15,7 @@ export const dynamic = 'force-dynamic';
 export async function GET(request: NextRequest) {
   try {
     // Verify admin authentication
-    const token = request.cookies.get('token')?.value;
+    const token = request.cookies.get('adminToken')?.value;
 
     if (!token) {
       return NextResponse.json(
@@ -27,10 +27,7 @@ export async function GET(request: NextRequest) {
     const user = verifyToken(token);
 
     if (!user || user.role !== 'admin') {
-      return NextResponse.json(
-        { error: 'Forbidden - Admin access required' },
-        { status: 403 }
-      );
+      return NextResponse.json({ error: 'Forbidden - Admin access required' }, { status: 403 });
     }
 
     // Get time range from query params (default: last hour)
@@ -47,9 +44,7 @@ export async function GET(request: NextRequest) {
       .map((ip) => ({
         ip,
         events: securityMonitor.getEventsByIP(ip).length,
-        lastSeen: Math.max(
-          ...securityMonitor.getEventsByIP(ip).map((e) => e.timestamp.getTime())
-        ),
+        lastSeen: Math.max(...securityMonitor.getEventsByIP(ip).map((e) => e.timestamp.getTime())),
       }));
 
     return NextResponse.json({
@@ -70,4 +65,3 @@ export async function GET(request: NextRequest) {
     );
   }
 }
-

@@ -8,11 +8,15 @@ export default function NclexRegistrationCTA() {
       <div className="absolute inset-0 opacity-30 bg-[url('https://www.transparenttextures.com/patterns/fabric-of-squares.png')]" />
       <div className="relative max-w-5xl mx-auto flex flex-col md:flex-row items-center gap-6 px-8 py-10">
         <div className="flex-1 text-white">
-          <p className="text-sm uppercase tracking-[0.4em] text-cyan-200 font-semibold mb-4">NCLEX-RN Enrollment</p>
-          <h2 className="text-3xl font-bold mb-3 leading-snug">Deploy the Registration Command Console</h2>
+          <p className="text-sm uppercase tracking-[0.4em] text-cyan-200 font-semibold mb-4">
+            NCLEX-RN Enrollment
+          </p>
+          <h2 className="text-3xl font-bold mb-3 leading-snug">
+            Deploy the Registration Command Console
+          </h2>
           <p className="text-indigo-100/80">
-            Collect every document requirement upfront—no login needed. Share official information securely and let our team prepare
-            your NCLEX-RN package.
+            Collect every document requirement upfront—no login needed. Share official information
+            securely and let our team prepare your NCLEX-RN package.
           </p>
         </div>
         <div className="flex flex-col items-start gap-2">
@@ -35,4 +39,3 @@ export default function NclexRegistrationCTA() {
     </section>
   );
 }
-

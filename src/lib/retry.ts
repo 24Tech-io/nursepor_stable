@@ -11,7 +11,9 @@ export interface RetryOptions {
   retryable?: (error: any) => boolean;
 }
 
-const DEFAULT_OPTIONS: Required<Omit<RetryOptions, 'retryable'>> & { retryable?: (error: any) => boolean } = {
+const DEFAULT_OPTIONS: Required<Omit<RetryOptions, 'retryable'>> & {
+  retryable?: (error: any) => boolean;
+} = {
   maxRetries: 3,
   initialDelay: 1000, // 1 second
   maxDelay: 30000, // 30 seconds
@@ -51,7 +53,7 @@ export function isRetryableError(error: any): boolean {
   if (
     error?.code === '40P01' || // Deadlock
     error?.code === '40001' || // Serialization failure
-    error?.code === '57P03'    // Cannot connect now
+    error?.code === '57P03' // Cannot connect now
   ) {
     return true;
   }
@@ -67,7 +69,10 @@ export function isRetryableError(error: any): boolean {
 /**
  * Calculate delay for retry attempt (exponential backoff)
  */
-function calculateDelay(attempt: number, options: Required<Omit<RetryOptions, 'retryable'>>): number {
+function calculateDelay(
+  attempt: number,
+  options: Required<Omit<RetryOptions, 'retryable'>>
+): number {
   const delay = options.initialDelay * Math.pow(options.backoffMultiplier, attempt);
   return Math.min(delay, options.maxDelay);
 }
@@ -93,7 +98,7 @@ export async function retry<T>(
   };
 
   let lastError: any;
-  
+
   for (let attempt = 0; attempt <= opts.maxRetries; attempt++) {
     try {
       return await operation();
@@ -116,7 +121,7 @@ export async function retry<T>(
         `⚠️ Operation failed (attempt ${attempt + 1}/${opts.maxRetries + 1}), retrying in ${delay}ms...`,
         error.message
       );
-      
+
       await sleep(delay);
     }
   }
@@ -153,9 +158,9 @@ export async function retryDatabase<T>(
       return (
         isRetryableError(error) &&
         (error?.message?.includes('connection') ||
-         error?.message?.includes('DATABASE_URL') ||
-         error?.code === 'ECONNREFUSED' ||
-         error?.name === 'NeonDbError')
+          error?.message?.includes('DATABASE_URL') ||
+          error?.code === 'ECONNREFUSED' ||
+          error?.name === 'NeonDbError')
       );
     },
   });

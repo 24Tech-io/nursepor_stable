@@ -10,8 +10,42 @@ import { validateCSRF } from './middleware/csrf-validation';
 // Performance monitoring removed
 
 
-// CORS configuration - uses centralized config (no hardcoded URLs)
-const ALLOWED_ORIGINS = appConfig.allowedOrigins;
+// CORS configuration
+// Build allowed origins list dynamically
+const getAllowedOrigins = () => {
+  const origins: string[] = [
+    'http://localhost:3000',
+    'http://localhost:3001',
+  ];
+
+  // Add configured URLs
+  if (process.env.NEXT_PUBLIC_APP_URL) {
+    origins.push(process.env.NEXT_PUBLIC_APP_URL);
+    // Also add without trailing slash if it has one
+    if (process.env.NEXT_PUBLIC_APP_URL.endsWith('/')) {
+      origins.push(process.env.NEXT_PUBLIC_APP_URL.slice(0, -1));
+    }
+  }
+
+  if (process.env.NEXT_PUBLIC_ADMIN_URL) {
+    origins.push(process.env.NEXT_PUBLIC_ADMIN_URL);
+    if (process.env.NEXT_PUBLIC_ADMIN_URL.endsWith('/')) {
+      origins.push(process.env.NEXT_PUBLIC_ADMIN_URL.slice(0, -1));
+    }
+  }
+
+  // Allow any amplifyapp.com domain if NEXT_PUBLIC_APP_URL contains it
+  if (process.env.NEXT_PUBLIC_APP_URL?.includes('amplifyapp.com')) {
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL.replace(/\/$/, ''); // Remove trailing slash
+    origins.push(baseUrl);
+    // Also allow the protocol-less version
+    origins.push(baseUrl.replace(/^https?:\/\//, ''));
+  }
+
+  return origins.filter(Boolean);
+};
+
+const ALLOWED_ORIGINS = getAllowedOrigins();
 
 // Rate limiting configuration
 const RATE_LIMIT_WINDOW = 60 * 1000; // 1 minute
@@ -65,7 +99,27 @@ export async function middleware(request: NextRequest) {
 
   // CORS headers
   const origin = request.headers.get('origin');
-  if (origin && ALLOWED_ORIGINS.includes(origin)) {
+
+  // Log CORS check in development
+  if (process.env.NODE_ENV === 'development' && origin) {
+    console.log('🌐 CORS check:', {
+      origin,
+      allowedOrigins: ALLOWED_ORIGINS,
+      isAllowed: ALLOWED_ORIGINS.includes(origin),
+    });
+  }
+
+  // Check if origin is allowed (exact match or starts with allowed domain)
+  const isAllowed = origin && (
+    ALLOWED_ORIGINS.includes(origin) ||
+    ALLOWED_ORIGINS.some(allowed => origin.startsWith(allowed)) ||
+    // Allow any amplifyapp.com domain (fail-safe for AWS deployments)
+    origin.endsWith('.amplifyapp.com') ||
+    // Allow if origin is from amplifyapp.com and we have an amplify URL configured (legacy check)
+    (origin.includes('amplifyapp.com') && process.env.NEXT_PUBLIC_APP_URL?.includes('amplifyapp.com'))
+  );
+
+  if (isAllowed && origin) {
     response.headers.set('Access-Control-Allow-Origin', origin);
     response.headers.set('Access-Control-Allow-Credentials', 'true');
     response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
@@ -91,8 +145,9 @@ export async function middleware(request: NextRequest) {
   response.headers.set('X-XSS-Protection', '1; mode=block');
   response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
   response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
 
-  // Content Security Policy
+  // Enhanced Content Security Policy
   const csp = [
     "default-src 'self'",
     "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com",
@@ -102,6 +157,8 @@ export async function middleware(request: NextRequest) {
     "connect-src 'self' https:",
     "frame-src 'self' https://js.stripe.com https://hooks.stripe.com https://docs.google.com https://www.youtube.com https://player.vimeo.com",
     "frame-ancestors 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
   ].join('; ');
   response.headers.set('Content-Security-Policy', csp);
 
@@ -154,8 +211,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: [
-    '/api/:path*',
-    '/((?!_next/static|_next/image|favicon.ico).*)',
-  ],
+  matcher: ['/api/:path*', '/((?!_next/static|_next/image|favicon.ico).*)'],
 };

@@ -25,16 +25,15 @@ const normalizeDateRange = (value: unknown): DateRange => {
   }
 
   if (typeof value === 'string') {
-    const delimiter =
-      value.includes(' to ')
-        ? ' to '
-        : value.includes(' - ')
-          ? ' - '
-          : value.includes(' – ')
-            ? ' – '
-            : value.includes(' — ')
-              ? ' — '
-              : null;
+    const delimiter = value.includes(' to ')
+      ? ' to '
+      : value.includes(' - ')
+        ? ' - '
+        : value.includes(' – ')
+          ? ' – '
+          : value.includes(' — ')
+            ? ' — '
+            : null;
     if (delimiter) {
       const [fromPart, toPart] = value.split(delimiter).map((part) => part?.trim());
       return {
@@ -92,12 +91,16 @@ export function normalizeNursingCandidatePayload(payload: any): NursingCandidate
     lastName,
     collegeNameVariant: cleanString(personalPayload.collegeNameVariant),
     hasNameChange: getYesNo(personalPayload.hasNameChange),
+    nameChangeDetails: cleanString(personalPayload.nameChangeDetails),
+    needsAffidavit: Boolean(personalPayload.needsAffidavit),
     maidenName: cleanString(personalPayload.maidenName),
     motherMaidenName: cleanString(personalPayload.motherMaidenName),
     dateOfBirth: cleanString(personalPayload.dateOfBirth),
     placeOfBirth: cleanString(personalPayload.placeOfBirth),
-    gender: ['Male', 'Female', 'Other'].includes(personalPayload.gender) ? personalPayload.gender : 'Other',
-    address: cleanString(personalPayload.address, 'N/A', 2048),
+    gender: ['Male', 'Female', 'Other'].includes(personalPayload.gender)
+      ? personalPayload.gender
+      : 'Other',
+    address: normalizeStructuredAddress(personalPayload.address),
     phoneNumber,
     email,
     firstLanguage: cleanString(personalPayload.firstLanguage),
@@ -133,7 +136,9 @@ export function normalizeNursingCandidatePayload(payload: any): NursingCandidate
 
   const buildCanadaExperience = (entry: any): NursingCanadaExperienceEntry => ({
     ...buildExperience(entry),
-    employmentType: cleanString(entry?.employmentType) as NursingCanadaExperienceEntry['employmentType'],
+    employmentType: cleanString(
+      entry?.employmentType
+    ) as NursingCanadaExperienceEntry['employmentType'],
     hoursPerMonth: cleanString(entry?.hoursPerMonth),
   });
 
@@ -154,6 +159,27 @@ export function normalizeNursingCandidatePayload(payload: any): NursingCandidate
 
   const targetCountry = (['Canada', 'USA', 'Australia'].includes(payload.targetCountry) ? payload.targetCountry : 'Canada') as 'Canada' | 'USA' | 'Australia';
 
+  // Normalize NCLEX exam history
+  const nclexExamHistory = {
+    hasWrittenExam: getYesNo(payload.nclexExamHistory?.hasWrittenExam || payload.hasWrittenNclexExam),
+    attempts: (payload.nclexExamHistory?.attempts || payload.nclexAttempts || []).map((attempt: any, index: number): NclexExamAttempt => ({
+      examDate: cleanString(attempt.examDate),
+      country: cleanString(attempt.country),
+      province: cleanString(attempt.province),
+      state: cleanString(attempt.state),
+      result: ['Pass', 'Fail', 'Pending'].includes(attempt.result) ? attempt.result : undefined,
+      attemptNumber: attempt.attemptNumber || index + 1,
+    })),
+  };
+
+  // Normalize other schools
+  const otherSchools: OtherSchoolEntry[] = (payload.otherSchools || []).map((school: any): OtherSchoolEntry => ({
+    gradeStudied: cleanString(school.gradeStudied),
+    institutionName: cleanString(school.institutionName),
+    address: normalizeStructuredAddress(school.address),
+    studyPeriod: normalizeDateRange(school.studyPeriod),
+  }));
+
   return {
     targetCountry,
     personalDetails,
@@ -166,6 +192,7 @@ export function normalizeNursingCandidatePayload(payload: any): NursingCandidate
       ),
       entries: registrationEntries,
     },
+    nclexExamHistory,
     employmentHistory,
     canadaEmploymentHistory,
     nclexHistory,
@@ -206,9 +233,7 @@ export function formatNursingCandidateDocument(data: NursingCandidateFormPayload
   });
 
   lines.push('Section 3: Registration / License Details');
-  lines.push(
-    `• Disciplinary action history: ${data.registrationDetails.hasDisciplinaryAction}`
-  );
+  lines.push(`• Disciplinary action history: ${data.registrationDetails.hasDisciplinaryAction}`);
   data.registrationDetails.entries.forEach((entry, index) => {
     lines.push(`Nursing Registration ${index + 1}`);
     lines.push(`  • Council or licensing body name: ${entry.councilName}`);
@@ -263,4 +288,3 @@ export function formatNursingCandidateDocument(data: NursingCandidateFormPayload
 
   return lines.join('\n');
 }
-

@@ -4,7 +4,13 @@
  */
 
 import { dataManagerEvents } from '@/lib/data-manager/events/event-emitter';
-import { EventType, DataManagerEvent, EnrollmentEvent, ProgressEvent, RequestEvent } from '@/lib/data-manager/events/event-types';
+import {
+  EventType,
+  DataManagerEvent,
+  EnrollmentEvent,
+  ProgressEvent,
+  RequestEvent,
+} from '@/lib/data-manager/events/event-types';
 import { ConnectionManager } from './connection-manager';
 import { SyncEvent } from '../types';
 
@@ -175,4 +181,3 @@ export class BroadcastManager {
     this.broadcast(room, event);
   }
 }
-

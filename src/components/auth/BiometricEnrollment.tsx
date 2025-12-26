@@ -1,7 +1,12 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { enrollFace, checkBrowserSupport, initializeCamera, stopCamera } from '@/lib/simple-face-auth';
+import {
+  enrollFace,
+  checkBrowserSupport,
+  initializeCamera,
+  stopCamera,
+} from '@/lib/simple-face-auth';
 
 interface BiometricEnrollmentProps {
   type: 'face' | 'fingerprint';
@@ -10,7 +15,12 @@ interface BiometricEnrollmentProps {
   onCancel: () => void;
 }
 
-export default function BiometricEnrollment({ type, onComplete, onError, onCancel }: BiometricEnrollmentProps) {
+export default function BiometricEnrollment({
+  type,
+  onComplete,
+  onError,
+  onCancel,
+}: BiometricEnrollmentProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -68,7 +78,7 @@ export default function BiometricEnrollment({ type, onComplete, onError, onCance
 
   const stopCamera = () => {
     if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current.getTracks().forEach((track) => track.stop());
       streamRef.current = null;
     }
   };
@@ -86,7 +96,7 @@ export default function BiometricEnrollment({ type, onComplete, onError, onCance
       // Countdown
       for (let i = 3; i > 0; i--) {
         setStatus(`Capturing in ${i}...`);
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        await new Promise((resolve) => setTimeout(resolve, 1000));
       }
 
       setStatus('Capturing face...');
@@ -126,11 +136,11 @@ export default function BiometricEnrollment({ type, onComplete, onError, onCance
 
       setStatus('✓ Face enrollment successful!');
       setEnrollmentProgress(100);
-      
+
       if (streamRef.current) {
         stopCamera();
       }
-      
+
       setTimeout(() => {
         onComplete();
       }, 1500);
@@ -160,9 +170,7 @@ export default function BiometricEnrollment({ type, onComplete, onError, onCance
 
       // Create credential
       const publicKeyCredentialCreationOptions: PublicKeyCredentialCreationOptions = {
-        challenge: Uint8Array.from(
-          crypto.getRandomValues(new Uint8Array(32))
-        ),
+        challenge: Uint8Array.from(crypto.getRandomValues(new Uint8Array(32))),
         rp: {
           name: 'Nurse Pro Academy',
           id: window.location.hostname,
@@ -182,9 +190,9 @@ export default function BiometricEnrollment({ type, onComplete, onError, onCance
       };
 
       setStatus('Please use your fingerprint sensor...');
-      const credential = await navigator.credentials.create({
+      const credential = (await navigator.credentials.create({
         publicKey: publicKeyCredentialCreationOptions,
-      }) as PublicKeyCredential;
+      })) as PublicKeyCredential;
 
       if (!credential) {
         throw new Error('Fingerprint enrollment cancelled');
@@ -200,7 +208,9 @@ export default function BiometricEnrollment({ type, onComplete, onError, onCance
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          credentialId: Array.from(new Uint8Array(credential.rawId)).map(b => b.toString(16).padStart(2, '0')).join(''),
+          credentialId: Array.from(new Uint8Array(credential.rawId))
+            .map((b) => b.toString(16).padStart(2, '0'))
+            .join(''),
           clientDataJSON: btoa(String.fromCharCode(...Array.from(clientDataJSON))),
           attestationObject: btoa(String.fromCharCode(...Array.from(attestationObject))),
         }),
@@ -229,12 +239,14 @@ export default function BiometricEnrollment({ type, onComplete, onError, onCance
           <h3 className="text-xl font-bold text-gray-900">
             {type === 'face' ? 'Face Enrollment' : 'Fingerprint Enrollment'}
           </h3>
-          <button
-            onClick={onCancel}
-            className="text-gray-400 hover:text-gray-600"
-          >
+          <button onClick={onCancel} className="text-gray-400 hover:text-gray-600">
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M6 18L18 6M6 6l12 12"
+              />
             </svg>
           </button>
         </div>
@@ -275,9 +287,7 @@ export default function BiometricEnrollment({ type, onComplete, onError, onCance
               </div>
             )}
 
-            {status && (
-              <p className="text-sm text-gray-600 text-center">{status}</p>
-            )}
+            {status && <p className="text-sm text-gray-600 text-center">{status}</p>}
 
             <div className="flex gap-3">
               <button
@@ -302,19 +312,29 @@ export default function BiometricEnrollment({ type, onComplete, onError, onCance
           <div className="space-y-4">
             <div className="bg-gradient-to-br from-purple-50 to-blue-50 rounded-xl p-8 text-center">
               <div className="w-20 h-20 bg-purple-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04c.654-1.923 1.011-3.96 1.011-6.131 0-1.623-.277-3.18-.784-4.612M17.193 9.75c.585 1.923.907 3.96.907 6.131 0 1.623-.277 3.18-.784 4.612m-2.753-9.571c-1.744 2.772-4.753 4.571-8.193 4.571-3.44 0-6.449-1.799-8.193-4.571" />
+                <svg
+                  className="w-10 h-10 text-white"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04c.654-1.923 1.011-3.96 1.011-6.131 0-1.623-.277-3.18-.784-4.612M17.193 9.75c.585 1.923.907 3.96.907 6.131 0 1.623-.277 3.18-.784 4.612m-2.753-9.571c-1.744 2.772-4.753 4.571-8.193 4.571-3.44 0-6.449-1.799-8.193-4.571"
+                  />
                 </svg>
               </div>
-              <h4 className="text-lg font-semibold text-gray-900 mb-2">Fingerprint Authentication</h4>
+              <h4 className="text-lg font-semibold text-gray-900 mb-2">
+                Fingerprint Authentication
+              </h4>
               <p className="text-sm text-gray-600">
                 Use your device&apos;s fingerprint sensor for quick and secure login
               </p>
             </div>
 
-            {status && (
-              <p className="text-sm text-gray-600 text-center">{status}</p>
-            )}
+            {status && <p className="text-sm text-gray-600 text-center">{status}</p>}
 
             <div className="flex gap-3">
               <button
@@ -338,4 +358,3 @@ export default function BiometricEnrollment({ type, onComplete, onError, onCance
     </div>
   );
 }
-

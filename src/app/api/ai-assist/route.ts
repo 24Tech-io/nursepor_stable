@@ -36,10 +36,7 @@ export async function POST(request: NextRequest) {
 
       case 'explain':
         if (!code) {
-          return NextResponse.json(
-            { error: 'Code is required for explanation' },
-            { status: 400 }
-          );
+          return NextResponse.json({ error: 'Code is required for explanation' }, { status: 400 });
         }
         result = await explainCode(code);
         break;
@@ -66,29 +63,20 @@ export async function POST(request: NextRequest) {
 
       case 'review':
         if (!code) {
-          return NextResponse.json(
-            { error: 'Code is required for review' },
-            { status: 400 }
-          );
+          return NextResponse.json({ error: 'Code is required for review' }, { status: 400 });
         }
         result = await reviewCode(code);
         break;
 
       case 'chat':
         if (!question) {
-          return NextResponse.json(
-            { error: 'Question is required for chat' },
-            { status: 400 }
-          );
+          return NextResponse.json({ error: 'Question is required for chat' }, { status: 400 });
         }
         result = await chatWithGemini(question, context);
         break;
 
       default:
-        return NextResponse.json(
-          { error: 'Invalid action' },
-          { status: 400 }
-        );
+        return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
     }
 
     return NextResponse.json({ result });
@@ -100,4 +88,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-

@@ -7,7 +7,7 @@ import { eq, and, sql } from 'drizzle-orm';
 
 export async function GET(request: NextRequest) {
   try {
-    const token = request.cookies.get('token')?.value;
+    const token = request.cookies.get('adminToken')?.value;
     if (!token) {
       return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });
     }
@@ -26,10 +26,13 @@ export async function GET(request: NextRequest) {
         courseId: studentProgress.courseId,
       })
       .from(studentProgress)
-      .leftJoin(enrollments, and(
-        eq(studentProgress.studentId, enrollments.userId),
-        eq(studentProgress.courseId, enrollments.courseId)
-      ))
+      .leftJoin(
+        enrollments,
+        and(
+          eq(studentProgress.studentId, enrollments.userId),
+          eq(studentProgress.courseId, enrollments.courseId)
+        )
+      )
       .where(sql`${enrollments.id} IS NULL`);
 
     // 2. Find enrollments in enrollments but NOT in studentProgress
@@ -39,14 +42,14 @@ export async function GET(request: NextRequest) {
         courseId: enrollments.courseId,
       })
       .from(enrollments)
-      .leftJoin(studentProgress, and(
-        eq(enrollments.userId, studentProgress.studentId),
-        eq(enrollments.courseId, studentProgress.courseId)
-      ))
-      .where(and(
-        eq(enrollments.status, 'active'),
-        sql`${studentProgress.id} IS NULL`
-      ));
+      .leftJoin(
+        studentProgress,
+        and(
+          eq(enrollments.userId, studentProgress.studentId),
+          eq(enrollments.courseId, studentProgress.courseId)
+        )
+      )
+      .where(and(eq(enrollments.status, 'active'), sql`${studentProgress.id} IS NULL`));
 
     // 3. Find approved requests without enrollments
     const approvedNoEnroll = await db
@@ -56,14 +59,14 @@ export async function GET(request: NextRequest) {
         courseId: accessRequests.courseId,
       })
       .from(accessRequests)
-      .leftJoin(enrollments, and(
-        eq(accessRequests.studentId, enrollments.userId),
-        eq(accessRequests.courseId, enrollments.courseId)
-      ))
-      .where(and(
-        eq(accessRequests.status, 'approved'),
-        sql`${enrollments.id} IS NULL`
-      ));
+      .leftJoin(
+        enrollments,
+        and(
+          eq(accessRequests.studentId, enrollments.userId),
+          eq(accessRequests.courseId, enrollments.courseId)
+        )
+      )
+      .where(and(eq(accessRequests.status, 'approved'), sql`${enrollments.id} IS NULL`));
 
     // 4. Find pending requests for already-enrolled courses
     const pendingEnrolled = await db
@@ -73,11 +76,14 @@ export async function GET(request: NextRequest) {
         courseId: accessRequests.courseId,
       })
       .from(accessRequests)
-      .innerJoin(enrollments, and(
-        eq(accessRequests.studentId, enrollments.userId),
-        eq(accessRequests.courseId, enrollments.courseId),
-        eq(enrollments.status, 'active')
-      ))
+      .innerJoin(
+        enrollments,
+        and(
+          eq(accessRequests.studentId, enrollments.userId),
+          eq(accessRequests.courseId, enrollments.courseId),
+          eq(enrollments.status, 'active')
+        )
+      )
       .where(eq(accessRequests.status, 'pending'));
 
     const inconsistencies = {
@@ -87,10 +93,10 @@ export async function GET(request: NextRequest) {
       pendingEnrolled,
     };
 
-    const totalCount = 
-      progressOnly.length + 
-      enrollmentsOnly.length + 
-      approvedNoEnroll.length + 
+    const totalCount =
+      progressOnly.length +
+      enrollmentsOnly.length +
+      approvedNoEnroll.length +
       pendingEnrolled.length;
 
     return NextResponse.json({
@@ -101,7 +107,7 @@ export async function GET(request: NextRequest) {
         enrollmentsOnlyCount: enrollmentsOnly.length,
         approvedNoEnrollCount: approvedNoEnroll.length,
         pendingEnrolledCount: pendingEnrolled.length,
-      }
+      },
     });
   } catch (error) {
     logger.error('Consistency check error:', error);

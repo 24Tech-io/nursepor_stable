@@ -8,10 +8,7 @@ import { chapters, modules } from '@/lib/db/schema';
 import { eq, desc, inArray, asc } from 'drizzle-orm';
 
 // GET - Fetch all modules for a course
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { courseId: string } }
-) {
+export async function GET(request: NextRequest, { params }: { params: { courseId: string } }) {
   try {
     const token =
       request.cookies.get('adminToken')?.value ||
@@ -82,10 +79,7 @@ export async function GET(
 }
 
 // POST - Create new module
-export async function POST(
-  request: NextRequest,
-  { params }: { params: { courseId: string } }
-) {
+export async function POST(request: NextRequest, { params }: { params: { courseId: string } }) {
   try {
     const token =
       request.cookies.get('adminToken')?.value ||
@@ -122,14 +116,17 @@ export async function POST(
       moduleOrder = existingModules.length > 0 ? existingModules[0].order + 1 : 0;
     }
 
-    const result = await db.insert(modules).values({
-      courseId,
-      title,
-      description: description || '',
-      order: moduleOrder,
-      duration: duration || 0,
-      isPublished: isPublished !== false,
-    }).returning();
+    const result = await db
+      .insert(modules)
+      .values({
+        courseId,
+        title,
+        description: description || '',
+        order: moduleOrder,
+        duration: duration || 0,
+        isPublished: isPublished !== false,
+      })
+      .returning();
 
     logger.info('✅ Module created:', result[0]);
 
@@ -142,4 +139,3 @@ export async function POST(
     );
   }
 }
-

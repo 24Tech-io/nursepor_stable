@@ -14,7 +14,7 @@ import { logger } from '@/lib/logger';
 
 export async function POST(request: NextRequest) {
   try {
-    const token = request.cookies.get('token')?.value;
+    const token = request.cookies.get('adminToken')?.value;
     if (!token) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -33,10 +33,7 @@ export async function POST(request: NextRequest) {
 
     // Find coupon
     const coupon = await db.query.coupons.findFirst({
-      where: and(
-        eq(coupons.code, code.toUpperCase()),
-        eq(coupons.isActive, true)
-      ),
+      where: and(eq(coupons.code, code.toUpperCase()), eq(coupons.isActive, true)),
     });
 
     if (!coupon) {
@@ -104,4 +101,3 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Failed to validate coupon' }, { status: 500 });
   }
 }
-

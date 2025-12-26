@@ -9,10 +9,7 @@ import { blogPosts } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 
 // PATCH - Update blog post
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     const token = request.cookies.get('adminToken')?.value;
     if (!token) {
@@ -60,10 +57,7 @@ export async function PATCH(
 }
 
 // DELETE - Delete blog post
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     const token = request.cookies.get('adminToken')?.value;
     if (!token) {
@@ -91,4 +85,3 @@ export async function DELETE(
     );
   }
 }
-

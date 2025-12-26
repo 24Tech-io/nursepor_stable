@@ -31,12 +31,7 @@ export async function POST(request: NextRequest) {
     const stuckRequests = await db
       .select()
       .from(accessRequests)
-      .where(
-        and(
-          isNotNull(accessRequests.reviewedAt),
-          eq(accessRequests.status, 'pending')
-        )
-      );
+      .where(and(isNotNull(accessRequests.reviewedAt), eq(accessRequests.status, 'pending')));
 
     logger.info(`🔍 Found ${stuckRequests.length} stuck requests to clean up`);
 
@@ -60,16 +55,14 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     logger.error('❌ Cleanup stuck requests error:', error);
     return NextResponse.json(
-      { 
+      {
         message: 'Failed to cleanup stuck requests',
-        error: process.env.NODE_ENV === 'development' ? error.message : undefined
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined,
       },
       { status: 500 }
     );
   }
 }
-
-
 
 
 

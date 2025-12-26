@@ -8,6 +8,9 @@ import { createErrorResponse, createAuthError } from '@/lib/error-handler';
 import { retryDatabase } from '@/lib/retry';
 import { logger } from '@/lib/logger';
 
+// Cache for 30 seconds - allows stale-while-revalidate
+export const revalidate = 30;
+
 export async function GET(request: NextRequest) {
   try {
     const token = request.cookies.get('student_token')?.value || request.cookies.get('token')?.value;
@@ -213,20 +216,20 @@ export async function GET(request: NextRequest) {
     }
 
     // Use enrollments.progress as primary source, fallback to studentProgress
-    const totalProgress = Number(enrollmentSum[0]?.totalProgress || progressSum[0]?.totalProgress || 0);
-    
+    const totalProgress = Number(
+      enrollmentSum[0]?.totalProgress || progressSum[0]?.totalProgress || 0
+    );
+
     // Estimate: assume average course is 10 hours, multiply by progress percentage
     // Average 10 hours per course, calculate based on progress
-    const estimatedHours = coursesEnrolled > 0 
-      ? Math.round((totalProgress / coursesEnrolled / 100) * 10 * 10) / 10 
-      : 0;
+    const estimatedHours =
+      coursesEnrolled > 0 ? Math.round((totalProgress / coursesEnrolled / 100) * 10 * 10) / 10 : 0;
 
     // Get quizzes completed count
     // For now, we'll estimate based on progress (assume 1 quiz per 20% progress)
     // In a real system, you'd have a quizAttempts table
-    const quizzesCompleted = coursesEnrolled > 0 
-      ? Math.floor(totalProgress / coursesEnrolled / 20) 
-      : 0;
+    const quizzesCompleted =
+      coursesEnrolled > 0 ? Math.floor(totalProgress / coursesEnrolled / 20) : 0;
 
     // Calculate login streak
     // Note: lastLogin column doesn't exist in current DB schema
@@ -237,7 +240,7 @@ export async function GET(request: NextRequest) {
     // Calculate total points
     // Points = (courses completed * 100) + (quizzes completed * 10)
     // Streak does not contribute to points to avoid initial points confusion
-    const totalPoints = (coursesCompleted * 100) + (quizzesCompleted * 10);
+    const totalPoints = coursesCompleted * 100 + quizzesCompleted * 10;
 
     return NextResponse.json({
       stats: {
@@ -255,4 +258,3 @@ export async function GET(request: NextRequest) {
     return createErrorResponse(error, 'Failed to get student stats');
   }
 }
-

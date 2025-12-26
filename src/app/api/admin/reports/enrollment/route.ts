@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
   try {
-    const token = request.cookies.get('token')?.value;
+    const token = request.cookies.get('adminToken')?.value;
 
     if (!token) {
       return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });
@@ -33,17 +33,19 @@ export async function GET(request: NextRequest) {
       })
       .from(courses)
       .leftJoin(studentProgress, eq(courses.id, studentProgress.courseId))
-      .leftJoin(enrollments, and(
-        eq(courses.id, enrollments.courseId),
-        eq(enrollments.status, 'active')
-      ))
+      .leftJoin(
+        enrollments,
+        and(eq(courses.id, enrollments.courseId), eq(enrollments.status, 'active'))
+      )
       .where(eq(courses.status, 'published'))
       .groupBy(courses.id, courses.title)
-      .orderBy(desc(sql`count(distinct COALESCE(${enrollments.userId}, ${studentProgress.studentId}))`));
+      .orderBy(
+        desc(sql`count(distinct COALESCE(${enrollments.userId}, ${studentProgress.studentId}))`)
+      );
 
     return NextResponse.json({
       enrollmentStats,
-      totalCourses: enrollmentStats.length
+      totalCourses: enrollmentStats.length,
     });
   } catch (error: any) {
     log.error('Get enrollment report error', error);

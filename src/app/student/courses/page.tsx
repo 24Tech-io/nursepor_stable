@@ -26,7 +26,9 @@ type Course = {
 
 // Calculate real progress from enrolled courses data
 function calculateRealProgress(courseId: string, enrolledCourses: any[]): number {
-  const enrolledCourse = enrolledCourses.find((ec: any) => String(ec.courseId) === String(courseId));
+  const enrolledCourse = enrolledCourses.find(
+    (ec: any) => String(ec.courseId) === String(courseId)
+  );
   if (enrolledCourse && enrolledCourse.progress !== undefined) {
     return enrolledCourse.progress;
   }
@@ -124,7 +126,6 @@ export default function CoursesPage() {
     };
   }, []);
 
-
   const filtered = useMemo(() => {
     const q = query.toLowerCase();
     return courses.filter(c => {
@@ -138,17 +139,20 @@ export default function CoursesPage() {
     });
   }, [courses, query]);
 
-  const enrolled = filtered.filter(c => {
+  const enrolled = filtered.filter((c) => {
     const statusLower = c.status?.toLowerCase();
     return c.isEnrolled && (statusLower === 'published' || statusLower === 'active');
   });
 
-  const requested = filtered.filter(c => {
+  const requested = filtered.filter((c) => {
     const statusLower = c.status?.toLowerCase();
-    return pendingRequestCourseIds.includes(c.id) && (statusLower === 'published' || statusLower === 'active');
+    return (
+      pendingRequestCourseIds.includes(c.id) &&
+      (statusLower === 'published' || statusLower === 'active')
+    );
   });
 
-  const locked = filtered.filter(c => {
+  const locked = filtered.filter((c) => {
     const statusLower = c.status?.toLowerCase();
     return !c.isEnrolled &&
       (statusLower === 'published' || statusLower === 'active') &&

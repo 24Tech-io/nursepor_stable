@@ -14,55 +14,68 @@ describe('Enrollment Synchronization', () => {
   beforeEach(async () => {
     // Setup test data
     db = getDatabase();
-    
+
     // Create test student
-    const [student] = await db.insert(users).values({
-      name: 'Test Student',
-      email: `test-student-${Date.now()}@example.com`,
-      password: 'hashedpassword',
-      role: 'student',
-    }).returning();
+    const [student] = await db
+      .insert(users)
+      .values({
+        name: 'Test Student',
+        email: `test-student-${Date.now()}@example.com`,
+        password: 'hashedpassword',
+        role: 'student',
+      })
+      .returning();
     testStudentId = student.id;
 
     // Create test admin
-    const [admin] = await db.insert(users).values({
-      name: 'Test Admin',
-      email: `test-admin-${Date.now()}@example.com`,
-      password: 'hashedpassword',
-      role: 'admin',
-    }).returning();
+    const [admin] = await db
+      .insert(users)
+      .values({
+        name: 'Test Admin',
+        email: `test-admin-${Date.now()}@example.com`,
+        password: 'hashedpassword',
+        role: 'admin',
+      })
+      .returning();
     testAdminId = admin.id;
 
     // Create test course
-    const [course] = await db.insert(courses).values({
-      title: 'Test Course',
-      description: 'Test course description',
-      instructor: 'Test Instructor',
-      status: 'published',
-    }).returning();
+    const [course] = await db
+      .insert(courses)
+      .values({
+        title: 'Test Course',
+        description: 'Test course description',
+        instructor: 'Test Instructor',
+        status: 'published',
+      })
+      .returning();
     testCourseId = course.id;
   });
 
   afterEach(async () => {
     // Cleanup test data
     if (testStudentId && testCourseId) {
-      await db.delete(studentProgress)
-        .where(and(
-          eq(studentProgress.studentId, testStudentId),
-          eq(studentProgress.courseId, testCourseId)
-        ));
-      
-      await db.delete(enrollments)
-        .where(and(
-          eq(enrollments.userId, testStudentId),
-          eq(enrollments.courseId, testCourseId)
-        ));
-      
-      await db.delete(accessRequests)
-        .where(and(
-          eq(accessRequests.studentId, testStudentId),
-          eq(accessRequests.courseId, testCourseId)
-        ));
+      await db
+        .delete(studentProgress)
+        .where(
+          and(
+            eq(studentProgress.studentId, testStudentId),
+            eq(studentProgress.courseId, testCourseId)
+          )
+        );
+
+      await db
+        .delete(enrollments)
+        .where(and(eq(enrollments.userId, testStudentId), eq(enrollments.courseId, testCourseId)));
+
+      await db
+        .delete(accessRequests)
+        .where(
+          and(
+            eq(accessRequests.studentId, testStudentId),
+            eq(accessRequests.courseId, testCourseId)
+          )
+        );
     }
 
     if (testStudentId) {
@@ -147,19 +160,23 @@ describe('Enrollment Synchronization', () => {
 
   it('should not delete request if enrollment fails', async () => {
     // Create a test request
-    const [request] = await db.insert(accessRequests).values({
-      studentId: testStudentId,
-      courseId: testCourseId,
-      reason: 'Test request',
-      status: 'pending',
-    }).returning();
+    const [request] = await db
+      .insert(accessRequests)
+      .values({
+        studentId: testStudentId,
+        courseId: testCourseId,
+        reason: 'Test request',
+        status: 'pending',
+      })
+      .returning();
 
     // Mock enrollStudent to fail by using invalid data
     // In a real test, you'd use a mocking library
     // For now, we'll test the verification logic separately
 
     // Verify request exists
-    const requestCheck = await db.select()
+    const requestCheck = await db
+      .select()
       .from(accessRequests)
       .where(eq(accessRequests.id, request.id));
     expect(requestCheck.length).toBe(1);
@@ -233,5 +250,7 @@ describe('Enrollment Synchronization', () => {
     });
   });
 });
+
+
 
 

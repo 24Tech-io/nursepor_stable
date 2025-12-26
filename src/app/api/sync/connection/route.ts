@@ -6,9 +6,9 @@ import { eq, sql, and, or } from 'drizzle-orm';
 import { logger } from '@/lib/logger';
 
 /**
- * Real-time Sync Connection Endpoint
+ * Real-time Sync Connection Endpoint for Admin App
  * Maintains a persistent connection for real-time synchronization
- * Uses Server-Sent Events (SSE) or polling mechanism
+ * Uses polling mechanism for admin dashboard updates
  */
 export async function GET(request: NextRequest) {
   try {
@@ -25,7 +25,6 @@ export async function GET(request: NextRequest) {
 
     const db = await getDatabaseWithRetry();
     const userId = decoded.id;
-    const isAdmin = decoded.role === 'admin';
 
     // Safely run a count query; if table is missing (42P01) or other errors occur,
     // log and return 0 instead of crashing the endpoint.
@@ -153,10 +152,10 @@ export async function GET(request: NextRequest) {
   } catch (error: any) {
     logger.error('Sync connection error:', error);
     return NextResponse.json(
-      { 
+      {
         success: false,
         message: 'Failed to establish sync connection',
-        error: process.env.NODE_ENV === 'development' ? error.message : undefined
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined,
       },
       { status: 500 }
     );

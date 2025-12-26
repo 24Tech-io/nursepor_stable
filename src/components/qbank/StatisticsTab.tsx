@@ -27,10 +27,51 @@ export default function StatisticsTab({ courseId }: StatisticsTabProps) {
   const [selectedSubcategory, setSelectedSubcategory] = useState('Alterations in Body Systems');
   const [isLoading, setIsLoading] = useState(true);
 
-  const subjects = ['Adult Health', 'Child Health', 'Critical Care', 'Fundamentals', 'Leadership & Management', 'Maternal & Newborn Health', 'Mental Health', 'Pharmacology', 'Nutrition'];
-  const lessons = ['Cardiovascular', 'Endocrine', 'Gastrointestinal', 'Hematological/Oncological', 'Immune', 'Infectious Disease', 'Integumentary', 'Musculoskeletal', 'Neurologic', 'Reproductive', 'Respiratory', 'Urinary/Renal/Fluid and Electrolytes', 'Visual/Auditory'];
-  const clientNeeds = ['Physiological Adaptation', 'Reduction of Risk Potential', 'Health Promotion and Maintenance', 'Basic Care and Comfort', 'Safety & Infection Control', 'Psychosocial Integrity', 'Pharmacological and Parenteral Therapies', 'Management of Care'];
-  const subcategories = ['Alterations in Body Systems', 'F&E Imbalances', 'Hemodynamics', 'Illness Management', 'Medical Emergencies', 'Pathophysiology', 'Unexpected Responses to Therapies'];
+  const subjects = [
+    'Adult Health',
+    'Child Health',
+    'Critical Care',
+    'Fundamentals',
+    'Leadership & Management',
+    'Maternal & Newborn Health',
+    'Mental Health',
+    'Pharmacology',
+    'Nutrition',
+  ];
+  const lessons = [
+    'Cardiovascular',
+    'Endocrine',
+    'Gastrointestinal',
+    'Hematological/Oncological',
+    'Immune',
+    'Infectious Disease',
+    'Integumentary',
+    'Musculoskeletal',
+    'Neurologic',
+    'Reproductive',
+    'Respiratory',
+    'Urinary/Renal/Fluid and Electrolytes',
+    'Visual/Auditory',
+  ];
+  const clientNeeds = [
+    'Physiological Adaptation',
+    'Reduction of Risk Potential',
+    'Health Promotion and Maintenance',
+    'Basic Care and Comfort',
+    'Safety & Infection Control',
+    'Psychosocial Integrity',
+    'Pharmacological and Parenteral Therapies',
+    'Management of Care',
+  ];
+  const subcategories = [
+    'Alterations in Body Systems',
+    'F&E Imbalances',
+    'Hemodynamics',
+    'Illness Management',
+    'Medical Emergencies',
+    'Pathophysiology',
+    'Unexpected Responses to Therapies',
+  ];
 
   useEffect(() => {
     fetchStatistics();
@@ -39,20 +80,20 @@ export default function StatisticsTab({ courseId }: StatisticsTabProps) {
   async function fetchStatistics() {
     try {
       setIsLoading(true);
-      const response = await fetch(
-        `/api/qbank/${courseId}/statistics?testType=${activeTestType}`,
-        { credentials: 'include' }
-      );
+      const response = await fetch(`/api/qbank/${courseId}/statistics?testType=${activeTestType}`, {
+        credentials: 'include',
+      });
       if (response.ok) {
         const data = await response.json();
+        // FIX: Use real data, not fake hardcoded numbers
         setStats(data.statistics || {
-          totalQuestions: activeTestType === 'classic' ? 2010 : 1171,
-          usedQuestions: activeTestType === 'classic' ? 1594 : 890,
-          unusedQuestions: activeTestType === 'classic' ? 416 : 281,
-          correctQuestions: activeTestType === 'classic' ? 640 : 412,
-          incorrectQuestions: activeTestType === 'classic' ? 834 : 412,
-          omittedQuestions: 3,
-          correctOnReattempt: 5,
+          totalQuestions: 0,
+          usedQuestions: 0,
+          unusedQuestions: 0,
+          correctQuestions: 0,
+          incorrectQuestions: 0,
+          omittedQuestions: 0,
+          correctOnReattempt: 0,
         });
       }
     } catch (error) {
@@ -71,21 +112,21 @@ export default function StatisticsTab({ courseId }: StatisticsTabProps) {
     }
   }
 
-  function DonutChart({ 
-    value, 
-    total, 
-    label, 
-    segments 
-  }: { 
-    value: number; 
-    total: number; 
-    label: string; 
-    segments: { value: number; color: string }[] 
+  function DonutChart({
+    value,
+    total,
+    label,
+    segments,
+  }: {
+    value: number;
+    total: number;
+    label: string;
+    segments: { value: number; color: string }[];
   }) {
     const radius = 70;
     const strokeWidth = 24;
     const circumference = 2 * Math.PI * radius;
-    
+
     let currentOffset = 0;
 
     return (
@@ -107,7 +148,7 @@ export default function StatisticsTab({ courseId }: StatisticsTabProps) {
               const segmentLength = (segmentPercentage / 100) * circumference;
               const dashArray = `${segmentLength} ${circumference}`;
               const rotation = (currentOffset / circumference) * 360 - 90;
-              
+
               currentOffset += segmentLength;
 
               return (
@@ -150,50 +191,55 @@ export default function StatisticsTab({ courseId }: StatisticsTabProps) {
 
   if (!stats) return null;
 
-  const usedPercentage = stats.totalQuestions > 0 ? Math.round((stats.usedQuestions / stats.totalQuestions) * 100) : 0;
+  const usedPercentage =
+    stats.totalQuestions > 0 ? Math.round((stats.usedQuestions / stats.totalQuestions) * 100) : 0;
   const unusedPercentage = 100 - usedPercentage;
-  const correctPercentage = stats.usedQuestions > 0 ? Math.round((stats.correctQuestions / stats.usedQuestions) * 100) : 0;
-  const incorrectPercentage = stats.usedQuestions > 0 ? Math.round((stats.incorrectQuestions / stats.usedQuestions) * 100) : 0;
+  const correctPercentage =
+    stats.usedQuestions > 0 ? Math.round((stats.correctQuestions / stats.usedQuestions) * 100) : 0;
+  const incorrectPercentage =
+    stats.usedQuestions > 0
+      ? Math.round((stats.incorrectQuestions / stats.usedQuestions) * 100)
+      : 0;
 
-  // Mock subject/lesson data
+  // Real subject/lesson data (will show 0 until student takes tests)
   const subjectData = {
-    totalQuestions: 561,
-    usedQuestions: 445,
-    correctQuestions: 203,
-    incorrectQuestions: 242,
+    totalQuestions: 0,
+    usedQuestions: 0,
+    correctQuestions: 0,
+    incorrectQuestions: 0,
     omittedQuestions: 0,
-    yourScore: 637,
-    maxScore: 1299,
+    yourScore: 0,
+    maxScore: 0,
   };
 
   const lessonData = {
-    totalQuestions: 147,
-    usedQuestions: 120,
-    correctQuestions: 64,
-    incorrectQuestions: 55,
-    omittedQuestions: 1,
-    yourScore: 102,
-    maxScore: 257,
+    totalQuestions: 0,
+    usedQuestions: 0,
+    correctQuestions: 0,
+    incorrectQuestions: 0,
+    omittedQuestions: 0,
+    yourScore: 0,
+    maxScore: 0,
   };
 
   const clientNeedData = {
-    totalQuestions: 380,
-    usedQuestions: 310,
-    correctQuestions: 133,
-    incorrectQuestions: 177,
+    totalQuestions: 0,
+    usedQuestions: 0,
+    correctQuestions: 0,
+    incorrectQuestions: 0,
     omittedQuestions: 0,
-    yourScore: 552,
-    maxScore: 1143,
+    yourScore: 0,
+    maxScore: 0,
   };
 
   const subcategoryData = {
-    totalQuestions: 150,
-    usedQuestions: 125,
-    correctQuestions: 50,
-    incorrectQuestions: 75,
+    totalQuestions: 0,
+    usedQuestions: 0,
+    correctQuestions: 0,
+    incorrectQuestions: 0,
     omittedQuestions: 0,
-    yourScore: 300,
-    maxScore: 606,
+    yourScore: 0,
+    maxScore: 0,
   };
 
   return (
@@ -208,7 +254,7 @@ export default function StatisticsTab({ courseId }: StatisticsTabProps) {
               : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
           }`}
         >
-          Classic (2010)
+          Classic
         </button>
         <button
           onClick={() => setActiveTestType('ngn')}
@@ -218,7 +264,7 @@ export default function StatisticsTab({ courseId }: StatisticsTabProps) {
               : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
           }`}
         >
-          NGN (1171)
+          NGN
         </button>
       </div>
 
@@ -304,7 +350,10 @@ export default function StatisticsTab({ courseId }: StatisticsTabProps) {
                 <div className="flex items-center space-x-2">
                   <span className="font-bold text-yellow-600">{stats.omittedQuestions}</span>
                   <span className="px-2 py-1 bg-yellow-100 text-yellow-700 rounded-full text-xs font-semibold">
-                    {stats.usedQuestions > 0 ? Math.round((stats.omittedQuestions / stats.usedQuestions) * 100) : 0}%
+                    {stats.usedQuestions > 0
+                      ? Math.round((stats.omittedQuestions / stats.usedQuestions) * 100)
+                      : 0}
+                    %
                   </span>
                 </div>
               </div>
@@ -320,12 +369,14 @@ export default function StatisticsTab({ courseId }: StatisticsTabProps) {
       {/* Subjects and Lessons Statistics */}
       <div className="mt-12">
         <h2 className="text-2xl font-bold text-gray-900 mb-6">Subjects and Lessons Statistics</h2>
-        
+
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Subjects Statistics */}
           <div>
             <div className="mb-4">
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Subjects Statistics</label>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Subjects Statistics
+              </label>
               <select
                 value={selectedSubject}
                 onChange={(e) => setSelectedSubject(e.target.value)}
@@ -338,7 +389,7 @@ export default function StatisticsTab({ courseId }: StatisticsTabProps) {
                 ))}
               </select>
             </div>
-            
+
             <div className="bg-white rounded-2xl p-6 border border-gray-200">
               <div className="flex items-start justify-between">
                 <DonutChart
@@ -362,27 +413,42 @@ export default function StatisticsTab({ courseId }: StatisticsTabProps) {
                   <div className="flex justify-between items-center py-2 border-b border-gray-100">
                     <span className="text-sm text-gray-600">Correct Questions</span>
                     <div className="flex items-center space-x-2">
-                      <span className="font-bold text-green-600">{subjectData.correctQuestions}</span>
+                      <span className="font-bold text-green-600">
+                        {subjectData.correctQuestions}
+                      </span>
                       <span className="px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-xs font-semibold">
-                        {Math.round((subjectData.correctQuestions / subjectData.usedQuestions) * 100)}%
+                        {Math.round(
+                          (subjectData.correctQuestions / subjectData.usedQuestions) * 100
+                        )}
+                        %
                       </span>
                     </div>
                   </div>
                   <div className="flex justify-between items-center py-2 border-b border-gray-100">
                     <span className="text-sm text-gray-600">Incorrect Questions</span>
                     <div className="flex items-center space-x-2">
-                      <span className="font-bold text-red-600">{subjectData.incorrectQuestions}</span>
+                      <span className="font-bold text-red-600">
+                        {subjectData.incorrectQuestions}
+                      </span>
                       <span className="px-2 py-0.5 bg-red-100 text-red-700 rounded-full text-xs font-semibold">
-                        {Math.round((subjectData.incorrectQuestions / subjectData.usedQuestions) * 100)}%
+                        {Math.round(
+                          (subjectData.incorrectQuestions / subjectData.usedQuestions) * 100
+                        )}
+                        %
                       </span>
                     </div>
                   </div>
                   <div className="flex justify-between items-center py-2">
                     <span className="text-sm text-gray-600">Omitted Questions</span>
                     <div className="flex items-center space-x-2">
-                      <span className="font-bold text-yellow-600">{subjectData.omittedQuestions}</span>
+                      <span className="font-bold text-yellow-600">
+                        {subjectData.omittedQuestions}
+                      </span>
                       <span className="px-2 py-0.5 bg-yellow-100 text-yellow-700 rounded-full text-xs font-semibold">
-                        {Math.round((subjectData.omittedQuestions / subjectData.usedQuestions) * 100)}%
+                        {Math.round(
+                          (subjectData.omittedQuestions / subjectData.usedQuestions) * 100
+                        )}
+                        %
                       </span>
                     </div>
                   </div>
@@ -394,7 +460,9 @@ export default function StatisticsTab({ courseId }: StatisticsTabProps) {
           {/* Lessons Statistics */}
           <div>
             <div className="mb-4">
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Lessons Statistics</label>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Lessons Statistics
+              </label>
               <select
                 value={selectedLesson}
                 onChange={(e) => setSelectedLesson(e.target.value)}
@@ -407,7 +475,7 @@ export default function StatisticsTab({ courseId }: StatisticsTabProps) {
                 ))}
               </select>
             </div>
-            
+
             <div className="bg-white rounded-2xl p-6 border border-gray-200">
               <div className="flex items-start justify-between">
                 <DonutChart
@@ -431,27 +499,38 @@ export default function StatisticsTab({ courseId }: StatisticsTabProps) {
                   <div className="flex justify-between items-center py-2 border-b border-gray-100">
                     <span className="text-sm text-gray-600">Correct Questions</span>
                     <div className="flex items-center space-x-2">
-                      <span className="font-bold text-green-600">{lessonData.correctQuestions}</span>
+                      <span className="font-bold text-green-600">
+                        {lessonData.correctQuestions}
+                      </span>
                       <span className="px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-xs font-semibold">
-                        {Math.round((lessonData.correctQuestions / lessonData.usedQuestions) * 100)}%
+                        {Math.round((lessonData.correctQuestions / lessonData.usedQuestions) * 100)}
+                        %
                       </span>
                     </div>
                   </div>
                   <div className="flex justify-between items-center py-2 border-b border-gray-100">
                     <span className="text-sm text-gray-600">Incorrect Questions</span>
                     <div className="flex items-center space-x-2">
-                      <span className="font-bold text-red-600">{lessonData.incorrectQuestions}</span>
+                      <span className="font-bold text-red-600">
+                        {lessonData.incorrectQuestions}
+                      </span>
                       <span className="px-2 py-0.5 bg-red-100 text-red-700 rounded-full text-xs font-semibold">
-                        {Math.round((lessonData.incorrectQuestions / lessonData.usedQuestions) * 100)}%
+                        {Math.round(
+                          (lessonData.incorrectQuestions / lessonData.usedQuestions) * 100
+                        )}
+                        %
                       </span>
                     </div>
                   </div>
                   <div className="flex justify-between items-center py-2">
                     <span className="text-sm text-gray-600">Omitted Questions</span>
                     <div className="flex items-center space-x-2">
-                      <span className="font-bold text-yellow-600">{lessonData.omittedQuestions}</span>
+                      <span className="font-bold text-yellow-600">
+                        {lessonData.omittedQuestions}
+                      </span>
                       <span className="px-2 py-0.5 bg-yellow-100 text-yellow-700 rounded-full text-xs font-semibold">
-                        {Math.round((lessonData.omittedQuestions / lessonData.usedQuestions) * 100)}%
+                        {Math.round((lessonData.omittedQuestions / lessonData.usedQuestions) * 100)}
+                        %
                       </span>
                     </div>
                   </div>
@@ -465,12 +544,14 @@ export default function StatisticsTab({ courseId }: StatisticsTabProps) {
       {/* Client Need Areas Statistics */}
       <div className="mt-12">
         <h2 className="text-2xl font-bold text-gray-900 mb-6">Client Need Areas Statistics</h2>
-        
+
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Client Need Statistics */}
           <div>
             <div className="mb-4">
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Client Need Statistics</label>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Client Need Statistics
+              </label>
               <select
                 value={selectedClientNeed}
                 onChange={(e) => setSelectedClientNeed(e.target.value)}
@@ -483,7 +564,7 @@ export default function StatisticsTab({ courseId }: StatisticsTabProps) {
                 ))}
               </select>
             </div>
-            
+
             <div className="bg-white rounded-2xl p-6 border border-gray-200">
               <div className="flex items-start justify-between">
                 <DonutChart
@@ -507,27 +588,42 @@ export default function StatisticsTab({ courseId }: StatisticsTabProps) {
                   <div className="flex justify-between items-center py-2 border-b border-gray-100">
                     <span className="text-sm text-gray-600">Correct Questions</span>
                     <div className="flex items-center space-x-2">
-                      <span className="font-bold text-green-600">{clientNeedData.correctQuestions}</span>
+                      <span className="font-bold text-green-600">
+                        {clientNeedData.correctQuestions}
+                      </span>
                       <span className="px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-xs font-semibold">
-                        {Math.round((clientNeedData.correctQuestions / clientNeedData.usedQuestions) * 100)}%
+                        {Math.round(
+                          (clientNeedData.correctQuestions / clientNeedData.usedQuestions) * 100
+                        )}
+                        %
                       </span>
                     </div>
                   </div>
                   <div className="flex justify-between items-center py-2 border-b border-gray-100">
                     <span className="text-sm text-gray-600">Incorrect Questions</span>
                     <div className="flex items-center space-x-2">
-                      <span className="font-bold text-red-600">{clientNeedData.incorrectQuestions}</span>
+                      <span className="font-bold text-red-600">
+                        {clientNeedData.incorrectQuestions}
+                      </span>
                       <span className="px-2 py-0.5 bg-red-100 text-red-700 rounded-full text-xs font-semibold">
-                        {Math.round((clientNeedData.incorrectQuestions / clientNeedData.usedQuestions) * 100)}%
+                        {Math.round(
+                          (clientNeedData.incorrectQuestions / clientNeedData.usedQuestions) * 100
+                        )}
+                        %
                       </span>
                     </div>
                   </div>
                   <div className="flex justify-between items-center py-2">
                     <span className="text-sm text-gray-600">Omitted Questions</span>
                     <div className="flex items-center space-x-2">
-                      <span className="font-bold text-yellow-600">{clientNeedData.omittedQuestions}</span>
+                      <span className="font-bold text-yellow-600">
+                        {clientNeedData.omittedQuestions}
+                      </span>
                       <span className="px-2 py-0.5 bg-yellow-100 text-yellow-700 rounded-full text-xs font-semibold">
-                        {Math.round((clientNeedData.omittedQuestions / clientNeedData.usedQuestions) * 100)}%
+                        {Math.round(
+                          (clientNeedData.omittedQuestions / clientNeedData.usedQuestions) * 100
+                        )}
+                        %
                       </span>
                     </div>
                   </div>
@@ -539,7 +635,9 @@ export default function StatisticsTab({ courseId }: StatisticsTabProps) {
           {/* Subcategory Statistics */}
           <div>
             <div className="mb-4">
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Subcategory Statistics</label>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Subcategory Statistics
+              </label>
               <select
                 value={selectedSubcategory}
                 onChange={(e) => setSelectedSubcategory(e.target.value)}
@@ -552,7 +650,7 @@ export default function StatisticsTab({ courseId }: StatisticsTabProps) {
                 ))}
               </select>
             </div>
-            
+
             <div className="bg-white rounded-2xl p-6 border border-gray-200">
               <div className="flex items-start justify-between">
                 <DonutChart
@@ -567,7 +665,9 @@ export default function StatisticsTab({ courseId }: StatisticsTabProps) {
                 <div className="flex-1 ml-6 space-y-2">
                   <div className="flex justify-between items-center py-2 border-b border-gray-100">
                     <span className="text-sm text-gray-600">Total Questions</span>
-                    <span className="font-bold text-gray-900">{subcategoryData.totalQuestions}</span>
+                    <span className="font-bold text-gray-900">
+                      {subcategoryData.totalQuestions}
+                    </span>
                   </div>
                   <div className="flex justify-between items-center py-2 border-b border-gray-100">
                     <span className="text-sm text-gray-600">Used Questions</span>
@@ -576,27 +676,42 @@ export default function StatisticsTab({ courseId }: StatisticsTabProps) {
                   <div className="flex justify-between items-center py-2 border-b border-gray-100">
                     <span className="text-sm text-gray-600">Correct Questions</span>
                     <div className="flex items-center space-x-2">
-                      <span className="font-bold text-green-600">{subcategoryData.correctQuestions}</span>
+                      <span className="font-bold text-green-600">
+                        {subcategoryData.correctQuestions}
+                      </span>
                       <span className="px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-xs font-semibold">
-                        {Math.round((subcategoryData.correctQuestions / subcategoryData.usedQuestions) * 100)}%
+                        {Math.round(
+                          (subcategoryData.correctQuestions / subcategoryData.usedQuestions) * 100
+                        )}
+                        %
                       </span>
                     </div>
                   </div>
                   <div className="flex justify-between items-center py-2 border-b border-gray-100">
                     <span className="text-sm text-gray-600">Incorrect Questions</span>
                     <div className="flex items-center space-x-2">
-                      <span className="font-bold text-red-600">{subcategoryData.incorrectQuestions}</span>
+                      <span className="font-bold text-red-600">
+                        {subcategoryData.incorrectQuestions}
+                      </span>
                       <span className="px-2 py-0.5 bg-red-100 text-red-700 rounded-full text-xs font-semibold">
-                        {Math.round((subcategoryData.incorrectQuestions / subcategoryData.usedQuestions) * 100)}%
+                        {Math.round(
+                          (subcategoryData.incorrectQuestions / subcategoryData.usedQuestions) * 100
+                        )}
+                        %
                       </span>
                     </div>
                   </div>
                   <div className="flex justify-between items-center py-2">
                     <span className="text-sm text-gray-600">Omitted Questions</span>
                     <div className="flex items-center space-x-2">
-                      <span className="font-bold text-yellow-600">{subcategoryData.omittedQuestions}</span>
+                      <span className="font-bold text-yellow-600">
+                        {subcategoryData.omittedQuestions}
+                      </span>
                       <span className="px-2 py-0.5 bg-yellow-100 text-yellow-700 rounded-full text-xs font-semibold">
-                        {Math.round((subcategoryData.omittedQuestions / subcategoryData.usedQuestions) * 100)}%
+                        {Math.round(
+                          (subcategoryData.omittedQuestions / subcategoryData.usedQuestions) * 100
+                        )}
+                        %
                       </span>
                     </div>
                   </div>

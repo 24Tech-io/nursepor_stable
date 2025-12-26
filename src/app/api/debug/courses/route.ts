@@ -4,6 +4,10 @@ import { getDatabaseWithRetry } from '@/lib/db';
 import { courses, questionBanks } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 
+// Prevent static generation - this route requires database access
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
 /**
  * Debug endpoint to check all courses in the database
  */
@@ -15,22 +19,13 @@ export async function GET(request: NextRequest) {
     const allCourses = await db.select().from(courses);
 
     // Get published courses
-    const publishedCourses = await db
-      .select()
-      .from(courses)
-      .where(eq(courses.status, 'published'));
+    const publishedCourses = await db.select().from(courses).where(eq(courses.status, 'published'));
 
     // Get Nurse Pro course specifically
-    const nurseProCourses = await db
-      .select()
-      .from(courses)
-      .where(eq(courses.title, 'Nurse Pro'));
+    const nurseProCourses = await db.select().from(courses).where(eq(courses.title, 'Nurse Pro'));
 
     // Get Q-Bank course specifically
-    const qbankCourses = await db
-      .select()
-      .from(courses)
-      .where(eq(courses.title, 'Q-Bank'));
+    const qbankCourses = await db.select().from(courses).where(eq(courses.title, 'Q-Bank'));
 
     // Get question banks
     const allQuestionBanks = await db.select().from(questionBanks);
@@ -44,7 +39,7 @@ export async function GET(request: NextRequest) {
         qbankCourses: qbankCourses.length,
         questionBanks: allQuestionBanks.length,
       },
-      allCourses: allCourses.map(c => ({
+      allCourses: allCourses.map((c) => ({
         id: c.id.toString(),
         title: c.title,
         pricing: c.pricing,
@@ -53,19 +48,19 @@ export async function GET(request: NextRequest) {
         isDefaultUnlocked: c.isDefaultUnlocked,
         createdAt: c.createdAt?.toISOString(),
       })),
-      publishedCourses: publishedCourses.map(c => ({
+      publishedCourses: publishedCourses.map((c) => ({
         id: c.id.toString(),
         title: c.title,
         pricing: c.pricing,
         status: c.status,
       })),
-      nurseProCourses: nurseProCourses.map(c => ({
+      nurseProCourses: nurseProCourses.map((c) => ({
         id: c.id.toString(),
         title: c.title,
         pricing: c.pricing,
         status: c.status,
       })),
-      questionBanks: allQuestionBanks.map(qb => ({
+      questionBanks: allQuestionBanks.map((qb) => ({
         id: qb.id.toString(),
         courseId: qb.courseId?.toString() || 'standalone',
         name: qb.name,
@@ -83,4 +78,3 @@ export async function GET(request: NextRequest) {
     );
   }
 }
-

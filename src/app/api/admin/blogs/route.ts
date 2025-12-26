@@ -22,10 +22,7 @@ export async function GET(request: NextRequest) {
 
     const db = await getDatabaseWithRetry();
 
-    const blogs = await db
-      .select()
-      .from(blogPosts)
-      .orderBy(desc(blogPosts.createdAt));
+    const blogs = await db.select().from(blogPosts).orderBy(desc(blogPosts.createdAt));
 
     return NextResponse.json({ blogs });
   } catch (error: any) {
@@ -61,15 +58,18 @@ export async function POST(request: NextRequest) {
 
     const db = await getDatabaseWithRetry();
 
-    const result = await db.insert(blogPosts).values({
-      title,
-      slug,
-      content,
-      author,
-      cover: cover || null,
-      tags: JSON.stringify(tags || []),
-      status: status || 'draft',
-    }).returning();
+    const result = await db
+      .insert(blogPosts)
+      .values({
+        title,
+        slug,
+        content,
+        author,
+        cover: cover || null,
+        tags: JSON.stringify(tags || []),
+        status: status || 'draft',
+      })
+      .returning();
 
     logger.info('✅ Blog post created:', result[0]);
 
@@ -82,4 +82,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-

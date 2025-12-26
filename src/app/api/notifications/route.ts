@@ -52,6 +52,30 @@ export async function GET(request: NextRequest) {
             error: process.env.NODE_ENV === 'development' ? (error?.message || String(error)) : undefined
         }, { status: 500 });
     }
+
+    const decoded = verifyToken(token);
+    if (!decoded) {
+      return NextResponse.json({ message: 'Invalid token' }, { status: 403 });
+    }
+
+    const userNotifications = await db
+      .select()
+      .from(notifications)
+      .where(eq(notifications.userId, decoded.id))
+      .orderBy(desc(notifications.createdAt))
+      .limit(50); // Limit to 50 most recent
+
+    return NextResponse.json({ notifications: userNotifications });
+  } catch (error) {
+    console.error('Get notifications error:', error);
+    return NextResponse.json(
+      {
+        message: 'Internal server error',
+        error: process.env.NODE_ENV === 'development' ? String(error) : undefined,
+      },
+      { status: 500 }
+    );
+  }
 }
 
 // PATCH - Mark notification as read
@@ -149,4 +173,32 @@ export async function POST(request: NextRequest) {
             error: process.env.NODE_ENV === 'development' ? (error?.message || String(error)) : undefined
         }, { status: 500 });
     }
+
+    const decoded = verifyToken(token);
+    if (!decoded) {
+      return NextResponse.json({ message: 'Invalid token' }, { status: 403 });
+    }
+
+    const { notificationId } = await request.json();
+
+    if (!notificationId) {
+      return NextResponse.json({ message: 'Notification ID required' }, { status: 400 });
+    }
+
+    await db
+      .update(notifications)
+      .set({ isRead: true })
+      .where(eq(notifications.id, parseInt(notificationId)));
+
+    return NextResponse.json({ message: 'Notification marked as read' });
+  } catch (error) {
+    console.error('Update notification error:', error);
+    return NextResponse.json(
+      {
+        message: 'Internal server error',
+        error: process.env.NODE_ENV === 'development' ? String(error) : undefined,
+      },
+      { status: 500 }
+    );
+  }
 }

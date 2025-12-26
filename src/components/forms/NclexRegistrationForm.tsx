@@ -77,12 +77,9 @@ const programTypeSuggestions = [
   'Diploma in Nursing',
 ]
 
-const employmentTypeOptions: Array<NursingCandidateFormPayload['canadaEmploymentHistory'][number]['employmentType']> = [
-  'Full-time',
-  'Part-time',
-  'Casual',
-  'Contract',
-];
+const employmentTypeOptions: Array<
+  NursingCandidateFormPayload['canadaEmploymentHistory'][number]['employmentType']
+> = ['Full-time', 'Part-time', 'Casual', 'Contract'];
 
 const registrationStatusOptions: Array<
   NursingCandidateFormPayload['registrationDetails']['entries'][number]['status']
@@ -93,6 +90,8 @@ const createEducationEntry = (): NursingEducationEntry => ({
   address: '',
   programType: '',
   studyPeriod: { from: '', to: '' },
+  languageOfInstruction: '',
+  isCollegeOperational: '',
 });
 
 const createRegistrationEntry = () => ({
@@ -129,12 +128,14 @@ const initialState: NursingCandidateFormPayload = {
     lastName: '',
     collegeNameVariant: '',
     hasNameChange: 'No',
+    nameChangeDetails: '',
+    needsAffidavit: false,
     maidenName: '',
     motherMaidenName: '',
     dateOfBirth: '',
     placeOfBirth: '',
     gender: 'Female',
-    address: '',
+    address: createStructuredAddress(),
     phoneNumber: '',
     email: '',
     firstLanguage: '',
@@ -248,8 +249,14 @@ interface NclexRegistrationFormProps {
 
 export default function NclexRegistrationForm({ variant = 'inline' }: NclexRegistrationFormProps) {
   const [formState, setFormState] = useState<NursingCandidateFormPayload>(initialState);
+  const [selectedCountry, setSelectedCountry] = useState<'USA' | 'Canada' | 'Australia'>('Canada');
+  const [canadianImmigrationApplied, setCanadianImmigrationApplied] = useState<'Yes' | 'No' | ''>('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error'; message: string; reference?: string } | null>(null);
+  const [statusMessage, setStatusMessage] = useState<{
+    type: 'success' | 'error';
+    message: string;
+    reference?: string;
+  } | null>(null);
 
   const updateForm = (updater: (prev: NursingCandidateFormPayload) => NursingCandidateFormPayload) => {
     setFormState(updater);
@@ -382,8 +389,114 @@ export default function NclexRegistrationForm({ variant = 'inline' }: NclexRegis
   }
 
 
+  const handleNclexExamChange = (field: 'hasWrittenExam', value: 'Yes' | 'No') => {
+    setFormState((prev) => ({
+      ...prev,
+      nclexExamHistory: {
+        ...prev.nclexExamHistory,
+        [field]: value,
+        attempts: value === 'No' ? [] : (prev.nclexExamHistory.attempts.length === 0 ? [createNclexAttempt(1)] : prev.nclexExamHistory.attempts),
+      },
+    }));
+  };
+
+  const handleNclexAttemptChange = (
+    index: number,
+    field: keyof NclexExamAttempt,
+    value: string
+  ) => {
+    setFormState((prev) => {
+      const updated = [...prev.nclexExamHistory.attempts];
+      updated[index] = {
+        ...updated[index],
+        [field]: value,
+      };
+      return {
+        ...prev,
+        nclexExamHistory: {
+          ...prev.nclexExamHistory,
+          attempts: updated,
+        },
+      };
+    });
+  };
+
+  const addNclexAttempt = () => {
+    setFormState((prev) => ({
+      ...prev,
+      nclexExamHistory: {
+        ...prev.nclexExamHistory,
+        attempts: [...prev.nclexExamHistory.attempts, createNclexAttempt(prev.nclexExamHistory.attempts.length + 1)],
+      },
+    }));
+  };
+
+  const removeNclexAttempt = (index: number) => {
+    setFormState((prev) => ({
+      ...prev,
+      nclexExamHistory: {
+        ...prev.nclexExamHistory,
+        attempts: prev.nclexExamHistory.attempts.filter((_, i) => i !== index).map((attempt, i) => ({
+          ...attempt,
+          attemptNumber: i + 1,
+        })),
+      },
+    }));
+  };
+
+  const handleOtherSchoolChange = (
+    index: number,
+    field: keyof OtherSchoolEntry,
+    value: string | DateRange
+  ) => {
+    setFormState((prev) => {
+      const updated = [...prev.otherSchools];
+      updated[index] = {
+        ...updated[index],
+        [field]: value as OtherSchoolEntry[keyof OtherSchoolEntry],
+      };
+      return { ...prev, otherSchools: updated };
+    });
+  };
+
+  const handleOtherSchoolDateChange = (
+    index: number,
+    boundary: keyof DateRange,
+    value: string
+  ) => {
+    setFormState((prev) => {
+      const updated = [...prev.otherSchools];
+      updated[index] = {
+        ...updated[index],
+        studyPeriod: {
+          ...updated[index].studyPeriod,
+          [boundary]: value,
+        },
+      };
+      return { ...prev, otherSchools: updated };
+    });
+  };
+
+  const addOtherSchool = () => {
+    setFormState((prev) => ({
+      ...prev,
+      otherSchools: [...prev.otherSchools, createOtherSchoolEntry()],
+    }));
+  };
+
+  const removeOtherSchool = (index: number) => {
+    setFormState((prev) => ({
+      ...prev,
+      otherSchools: prev.otherSchools.filter((_, i) => i !== index),
+    }));
+  };
+
   const validateRequiredFields = () => {
-    const missing = personalFields.filter((field) => field.required && !formState.personalDetails[field.name as keyof typeof formState.personalDetails]);
+    const missing = personalFields.filter(
+      (field) =>
+        field.required &&
+        !formState.personalDetails[field.name as keyof typeof formState.personalDetails]
+    );
     if (missing.length > 0) {
       return `Please complete all required personal fields (${missing.map((f) => f.label).join(', ')})`;
     }
@@ -404,10 +517,16 @@ export default function NclexRegistrationForm({ variant = 'inline' }: NclexRegis
     setStatusMessage(null);
 
     try {
+      const submissionData = {
+        ...formState,
+        country: selectedCountry,
+        canadianImmigrationApplied: selectedCountry === 'Canada' ? canadianImmigrationApplied : undefined,
+      };
+      
       const response = await fetch('/api/nursing-candidates', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formState),
+        body: JSON.stringify(submissionData),
       });
 
       const result = await response.json();
@@ -417,7 +536,8 @@ export default function NclexRegistrationForm({ variant = 'inline' }: NclexRegis
 
       setStatusMessage({
         type: 'success',
-        message: 'Thank you! Your NCLEX-RN registration information has been received. Our team will contact you shortly.',
+        message:
+          'Thank you! Your NCLEX-RN registration information has been received. Our team will contact you shortly.',
         reference: result.referenceNumber,
       });
       setFormState(initialState);
@@ -440,7 +560,10 @@ export default function NclexRegistrationForm({ variant = 'inline' }: NclexRegis
         : 'mt-20 bg-white rounded-3xl shadow-2xl border border-slate-100 p-8';
 
   return (
-    <section id={variant !== 'modal' ? 'nclex-registration' : undefined} className={`${containerClasses} relative overflow-hidden`}>
+    <section
+      id={variant !== 'modal' ? 'nclex-registration' : undefined}
+      className={`${containerClasses} relative overflow-hidden`}
+    >
       <div className="absolute inset-0 bg-slate-900">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(99,102,241,0.25),_transparent_45%)]" />
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom,_rgba(236,72,153,0.2),_transparent_50%)]" />
@@ -507,26 +630,92 @@ export default function NclexRegistrationForm({ variant = 'inline' }: NclexRegis
         )}
 
         <form onSubmit={handleSubmit} className="space-y-12 relative z-10">
+          {/* Country Selector */}
+          <div className="border border-white/20 rounded-2xl p-6 bg-gradient-to-br from-slate-900/80 to-indigo-900/40 backdrop-blur">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-400 to-teal-600 flex items-center justify-center shadow-lg shadow-emerald-500/40">
+                <svg
+                  className="w-5 h-5 text-white"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                </svg>
+              </div>
+              <h3 className="text-2xl font-semibold text-white">Registration Country</h3>
+            </div>
+            <div className="space-y-2">
+              <label className="block text-sm font-semibold text-slate-200 mb-2">
+                Select the country for which you are registering <span className="text-red-400">*</span>
+              </label>
+              <select
+                value={selectedCountry}
+                onChange={(e) => {
+                  const country = e.target.value as 'USA' | 'Canada' | 'Australia';
+                  setSelectedCountry(country);
+                  setFormState((prev) => ({ ...prev, country }));
+                  // Reset Canadian immigration question if not Canada
+                  if (country !== 'Canada') {
+                    setCanadianImmigrationApplied('');
+                  }
+                }}
+                className="w-full rounded-2xl border border-white/20 bg-slate-900/60 text-white focus:ring-2 focus:ring-emerald-400/60 focus:border-emerald-400/60 p-3 backdrop-blur"
+                required
+              >
+                <option value="Canada">Canada</option>
+                <option value="USA">United States (USA)</option>
+                <option value="Australia">Australia</option>
+              </select>
+              <p className="text-xs text-slate-400 mt-2">
+                The form will automatically adjust based on your selected country's requirements.
+              </p>
+            </div>
+          </div>
+
           {/* Section 1 */}
           <div>
             <div className="flex items-center gap-3 mb-4">
               <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-400 to-indigo-600 flex items-center justify-center shadow-lg shadow-indigo-500/40">
-                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l9-5-9-5-9 5 9 5z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l6.16-3.422A12 12 0 0112 21a12 12 0 01-6.16-10.422L12 14z" />
+                <svg
+                  className="w-5 h-5 text-white"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 14l9-5-9-5-9 5 9 5z"
+                  />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 14l6.16-3.422A12 12 0 0112 21a12 12 0 01-6.16-10.422L12 14z"
+                  />
                 </svg>
               </div>
-              <h3 className="text-2xl font-semibold text-white">Section 1: Personal / Identity Details</h3>
+              <h3 className="text-2xl font-semibold text-white">
+                Section 1: Personal / Identity Details
+              </h3>
             </div>
             <div className="grid md:grid-cols-2 gap-6">
               {personalFields.map((field) => {
                 const value = formState.personalDetails[field.name];
                 const isTextarea = field.component === 'textarea';
                 const isSelect = field.component === 'select';
-                const placeholder = field.placeholder ?? 'Enter details exactly as on official documents';
+                const placeholder =
+                  field.placeholder ?? 'Enter details exactly as on official documents';
                 return (
                   <div key={field.name} className={isTextarea ? 'md:col-span-2' : ''}>
-                    <label className="block text-sm font-semibold text-slate-700 mb-2">
+                    <label className="block text-sm font-semibold text-slate-200 mb-2">
                       <span className="bg-gradient-to-r from-indigo-300 to-purple-300 bg-clip-text text-transparent">
                         {field.label}
                       </span>
@@ -569,7 +758,9 @@ export default function NclexRegistrationForm({ variant = 'inline' }: NclexRegis
               })}
 
               <div className="md:col-span-2">
-                <label className="block text-sm font-semibold text-slate-400 mb-3 tracking-wide uppercase">Any name change</label>
+                <label className="block text-sm font-semibold text-slate-400 mb-3 tracking-wide uppercase">
+                  Any name change
+                </label>
                 <div className="flex flex-wrap gap-4">
                   {['Yes', 'No'].map((option) => (
                     <label
@@ -591,10 +782,104 @@ export default function NclexRegistrationForm({ variant = 'inline' }: NclexRegis
                     </label>
                   ))}
                 </div>
+                {formState.personalDetails.hasNameChange === 'Yes' && (
+                  <div className="mt-4 space-y-3">
+                    <div>
+                      <label className="block text-sm font-semibold text-slate-200 mb-2">
+                        <span className="bg-gradient-to-r from-indigo-300 to-purple-300 bg-clip-text text-transparent">
+                          If Yes – what's the name
+                        </span>
+                        <span className="text-red-500 ml-1">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        className="w-full rounded-2xl border border-white/10 bg-white/5 text-white placeholder:text-slate-400 focus:ring-2 focus:ring-indigo-500/70 focus:border-indigo-500/70 p-3 backdrop-blur"
+                        placeholder="Enter the name as it appears on documents"
+                        value={formState.personalDetails.nameChangeDetails || ''}
+                        onChange={(e) => handlePersonalChange('nameChangeDetails', e.target.value)}
+                        required
+                      />
+                    </div>
+                    <label className="flex items-start space-x-3 text-sm text-slate-200">
+                      <input
+                        type="checkbox"
+                        className="mt-1 h-5 w-5 rounded border-indigo-400/70 bg-transparent text-indigo-400 focus:ring-indigo-500/70"
+                        checked={formState.personalDetails.needsAffidavit}
+                        onChange={(e) => handlePersonalChange('needsAffidavit', e.target.checked)}
+                      />
+                      <span>
+                        I understand that I need to provide an affidavit for this name change
+                      </span>
+                    </label>
+                  </div>
+                )}
+              </div>
+
+              {/* Structured Address Fields */}
+              <div className="md:col-span-2">
+                <label className="block text-sm font-semibold text-slate-200 mb-3">
+                  <span className="bg-gradient-to-r from-indigo-300 to-purple-300 bg-clip-text text-transparent">
+                    Current Residential Address
+                  </span>
+                  <span className="text-red-500 ml-1">*</span>
+                </label>
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div className="md:col-span-2">
+                    <label className="block text-xs text-slate-300 mb-1">Address Line</label>
+                    <input
+                      type="text"
+                      className="w-full rounded-2xl border border-white/10 bg-white/5 text-white placeholder:text-slate-400 focus:ring-2 focus:ring-indigo-500/70 focus:border-indigo-500/70 p-3 backdrop-blur"
+                      placeholder="Street address, apartment, suite, etc."
+                      value={formState.personalDetails.address.addressLine}
+                      onChange={(e) => handleAddressChange('personal', undefined, 'addressLine', e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-slate-300 mb-1">City</label>
+                    <input
+                      type="text"
+                      className="w-full rounded-2xl border border-white/10 bg-white/5 text-white placeholder:text-slate-400 focus:ring-2 focus:ring-indigo-500/70 focus:border-indigo-500/70 p-3 backdrop-blur"
+                      placeholder="City"
+                      value={formState.personalDetails.address.city}
+                      onChange={(e) => handleAddressChange('personal', undefined, 'city', e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-slate-300 mb-1">Postal Code / PIN</label>
+                    <input
+                      type="text"
+                      className="w-full rounded-2xl border border-white/10 bg-white/5 text-white placeholder:text-slate-400 focus:ring-2 focus:ring-indigo-500/70 focus:border-indigo-500/70 p-3 backdrop-blur"
+                      placeholder="Postal code or PIN"
+                      value={formState.personalDetails.address.postalCode}
+                      onChange={(e) => handleAddressChange('personal', undefined, 'postalCode', e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-xs text-slate-300 mb-1">Country</label>
+                    <select
+                      className="w-full rounded-2xl border border-white/10 bg-white/5 text-white focus:ring-2 focus:ring-indigo-500/70 focus:border-indigo-500/70 p-3 backdrop-blur"
+                      value={formState.personalDetails.address.country}
+                      onChange={(e) => handleAddressChange('personal', undefined, 'country', e.target.value)}
+                      required
+                    >
+                      <option value="">Select Country</option>
+                      {countrySuggestions.map((country) => (
+                        <option key={country} value={country}>
+                          {country}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
               </div>
 
               <div className="md:col-span-2">
-                <label className="block text-sm font-semibold text-slate-400 mb-3 tracking-wide uppercase">Gender</label>
+                <label className="block text-sm font-semibold text-slate-400 mb-3 tracking-wide uppercase">
+                  Gender
+                </label>
                 <div className="flex flex-wrap gap-4">
                   {['Female', 'Male', 'Other'].map((option) => (
                     <label
@@ -629,8 +914,18 @@ export default function NclexRegistrationForm({ variant = 'inline' }: NclexRegis
           <div>
             <div className="flex items-center gap-3 mb-4">
               <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-pink-500 to-purple-600 flex items-center justify-center shadow-lg shadow-purple-500/40">
-                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+                <svg
+                  className="w-5 h-5 text-white"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M4 6h16M4 10h16M4 14h16M4 18h16"
+                  />
                 </svg>
               </div>
               <h3 className="text-2xl font-semibold text-white">Section 2: Education Details</h3>
@@ -732,15 +1027,28 @@ export default function NclexRegistrationForm({ variant = 'inline' }: NclexRegis
           <div>
             <div className="flex items-center gap-3 mb-4">
               <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 to-orange-600 flex items-center justify-center shadow-lg shadow-orange-500/40">
-                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                <svg
+                  className="w-5 h-5 text-white"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M5 13l4 4L19 7"
+                  />
                 </svg>
               </div>
-              <h3 className="text-2xl font-semibold text-white">Section 3: Registration / License Details</h3>
+              <h3 className="text-2xl font-semibold text-white">
+                Section 3: Registration / License Details
+              </h3>
             </div>
             <div className="mb-4">
-              <label className="block text-sm font-semibold text-slate-700 mb-3">
-                Have you ever been suspended, dismissed, or faced disciplinary action by any nursing council?
+              <label className="block text-sm font-semibold text-slate-200 mb-3">
+                Have you ever been suspended, dismissed, or faced disciplinary action by any nursing
+                council?
               </label>
               <div className="flex flex-wrap gap-4">
                 {['No', 'Yes'].map((option) => (
@@ -790,7 +1098,9 @@ export default function NclexRegistrationForm({ variant = 'inline' }: NclexRegis
                   </h4>
                   <div className="grid md:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <label className="block text-xs uppercase tracking-[0.3em] text-orange-200">Council / Licensing body</label>
+                      <label className="block text-xs uppercase tracking-[0.3em] text-orange-200">
+                        Council / Licensing body
+                      </label>
                       <input
                         className="rounded-2xl border border-white/10 bg-slate-900/40 text-white placeholder:text-slate-400 focus:ring-2 focus:ring-orange-400/60 focus:border-orange-400/60 p-3 w-full"
                         placeholder="Council name"
@@ -810,7 +1120,9 @@ export default function NclexRegistrationForm({ variant = 'inline' }: NclexRegis
                     </div>
 
                     <div className="space-y-2">
-                      <label className="block text-xs uppercase tracking-[0.3em] text-orange-200">Date issued</label>
+                      <label className="block text-xs uppercase tracking-[0.3em] text-orange-200">
+                        Date issued
+                      </label>
                       <input
                         type="date"
                         className="rounded-2xl border border-white/10 bg-slate-900/40 text-white focus:ring-2 focus:ring-orange-400/60 focus:border-orange-400/60 p-3 w-full"
@@ -819,7 +1131,9 @@ export default function NclexRegistrationForm({ variant = 'inline' }: NclexRegis
                       />
                     </div>
                     <div className="space-y-2">
-                      <label className="block text-xs uppercase tracking-[0.3em] text-orange-200">Expiry / renewal date</label>
+                      <label className="block text-xs uppercase tracking-[0.3em] text-orange-200">
+                        Expiry / renewal date
+                      </label>
                       <input
                         type="date"
                         className="rounded-2xl border border-white/10 bg-slate-900/40 text-white focus:ring-2 focus:ring-orange-400/60 focus:border-orange-400/60 p-3 w-full"
@@ -861,7 +1175,168 @@ export default function NclexRegistrationForm({ variant = 'inline' }: NclexRegis
             </datalist>
           </div>
 
-          {/* Section 4 */}
+          {/* NCLEX-RN Exam History Section */}
+          <div>
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shadow-lg shadow-violet-500/40">
+                <svg
+                  className="w-5 h-5 text-white"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                  />
+                </svg>
+              </div>
+              <h3 className="text-2xl font-semibold text-white">NCLEX-RN Exam History</h3>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-semibold text-slate-200 mb-3">
+                  Have you ever written the NCLEX-RN exam before? <span className="text-red-400">*</span>
+                </label>
+                <div className="flex flex-wrap gap-4">
+                  {['Yes', 'No'].map((option) => (
+                    <label
+                      key={option}
+                      className={`flex items-center gap-2 px-4 py-2 rounded-2xl border cursor-pointer ${
+                        formState.nclexExamHistory.hasWrittenExam === option
+                          ? 'border-violet-400 bg-violet-500/20 text-white'
+                          : 'border-white/10 text-slate-200'
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="has-written-nclex"
+                        className="text-violet-400 focus:ring-violet-500"
+                        value={option}
+                        checked={formState.nclexExamHistory.hasWrittenExam === option}
+                        onChange={(e) => handleNclexExamChange('hasWrittenExam', e.target.value as 'Yes' | 'No')}
+                        required
+                      />
+                      <span>{option}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {formState.nclexExamHistory.hasWrittenExam === 'Yes' && (
+                <div className="space-y-6">
+                  {formState.nclexExamHistory.attempts.map((attempt, index) => (
+                    <div
+                      key={index}
+                      className="border border-white/10 rounded-2xl p-5 bg-gradient-to-br from-violet-900/40 to-purple-900/30 backdrop-blur"
+                    >
+                      <div className="flex items-center justify-between mb-4">
+                        <h4 className="text-lg font-semibold text-white">
+                          Attempt {attempt.attemptNumber}
+                        </h4>
+                        {formState.nclexExamHistory.attempts.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => removeNclexAttempt(index)}
+                            className="px-3 py-1 text-xs text-red-400 hover:text-red-300 border border-red-400/30 rounded-lg hover:bg-red-400/10 transition"
+                          >
+                            Remove
+                          </button>
+                        )}
+                      </div>
+                      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <div className="space-y-2">
+                          <label className="block text-xs uppercase tracking-[0.3em] text-violet-200">
+                            Exam Date <span className="text-red-400">*</span>
+                          </label>
+                          <input
+                            type="date"
+                            className="w-full rounded-2xl border border-white/10 bg-slate-900/40 text-white focus:ring-2 focus:ring-violet-400/60 focus:border-violet-400/60 p-3"
+                            value={attempt.examDate}
+                            onChange={(e) => handleNclexAttemptChange(index, 'examDate', e.target.value)}
+                            required
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="block text-xs uppercase tracking-[0.3em] text-violet-200">
+                            Country <span className="text-red-400">*</span>
+                          </label>
+                          <select
+                            className="w-full rounded-2xl border border-white/10 bg-slate-900/40 text-white focus:ring-2 focus:ring-violet-400/60 focus:border-violet-400/60 p-3"
+                            value={attempt.country}
+                            onChange={(e) => handleNclexAttemptChange(index, 'country', e.target.value)}
+                            required
+                          >
+                            <option value="">Select Country</option>
+                            {countrySuggestions.map((country) => (
+                              <option key={country} value={country}>
+                                {country}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        {(selectedCountry === 'Canada' || attempt.country === 'Canada') && (
+                          <div className="space-y-2">
+                            <label className="block text-xs uppercase tracking-[0.3em] text-violet-200">
+                              Province
+                            </label>
+                            <input
+                              type="text"
+                              className="w-full rounded-2xl border border-white/10 bg-slate-900/40 text-white placeholder:text-slate-400 focus:ring-2 focus:ring-violet-400/60 focus:border-violet-400/60 p-3"
+                              placeholder="Province"
+                              value={attempt.province || ''}
+                              onChange={(e) => handleNclexAttemptChange(index, 'province', e.target.value)}
+                            />
+                          </div>
+                        )}
+                        {(selectedCountry === 'USA' || attempt.country === 'United States') && (
+                          <div className="space-y-2">
+                            <label className="block text-xs uppercase tracking-[0.3em] text-violet-200">
+                              State
+                            </label>
+                            <input
+                              type="text"
+                              className="w-full rounded-2xl border border-white/10 bg-slate-900/40 text-white placeholder:text-slate-400 focus:ring-2 focus:ring-violet-400/60 focus:border-violet-400/60 p-3"
+                              placeholder="State"
+                              value={attempt.state || ''}
+                              onChange={(e) => handleNclexAttemptChange(index, 'state', e.target.value)}
+                            />
+                          </div>
+                        )}
+                        <div className="space-y-2">
+                          <label className="block text-xs uppercase tracking-[0.3em] text-violet-200">
+                            Result
+                          </label>
+                          <select
+                            className="w-full rounded-2xl border border-white/10 bg-slate-900/40 text-white focus:ring-2 focus:ring-violet-400/60 focus:border-violet-400/60 p-3"
+                            value={attempt.result || ''}
+                            onChange={(e) => handleNclexAttemptChange(index, 'result', e.target.value)}
+                          >
+                            <option value="">Select Result</option>
+                            <option value="Pass">Pass</option>
+                            <option value="Fail">Fail</option>
+                            <option value="Pending">Pending</option>
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={addNclexAttempt}
+                    className="w-full py-2 border border-violet-500/50 text-violet-400 font-bold rounded-lg hover:bg-violet-500/10 transition"
+                  >
+                    + Add Another Attempt
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Section 4 - USA & Australia Employment */}
+          {(selectedCountry === 'USA' || selectedCountry === 'Australia') && (
           <div>
             <div className="flex items-center gap-3 mb-4">
               <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-400 to-teal-600 flex items-center justify-center shadow-lg shadow-teal-500/40">
@@ -975,6 +1450,7 @@ export default function NclexRegistrationForm({ variant = 'inline' }: NclexRegis
               ))}
             </datalist>
           </div>
+          )}
 
           {/* Section 5: NCLEX History - NEW */}
           <div>
@@ -1086,6 +1562,61 @@ export default function NclexRegistrationForm({ variant = 'inline' }: NclexRegis
             )}
 
           </div>
+          )}
+
+          {/* Canadian Immigration Question - Only for Canada */}
+          {selectedCountry === 'Canada' && (
+          <div className="border border-white/20 rounded-2xl p-6 bg-gradient-to-br from-slate-900/80 to-teal-900/40 backdrop-blur">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-teal-400 to-cyan-600 flex items-center justify-center shadow-lg shadow-teal-500/40">
+                <svg
+                  className="w-5 h-5 text-white"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                </svg>
+              </div>
+              <h3 className="text-2xl font-semibold text-white">
+                Canadian Immigration Status
+              </h3>
+            </div>
+            <div className="space-y-2">
+              <label className="block text-sm font-semibold text-slate-200 mb-2">
+                Have you applied for Canadian Immigration? <span className="text-red-400">*</span>
+              </label>
+              <div className="flex flex-wrap gap-4">
+                {['Yes', 'No'].map((option) => (
+                  <label
+                    key={option}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-2xl border cursor-pointer ${
+                      canadianImmigrationApplied === option
+                        ? 'border-teal-400 bg-teal-500/20 text-white'
+                        : 'border-white/10 text-slate-200'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="canadian-immigration"
+                      className="text-teal-400 focus:ring-teal-500"
+                      value={option}
+                      checked={canadianImmigrationApplied === option}
+                      onChange={(e) => setCanadianImmigrationApplied(e.target.value as 'Yes' | 'No')}
+                      required
+                    />
+                    <span>{option}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          </div>
+          )}
 
           <div className="bg-slate-800/50 p-6 rounded-2xl border border-slate-700">
             <h4 className="text-white font-semibold mb-3">Document Submission Requirements</h4>

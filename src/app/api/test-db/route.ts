@@ -1,95 +1,62 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { NextResponse } from 'next/server';
+import { getDatabase, getDatabaseWithRetry } from '@/lib/db';
 import { users } from '@/lib/db/schema';
-import { neon } from '@neondatabase/serverless';
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
-    // Test 1: Check DATABASE_URL
-    if (!process.env.DATABASE_URL) {
-      return NextResponse.json({
-        success: false,
-        error: 'DATABASE_URL is not set in environment variables',
-        message: 'Please create a .env.local file with your Neon DB connection string',
-      }, { status: 500 });
-    }
+    // Check environment variables
+    const envCheck = {
+      hasDatabaseUrl: !!process.env.DATABASE_URL,
+      hasJwtSecret: !!process.env.JWT_SECRET,
+      jwtSecretLength: process.env.JWT_SECRET?.length || 0,
+      nodeEnv: process.env.NODE_ENV,
+      nextPublicAppUrl: process.env.NEXT_PUBLIC_APP_URL || 'Not set',
+    };
 
-    // Test 2: Try to query the database
+    // Try to connect to database with retry
+    let db;
     try {
-      // Simple query to test connection using raw SQL
-      const neonSql = neon(process.env.DATABASE_URL);
-      await neonSql`SELECT 1 as test`;
+      db = await getDatabaseWithRetry();
     } catch (dbError: any) {
       return NextResponse.json({
-        success: false,
-        error: 'Database connection failed',
-        message: dbError.message,
-        details: {
-          code: dbError.code,
-          hint: 'Please check your DATABASE_URL connection string',
-        },
-      }, { status: 500 });
-    }
-
-    // Test 3: Check if users table exists
-    try {
-      const neonSql = neon(process.env.DATABASE_URL);
-      const result = await neonSql`
-        SELECT EXISTS (
-          SELECT FROM information_schema.tables 
-          WHERE table_schema = 'public' 
-          AND table_name = 'users'
-        ) as exists;
-      `;
-      
-      const tableExists = result[0]?.exists;
-      
-      if (!tableExists) {
-        return NextResponse.json({
           success: false,
-          error: 'Database tables not found',
-          message: 'The users table does not exist. You need to run migrations.',
-          solution: 'Run: npx drizzle-kit migrate',
-        }, { status: 500 });
-      }
-    } catch (tableError: any) {
-      return NextResponse.json({
-        success: false,
-        error: 'Error checking tables',
-        message: tableError.message,
-      }, { status: 500 });
+          error: 'Database connection failed',
+        errorMessage: dbError.message,
+        environment: envCheck,
+      }, { status: 503 }); // Service Unavailable
     }
 
-    // Test 4: Try to count users (if table exists)
+    // Try to query database
+    let userCount = 0;
+    let adminCount = 0;
     try {
-      const { getDatabase } = await import('@/lib/db');
-      const db = getDatabase();
-      const userCount = await db.select().from(users).limit(1);
-      return NextResponse.json({
-        success: true,
-        message: 'Database connection successful!',
-        details: {
-          databaseUrl: process.env.DATABASE_URL ? 'Set (hidden)' : 'Not set',
-          tablesExist: true,
-          canQuery: true,
-        },
-      });
+      const allUsers = await db.select().from(users).limit(10);
+      userCount = allUsers.length;
+      adminCount = allUsers.filter(u => u.role === 'admin').length;
     } catch (queryError: any) {
       return NextResponse.json({
-        success: false,
-        error: 'Error querying users table',
-        message: queryError.message,
-        hint: 'Table might exist but schema might be different. Try running migrations again.',
+            success: false,
+        error: 'Database query failed',
+        errorMessage: queryError.message,
+        environment: envCheck,
       }, { status: 500 });
     }
 
+      return NextResponse.json({
+        success: true,
+      message: 'Database connection successful',
+      environment: envCheck,
+      database: {
+        connected: true,
+        userCount,
+        adminCount,
+        },
+      });
   } catch (error: any) {
     return NextResponse.json({
-      success: false,
-      error: 'Unexpected error',
-      message: error.message,
-      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined,
+        success: false,
+        error: 'Unexpected error',
+      errorMessage: error.message,
     }, { status: 500 });
   }
 }
-

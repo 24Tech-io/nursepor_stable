@@ -61,10 +61,12 @@ export async function GET(request: NextRequest) {
       stats: stats.stats,
     }, { status: 200 });
   } catch (error: any) {
-    return NextResponse.json({
-      error: error.message,
-      stack: error.stack
-    }, { status: 500 });
+    return NextResponse.json(
+      {
+        error: error.message,
+        stack: error.stack,
+      },
+      { status: 500 }
+    );
   }
 }
-

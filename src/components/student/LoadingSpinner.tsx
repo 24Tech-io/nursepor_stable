@@ -6,10 +6,10 @@ interface LoadingSpinnerProps {
   fullScreen?: boolean;
 }
 
-export default function LoadingSpinner({ 
-  message, 
+export default function LoadingSpinner({
+  message,
   size = 'md',
-  fullScreen = false 
+  fullScreen = false,
 }: LoadingSpinnerProps) {
   const sizeClasses = {
     sm: 'h-8 w-8 border-2',

@@ -12,6 +12,9 @@ import { withCache, CacheKeys, CacheTTL } from '@/lib/api-cache';
 import { startRouteMonitoring, trackQuery } from '@/lib/performance-monitor';
 import { getUserAccessRequests, getUserEnrollments } from '@/lib/optimized-queries';
 
+// Cache for 30 seconds - allows stale-while-revalidate
+export const revalidate = 30;
+
 export async function GET(request: NextRequest) {
   const stopMonitoring = startRouteMonitoring('/api/student/enrolled-courses');
   try {
@@ -95,7 +98,7 @@ export async function GET(request: NextRequest) {
                 .limit(1);
             }),
           ]);
-          
+
           // Only sync if no enrollment exists in either table
           if (existingProgress.length === 0 && existingEnrollment.length === 0) {
             // Not enrolled yet - sync it
@@ -184,8 +187,8 @@ export async function GET(request: NextRequest) {
 
     // Filter out courses with pending requests
     // A course with a pending request should NOT be shown as enrolled
-    const enrolledProgress = mergedData.filter((p: any) => 
-      !pendingRequestCourseIds.includes(p.courseId)
+    const enrolledProgress = mergedData.filter(
+      (p: any) => !pendingRequestCourseIds.includes(p.courseId)
     );
 
     logger.info(`✅ Student ${decoded.id}: Showing ${enrolledProgress.length} enrolled courses (merged from both tables, excluded ${mergedData.length - enrolledProgress.length} with pending requests)`);

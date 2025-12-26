@@ -21,28 +21,28 @@ export function CourseCardSkeleton() {
     <div className="bg-white rounded-xl shadow-md overflow-hidden">
       {/* Thumbnail */}
       <Skeleton className="h-48 w-full" />
-      
+
       {/* Content */}
       <div className="p-6 space-y-3">
         {/* Title */}
         <Skeleton className="h-6 w-3/4" />
-        
+
         {/* Description */}
         <Skeleton className="h-4 w-full" />
         <Skeleton className="h-4 w-5/6" />
-        
+
         {/* Instructor */}
         <div className="flex items-center space-x-2">
           <Skeleton className="h-8 w-8 rounded-full" />
           <Skeleton className="h-4 w-24" />
         </div>
-        
+
         {/* Rating */}
         <div className="flex items-center space-x-2">
           <Skeleton className="h-4 w-16" />
           <Skeleton className="h-4 w-12" />
         </div>
-        
+
         {/* Price & Button */}
         <div className="flex justify-between items-center pt-2">
           <Skeleton className="h-6 w-20" />
@@ -107,7 +107,7 @@ export function ProfileSkeleton() {
           <Skeleton className="h-4 w-48" />
         </div>
       </div>
-      
+
       {/* Info Fields */}
       <div className="space-y-4">
         {[1, 2, 3, 4].map((i) => (
@@ -117,7 +117,7 @@ export function ProfileSkeleton() {
           </div>
         ))}
       </div>
-      
+
       {/* Buttons */}
       <div className="flex space-x-3">
         <Skeleton className="h-12 w-32 rounded-lg" />
@@ -136,14 +136,14 @@ export function DashboardSkeleton() {
         <Skeleton className="h-8 w-64" />
         <Skeleton className="h-4 w-96" />
       </div>
-      
+
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {[1, 2, 3, 4].map((i) => (
           <StatsCardSkeleton key={i} />
         ))}
       </div>
-      
+
       {/* Course Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {[1, 2, 3, 4, 5, 6].map((i) => (
@@ -194,4 +194,3 @@ export function PageLoadingSkeleton() {
     </div>
   );
 }
-

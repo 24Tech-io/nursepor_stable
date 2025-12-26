@@ -52,9 +52,10 @@ export async function GET(request: NextRequest) {
       // Setup broadcast handler
       const broadcastHandler = (room: string, event: SyncEvent) => {
         // Get user's rooms
-        const userRooms = role === 'admin'
-          ? ['admin:all', 'admin:requests', 'admin:students', 'admin:analytics']
-          : [`user:${userId}`];
+        const userRooms =
+          role === 'admin'
+            ? ['admin:all', 'admin:requests', 'admin:students', 'admin:analytics']
+            : [`user:${userId}`];
 
         // Check if event should be sent to this connection
         if (userRooms.includes(room)) {
@@ -88,9 +89,8 @@ export async function GET(request: NextRequest) {
     headers: {
       'Content-Type': 'text/event-stream',
       'Cache-Control': 'no-cache',
-      'Connection': 'keep-alive',
+      Connection: 'keep-alive',
       'X-Accel-Buffering': 'no', // Disable buffering in nginx
     },
   });
 }
-

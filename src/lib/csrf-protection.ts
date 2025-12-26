@@ -12,14 +12,17 @@ const csrfTokenStore = new Map<string, { token: string; createdAt: number }>();
 const CSRF_TOKEN_EXPIRY = 60 * 60 * 1000;
 
 // Clean up expired tokens every 10 minutes
-setInterval(() => {
-  const now = Date.now();
-  for (const [sessionId, data] of Array.from(csrfTokenStore.entries())) {
-    if (now - data.createdAt > CSRF_TOKEN_EXPIRY) {
-      csrfTokenStore.delete(sessionId);
+setInterval(
+  () => {
+    const now = Date.now();
+    for (const [sessionId, data] of Array.from(csrfTokenStore.entries())) {
+      if (now - data.createdAt > CSRF_TOKEN_EXPIRY) {
+        csrfTokenStore.delete(sessionId);
+      }
     }
-  }
-}, 10 * 60 * 1000);
+  },
+  10 * 60 * 1000
+);
 
 /**
  * Generate a new CSRF token for a session
@@ -38,7 +41,7 @@ export function generateCSRFToken(sessionId: string): string {
  */
 export function validateCSRFToken(sessionId: string, token: string): boolean {
   const storedData = csrfTokenStore.get(sessionId);
-  
+
   if (!storedData) {
     return false;
   }
@@ -50,10 +53,7 @@ export function validateCSRFToken(sessionId: string, token: string): boolean {
   }
 
   // Use timing-safe comparison to prevent timing attacks
-  return crypto.timingSafeEqual(
-    Buffer.from(token),
-    Buffer.from(storedData.token)
-  );
+  return crypto.timingSafeEqual(Buffer.from(token), Buffer.from(storedData.token));
 }
 
 /**

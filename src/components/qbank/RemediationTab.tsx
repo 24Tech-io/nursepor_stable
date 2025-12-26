@@ -24,7 +24,9 @@ interface RemediationTabProps {
 
 export default function RemediationTab({ courseId }: RemediationTabProps) {
   const [data, setData] = useState<RemediationData | null>(null);
-  const [selectedCategory, setSelectedCategory] = useState<'pending_review' | 'low_confidence' | 'high_confidence' | 'correct_on_reattempt' | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<
+    'pending_review' | 'low_confidence' | 'high_confidence' | 'correct_on_reattempt' | null
+  >(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -34,10 +36,9 @@ export default function RemediationTab({ courseId }: RemediationTabProps) {
   async function fetchRemediationData() {
     try {
       setIsLoading(true);
-      const response = await fetch(
-        `/api/qbank/${courseId}/remediation`,
-        { credentials: 'include' }
-      );
+      const response = await fetch(`/api/qbank/${courseId}/remediation`, {
+        credentials: 'include',
+      });
       if (response.ok) {
         const result = await response.json();
         setData(result.data);
@@ -130,7 +131,9 @@ export default function RemediationTab({ courseId }: RemediationTabProps) {
   if (!data) {
     return (
       <div className="text-center py-12">
-        <p className="text-gray-600">No remediation data available. Complete some tests to see your performance.</p>
+        <p className="text-gray-600">
+          No remediation data available. Complete some tests to see your performance.
+        </p>
       </div>
     );
   }
@@ -145,13 +148,25 @@ export default function RemediationTab({ courseId }: RemediationTabProps) {
       {/* Header Section */}
       <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl p-6 border border-blue-200">
         <div className="flex items-center space-x-3 mb-4">
-          <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+          <svg
+            className="w-6 h-6 text-blue-600"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
+            />
           </svg>
           <h2 className="text-xl font-bold text-gray-900">Remediation</h2>
         </div>
         <p className="text-gray-700">
-          Leverage Archer's Remediation feature to meticulously improvise your learning by categorizing questions according to your confidence level and master the subject effortlessly.
+          Use Nurse Pro Academy's intelligent remediation system to enhance your learning by
+          organizing questions based on your performance and confidence level. Focus your
+          study time where it matters most and master subjects efficiently.
         </p>
       </div>
 
@@ -161,8 +176,18 @@ export default function RemediationTab({ courseId }: RemediationTabProps) {
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-gray-900">Incorrect Questions</h3>
             <div className="flex items-center space-x-2">
-              <svg className="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              <svg
+                className="w-5 h-5 text-red-500"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
               </svg>
               <span className="text-2xl font-bold text-red-600">{totalIncorrect}</span>
             </div>
@@ -176,15 +201,23 @@ export default function RemediationTab({ courseId }: RemediationTabProps) {
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-gray-900">Correct Questions</h3>
             <div className="flex items-center space-x-2">
-              <svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              <svg
+                className="w-5 h-5 text-green-500"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
               </svg>
               <span className="text-2xl font-bold text-green-600">{totalCorrect}</span>
             </div>
           </div>
-          <div className="text-sm text-gray-600">
-            Questions answered correctly on first attempt
-          </div>
+          <div className="text-sm text-gray-600">Questions answered correctly on first attempt</div>
         </div>
       </div>
 
@@ -196,7 +229,7 @@ export default function RemediationTab({ courseId }: RemediationTabProps) {
             <span className="font-medium">no of questions in %</span>
           </div>
         </div>
-        
+
         <div className="space-y-2">
           {/* Y-axis labels */}
           <div className="flex items-center mb-2">
@@ -233,10 +266,14 @@ export default function RemediationTab({ courseId }: RemediationTabProps) {
             { name: 'critical care concepts', count: 58 },
             { name: 'basic care & comfort', count: 43 },
           ].map((lesson, index) => {
-            const percentage = totalIncorrect > 0 ? Math.min((lesson.count / totalIncorrect) * 100, 100) : 0;
-            
+            const percentage =
+              totalIncorrect > 0 ? Math.min((lesson.count / totalIncorrect) * 100, 100) : 0;
+
             return (
-              <div key={index} className="flex items-center group hover:bg-gray-50 p-2 rounded-lg transition">
+              <div
+                key={index}
+                className="flex items-center group hover:bg-gray-50 p-2 rounded-lg transition"
+              >
                 <div className="w-32 text-right pr-4 text-xs text-gray-700">{lesson.name}</div>
                 <div className="flex-1 flex items-center">
                   <div className="w-full bg-gray-100 rounded-full h-6 relative">
@@ -244,9 +281,7 @@ export default function RemediationTab({ courseId }: RemediationTabProps) {
                       className="bg-gradient-to-r from-red-400 via-orange-400 to-yellow-400 h-6 rounded-full flex items-center justify-end pr-2 transition-all duration-500"
                       style={{ width: `${percentage}%` }}
                     >
-                      <span className="text-xs font-semibold text-white">
-                        ({lesson.count})
-                      </span>
+                      <span className="text-xs font-semibold text-white">({lesson.count})</span>
                     </div>
                   </div>
                 </div>
@@ -259,26 +294,48 @@ export default function RemediationTab({ courseId }: RemediationTabProps) {
       {/* Confidence Level Flow */}
       <div className="bg-gradient-to-br from-purple-50 to-blue-50 rounded-2xl p-8 border border-purple-200">
         <div className="flex items-center space-x-2 mb-6">
-          <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+          <svg
+            className="w-6 h-6 text-purple-600"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
+            />
           </svg>
           <h3 className="text-xl font-bold text-gray-900">Confidence Level Progression</h3>
         </div>
-        
+
         <div className="flex items-center justify-between space-x-4">
           {/* Pending Review */}
           <div className="flex-1">
             <div className="bg-white rounded-xl p-6 shadow-md border-2 border-yellow-200 hover:shadow-lg transition">
               <div className="flex items-center justify-between mb-3">
-                <svg className="w-8 h-8 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                <svg
+                  className="w-8 h-8 text-yellow-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
                 </svg>
                 <span className="px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full text-sm font-bold">
                   {data.questionsByCategory.pendingReview || 1531}
                 </span>
               </div>
               <h4 className="font-bold text-gray-900 mb-1">Pending Review</h4>
-              <p className="text-xs text-gray-600">{data.questionsByCategory.pendingReview || 1531} Questions</p>
+              <p className="text-xs text-gray-600">
+                {data.questionsByCategory.pendingReview || 1531} Questions
+              </p>
               <button className="mt-4 w-full bg-yellow-500 text-white py-2 rounded-lg font-medium hover:bg-yellow-600 transition">
                 Review
               </button>
@@ -287,8 +344,18 @@ export default function RemediationTab({ courseId }: RemediationTabProps) {
 
           {/* Arrow */}
           <div className="flex items-center justify-center">
-            <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+            <svg
+              className="w-8 h-8 text-gray-400"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M13 7l5 5m0 0l-5 5m5-5H6"
+              />
             </svg>
           </div>
 
@@ -296,8 +363,18 @@ export default function RemediationTab({ courseId }: RemediationTabProps) {
           <div className="flex-1">
             <div className="bg-white rounded-xl p-6 shadow-md border-2 border-red-200 hover:shadow-lg transition">
               <div className="flex items-center justify-between mb-3">
-                <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                <svg
+                  className="w-8 h-8 text-red-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                  />
                 </svg>
                 <span className="px-3 py-1 bg-red-100 text-red-800 rounded-full text-sm font-bold">
                   {data.questionsByCategory.lowConfidence || 0}
@@ -310,8 +387,18 @@ export default function RemediationTab({ courseId }: RemediationTabProps) {
 
           {/* Arrow */}
           <div className="flex items-center justify-center">
-            <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+            <svg
+              className="w-8 h-8 text-gray-400"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M13 7l5 5m0 0l-5 5m5-5H6"
+              />
             </svg>
           </div>
 
@@ -319,8 +406,18 @@ export default function RemediationTab({ courseId }: RemediationTabProps) {
           <div className="flex-1">
             <div className="bg-white rounded-xl p-6 shadow-md border-2 border-green-200 hover:shadow-lg transition">
               <div className="flex items-center justify-between mb-3">
-                <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                <svg
+                  className="w-8 h-8 text-green-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
                 </svg>
                 <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-bold">
                   {data.questionsByCategory.highConfidence || 0}
@@ -333,8 +430,18 @@ export default function RemediationTab({ courseId }: RemediationTabProps) {
 
           {/* Arrow */}
           <div className="flex items-center justify-center">
-            <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+            <svg
+              className="w-8 h-8 text-gray-400"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M13 7l5 5m0 0l-5 5m5-5H6"
+              />
             </svg>
           </div>
 
@@ -342,8 +449,18 @@ export default function RemediationTab({ courseId }: RemediationTabProps) {
           <div className="flex-1">
             <div className="bg-white rounded-xl p-6 shadow-md border-2 border-blue-200 hover:shadow-lg transition">
               <div className="flex items-center justify-between mb-3">
-                <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                <svg
+                  className="w-8 h-8 text-blue-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
                 </svg>
                 <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-bold">
                   {data.questionsByCategory.correctOnReattempt || 0}
@@ -358,60 +475,114 @@ export default function RemediationTab({ courseId }: RemediationTabProps) {
 
       {/* Category Cards - Old Design */}
       <div className="hidden grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {['pending_review', 'low_confidence', 'high_confidence', 'correct_on_reattempt'].map((category) => {
-          const count = getCategoryCount(category);
-          const isSelected = selectedCategory === category;
-          
-          return (
-            <button
-              key={category}
-              onClick={() => setSelectedCategory(isSelected ? null : category as any)}
-              className={`bg-white rounded-xl shadow-sm border-2 p-6 text-left transition-all hover:shadow-md ${
-                isSelected ? 'border-blue-600 bg-blue-50' : 'border-gray-200 hover:border-gray-300'
-              }`}
-            >
-              <div className="flex items-center justify-between mb-3">
-                <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${
-                  category === 'pending_review' ? 'bg-yellow-100' :
-                  category === 'low_confidence' ? 'bg-red-100' :
-                  category === 'high_confidence' ? 'bg-green-100' :
-                  'bg-blue-100'
-                }`}>
-                  {category === 'pending_review' && (
-                    <svg className="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                  )}
-                  {category === 'low_confidence' && (
-                    <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                  )}
-                  {category === 'high_confidence' && (
-                    <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                  )}
-                  {category === 'correct_on_reattempt' && (
-                    <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                    </svg>
-                  )}
+        {['pending_review', 'low_confidence', 'high_confidence', 'correct_on_reattempt'].map(
+          (category) => {
+            const count = getCategoryCount(category);
+            const isSelected = selectedCategory === category;
+
+            return (
+              <button
+                key={category}
+                onClick={() => setSelectedCategory(isSelected ? null : (category as any))}
+                className={`bg-white rounded-xl shadow-sm border-2 p-6 text-left transition-all hover:shadow-md ${
+                  isSelected
+                    ? 'border-blue-600 bg-blue-50'
+                    : 'border-gray-200 hover:border-gray-300'
+                }`}
+              >
+                <div className="flex items-center justify-between mb-3">
+                  <div
+                    className={`w-12 h-12 rounded-lg flex items-center justify-center ${
+                      category === 'pending_review'
+                        ? 'bg-yellow-100'
+                        : category === 'low_confidence'
+                          ? 'bg-red-100'
+                          : category === 'high_confidence'
+                            ? 'bg-green-100'
+                            : 'bg-blue-100'
+                    }`}
+                  >
+                    {category === 'pending_review' && (
+                      <svg
+                        className="w-6 h-6 text-yellow-600"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                        />
+                      </svg>
+                    )}
+                    {category === 'low_confidence' && (
+                      <svg
+                        className="w-6 h-6 text-red-600"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                        />
+                      </svg>
+                    )}
+                    {category === 'high_confidence' && (
+                      <svg
+                        className="w-6 h-6 text-green-600"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                        />
+                      </svg>
+                    )}
+                    {category === 'correct_on_reattempt' && (
+                      <svg
+                        className="w-6 h-6 text-blue-600"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M13 10V3L4 14h7v7l9-11h-7z"
+                        />
+                      </svg>
+                    )}
+                  </div>
+                  <div
+                    className={`px-3 py-1 rounded-full text-sm font-medium ${
+                      category === 'pending_review'
+                        ? 'bg-yellow-100 text-yellow-800'
+                        : category === 'low_confidence'
+                          ? 'bg-red-100 text-red-800'
+                          : category === 'high_confidence'
+                            ? 'bg-green-100 text-green-800'
+                            : 'bg-blue-100 text-blue-800'
+                    }`}
+                  >
+                    {count}
+                  </div>
                 </div>
-                <div className={`px-3 py-1 rounded-full text-sm font-medium ${
-                  category === 'pending_review' ? 'bg-yellow-100 text-yellow-800' :
-                  category === 'low_confidence' ? 'bg-red-100 text-red-800' :
-                  category === 'high_confidence' ? 'bg-green-100 text-green-800' :
-                  'bg-blue-100 text-blue-800'
-                }`}>
-                  {count}
-                </div>
-              </div>
-              <h4 className="font-semibold text-gray-900 mb-1">{getCategoryLabel(category)}</h4>
-              <p className="text-xs text-gray-600">{getCategoryDescription(category)}</p>
-            </button>
-          );
-        })}
+                <h4 className="font-semibold text-gray-900 mb-1">{getCategoryLabel(category)}</h4>
+                <p className="text-xs text-gray-600">{getCategoryDescription(category)}</p>
+              </button>
+            );
+          }
+        )}
       </div>
 
       {/* Selected Category Details */}
@@ -426,7 +597,12 @@ export default function RemediationTab({ courseId }: RemediationTabProps) {
               className="text-gray-400 hover:text-gray-600"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
+                />
               </svg>
             </button>
           </div>
@@ -446,8 +622,18 @@ export default function RemediationTab({ courseId }: RemediationTabProps) {
       {selectedCategory === 'correct_on_reattempt' && (
         <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
           <div className="flex items-start space-x-3">
-            <svg className="w-5 h-5 text-blue-600 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            <svg
+              className="w-5 h-5 text-blue-600 mt-0.5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
             </svg>
             <div>
               <p className="text-sm font-medium text-blue-900">Correct on re-attempt</p>
@@ -461,4 +647,3 @@ export default function RemediationTab({ courseId }: RemediationTabProps) {
     </div>
   );
 }
-

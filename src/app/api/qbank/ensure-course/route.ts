@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
       .from(courses)
       .where(eq(courses.title, 'Nurse Pro'))
       .limit(1);
-    
+
     // If not found, check for "Q-Bank" and rename it
     let course = existingCourse.length > 0 ? existingCourse[0] : null;
     if (!course) {
@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
         .from(courses)
         .where(eq(courses.title, 'Q-Bank'))
         .limit(1);
-      
+
       if (qbankCourse.length > 0) {
         // Rename Q-Bank to Nurse Pro
         await db
@@ -55,19 +55,13 @@ export async function POST(request: NextRequest) {
     if (course) {
       // Ensure it's published
       if (course.status !== 'published') {
-        await db
-          .update(courses)
-          .set({ status: 'published' })
-          .where(eq(courses.id, course.id));
+        await db.update(courses).set({ status: 'published' }).where(eq(courses.id, course.id));
         course.status = 'published';
       }
 
       // Ensure it's free
       if (course.pricing !== 0) {
-        await db
-          .update(courses)
-          .set({ pricing: 0 })
-          .where(eq(courses.id, course.id));
+        await db.update(courses).set({ pricing: 0 }).where(eq(courses.id, course.id));
         course.pricing = 0;
       }
 
@@ -102,7 +96,8 @@ export async function POST(request: NextRequest) {
       .insert(courses)
       .values({
         title: 'Nurse Pro',
-        description: 'Comprehensive nursing education platform with Q-Bank, live reviews, notes, and cheat sheets. Master nursing concepts and prepare for your exams.',
+        description:
+          'Comprehensive nursing education platform with Q-Bank, live reviews, notes, and cheat sheets. Master nursing concepts and prepare for your exams.',
         instructor: 'Nurse Pro Academy',
         thumbnail: null,
         pricing: 0, // Free enrollment
@@ -139,4 +134,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-

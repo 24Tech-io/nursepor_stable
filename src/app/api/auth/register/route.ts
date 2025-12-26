@@ -9,42 +9,9 @@ export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
   try {
-    // Rate limiting
-    const clientIP = getClientIP(request);
-    const rateLimitResult = rateLimit(`register:${clientIP}`, 5, 15 * 60 * 1000); // 5 requests per 15 minutes
-    if (!rateLimitResult.allowed) {
-      return NextResponse.json(
-        { message: 'Too many registration attempts. Please try again later.' },
-        { 
-          status: 429,
-          headers: {
-            'Retry-After': Math.ceil((rateLimitResult.resetTime - Date.now()) / 1000).toString(),
-          },
-        }
-      );
-    }
+    const body = await request.json();
+    const { name, email, password } = body;
 
-    // Validate request body size
-    const body = await request.text();
-    if (!validateBodySize(body, 1024)) { // 1KB max
-      return NextResponse.json(
-        { message: 'Request body too large' },
-        { status: 413 }
-      );
-    }
-
-    let data;
-    try {
-      data = JSON.parse(body);
-    } catch (e) {
-      return NextResponse.json(
-        { message: 'Invalid JSON in request body' },
-        { status: 400 }
-      );
-    }
-    const { name, email, phone, password, role } = data;
-
-    // Input validation
     if (!name || !email || !password) {
       return NextResponse.json(
         { message: 'Name, email, and password are required' },
@@ -52,16 +19,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Sanitize inputs
-    const sanitizedName = sanitizeString(name, 100);
-    const sanitizedEmail = sanitizeString(email.toLowerCase(), 255);
-    // Handle phone: trim whitespace, if empty string set to null, otherwise sanitize
-    const sanitizedPhone = phone && phone.trim() ? sanitizeString(phone.trim(), 20) : null;
-
-    // Validate email
-    if (!validateEmail(sanitizedEmail)) {
+    if (password.length < 6) {
       return NextResponse.json(
-        { message: 'Invalid email format' },
+        { message: 'Password must be at least 6 characters' },
         { status: 400 }
       );
     }
@@ -195,44 +155,42 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Handle database connection errors
-    const dbConnectionError = 
-      error?.message?.includes('DATABASE_URL') || 
-      error?.message?.includes('connection') ||
-      error?.code === 'ECONNREFUSED' ||
-      error?.cause?.code === 'ECONNREFUSED';
-    
-    if (dbConnectionError) {
-      return NextResponse.json(
-        { 
-          message: 'Database connection error. Please check your DATABASE_URL in .env.local',
-          error: process.env.NODE_ENV === 'development' ? error.message : undefined
-        },
-        { status: 500 }
-      );
-    }
+    // Phone is optional for admin
+    const phoneValue = body.phone || null;
 
-    // Handle table not found errors (migrations not run)
-    const tableNotFoundError = 
-      error?.message?.includes('does not exist') || 
-      error?.code === '42P01' ||
-      error?.cause?.code === '42P01';
-    
-    if (tableNotFoundError) {
-      return NextResponse.json(
-        { 
-          message: 'Database tables not found. Please run migrations: npx drizzle-kit migrate',
-          error: process.env.NODE_ENV === 'development' ? error.message : undefined
-        },
-        { status: 500 }
-      );
-    }
+    // Create new admin account
+    const hashedPassword = await hashPassword(password);
 
-    // Generic error - return user-friendly message
+    const [newUser] = await db
+      .insert(users)
+      .values({
+        name: name.trim(),
+        email: email.toLowerCase().trim(),
+        password: hashedPassword,
+        phone: phoneValue,
+        role: 'admin',
+        isActive: true,
+      })
+      .returning();
+
     return NextResponse.json(
-      { 
-        message: 'Registration failed. Please try again or contact support if the problem persists.',
-        error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      {
+        message: 'Admin account created successfully',
+        user: {
+          id: newUser.id,
+          name: newUser.name,
+          email: newUser.email,
+          role: newUser.role,
+        },
+      },
+      { status: 201 }
+    );
+  } catch (error: any) {
+    console.error('Admin registration error:', error);
+    return NextResponse.json(
+      {
+        message: 'Failed to create admin account',
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined,
       },
       { status: 500 }
     );

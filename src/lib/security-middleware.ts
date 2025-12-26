@@ -31,7 +31,7 @@ export const securityHeaders = {
     "base-uri 'self'",
     "form-action 'self'",
     "frame-ancestors 'none'",
-    "upgrade-insecure-requests",
+    'upgrade-insecure-requests',
   ].join('; '),
   // Strict Transport Security (HTTPS enforcement)
   'Strict-Transport-Security': 'max-age=31536000; includeSubDomains; preload',
@@ -69,19 +69,23 @@ const RATE_LIMIT_WINDOW = process.env.NODE_ENV === 'development'
   ? 5 * 60 * 1000  // 5 minutes in dev
   : 15 * 60 * 1000; // 15 minutes in production
 
-const RATE_LIMIT_MAX_REQUESTS = process.env.NODE_ENV === 'development'
-  ? 1000  // 1000 requests per window in dev
-  : 100;  // 100 requests per window in production
+const RATE_LIMIT_MAX_REQUESTS =
+  process.env.NODE_ENV === 'development'
+    ? 1000 // 1000 requests per window in dev
+    : 100; // 100 requests per window in production
 
 // Clean up old entries every 5 minutes
-setInterval(() => {
-  const now = Date.now();
-  for (const [key, entry] of Array.from(rateLimitStore.entries())) {
-    if (entry.resetTime < now) {
-      rateLimitStore.delete(key);
+setInterval(
+  () => {
+    const now = Date.now();
+    for (const [key, entry] of Array.from(rateLimitStore.entries())) {
+      if (entry.resetTime < now) {
+        rateLimitStore.delete(key);
+      }
     }
-  }
-}, 5 * 60 * 1000);
+  },
+  5 * 60 * 1000
+);
 
 // Rate limiting middleware
 export function rateLimit(req: NextRequest): { limited: boolean; remaining: number } {
@@ -166,7 +170,10 @@ export function applyCORSHeaders(response: NextResponse, origin: string | null):
   if (origin && ALLOWED_ORIGINS.includes(origin)) {
     response.headers.set('Access-Control-Allow-Origin', origin);
     response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-CSRF-Token');
+    response.headers.set(
+      'Access-Control-Allow-Headers',
+      'Content-Type, Authorization, X-CSRF-Token'
+    );
     response.headers.set('Access-Control-Allow-Credentials', 'true');
     response.headers.set('Access-Control-Max-Age', '86400'); // 24 hours
   }
@@ -199,25 +206,21 @@ export function detectSQLInjection(input: string): boolean {
     /\/\*.*\*\//,
   ];
 
-  return sqlPatterns.some(pattern => pattern.test(input));
+  return sqlPatterns.some((pattern) => pattern.test(input));
 }
 
 // Check for XSS patterns
 export function detectXSS(input: string): boolean {
-  const xssPatterns = [
-    /<script/i,
-    /<iframe/i,
-    /javascript:/i,
-    /on\w+\s*=/i,
-    /<embed/i,
-    /<object/i,
-  ];
+  const xssPatterns = [/<script/i, /<iframe/i, /javascript:/i, /on\w+\s*=/i, /<embed/i, /<object/i];
 
-  return xssPatterns.some(pattern => pattern.test(input));
+  return xssPatterns.some((pattern) => pattern.test(input));
 }
 
 // Validate request body for security threats
-export function validateRequestSecurity(req: NextRequest, body: any): { safe: boolean; threats: string[] } {
+export function validateRequestSecurity(
+  req: NextRequest,
+  body: any
+): { safe: boolean; threats: string[] } {
   const threats: string[] = [];
   const ip = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown';
 
@@ -248,7 +251,11 @@ export function validateRequestSecurity(req: NextRequest, body: any): { safe: bo
 }
 
 // File upload validation
-export function validateFileUpload(filename: string, fileSize: number, allowedExtensions: string[]): { valid: boolean; error?: string } {
+export function validateFileUpload(
+  filename: string,
+  fileSize: number,
+  allowedExtensions: string[]
+): { valid: boolean; error?: string } {
   const maxSize = 10 * 1024 * 1024; // 10MB default
 
   // Check file size
@@ -259,7 +266,10 @@ export function validateFileUpload(filename: string, fileSize: number, allowedEx
   // Check file extension
   const extension = filename.split('.').pop()?.toLowerCase();
   if (!extension || !allowedExtensions.includes(extension)) {
-    return { valid: false, error: `File type not allowed. Allowed types: ${allowedExtensions.join(', ')}` };
+    return {
+      valid: false,
+      error: `File type not allowed. Allowed types: ${allowedExtensions.join(', ')}`,
+    };
   }
 
   // Check for double extensions
@@ -302,5 +312,3 @@ export function getClientIP(req: NextRequest): string {
     'unknown'
   );
 }
-
-

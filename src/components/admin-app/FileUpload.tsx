@@ -18,7 +18,7 @@ export default function FileUpload({
   currentUrl,
   accept,
   maxSizeMB = 10,
-  label
+  label,
 }: FileUploadProps) {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -183,7 +183,8 @@ export default function FileUpload({
               <div className="flex flex-col items-center gap-2">
                 {getIcon()}
                 <p className="text-sm text-slate-400">
-                  Click to upload {type === 'thumbnail' ? 'image' : type === 'video' ? 'video' : 'document'}
+                  Click to upload{' '}
+                  {type === 'thumbnail' ? 'image' : type === 'video' ? 'video' : 'document'}
                 </p>
                 <p className="text-xs text-slate-500">Max size: {maxSizeMB}MB</p>
               </div>
@@ -192,19 +193,10 @@ export default function FileUpload({
         )}
       </div>
 
-      {error && (
-        <p className="text-xs text-red-400">{error}</p>
-      )}
+      {error && <p className="text-xs text-red-400">{error}</p>}
     </div>
   );
 }
-
-
-
-
-
-
-
 
 
 

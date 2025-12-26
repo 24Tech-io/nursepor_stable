@@ -4,25 +4,15 @@ import { getDatabaseWithRetry } from '@/lib/db';
 import { blogPosts } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { slug: string } }
-) {
+export async function GET(request: NextRequest, { params }: { params: { slug: string } }) {
   try {
     const db = await getDatabaseWithRetry();
     const slug = params.slug;
-    
-    const blog = await db
-      .select()
-      .from(blogPosts)
-      .where(eq(blogPosts.slug, slug))
-      .limit(1);
+
+    const blog = await db.select().from(blogPosts).where(eq(blogPosts.slug, slug)).limit(1);
 
     if (!blog.length) {
-      return NextResponse.json(
-        { message: 'Blog not found' },
-        { status: 404 }
-      );
+      return NextResponse.json({ message: 'Blog not found' }, { status: 404 });
     }
 
     return NextResponse.json({
@@ -42,12 +32,11 @@ export async function GET(
   } catch (error: any) {
     logger.error('Get blog by slug error:', error);
     return NextResponse.json(
-      { 
+      {
         message: 'Failed to get blog',
-        error: process.env.NODE_ENV === 'development' ? error.message : undefined
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined,
       },
       { status: 500 }
     );
   }
 }
-

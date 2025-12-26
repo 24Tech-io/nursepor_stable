@@ -22,10 +22,6 @@ export async function POST(request: NextRequest) {
       message: 'Rate limits cleared successfully',
     });
   } catch (error) {
-    return NextResponse.json(
-      { error: 'Failed to clear rate limits' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Failed to clear rate limits' }, { status: 500 });
   }
 }
-

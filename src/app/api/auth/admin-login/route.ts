@@ -43,8 +43,11 @@ export async function POST(request: NextRequest) {
         log.error('Error logging security event', logError);
       }
       return NextResponse.json(
-        { message: 'Too many failed login attempts. Please try again later.' },
-        { status: 429 }
+        { 
+          message: 'Server configuration error. DATABASE_URL is missing.',
+          error: process.env.NODE_ENV === 'development' ? 'DATABASE_URL must be set in environment variables' : undefined
+        },
+        { status: 500 }
       );
     }
 
@@ -95,18 +98,12 @@ export async function POST(request: NextRequest) {
     try {
       data = JSON.parse(body);
     } catch (e) {
-      return NextResponse.json(
-        { message: 'Invalid JSON in request body' },
-        { status: 400 }
-      );
+      return NextResponse.json({ message: 'Invalid JSON in request body' }, { status: 400 });
     }
     const { email, password, rememberMe } = data;
 
     if (!email || !password) {
-      return NextResponse.json(
-        { message: 'Email and password are required' },
-        { status: 400 }
-      );
+      return NextResponse.json({ message: 'Email and password are required' }, { status: 400 });
     }
 
     // Sanitize and validate email
@@ -135,10 +132,7 @@ export async function POST(request: NextRequest) {
 
     // Validate password length
     if (typeof password !== 'string' || password.length < 1 || password.length > 128) {
-      return NextResponse.json(
-        { message: 'Invalid password' },
-        { status: 400 }
-      );
+      return NextResponse.json({ message: 'Invalid password' }, { status: 400 });
     }
 
     log.debug('Attempting to authenticate admin', { email: sanitizedEmail });
@@ -282,7 +276,7 @@ export async function POST(request: NextRequest) {
 
       // Add delay for failed attempt
       if (attemptResult.delayMs > 0) {
-        await new Promise(resolve => setTimeout(resolve, attemptResult.delayMs));
+        await new Promise((resolve) => setTimeout(resolve, attemptResult.delayMs));
       }
 
       const response = NextResponse.json(
@@ -443,7 +437,6 @@ export async function POST(request: NextRequest) {
     log.debug('Admin login response prepared', { userId: user.id, role: user.role });
 
     return jsonResponse;
-
   } catch (error: any) {
     log.error('Admin login API error', error);
     return handleApiError(error, request.nextUrl.pathname);

@@ -1,6 +1,7 @@
 import postgres from 'postgres';
 
-const DATABASE_URL = 'postgresql://neondb_owner:npg_pt4xwuEAB7Ml@ep-wild-frost-a4nflquy-pooler.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require';
+const DATABASE_URL =
+  'postgresql://neondb_owner:npg_pt4xwuEAB7Ml@ep-wild-frost-a4nflquy-pooler.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require';
 
 async function main() {
   const sql = postgres(DATABASE_URL, { ssl: 'require' });
@@ -18,12 +19,14 @@ async function main() {
 
     if (orphans.length > 0) {
       console.log(`Found ${orphans.length} orphaned enrollments:`);
-      orphans.forEach(o => console.log(` - ID: ${o.id}, UserID: ${o.user_id}, CourseID: ${o.course_id}`));
+      orphans.forEach((o) =>
+        console.log(` - ID: ${o.id}, UserID: ${o.user_id}, CourseID: ${o.course_id}`)
+      );
 
       // Delete orphans
       await sql`
         DELETE FROM enrollments 
-        WHERE id IN ${sql(orphans.map(o => o.id))}
+        WHERE id IN ${sql(orphans.map((o) => o.id))}
       `;
       console.log('✅ Deleted orphaned enrollments.');
     } else {
@@ -54,7 +57,6 @@ async function main() {
     } else {
       console.log('✅ All enrollments have corresponding progress records.');
     }
-
   } catch (error) {
     console.error('❌ Error:', error);
   } finally {

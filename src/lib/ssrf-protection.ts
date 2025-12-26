@@ -18,25 +18,18 @@ const ALLOWED_DOMAINS = [
 
 // Blacklist of private/internal IP ranges (CIDR notation)
 const BLOCKED_IP_RANGES = [
-  '10.0.0.0/8',        // Private network
-  '172.16.0.0/12',     // Private network
-  '192.168.0.0/16',    // Private network
-  '127.0.0.0/8',       // Loopback
-  '169.254.0.0/16',    // Link-local
-  '::1/128',           // IPv6 loopback
-  'fe80::/10',         // IPv6 link-local
-  'fc00::/7',          // IPv6 unique local
+  '10.0.0.0/8', // Private network
+  '172.16.0.0/12', // Private network
+  '192.168.0.0/16', // Private network
+  '127.0.0.0/8', // Loopback
+  '169.254.0.0/16', // Link-local
+  '::1/128', // IPv6 loopback
+  'fe80::/10', // IPv6 link-local
+  'fc00::/7', // IPv6 unique local
 ];
 
 // Blocked protocols
-const BLOCKED_PROTOCOLS = [
-  'file:',
-  'gopher:',
-  'ftp:',
-  'dict:',
-  'ldap:',
-  'tftp:',
-];
+const BLOCKED_PROTOCOLS = ['file:', 'gopher:', 'ftp:', 'dict:', 'ldap:', 'tftp:'];
 
 /**
  * Check if an IP address is in a blocked range
@@ -98,7 +91,7 @@ export function validateURL(urlString: string, clientIP?: string): {
     }
 
     // Check if domain is in whitelist
-    const isWhitelisted = ALLOWED_DOMAINS.some(domain => {
+    const isWhitelisted = ALLOWED_DOMAINS.some((domain) => {
       if (domain.startsWith('*.')) {
         // Wildcard subdomain
         const baseDomain = domain.slice(2);
@@ -204,4 +197,3 @@ export function validateWebhookURL(urlString: string): boolean {
   const validation = validateURL(urlString);
   return validation.valid;
 }
-

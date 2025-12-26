@@ -66,10 +66,7 @@ export async function existsInCache(key: string): Promise<boolean> {
 /**
  * Helper function to increment a counter in cache
  */
-export async function incrementCounter(
-  key: string,
-  expirySeconds?: number
-): Promise<number> {
+export async function incrementCounter(key: string, expirySeconds?: number): Promise<number> {
   return memoryCache.incrementCounter(key, expirySeconds);
 }
 
@@ -104,21 +101,14 @@ export async function deletePattern(pattern: string): Promise<number> {
 /**
  * Helper function to set a hash field
  */
-export async function setHashField(
-  key: string,
-  field: string,
-  value: any
-): Promise<boolean> {
+export async function setHashField(key: string, field: string, value: any): Promise<boolean> {
   return memoryCache.setHashField(key, field, value);
 }
 
 /**
  * Helper function to get a hash field
  */
-export async function getHashField<T>(
-  key: string,
-  field: string
-): Promise<T | null> {
+export async function getHashField<T>(key: string, field: string): Promise<T | null> {
   return memoryCache.getHashField<T>(key, field);
 }
 
@@ -143,4 +133,3 @@ export const CacheKeys = memoryCache.CacheKeys;
 
 // Export cache instance
 export default redis;
-

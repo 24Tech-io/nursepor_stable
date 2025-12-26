@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
     if (!rateLimitResult.allowed) {
       return NextResponse.json(
         { message: 'Too many requests. Please try again later.' },
-        { 
+        {
           status: 429,
           headers: {
             'Retry-After': Math.ceil((rateLimitResult.resetTime - Date.now()) / 1000).toString(),
@@ -25,19 +25,13 @@ export async function POST(request: NextRequest) {
     const { email } = await request.json();
 
     if (!email) {
-      return NextResponse.json(
-        { message: 'Email is required' },
-        { status: 400 }
-      );
+      return NextResponse.json({ message: 'Email is required' }, { status: 400 });
     }
 
     // Sanitize and validate email
     const sanitizedEmail = sanitizeString(email.toLowerCase(), 255);
     if (!validateEmail(sanitizedEmail)) {
-      return NextResponse.json(
-        { message: 'Invalid email format' },
-        { status: 400 }
-      );
+      return NextResponse.json({ message: 'Invalid email format' }, { status: 400 });
     }
 
     // Get all accounts for this email
@@ -49,7 +43,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       email: sanitizedEmail,
-      accounts: accounts.map(acc => ({
+      accounts: accounts.map((acc) => ({
         id: acc.id,
         role: acc.role,
         name: acc.name,
@@ -59,12 +53,11 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     logger.error('Get roles error:', error);
     return NextResponse.json(
-      { 
+      {
         message: 'Failed to get user roles',
-        error: process.env.NODE_ENV === 'development' ? error.message : undefined
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined,
       },
       { status: 500 }
     );
   }
 }
-

@@ -9,10 +9,7 @@ import { eq, desc, and } from 'drizzle-orm';
 import { getQuizQuestions, validateQuizAnswer } from '@/lib/quiz-helpers';
 
 // GET - Fetch quiz details for student
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { quizId: string } }
-) {
+export async function GET(request: NextRequest, { params }: { params: { quizId: string } }) {
   try {
     const token = request.cookies.get('student_token')?.value || request.cookies.get('token')?.value;
     if (!token) {
@@ -28,11 +25,7 @@ export async function GET(
     const db = await getDatabaseWithRetry();
 
     // Get quiz
-    const quiz = await db
-      .select()
-      .from(quizzes)
-      .where(eq(quizzes.id, quizId))
-      .limit(1);
+    const quiz = await db.select().from(quizzes).where(eq(quizzes.id, quizId)).limit(1);
 
     if (quiz.length === 0) {
       return NextResponse.json({ message: 'Quiz not found' }, { status: 404 });
@@ -70,10 +63,7 @@ export async function GET(
 }
 
 // POST - Submit quiz attempt
-export async function POST(
-  request: NextRequest,
-  { params }: { params: { quizId: string } }
-) {
+export async function POST(request: NextRequest, { params }: { params: { quizId: string } }) {
   try {
     const token = request.cookies.get('student_token')?.value || request.cookies.get('token')?.value;
     if (!token) {
@@ -95,11 +85,7 @@ export async function POST(
     const db = await getDatabaseWithRetry();
 
     // Get quiz and questions
-    const quiz = await db
-      .select()
-      .from(quizzes)
-      .where(eq(quizzes.id, quizId))
-      .limit(1);
+    const quiz = await db.select().from(quizzes).where(eq(quizzes.id, quizId)).limit(1);
 
     if (quiz.length === 0) {
       return NextResponse.json({ message: 'Quiz not found' }, { status: 404 });
@@ -188,4 +174,3 @@ export async function POST(
     );
   }
 }
-

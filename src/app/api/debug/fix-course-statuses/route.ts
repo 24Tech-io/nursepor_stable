@@ -11,21 +11,15 @@ import { eq, or } from 'drizzle-orm';
  */
 export async function POST(request: NextRequest) {
   try {
-    const token = request.cookies.get('token')?.value;
+    const token = request.cookies.get('adminToken')?.value;
 
     if (!token) {
-      return NextResponse.json(
-        { message: 'Not authenticated' },
-        { status: 401 }
-      );
+      return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });
     }
 
     const decoded = await verifyToken(token);
     if (!decoded || decoded.role !== 'admin') {
-      return NextResponse.json(
-        { message: 'Admin access required' },
-        { status: 403 }
-      );
+      return NextResponse.json({ message: 'Admin access required' }, { status: 403 });
     }
 
     let db;
@@ -47,11 +41,7 @@ export async function POST(request: NextRequest) {
       .select()
       .from(courses)
       .where(
-        or(
-          eq(courses.status, 'active'),
-          eq(courses.status, 'Active'),
-          eq(courses.status, 'ACTIVE')
-        )
+        or(eq(courses.status, 'active'), eq(courses.status, 'Active'), eq(courses.status, 'ACTIVE'))
       );
 
     logger.info(`🔧 Found ${activeCourses.length} courses with "active" status`);
@@ -92,9 +82,10 @@ export async function POST(request: NextRequest) {
       summary: {
         totalCourses: allCourses.length,
         statusBreakdown: statusVariations,
-        message: updated.length > 0
-          ? `Updated ${updated.length} course(s) from "active" to "published"`
-          : 'No courses needed updating',
+        message:
+          updated.length > 0
+            ? `Updated ${updated.length} course(s) from "active" to "published"`
+            : 'No courses needed updating',
       },
     });
   } catch (error: any) {
@@ -109,13 +100,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-
-
-
-
-
-
-
-
-
-

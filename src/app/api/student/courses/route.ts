@@ -25,6 +25,9 @@ async function retryOperation<T>(operation: () => Promise<T>, retries = 3): Prom
   throw new Error('Operation failed after retries');
 }
 
+// Cache for 30 seconds - allows stale-while-revalidate
+export const revalidate = 30;
+
 export async function GET(request: NextRequest) {
   const stopMonitoring = startRouteMonitoring('/api/student/courses');
   // #region agent log

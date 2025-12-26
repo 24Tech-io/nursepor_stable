@@ -6,13 +6,54 @@ import { useNotification } from './NotificationProvider';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { syncClient } from '@/lib/sync-client';
 import {
-  Layout, Database, Users, Settings, Plus, Save, ArrowLeft, Layers,
-  Activity, FileText, Video, CheckCircle, Grid, Monitor, ChevronRight,
-  Trash2, Edit3, BarChart, BookOpen, Search, Flag, AlertTriangle, X,
-  Filter, Zap, Book, MoreHorizontal, Image as ImageIcon, List,
-  MousePointer, Highlighter, Type, Divide, GripVertical, CheckSquare, AlignLeft,
-  User, Shield, Download, Calendar, TrendingUp, TrendingDown, Clock, Award, Target, FileDown,
-  Eye, UserX
+  Layout,
+  Database,
+  Users,
+  Settings,
+  Plus,
+  Save,
+  ArrowLeft,
+  Layers,
+  Activity,
+  FileText,
+  Video,
+  CheckCircle,
+  Grid,
+  Monitor,
+  ChevronRight,
+  Trash2,
+  Edit3,
+  BarChart,
+  BookOpen,
+  Search,
+  Flag,
+  AlertTriangle,
+  X,
+  Filter,
+  Zap,
+  Book,
+  MoreHorizontal,
+  Image as ImageIcon,
+  List,
+  MousePointer,
+  Highlighter,
+  Type,
+  Divide,
+  GripVertical,
+  CheckSquare,
+  AlignLeft,
+  User,
+  Shield,
+  Download,
+  Calendar,
+  TrendingUp,
+  TrendingDown,
+  Clock,
+  Award,
+  Target,
+  FileDown,
+  Eye,
+  UserX,
 } from 'lucide-react';
 import FileUpload from './FileUpload';
 import VideoUploadModal from './VideoUploadModal';
@@ -36,8 +77,8 @@ const QUESTION_MODES = {
       { id: 'standard', label: 'Single Best Answer (Multiple Choice)' },
       { id: 'sata_classic', label: 'Select All That Apply (Traditional)' },
       { id: 'ordering', label: 'Ordered Response' },
-      { id: 'calculation', label: 'Dosage Calculation' }
-    ]
+      { id: 'calculation', label: 'Dosage Calculation' },
+    ],
   },
   NGN: {
     id: 'ngn',
@@ -51,17 +92,17 @@ const QUESTION_MODES = {
       { id: 'drag_drop', label: 'Extended Drag & Drop' },
       { id: 'highlight', label: 'Highlight Text' },
       { id: 'cloze', label: 'Cloze (Drop-Down)' },
-    ]
-  }
+    ],
+  },
 };
 
 const CJMM_STEPS = [
-  { step: 1, label: "Recognize Cues" },
-  { step: 2, label: "Analyze Cues" },
-  { step: 3, label: "Prioritize Hypotheses" },
-  { step: 4, label: "Generate Solutions" },
-  { step: 5, label: "Take Action" },
-  { step: 6, label: "Evaluate Outcomes" }
+  { step: 1, label: 'Recognize Cues' },
+  { step: 2, label: 'Analyze Cues' },
+  { step: 3, label: 'Prioritize Hypotheses' },
+  { step: 4, label: 'Generate Solutions' },
+  { step: 5, label: 'Take Action' },
+  { step: 6, label: 'Evaluate Outcomes' },
 ];
 
 // ⚡ PERFORMANCE: Lazy load heavy components for code splitting
@@ -420,7 +461,9 @@ export default function NurseProAdminUltimate({
             </div>
             NursePro
           </h1>
-          <p className="text-[10px] text-slate-500 mt-2 font-bold uppercase tracking-widest ml-1">Academy Command v3.1</p>
+          <p className="text-[10px] text-slate-500 mt-2 font-bold uppercase tracking-widest ml-1">
+            Academy Command v3.1
+          </p>
         </div>
 
         <nav className="flex-1 px-4 space-y-8 overflow-y-auto custom-scrollbar">
@@ -429,8 +472,20 @@ export default function NurseProAdminUltimate({
           </NavSection>
 
           <NavSection title="User Management">
-            <NavItem icon={<Users size={18} />} label="Students" active={currentModule === 'students'} onClick={() => nav('students')} badge={undefined} />
-            <NavItem icon={<Flag size={18} />} label="Access Requests" active={currentModule === 'requests'} onClick={() => nav('requests')} badge={undefined} />
+            <NavItem
+              icon={<Users size={18} />}
+              label="Students"
+              active={currentModule === 'students'}
+              onClick={() => nav('students')}
+              badge={undefined}
+            />
+            <NavItem
+              icon={<Flag size={18} />}
+              label="Access Requests"
+              active={currentModule === 'requests'}
+              onClick={() => nav('requests')}
+              badge={undefined}
+            />
           </NavSection>
 
           <NavSection title="Content Engine">
@@ -449,15 +504,27 @@ export default function NurseProAdminUltimate({
             className="w-full flex items-center gap-3 px-4 py-3 bg-[#161922] rounded-xl border border-slate-800/50 hover:border-purple-500/50 hover:bg-purple-900/10 transition-all group"
           >
             <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-600 to-pink-500 flex items-center justify-center text-sm font-bold text-white shadow-lg shadow-purple-500/20 flex-shrink-0">
-              {adminUser?.name ? adminUser.name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2) : 'AD'}
+              {adminUser?.name
+                ? adminUser.name
+                    .split(' ')
+                    .map((n: string) => n[0])
+                    .join('')
+                    .toUpperCase()
+                    .slice(0, 2)
+                : 'AD'}
             </div>
             <div className="text-left flex-1 min-w-0">
               <p className="text-sm font-bold text-white group-hover:text-purple-300 transition-colors truncate">
                 {adminUser?.name || 'Admin User'}
               </p>
-              <p className="text-[10px] text-slate-500 truncate">{adminUser?.email || 'Loading...'}</p>
+              <p className="text-[10px] text-slate-500 truncate">
+                {adminUser?.email || 'Loading...'}
+              </p>
             </div>
-            <ChevronRight size={16} className="text-slate-500 group-hover:text-purple-400 transition-colors flex-shrink-0" />
+            <ChevronRight
+              size={16}
+              className="text-slate-500 group-hover:text-purple-400 transition-colors flex-shrink-0"
+            />
           </button>
           <button
             onClick={async () => {
@@ -499,18 +566,20 @@ export default function NurseProAdminUltimate({
               setActiveStudentId(null);
               nav('students');
               // Refresh student list when going back
-              setRefreshCounter(prev => prev + 1);
+              setRefreshCounter((prev) => prev + 1);
             }}
             onEnrollmentChange={() => {
               // Trigger refresh of student list
-              setRefreshCounter(prev => prev + 1);
+              setRefreshCounter((prev) => prev + 1);
             }}
           />
         )}
         {currentModule === 'requests' && <RequestsInbox nav={nav} />}
         {currentModule === 'quizzes' && <QuizManager nav={nav} />}
         {currentModule === 'courses' && <CourseList nav={nav} setActive={setActiveItem} />}
-        {currentModule === 'course_editor' && <CourseBuilder course={activeItem} back={() => nav('courses')} />}
+        {currentModule === 'course_editor' && (
+          <CourseBuilder course={activeItem} back={() => nav('courses')} />
+        )}
         {currentModule === 'qbank' && <QBankList nav={nav} setActive={setActiveItem} />}
         {currentModule === 'qbank_editor' && <QBankEditor qbank={activeItem} back={() => nav('qbank')} setActive={setActiveItem} nav={nav} />}
         {currentModule === 'question_editor' && <UniversalQuestionEditor question={activeItem} back={() => {
@@ -555,16 +624,15 @@ const RequestsInbox = ({ nav }: { nav: (mod: string) => void }) => {
         cache: 'no-store',
         headers: {
           'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'Pragma': 'no-cache',
-        }
+          Pragma: 'no-cache',
+        },
       });
       if (response.ok) {
         const data = await response.json();
         setRequests(data.requests || []);
       } else {
-        console.error('Failed to fetch requests:', response.status);
         const errorData = await response.json().catch(() => ({}));
-        console.error('Error details:', errorData);
+        console.error('Failed to fetch requests:', response.status, errorData);
       }
     } catch (error) {
       console.error('Error fetching requests:', error);
@@ -712,13 +780,16 @@ const RequestsInbox = ({ nav }: { nav: (mod: string) => void }) => {
 
   // Filter requests - only show truly pending requests
   // Also filter out any requests that have reviewedAt set (they should be deleted)
-  const pendingRequests = requests.filter(r => {
+  const pendingRequests = requests.filter((r) => {
     const isPending = r.status === 'pending';
     const hasReviewedAt = r.reviewedAt;
 
     // If it has reviewedAt but status is pending, it's inconsistent - don't show it
     if (hasReviewedAt && isPending) {
-      console.warn(`⚠️ Request ${r.id} has reviewedAt but status is 'pending' - data inconsistency!`, r);
+      console.warn(
+        `⚠️ Request ${r.id} has reviewedAt but status is 'pending' - data inconsistency!`,
+        r
+      );
       return false;
     }
 
@@ -737,11 +808,17 @@ const RequestsInbox = ({ nav }: { nav: (mod: string) => void }) => {
     // Log any requests that should be reviewed but aren't
     requests.forEach((r: any) => {
       if (r.reviewedAt && r.status === 'pending') {
-        console.warn(`⚠️ Request ${r.id} has reviewedAt but status is still 'pending'! This should be deleted.`, r);
+        console.warn(
+          `⚠️ Request ${r.id} has reviewedAt but status is still 'pending'! This should be deleted.`,
+          r
+        );
       }
       // Log approved/rejected requests that shouldn't be in the list
       if (r.status === 'approved' || r.status === 'rejected') {
-        console.warn(`⚠️ Request ${r.id} has status '${r.status}' but is still in database - should be deleted!`, r);
+        console.warn(
+          `⚠️ Request ${r.id} has status '${r.status}' but is still in database - should be deleted!`,
+          r
+        );
       }
     });
   }, [requests]);
@@ -758,8 +835,18 @@ const RequestsInbox = ({ nav }: { nav: (mod: string) => void }) => {
           disabled={isLoading}
           className="px-4 py-2 bg-purple-600 text-white rounded-lg font-semibold hover:bg-purple-700 disabled:opacity-50 transition-colors flex items-center gap-2"
         >
-          <svg className={`w-5 h-5 ${isLoading ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          <svg
+            className={`w-5 h-5 ${isLoading ? 'animate-spin' : ''}`}
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+            />
           </svg>
           Refresh
         </button>
@@ -964,15 +1051,23 @@ const RequestsInbox = ({ nav }: { nav: (mod: string) => void }) => {
           {/* Reviewed Requests */}
           {reviewedRequests.length > 0 && (
             <div>
-              <h3 className="text-lg font-bold text-white mb-4">Reviewed ({reviewedRequests.length})</h3>
+              <h3 className="text-lg font-bold text-white mb-4">
+                Reviewed ({reviewedRequests.length})
+              </h3>
               <div className="space-y-3">
-                {reviewedRequests.slice(0, 10).map(req => (
-                  <div key={req.id} className="bg-[#161922] border border-slate-800/60 rounded-2xl p-4 opacity-60">
+                {reviewedRequests.slice(0, 10).map((req) => (
+                  <div
+                    key={req.id}
+                    className="bg-[#161922] border border-slate-800/60 rounded-2xl p-4 opacity-60"
+                  >
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-sm text-white">{req.studentName} → {req.courseTitle}</p>
+                        <p className="text-sm text-white">
+                          {req.studentName} → {req.courseTitle}
+                        </p>
                         <p className="text-xs text-slate-500">
-                          {req.status === 'approved' ? '✅ Approved' : '❌ Denied'} on {new Date(req.reviewedAt).toLocaleDateString()}
+                          {req.status === 'approved' ? '✅ Approved' : '❌ Denied'} on{' '}
+                          {new Date(req.reviewedAt).toLocaleDateString()}
                         </p>
                       </div>
                     </div>
@@ -988,7 +1083,15 @@ const RequestsInbox = ({ nav }: { nav: (mod: string) => void }) => {
 };
 
 // --- STUDENTS LIST MODULE ---
-const StudentsList = ({ nav, onSelectStudent, refreshTrigger }: { nav: (mod: string) => void, onSelectStudent: (id: number) => void, refreshTrigger?: number }) => {
+const StudentsList = ({
+  nav,
+  onSelectStudent,
+  refreshTrigger,
+}: {
+  nav: (mod: string) => void;
+  onSelectStudent: (id: number) => void;
+  refreshTrigger?: number;
+}) => {
   const notification = useNotification();
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = React.useState('');
@@ -996,13 +1099,16 @@ const StudentsList = ({ nav, onSelectStudent, refreshTrigger }: { nav: (mod: str
   const [activityStudentId, setActivityStudentId] = React.useState<number | null>(null);
 
   // ⚡ PERFORMANCE: Use React Query for students data with caching
-  const { data: students = [], isLoading, refetch } = useQuery({
+  const {
+    data: students = [],
+    isLoading,
+    refetch,
+  } = useQuery({
     queryKey: ['students', refreshTrigger],
     queryFn: async () => {
       const response = await fetch('/api/students', { credentials: 'include' });
       if (response.ok) {
         const data = await response.json();
-        console.log('⚡ Students loaded and cached');
         return data.students || [];
       }
       throw new Error('Failed to fetch students');
@@ -1031,9 +1137,10 @@ const StudentsList = ({ nav, onSelectStudent, refreshTrigger }: { nav: (mod: str
   };
 
 
-  const filteredStudents = students.filter(s =>
-    s.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    s.email?.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredStudents = students.filter(
+    (s) =>
+      s.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      s.email?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
@@ -1081,7 +1188,7 @@ const StudentsList = ({ nav, onSelectStudent, refreshTrigger }: { nav: (mod: str
                   </td>
                 </tr>
               ) : (
-                filteredStudents.map(student => (
+                filteredStudents.map((student) => (
                   <tr
                     key={student.id}
                     className="hover:bg-[#1a1d26] transition-colors cursor-pointer"
@@ -1135,9 +1242,7 @@ const StudentsList = ({ nav, onSelectStudent, refreshTrigger }: { nav: (mod: str
                     </td>
                     <td className="p-4">
                       <p className="text-slate-300 text-sm">{student.email}</p>
-                      {student.phone && (
-                        <p className="text-slate-500 text-xs">{student.phone}</p>
-                      )}
+                      {student.phone && <p className="text-slate-500 text-xs">{student.phone}</p>}
                     </td>
                     <td className="p-4 text-center">
                       <div className="flex flex-col items-center gap-1">
@@ -1160,10 +1265,11 @@ const StudentsList = ({ nav, onSelectStudent, refreshTrigger }: { nav: (mod: str
                     <td className="p-4 text-center">
                       <button
                         onClick={(e) => toggleActive(student.id, e)}
-                        className={`px-3 py-1 rounded-full text-xs font-bold ${student.isActive
-                          ? 'bg-green-500/10 text-green-400'
-                          : 'bg-slate-700/30 text-slate-400'
-                          }`}
+                        className={`px-3 py-1 rounded-full text-xs font-bold ${
+                          student.isActive
+                            ? 'bg-green-500/10 text-green-400'
+                            : 'bg-slate-700/30 text-slate-400'
+                        }`}
                       >
                         {student.isActive ? 'Active' : 'Inactive'}
                       </button>
@@ -1198,7 +1304,7 @@ const StudentsList = ({ nav, onSelectStudent, refreshTrigger }: { nav: (mod: str
       {showActivityModal && activityStudentId && (
         <StudentActivityModal
           studentId={activityStudentId}
-          studentName={students.find(s => s.id === activityStudentId)?.name || 'Student'}
+          studentName={students.find((s) => s.id === activityStudentId)?.name || 'Student'}
           onClose={() => {
             setShowActivityModal(false);
             setActivityStudentId(null);
@@ -1250,7 +1356,8 @@ const Dashboard = ({ nav }: { nav: (mod: string) => void }) => {
 
       // Calculate date-based metrics
       const now = new Date();
-      const daysAgo = dateRange === '7d' ? 7 : dateRange === '30d' ? 30 : dateRange === '90d' ? 90 : Infinity;
+      const daysAgo =
+        dateRange === '7d' ? 7 : dateRange === '30d' ? 30 : dateRange === '90d' ? 90 : Infinity;
       const cutoffDate = new Date(now.getTime() - daysAgo * 24 * 60 * 60 * 1000);
 
       const newStudentsThisMonth = students.filter((s: any) => {
@@ -1298,11 +1405,13 @@ const Dashboard = ({ nav }: { nav: (mod: string) => void }) => {
       const courses = stats.courses || [];
 
       // Set basic course stats immediately
-      setCourseStats(courses.map((course: any) => ({
-        ...course,
-        enrollments: 0,
-        averageProgress: 0,
-      })));
+      setCourseStats(
+        courses.map((course: any) => ({
+          ...course,
+          enrollments: 0,
+          averageProgress: 0,
+        }))
+      );
 
       // Fetch detailed enrollment data in parallel (only for students with enrollments)
       const studentsWithEnrollments = students.filter((s: any) => s.enrolledCourses > 0);
@@ -1419,7 +1528,7 @@ const Dashboard = ({ nav }: { nav: (mod: string) => void }) => {
 
         csv += 'Course Performance\n';
         csv += 'Course Title,Enrollments,Average Progress\n';
-        courseStats.forEach(course => {
+        courseStats.forEach((course) => {
           csv += `"${course.title}",${course.enrollments},${course.averageProgress}%\n`;
         });
 
@@ -1496,8 +1605,11 @@ const Dashboard = ({ nav }: { nav: (mod: string) => void }) => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           {isLoading ? (
             <>
-              {[1, 2, 3, 4].map(i => (
-                <div key={i} className="bg-[#161922] border border-slate-800/60 rounded-2xl p-6 animate-pulse">
+              {[1, 2, 3, 4].map((i) => (
+                <div
+                  key={i}
+                  className="bg-[#161922] border border-slate-800/60 rounded-2xl p-6 animate-pulse"
+                >
                   <div className="h-3 bg-slate-700 rounded w-24 mb-4"></div>
                   <div className="h-8 bg-slate-700 rounded w-16"></div>
                 </div>
@@ -1516,8 +1628,11 @@ const Dashboard = ({ nav }: { nav: (mod: string) => void }) => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           {isLoading ? (
             <>
-              {[1, 2, 3, 4].map(i => (
-                <div key={i} className="bg-[#161922] border border-slate-800/60 rounded-2xl p-6 animate-pulse">
+              {[1, 2, 3, 4].map((i) => (
+                <div
+                  key={i}
+                  className="bg-[#161922] border border-slate-800/60 rounded-2xl p-6 animate-pulse"
+                >
                   <div className="h-3 bg-slate-700 rounded w-24 mb-4"></div>
                   <div className="h-8 bg-slate-700 rounded w-16"></div>
                 </div>
@@ -1709,7 +1824,13 @@ const Dashboard = ({ nav }: { nav: (mod: string) => void }) => {
 
 
 // --- COURSE BUILDER MODULE ---
-const CourseList = ({ nav, setActive }: { nav: (mod: string, id?: number) => void; setActive: (item: any) => void }) => {
+const CourseList = ({
+  nav,
+  setActive,
+}: {
+  nav: (mod: string, id?: number) => void;
+  setActive: (item: any) => void;
+}) => {
   const notification = useNotification();
   const queryClient = useQueryClient();
 
@@ -1854,17 +1975,30 @@ const CourseList = ({ nav, setActive }: { nav: (mod: string, id?: number) => voi
         ) : (
           <table className="w-full text-left text-sm">
             <thead className="bg-[#1a1d26] text-slate-400 text-xs uppercase font-bold">
-              <tr><th className="p-6">Course Name</th><th className="p-6">Instructor</th><th className="p-6">Status</th><th className="p-6 text-right">Actions</th></tr>
+              <tr>
+                <th className="p-6">Course Name</th>
+                <th className="p-6">Instructor</th>
+                <th className="p-6">Status</th>
+                <th className="p-6 text-right">Actions</th>
+              </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/50 text-slate-300">
               {(coursesList as any[]).map((c, i) => (
                 <tr key={i} className="hover:bg-[#1a1d26] transition-colors">
                   <td className="p-6 font-medium text-white flex items-center gap-3">
-                    <div className="w-8 h-8 rounded bg-slate-800 flex items-center justify-center text-slate-500"><BookOpen size={16} /></div>
+                    <div className="w-8 h-8 rounded bg-slate-800 flex items-center justify-center text-slate-500">
+                      <BookOpen size={16} />
+                    </div>
                     {c.title}
                   </td>
                   <td className="p-6">{c.author}</td>
-                  <td className="p-6"><span className={`px-2 py-1 rounded text-xs font-bold ${c.status === 'Active' ? 'bg-green-500/10 text-green-400' : 'bg-slate-700/30 text-slate-400'}`}>{c.status}</span></td>
+                  <td className="p-6">
+                    <span
+                      className={`px-2 py-1 rounded text-xs font-bold ${c.status === 'Active' ? 'bg-green-500/10 text-green-400' : 'bg-slate-700/30 text-slate-400'}`}
+                    >
+                      {c.status}
+                    </span>
+                  </td>
                   <td className="p-6 text-right">
                     <button onClick={() => {
                       setActive(c);
@@ -1894,8 +2028,12 @@ const CourseBuilder = ({ course, back }: { course: any; back: () => void }) => {
   const [instructor, setInstructor] = React.useState(course?.instructor || 'Nurse Pro Academy');
   const [pricing, setPricing] = React.useState(course?.pricing || 0);
   const [thumbnail, setThumbnail] = React.useState(course?.thumbnail || '');
-  const [isPublished, setIsPublished] = React.useState(course?.status === 'published' || course?.status === 'Active');
-  const [isDefaultUnlocked, setIsDefaultUnlocked] = React.useState(course?.isDefaultUnlocked || false);
+  const [isPublished, setIsPublished] = React.useState(
+    course?.status === 'published' || course?.status === 'Active'
+  );
+  const [isDefaultUnlocked, setIsDefaultUnlocked] = React.useState(
+    course?.isDefaultUnlocked || false
+  );
   const [isRequestable, setIsRequestable] = React.useState(course?.isRequestable !== false);
   const [isPublic, setIsPublic] = React.useState(course?.isPublic !== false);
   // Get course ID from props or URL to ensure persistence
@@ -1966,11 +2104,12 @@ const CourseBuilder = ({ course, back }: { course: any; back: () => void }) => {
     }
   };
 
-
   const handleSaveCourse = async () => {
     // Validate required fields
     if (!title || !description || !instructor) {
-      notification.showError('Please fill in all required fields: Title, Description, and Instructor');
+      notification.showError(
+        'Please fill in all required fields: Title, Description, and Instructor'
+      );
       return;
     }
 
@@ -2017,7 +2156,9 @@ const CourseBuilder = ({ course, back }: { course: any; back: () => void }) => {
       }
     } catch (error) {
       console.error('Error saving course:', error);
-      notification.showError('Failed to save course: ' + (error instanceof Error ? error.message : 'Unknown error'));
+      notification.showError(
+        'Failed to save course: ' + (error instanceof Error ? error.message : 'Unknown error')
+      );
     }
   };
 
@@ -2087,9 +2228,16 @@ const CourseBuilder = ({ course, back }: { course: any; back: () => void }) => {
 
       if (response.ok) {
         const data = await response.json();
-        setModules(modules.map((m: any) => m.id === modId ? {
-          ...m, items: [...m.items, data.chapter]
-        } : m));
+        setModules(
+          modules.map((m: any) =>
+            m.id === modId
+              ? {
+                  ...m,
+                  items: [...m.items, data.chapter],
+                }
+              : m
+          )
+        );
       }
     } catch (error) {
       console.error('Error adding chapter:', error);
@@ -2109,9 +2257,16 @@ const CourseBuilder = ({ course, back }: { course: any; back: () => void }) => {
       async () => {
         try {
           await fetch(`/api/chapters/${itemId}`, { method: 'DELETE', credentials: 'include' });
-          setModules(modules.map((m: any) => m.id === modId ? {
-            ...m, items: m.items.filter((i: any) => i.id !== itemId)
-          } : m));
+          setModules(
+            modules.map((m: any) =>
+              m.id === modId
+                ? {
+                    ...m,
+                    items: m.items.filter((i: any) => i.id !== itemId),
+                  }
+                : m
+            )
+          );
           notification.showSuccess(`${itemTypeLabel} deleted successfully`);
         } catch (error) {
           console.error(`Error deleting ${itemTypeLabel.toLowerCase()}:`, error);
@@ -2262,8 +2417,13 @@ const CourseBuilder = ({ course, back }: { course: any; back: () => void }) => {
     <div className="flex flex-col h-full">
       <div className="h-16 bg-[#161922] border-b border-slate-800/60 flex items-center justify-between px-6">
         <div className="flex items-center gap-4">
-          <button onClick={back} className="p-2 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white"><ArrowLeft size={20} /></button>
-          <h3 className="font-bold text-white">{title || "New Course"}</h3>
+          <button
+            onClick={back}
+            className="p-2 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white"
+          >
+            <ArrowLeft size={20} />
+          </button>
+          <h3 className="font-bold text-white">{title || 'New Course'}</h3>
         </div>
         <div className="flex gap-2">
           {courseId && (
@@ -2286,15 +2446,27 @@ const CourseBuilder = ({ course, back }: { course: any; back: () => void }) => {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-bold text-slate-400 mb-1">Title</label>
-                <input value={title} onChange={e => setTitle(e.target.value)} className="w-full px-3 py-2 bg-[#1a1d26] border border-slate-800 rounded-lg text-white text-sm" />
+                <input
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  className="w-full px-3 py-2 bg-[#1a1d26] border border-slate-800 rounded-lg text-white text-sm"
+                />
               </div>
               <div>
                 <label className="block text-xs font-bold text-slate-400 mb-1">Instructor</label>
-                <input value={instructor} onChange={e => setInstructor(e.target.value)} className="w-full px-3 py-2 bg-[#1a1d26] border border-slate-800 rounded-lg text-white text-sm" />
+                <input
+                  value={instructor}
+                  onChange={(e) => setInstructor(e.target.value)}
+                  className="w-full px-3 py-2 bg-[#1a1d26] border border-slate-800 rounded-lg text-white text-sm"
+                />
               </div>
               <div className="col-span-2">
                 <label className="block text-xs font-bold text-slate-400 mb-1">Description</label>
-                <textarea value={description} onChange={e => setDescription(e.target.value)} className="w-full px-3 py-2 bg-[#1a1d26] border border-slate-800 rounded-lg text-white text-sm h-20" />
+                <textarea
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  className="w-full px-3 py-2 bg-[#1a1d26] border border-slate-800 rounded-lg text-white text-sm h-20"
+                />
               </div>
               <div className="col-span-2">
                 <FileUpload
@@ -2306,8 +2478,15 @@ const CourseBuilder = ({ course, back }: { course: any; back: () => void }) => {
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-400 mb-1">Pricing (0 for Free)</label>
-                <input type="number" value={pricing} onChange={e => setPricing(parseFloat(e.target.value))} className="w-full px-3 py-2 bg-[#1a1d26] border border-slate-800 rounded-lg text-white text-sm" />
+                <label className="block text-xs font-bold text-slate-400 mb-1">
+                  Pricing (0 for Free)
+                </label>
+                <input
+                  type="number"
+                  value={pricing}
+                  onChange={(e) => setPricing(parseFloat(e.target.value))}
+                  className="w-full px-3 py-2 bg-[#1a1d26] border border-slate-800 rounded-lg text-white text-sm"
+                />
               </div>
               {/* Course Access Settings */}
               <div className="col-span-2 mt-4 space-y-3">
@@ -2437,16 +2616,39 @@ const CourseBuilder = ({ course, back }: { course: any; back: () => void }) => {
                   </div>
                 ))}
                 <div className="flex justify-center gap-3 pt-4 mt-2 border-t border-slate-800/50">
-                  <QuickAddBtn icon={<Video size={14} />} label="Video" onClick={() => addItem(mod.id, 'video')} active={false} />
-                  <QuickAddBtn icon={<FileText size={14} />} label="Reading" onClick={() => addItem(mod.id, 'textbook')} active={false} />
-                  <QuickAddBtn icon={<FileText size={14} />} label="Document" onClick={() => addItem(mod.id, 'document')} active={false} />
-                  <QuickAddBtn icon={<Zap size={14} />} label="Quiz" active={true} onClick={() => addItem(mod.id, 'mcq')} />
+                  <QuickAddBtn
+                    icon={<Video size={14} />}
+                    label="Video"
+                    onClick={() => addItem(mod.id, 'video')}
+                    active={false}
+                  />
+                  <QuickAddBtn
+                    icon={<FileText size={14} />}
+                    label="Reading"
+                    onClick={() => addItem(mod.id, 'textbook')}
+                    active={false}
+                  />
+                  <QuickAddBtn
+                    icon={<FileText size={14} />}
+                    label="Document"
+                    onClick={() => addItem(mod.id, 'document')}
+                    active={false}
+                  />
+                  <QuickAddBtn
+                    icon={<Zap size={14} />}
+                    label="Quiz"
+                    active={true}
+                    onClick={() => addItem(mod.id, 'mcq')}
+                  />
                 </div>
               </div>
             </div>
           ))}
 
-          <button onClick={addModule} className="w-full py-4 border-2 border-dashed border-slate-800 rounded-xl text-slate-500 font-bold hover:text-white hover:border-slate-600 transition-all flex flex-col items-center gap-2">
+          <button
+            onClick={addModule}
+            className="w-full py-4 border-2 border-dashed border-slate-800 rounded-xl text-slate-500 font-bold hover:text-white hover:border-slate-600 transition-all flex flex-col items-center gap-2"
+          >
             <Plus size={24} /> Add Module
           </button>
         </div>
@@ -2744,7 +2946,13 @@ const CourseBuilder = ({ course, back }: { course: any; back: () => void }) => {
 };
 
 // --- Q-BANK LIST (MAIN) ---
-const QBankList = ({ nav, setActive }: { nav: (mod: string, id?: number) => void; setActive: (item: any) => void }) => {
+const QBankList = ({
+  nav,
+  setActive,
+}: {
+  nav: (mod: string, id?: number) => void;
+  setActive: (item: any) => void;
+}) => {
   const notification = useNotification();
   const queryClient = useQueryClient();
 
@@ -3449,7 +3657,10 @@ const BlogManager = ({ nav }: { nav: (mod: string) => void }) => {
           slug,
           content,
           author,
-          tags: tags.split(',').map(t => t.trim()).filter(t => t),
+          tags: tags
+            .split(',')
+            .map((t) => t.trim())
+            .filter((t) => t),
           status,
           cover: cover || null,
           excerpt,
@@ -3501,7 +3712,13 @@ const BlogManager = ({ nav }: { nav: (mod: string) => void }) => {
     setSlug(blog.slug);
     setContent(blog.content);
     setAuthor(blog.author);
-    setTags(Array.isArray(blog.tags) ? blog.tags.join(', ') : (typeof blog.tags === 'string' ? JSON.parse(blog.tags).join(', ') : ''));
+    setTags(
+      Array.isArray(blog.tags)
+        ? blog.tags.join(', ')
+        : typeof blog.tags === 'string'
+          ? JSON.parse(blog.tags).join(', ')
+          : ''
+    );
     setStatus(blog.status);
     setCover(blog.cover || '');
     setExcerpt(blog.excerpt || '');
@@ -3540,7 +3757,13 @@ const BlogManager = ({ nav }: { nav: (mod: string) => void }) => {
                   value={title}
                   onChange={(e) => {
                     setTitle(e.target.value);
-                    if (!editingBlog) setSlug(e.target.value.toLowerCase().replace(/ /g, '-').replace(/[^\w-]+/g, ''));
+                    if (!editingBlog)
+                      setSlug(
+                        e.target.value
+                          .toLowerCase()
+                          .replace(/ /g, '-')
+                          .replace(/[^\w-]+/g, '')
+                      );
                   }}
                   className="w-full px-3 py-2 bg-[#1a1d26] border border-slate-800 rounded-lg text-white text-sm focus:outline-none focus:border-purple-500"
                   required
@@ -3570,7 +3793,9 @@ const BlogManager = ({ nav }: { nav: (mod: string) => void }) => {
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-400 mb-1">Excerpt / Summary</label>
+              <label className="block text-xs font-bold text-slate-400 mb-1">
+                Excerpt / Summary
+              </label>
               <textarea
                 value={excerpt}
                 onChange={(e) => setExcerpt(e.target.value)}
@@ -3614,7 +3839,9 @@ const BlogManager = ({ nav }: { nav: (mod: string) => void }) => {
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-400 mb-1">Tags (comma separated)</label>
+              <label className="block text-xs font-bold text-slate-400 mb-1">
+                Tags (comma separated)
+              </label>
               <input
                 type="text"
                 value={tags}
@@ -3637,7 +3864,9 @@ const BlogManager = ({ nav }: { nav: (mod: string) => void }) => {
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-400 mb-1">Reading Time (minutes)</label>
+                <label className="block text-xs font-bold text-slate-400 mb-1">
+                  Reading Time (minutes)
+                </label>
                 <input
                   type="number"
                   min="1"
@@ -3675,7 +3904,9 @@ const BlogManager = ({ nav }: { nav: (mod: string) => void }) => {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-400 mb-1">SEO Description</label>
+                  <label className="block text-xs font-bold text-slate-400 mb-1">
+                    SEO Description
+                  </label>
                   <textarea
                     value={seoDescription}
                     onChange={(e) => setSeoDescription(e.target.value)}
@@ -3687,14 +3918,18 @@ const BlogManager = ({ nav }: { nav: (mod: string) => void }) => {
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-400 mb-1">Scheduled Publish Date (optional)</label>
+              <label className="block text-xs font-bold text-slate-400 mb-1">
+                Scheduled Publish Date (optional)
+              </label>
               <input
                 type="datetime-local"
                 value={scheduledPublish}
                 onChange={(e) => setScheduledPublish(e.target.value)}
                 className="w-full px-3 py-2 bg-[#1a1d26] border border-slate-800 rounded-lg text-white text-sm focus:outline-none focus:border-purple-500"
               />
-              <p className="text-[10px] text-slate-500 mt-1">Leave empty to publish immediately when status is set to published</p>
+              <p className="text-[10px] text-slate-500 mt-1">
+                Leave empty to publish immediately when status is set to published
+              </p>
             </div>
 
             <button
@@ -3717,19 +3952,36 @@ const BlogManager = ({ nav }: { nav: (mod: string) => void }) => {
             ) : blogs.length === 0 ? (
               <p className="text-center text-slate-500 py-4">No posts found</p>
             ) : (
-              blogs.map(blog => (
-                <div key={blog.id} className="p-3 bg-[#1a1d26] border border-slate-800/40 rounded-lg hover:border-purple-500/30 transition-all">
+              blogs.map((blog) => (
+                <div
+                  key={blog.id}
+                  className="p-3 bg-[#1a1d26] border border-slate-800/40 rounded-lg hover:border-purple-500/30 transition-all"
+                >
                   <div className="flex justify-between items-start mb-2">
                     <h4 className="font-bold text-white text-sm line-clamp-1">{blog.title}</h4>
-                    <span className={`text-[10px] px-2 py-0.5 rounded font-bold ${blog.status === 'published' ? 'bg-green-500/10 text-green-400' : 'bg-yellow-500/10 text-yellow-400'}`}>
+                    <span
+                      className={`text-[10px] px-2 py-0.5 rounded font-bold ${blog.status === 'published' ? 'bg-green-500/10 text-green-400' : 'bg-yellow-500/10 text-yellow-400'}`}
+                    >
                       {blog.status}
                     </span>
                   </div>
                   <div className="flex justify-between items-center mt-2">
-                    <span className="text-xs text-slate-500">{new Date(blog.createdAt).toLocaleDateString()}</span>
+                    <span className="text-xs text-slate-500">
+                      {new Date(blog.createdAt).toLocaleDateString()}
+                    </span>
                     <div className="flex gap-2">
-                      <button onClick={() => handleEdit(blog)} className="text-blue-400 hover:text-blue-300 text-xs font-bold">Edit</button>
-                      <button onClick={() => handleDelete(blog.id)} className="text-red-400 hover:text-red-300 text-xs font-bold">Delete</button>
+                      <button
+                        onClick={() => handleEdit(blog)}
+                        className="text-blue-400 hover:text-blue-300 text-xs font-bold"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => handleDelete(blog.id)}
+                        className="text-red-400 hover:text-red-300 text-xs font-bold"
+                      >
+                        Delete
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -3759,7 +4011,7 @@ const QuizManager = ({ nav }: { nav: (mod: string) => void }) => {
     question: '',
     options: { a: '', b: '', c: '', d: '' },
     correctAnswer: 'a',
-    explanation: ''
+    explanation: '',
   });
 
   React.useEffect(() => {
@@ -3816,7 +4068,9 @@ const QuizManager = ({ nav }: { nav: (mod: string) => void }) => {
 
   const fetchQuizzes = async (chapterId: string) => {
     try {
-      const response = await fetch(`/api/quizzes?chapterId=${chapterId}`, { credentials: 'include' });
+      const response = await fetch(`/api/quizzes?chapterId=${chapterId}`, {
+        credentials: 'include',
+      });
       if (response.ok) {
         const data = await response.json();
         setQuizzes(data.quizzes || []);
@@ -3833,7 +4087,7 @@ const QuizManager = ({ nav }: { nav: (mod: string) => void }) => {
       question: '',
       options: { a: '', b: '', c: '', d: '' },
       correctAnswer: 'a',
-      explanation: ''
+      explanation: '',
     });
   };
 
@@ -3851,7 +4105,7 @@ const QuizManager = ({ nav }: { nav: (mod: string) => void }) => {
           title,
           passMark,
           timeLimit,
-          questions
+          questions,
         }),
       });
 
@@ -3887,7 +4141,11 @@ const QuizManager = ({ nav }: { nav: (mod: string) => void }) => {
               className="w-full px-3 py-2 bg-[#1a1d26] border border-slate-800 rounded-lg text-white text-sm"
             >
               <option value="">Select Course...</option>
-              {courses.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
+              {courses.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.title}
+                </option>
+              ))}
             </select>
             <select
               value={selectedModule}
@@ -3896,7 +4154,11 @@ const QuizManager = ({ nav }: { nav: (mod: string) => void }) => {
               className="w-full px-3 py-2 bg-[#1a1d26] border border-slate-800 rounded-lg text-white text-sm"
             >
               <option value="">Select Module...</option>
-              {modules.map(m => <option key={m.id} value={m.id}>{m.title}</option>)}
+              {modules.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.title}
+                </option>
+              ))}
             </select>
             <select
               value={selectedChapter}
@@ -3905,7 +4167,11 @@ const QuizManager = ({ nav }: { nav: (mod: string) => void }) => {
               className="w-full px-3 py-2 bg-[#1a1d26] border border-slate-800 rounded-lg text-white text-sm"
             >
               <option value="">Select Chapter...</option>
-              {chapters.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
+              {chapters.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.title}
+                </option>
+              ))}
             </select>
           </div>
 
@@ -3923,7 +4189,9 @@ const QuizManager = ({ nav }: { nav: (mod: string) => void }) => {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-400 mb-1">Pass Mark (%)</label>
+                  <label className="block text-xs font-bold text-slate-400 mb-1">
+                    Pass Mark (%)
+                  </label>
                   <input
                     type="number"
                     value={passMark}
@@ -3932,7 +4200,9 @@ const QuizManager = ({ nav }: { nav: (mod: string) => void }) => {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-400 mb-1">Time Limit (min)</label>
+                  <label className="block text-xs font-bold text-slate-400 mb-1">
+                    Time Limit (min)
+                  </label>
                   <input
                     type="number"
                     value={timeLimit}
@@ -3959,31 +4229,45 @@ const QuizManager = ({ nav }: { nav: (mod: string) => void }) => {
                         type="text"
                         placeholder={`Option ${opt.toUpperCase()}`}
                         value={newQuestion.options[opt as keyof typeof newQuestion.options]}
-                        onChange={(e) => setNewQuestion({
-                          ...newQuestion,
-                          options: { ...newQuestion.options, [opt]: e.target.value }
-                        })}
+                        onChange={(e) =>
+                          setNewQuestion({
+                            ...newQuestion,
+                            options: { ...newQuestion.options, [opt]: e.target.value },
+                          })
+                        }
                         className="w-full px-3 py-2 bg-[#1a1d26] border border-slate-800 rounded-lg text-white text-sm"
                       />
                     ))}
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-xs font-bold text-slate-400 mb-1">Correct Option</label>
+                      <label className="block text-xs font-bold text-slate-400 mb-1">
+                        Correct Option
+                      </label>
                       <select
                         value={newQuestion.correctAnswer}
-                        onChange={(e) => setNewQuestion({ ...newQuestion, correctAnswer: e.target.value })}
+                        onChange={(e) =>
+                          setNewQuestion({ ...newQuestion, correctAnswer: e.target.value })
+                        }
                         className="w-full px-3 py-2 bg-[#1a1d26] border border-slate-800 rounded-lg text-white text-sm"
                       >
-                        {['a', 'b', 'c', 'd'].map(opt => <option key={opt} value={opt}>Option {opt.toUpperCase()}</option>)}
+                        {['a', 'b', 'c', 'd'].map((opt) => (
+                          <option key={opt} value={opt}>
+                            Option {opt.toUpperCase()}
+                          </option>
+                        ))}
                       </select>
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-slate-400 mb-1">Explanation</label>
+                      <label className="block text-xs font-bold text-slate-400 mb-1">
+                        Explanation
+                      </label>
                       <input
                         type="text"
                         value={newQuestion.explanation}
-                        onChange={(e) => setNewQuestion({ ...newQuestion, explanation: e.target.value })}
+                        onChange={(e) =>
+                          setNewQuestion({ ...newQuestion, explanation: e.target.value })
+                        }
                         className="w-full px-3 py-2 bg-[#1a1d26] border border-slate-800 rounded-lg text-white text-sm"
                       />
                     </div>
@@ -4012,7 +4296,7 @@ const QuizManager = ({ nav }: { nav: (mod: string) => void }) => {
         <div className="bg-[#161922] border border-slate-800/60 rounded-2xl p-6">
           <h3 className="font-bold text-white mb-6">Existing Quizzes</h3>
           <div className="space-y-3">
-            {quizzes.map(quiz => (
+            {quizzes.map((quiz) => (
               <div key={quiz.id} className="p-3 bg-[#1a1d26] border border-slate-800/40 rounded-lg">
                 <h4 className="font-bold text-white text-sm">{quiz.title}</h4>
                 <div className="flex justify-between mt-2 text-xs text-slate-500">
@@ -4021,7 +4305,9 @@ const QuizManager = ({ nav }: { nav: (mod: string) => void }) => {
                 </div>
               </div>
             ))}
-            {quizzes.length === 0 && <p className="text-slate-500 text-sm text-center">No quizzes found</p>}
+            {quizzes.length === 0 && (
+              <p className="text-slate-500 text-sm text-center">No quizzes found</p>
+            )}
           </div>
         </div>
       </div>
@@ -4139,7 +4425,12 @@ const UniversalQuestionEditor = ({ question, back }: { question: any; back: () =
       {/* EDITOR HEADER */}
       <div className="h-20 bg-gradient-to-r from-[#161922] to-[#1a1d26] border-b border-slate-800/60 flex items-center justify-between px-6 z-20 shadow-lg">
         <div className="flex items-center gap-4">
-          <button onClick={back} className="p-2 hover:bg-slate-800/50 rounded-lg text-slate-400 hover:text-white transition-colors"><ArrowLeft size={20} /></button>
+          <button
+            onClick={back}
+            className="p-2 hover:bg-slate-800/50 rounded-lg text-slate-400 hover:text-white transition-colors"
+          >
+            <ArrowLeft size={20} />
+          </button>
           <div>
             <h2 className="font-bold text-white text-xl tracking-tight">Question Editor</h2>
             <div className="flex items-center gap-3 mt-2">
@@ -4165,7 +4456,13 @@ const UniversalQuestionEditor = ({ question, back }: { question: any; back: () =
                 onChange={(e) => setType(e.target.value)}
                 className="bg-[#0b0d12] border border-slate-700 text-slate-200 rounded-lg px-3 py-1.5 text-xs font-medium outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 transition-all cursor-pointer"
               >
-                {(QUESTION_MODES[category.toUpperCase() as keyof typeof QUESTION_MODES]?.types || []).map((t: { id: string; label: string }) => <option key={t.id} value={t.id} className="bg-[#0b0d12]">{t.label}</option>)}
+                {(
+                  QUESTION_MODES[category.toUpperCase() as keyof typeof QUESTION_MODES]?.types || []
+                ).map((t: { id: string; label: string }) => (
+                  <option key={t.id} value={t.id} className="bg-[#0b0d12]">
+                    {t.label}
+                  </option>
+                ))}
               </select>
             </div>
           </div>
@@ -4200,7 +4497,9 @@ const UniversalQuestionEditor = ({ question, back }: { question: any; back: () =
             <div className="p-4 border-b border-slate-800/50 bg-gradient-to-r from-[#161922] to-[#1a1d26]">
               <div className="flex items-center gap-2">
                 <div className="w-1 h-4 bg-blue-500 rounded-full"></div>
-                <span className="text-xs font-bold text-blue-400 uppercase tracking-wider">Question Stem</span>
+                <span className="text-xs font-bold text-blue-400 uppercase tracking-wider">
+                  Question Stem
+                </span>
               </div>
             </div>
           )}
@@ -4208,8 +4507,16 @@ const UniversalQuestionEditor = ({ question, back }: { question: any; back: () =
           <div className="flex-1 p-6 overflow-y-auto custom-scrollbar">
             <textarea
               className="w-full h-full bg-[#161922]/50 border border-slate-800/50 rounded-xl p-4 outline-none text-slate-200 text-sm resize-none leading-relaxed focus:border-purple-500/50 focus:ring-2 focus:ring-purple-500/20 transition-all placeholder:text-slate-600"
-              placeholder={category === 'ngn' ? `Enter patient ${activeTab} data here...` : "Enter the question text here..."}
-              defaultValue={category === 'ngn' ? "A 45-year-old male client is admitted..." : "Which of the following is the priority nursing intervention?"}
+              placeholder={
+                category === 'ngn'
+                  ? `Enter patient ${activeTab} data here...`
+                  : 'Enter the question text here...'
+              }
+              defaultValue={
+                category === 'ngn'
+                  ? 'A 45-year-old male client is admitted...'
+                  : 'Which of the following is the priority nursing intervention?'
+              }
             />
           </div>
         </div>
@@ -4238,9 +4545,7 @@ const UniversalQuestionEditor = ({ question, back }: { question: any; back: () =
             </div>
           )}
 
-          <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
-            {renderEditor()}
-          </div>
+          <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">{renderEditor()}</div>
 
           <div className="border-t border-slate-800/50 p-4 bg-gradient-to-r from-[#11131a] to-[#161922]">
             <details className="group">
@@ -4249,7 +4554,10 @@ const UniversalQuestionEditor = ({ question, back }: { question: any; back: () =
                   <Zap size={14} className="text-purple-400" />
                   Rationale Engine
                 </span>
-                <ChevronRight size={16} className="group-open:rotate-90 transition-transform text-slate-500" />
+                <ChevronRight
+                  size={16}
+                  className="group-open:rotate-90 transition-transform text-slate-500"
+                />
               </summary>
               <div className="mt-4 space-y-3 pl-4 border-l-2 border-purple-500/30">
                 <input
@@ -4273,13 +4581,21 @@ const UniversalQuestionEditor = ({ question, back }: { question: any; back: () =
 
 const BowTieEditor = () => (
   <div className="space-y-6">
-    <div className="text-center mb-6"><div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 text-blue-400 text-xs font-bold border border-blue-500/20"><Zap size={12} /> Bow-Tie Protocol</div></div>
+    <div className="text-center mb-6">
+      <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 text-blue-400 text-xs font-bold border border-blue-500/20">
+        <Zap size={12} /> Bow-Tie Protocol
+      </div>
+    </div>
     <div className="grid grid-cols-3 gap-4">
       <BowTieColumn title="Actions to Take" color="blue" count={2} center={false} />
       <div className="relative">
         <BowTieColumn title="Potential Condition" color="orange" count={1} center={true} />
-        <div className="absolute top-1/2 -left-3 w-6 h-6 bg-[#0b0d12] border border-slate-700 rounded-full flex items-center justify-center z-10 text-slate-500"><ChevronRight size={12} /></div>
-        <div className="absolute top-1/2 -right-3 w-6 h-6 bg-[#0b0d12] border border-slate-700 rounded-full flex items-center justify-center z-10 text-slate-500"><ChevronRight size={12} /></div>
+        <div className="absolute top-1/2 -left-3 w-6 h-6 bg-[#0b0d12] border border-slate-700 rounded-full flex items-center justify-center z-10 text-slate-500">
+          <ChevronRight size={12} />
+        </div>
+        <div className="absolute top-1/2 -right-3 w-6 h-6 bg-[#0b0d12] border border-slate-700 rounded-full flex items-center justify-center z-10 text-slate-500">
+          <ChevronRight size={12} />
+        </div>
       </div>
       <BowTieColumn title="Parameters to Monitor" color="green" count={2} center={false} />
     </div>
@@ -4291,14 +4607,23 @@ const CaseStudyEditor = ({ step, setStep }: { step: number; setStep: (step: numb
     <div className="bg-[#161922] border border-slate-800 rounded-xl p-6 text-center border-dashed">
       <p className="text-slate-400 text-sm mb-2">Question Type for Step {step}</p>
       <div className="flex justify-center gap-2">
-        <button className="px-3 py-1 bg-slate-800 rounded text-xs font-bold text-white hover:bg-purple-600">Matrix</button>
-        <button className="px-3 py-1 bg-slate-800 rounded text-xs font-bold text-white hover:bg-purple-600">SATA</button>
-        <button className="px-3 py-1 bg-slate-800 rounded text-xs font-bold text-white hover:bg-purple-600">Drop-Down</button>
+        <button className="px-3 py-1 bg-slate-800 rounded text-xs font-bold text-white hover:bg-purple-600">
+          Matrix
+        </button>
+        <button className="px-3 py-1 bg-slate-800 rounded text-xs font-bold text-white hover:bg-purple-600">
+          SATA
+        </button>
+        <button className="px-3 py-1 bg-slate-800 rounded text-xs font-bold text-white hover:bg-purple-600">
+          Drop-Down
+        </button>
       </div>
     </div>
     <div className="space-y-2">
       <label className="text-xs font-bold text-slate-500 uppercase">Question Stem</label>
-      <textarea className="w-full bg-[#11131a] border border-slate-700 rounded-lg p-3 text-sm text-white h-24 resize-none" placeholder="Enter question text for this step..." />
+      <textarea
+        className="w-full bg-[#11131a] border border-slate-700 rounded-lg p-3 text-sm text-white h-24 resize-none"
+        placeholder="Enter question text for this step..."
+      />
     </div>
   </div>
 );
@@ -4306,34 +4631,58 @@ const CaseStudyEditor = ({ step, setStep }: { step: number; setStep: (step: numb
 const MatrixEditor = () => (
   <div className="bg-[#161922] border border-slate-800 rounded-xl overflow-hidden">
     <div className="grid grid-cols-4 bg-[#1a1d26] border-b border-slate-800 text-xs font-bold text-center py-3 text-slate-400">
-      <div className="text-left pl-4">Row Item</div><div>Indicated</div><div>Contraindicated</div><div>Non-Essential</div>
+      <div className="text-left pl-4">Row Item</div>
+      <div>Indicated</div>
+      <div>Contraindicated</div>
+      <div>Non-Essential</div>
     </div>
-    {[1, 2, 3, 4].map(r => (
+    {[1, 2, 3, 4].map((r) => (
       <div key={r} className="grid grid-cols-4 border-b border-slate-800/50 py-2 items-center">
-        <input className="mx-2 bg-[#0b0d12] border border-slate-700 rounded px-2 py-1 text-sm text-slate-300" placeholder={`Row ${r} text...`} />
-        <div className="flex justify-center"><input type="radio" name={`r${r}`} className="accent-purple-500" /></div>
-        <div className="flex justify-center"><input type="radio" name={`r${r}`} className="accent-purple-500" /></div>
-        <div className="flex justify-center"><input type="radio" name={`r${r}`} className="accent-purple-500" /></div>
+        <input
+          className="mx-2 bg-[#0b0d12] border border-slate-700 rounded px-2 py-1 text-sm text-slate-300"
+          placeholder={`Row ${r} text...`}
+        />
+        <div className="flex justify-center">
+          <input type="radio" name={`r${r}`} className="accent-purple-500" />
+        </div>
+        <div className="flex justify-center">
+          <input type="radio" name={`r${r}`} className="accent-purple-500" />
+        </div>
+        <div className="flex justify-center">
+          <input type="radio" name={`r${r}`} className="accent-purple-500" />
+        </div>
       </div>
     ))}
-    <button className="w-full py-2 text-xs font-bold text-purple-400 hover:bg-purple-500/10">+ Add Row</button>
+    <button className="w-full py-2 text-xs font-bold text-purple-400 hover:bg-purple-500/10">
+      + Add Row
+    </button>
   </div>
 );
 
 const TrendEditor = () => (
   <div className="space-y-4">
-    <p className="text-sm text-slate-400 text-center italic">"Review the data in the tabs to answer the question."</p>
+    <p className="text-sm text-slate-400 text-center italic">
+      "Review the data in the tabs to answer the question."
+    </p>
     <StandardEditor type="radio" />
   </div>
 );
 
-const StandardEditor = ({ type }: { type: "radio" | "checkbox" }) => (
+const StandardEditor = ({ type }: { type: 'radio' | 'checkbox' }) => (
   <div className="space-y-4">
     <div className="space-y-2">
-      {[1, 2, 3, 4].map(i => (
-        <div key={i} className="flex items-center gap-3 p-3 border border-slate-800 rounded-lg bg-[#11131a]">
-          <div className="w-6 h-6 rounded border border-slate-600 flex items-center justify-center text-xs font-bold text-slate-500">{String.fromCharCode(64 + i)}</div>
-          <input className="flex-1 bg-transparent outline-none text-sm text-slate-300" placeholder={`Option ${i}`} />
+      {[1, 2, 3, 4].map((i) => (
+        <div
+          key={i}
+          className="flex items-center gap-3 p-3 border border-slate-800 rounded-lg bg-[#11131a]"
+        >
+          <div className="w-6 h-6 rounded border border-slate-600 flex items-center justify-center text-xs font-bold text-slate-500">
+            {String.fromCharCode(64 + i)}
+          </div>
+          <input
+            className="flex-1 bg-transparent outline-none text-sm text-slate-300"
+            placeholder={`Option ${i}`}
+          />
           <input type={type} name="opt" className="accent-blue-500 w-4 h-4" />
         </div>
       ))}
@@ -4346,15 +4695,22 @@ const BowTieColumn = ({ title, color, count, center }: { title: string; color: s
   const colors: Record<string, string> = {
     blue: 'border-blue-500/30 bg-blue-500/5 text-blue-400',
     orange: 'border-orange-500/30 bg-orange-500/5 text-orange-400',
-    green: 'border-green-500/30 bg-green-500/5 text-green-400'
+    green: 'border-green-500/30 bg-green-500/5 text-green-400',
   };
   const colorClass = colors[color] || colors.blue;
   return (
-    <div className={`border rounded-xl p-4 flex flex-col ${colorClass} ${center ? 'ring-2 ring-orange-500/20' : ''}`}>
-      <h4 className="text-[10px] font-black text-center uppercase tracking-widest mb-4 opacity-80">{title}</h4>
+    <div
+      className={`border rounded-xl p-4 flex flex-col ${colorClass} ${center ? 'ring-2 ring-orange-500/20' : ''}`}
+    >
+      <h4 className="text-[10px] font-black text-center uppercase tracking-widest mb-4 opacity-80">
+        {title}
+      </h4>
       <div className="flex-1 space-y-2 bg-[#11131a]/50 rounded p-2 min-h-[200px]">
         {Array.from({ length: count + 2 }).map((_, i) => (
-          <div key={i} className="flex items-center gap-2 p-2 rounded border border-transparent hover:bg-[#161922] hover:border-slate-700 cursor-pointer transition-all group">
+          <div
+            key={i}
+            className="flex items-center gap-2 p-2 rounded border border-transparent hover:bg-[#161922] hover:border-slate-700 cursor-pointer transition-all group"
+          >
             <div className="w-3 h-3 border border-slate-600 rounded-sm group-hover:border-white"></div>
             <div className="h-1.5 w-16 bg-slate-800 rounded-full group-hover:bg-slate-600"></div>
           </div>
@@ -4460,7 +4816,10 @@ const AdminProfile = ({ nav, adminUser }: { nav: (mod: string) => void; adminUse
       {/* HEADER */}
       <div className="h-20 bg-[#161922] border-b border-slate-800/60 flex items-center justify-between px-6">
         <div className="flex items-center gap-4">
-          <button onClick={() => nav('dashboard')} className="p-2 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition-colors">
+          <button
+            onClick={() => nav('dashboard')}
+            className="p-2 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition-colors"
+          >
             <ArrowLeft size={20} />
           </button>
           <h2 className="font-bold text-white text-xl">Admin Profile</h2>
@@ -4500,7 +4859,14 @@ const AdminProfile = ({ nav, adminUser }: { nav: (mod: string) => void; adminUse
           <div className="bg-gradient-to-r from-purple-600/20 to-pink-600/20 border border-purple-500/30 rounded-2xl p-8">
             <div className="flex items-center gap-6">
               <div className="w-24 h-24 rounded-full bg-gradient-to-br from-purple-600 to-pink-500 flex items-center justify-center text-3xl font-bold text-white shadow-lg shadow-purple-500/30">
-                {user?.name ? user.name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2) : 'AD'}
+                {user?.name
+                  ? user.name
+                      .split(' ')
+                      .map((n: string) => n[0])
+                      .join('')
+                      .toUpperCase()
+                      .slice(0, 2)
+                  : 'AD'}
               </div>
               <div className="flex-1">
                 <h1 className="text-3xl font-bold text-white mb-2">{user?.name || 'Admin User'}</h1>
@@ -4527,7 +4893,9 @@ const AdminProfile = ({ nav, adminUser }: { nav: (mod: string) => void; adminUse
               </h3>
               <div className="space-y-4">
                 <div>
-                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Full Name</label>
+                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
+                    Full Name
+                  </label>
                   {editMode ? (
                     <input
                       type="text"
@@ -4540,7 +4908,9 @@ const AdminProfile = ({ nav, adminUser }: { nav: (mod: string) => void; adminUse
                   )}
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Email Address</label>
+                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
+                    Email Address
+                  </label>
                   {editMode ? (
                     <input
                       type="email"
@@ -4554,7 +4924,9 @@ const AdminProfile = ({ nav, adminUser }: { nav: (mod: string) => void; adminUse
                   )}
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Phone Number</label>
+                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
+                    Phone Number
+                  </label>
                   {editMode ? (
                     <input
                       type="tel"
@@ -4578,18 +4950,24 @@ const AdminProfile = ({ nav, adminUser }: { nav: (mod: string) => void; adminUse
               </h3>
               <div className="space-y-4">
                 <div>
-                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Role</label>
+                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
+                    Role
+                  </label>
                   <p className="text-slate-200 font-medium">{user?.role || 'admin'}</p>
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Account Status</label>
+                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
+                    Account Status
+                  </label>
                   <div className="flex items-center gap-2">
                     <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                     <p className="text-green-400 font-medium">Active</p>
                   </div>
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Member Since</label>
+                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
+                    Member Since
+                  </label>
                   <p className="text-slate-200 font-medium">
                     {user?.joinedDate ? new Date(user.joinedDate).toLocaleDateString() : 'N/A'}
                   </p>
@@ -4612,7 +4990,9 @@ const AdminProfile = ({ nav, adminUser }: { nav: (mod: string) => void; adminUse
                   placeholder="Tell us about yourself..."
                 />
               ) : (
-                <p className="text-slate-300 leading-relaxed">{user?.bio || 'No bio provided yet.'}</p>
+                <p className="text-slate-300 leading-relaxed">
+                  {user?.bio || 'No bio provided yet.'}
+                </p>
               )}
             </div>
 

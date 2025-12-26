@@ -3,17 +3,26 @@ export interface DateRange {
   to: string;
 }
 
+export interface StructuredAddress {
+  addressLine: string;
+  city: string;
+  postalCode: string;
+  country: string;
+}
+
 export interface NursingPersonalDetails {
   firstName: string;
   lastName: string;
   collegeNameVariant: string;
   hasNameChange: 'Yes' | 'No';
+  nameChangeDetails?: string; // If Yes – what's the name
+  needsAffidavit: boolean; // Affidavit reminder checkbox
   maidenName: string;
   motherMaidenName: string;
   dateOfBirth: string;
   placeOfBirth: string;
   gender: 'Male' | 'Female' | 'Other';
-  address: string;
+  address: StructuredAddress;
   phoneNumber: string;
   email: string;
   firstLanguage: string;
@@ -21,9 +30,11 @@ export interface NursingPersonalDetails {
 
 export interface NursingEducationEntry {
   institutionName: string;
-  address: string;
+  address: StructuredAddress;
   programType: string;
   studyPeriod: DateRange;
+  languageOfInstruction?: string;
+  isCollegeOperational?: 'Yes' | 'No';
 }
 
 export interface NursingRegistrationEntry {
@@ -60,6 +71,10 @@ export interface NursingCandidateFormPayload {
     hasDisciplinaryAction: 'Yes' | 'No';
     entries: NursingRegistrationEntry[];
   };
+  nclexExamHistory: {
+    hasWrittenExam: 'Yes' | 'No';
+    attempts: NclexExamAttempt[];
+  };
   employmentHistory: NursingExperienceEntry[];
   canadaEmploymentHistory: NursingCanadaExperienceEntry[];
   nclexHistory: {
@@ -69,4 +84,3 @@ export interface NursingCandidateFormPayload {
   referenceNumber?: string;
   documentChecklistAcknowledged: boolean;
 }
-

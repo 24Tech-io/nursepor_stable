@@ -11,10 +11,7 @@ import { withRequestLock } from '@/lib/operation-lock';
 import { createErrorResponse } from '@/lib/error-handler';
 
 // PATCH - Approve or deny request
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     logger.info('🔄 [PATCH /api/requests/[id]] Starting request approval/denial...');
 
@@ -64,10 +61,7 @@ export async function PATCH(
     }
 
     if (isNaN(requestId)) {
-      return NextResponse.json(
-        { message: 'Invalid request ID' },
-        { status: 400 }
-      );
+      return NextResponse.json({ message: 'Invalid request ID' }, { status: 400 });
     }
 
     // Get database connection
@@ -92,7 +86,7 @@ export async function PATCH(
           studentId: accessRequests.studentId,
           courseId: accessRequests.courseId,
           status: accessRequests.status,
-          courseTitle: courses.title
+          courseTitle: courses.title,
         })
         .from(accessRequests)
         .innerJoin(courses, eq(accessRequests.courseId, courses.id))
@@ -119,7 +113,7 @@ export async function PATCH(
       studentId: accessRequest.studentId,
       courseId: accessRequest.courseId,
       status: accessRequest.status,
-      courseTitle: accessRequest.courseTitle
+      courseTitle: accessRequest.courseTitle,
     });
 
     // If request is already approved/rejected, verify enrollment exists and delete it
@@ -289,7 +283,7 @@ export async function PATCH(
       {
         message: 'Failed to update request',
         error: error.message,
-        details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        details: process.env.NODE_ENV === 'development' ? error.stack : undefined,
       },
       { status: 500 }
     );

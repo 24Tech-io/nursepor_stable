@@ -30,11 +30,7 @@ export async function canAccessChapter(
     const db = getDatabase();
 
     // Get the chapter to check if it has prerequisites
-    const chapter = await db
-      .select()
-      .from(chapters)
-      .where(eq(chapters.id, chapterId))
-      .limit(1);
+    const chapter = await db.select().from(chapters).where(eq(chapters.id, chapterId)).limit(1);
 
     if (chapter.length === 0) {
       return { canAccess: false, reason: 'Chapter not found' };
@@ -62,7 +58,7 @@ export async function canAccessChapter(
     // Check if student has completed the prerequisite
     // For now, we'll assume completion is tracked in studentProgress
     // In a full implementation, you'd have a chapterProgress table
-    
+
     // TODO: Implement chapter-level progress tracking
     // For now, we'll allow access if they have enrolled in the course
     const enrollment = await db
@@ -97,12 +93,8 @@ export async function canAccessChapter(
 /**
  * Check if a student has completed a chapter
  */
-export async function isChapterCompleted(
-  studentId: number,
-  chapterId: number
-): Promise<boolean> {
+export async function isChapterCompleted(studentId: number, chapterId: number): Promise<boolean> {
   // TODO: Implement chapter completion tracking
   // For now, return false
   return false;
 }
-

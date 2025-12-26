@@ -79,7 +79,11 @@ export async function sendOTPEmail(email: string, otp: string, name?: string): P
   });
 }
 
-export async function sendPasswordResetEmail(email: string, resetLink: string, name?: string): Promise<boolean> {
+export async function sendPasswordResetEmail(
+  email: string,
+  resetLink: string,
+  name?: string
+): Promise<boolean> {
   const html = `
 <!DOCTYPE html>
 <html>

@@ -16,10 +16,7 @@ export class EnrollmentOperations {
    * Enroll a student in a course
    * Creates entries in both studentProgress and enrollments tables
    */
-  static async enrollStudent(
-    tx: any,
-    params: EnrollmentParams
-  ): Promise<DualTableSyncResult> {
+  static async enrollStudent(tx: any, params: EnrollmentParams): Promise<DualTableSyncResult> {
     const result: DualTableSyncResult = {
       studentProgressCreated: false,
       enrollmentCreated: false,
@@ -59,12 +56,7 @@ export class EnrollmentOperations {
     const existingEnrollment = await tx
       .select({ id: enrollments.id, status: enrollments.status })
       .from(enrollments)
-      .where(
-        and(
-          eq(enrollments.userId, params.userId),
-          eq(enrollments.courseId, params.courseId)
-        )
-      )
+      .where(and(eq(enrollments.userId, params.userId), eq(enrollments.courseId, params.courseId)))
       .limit(1);
 
     if (existingEnrollment.length === 0) {
@@ -130,10 +122,7 @@ export class EnrollmentOperations {
    * Unenroll a student from a course
    * Removes entries from both studentProgress and enrollments tables
    */
-  static async unenrollStudent(
-    tx: any,
-    params: UnenrollmentParams
-  ): Promise<{ deleted: boolean }> {
+  static async unenrollStudent(tx: any, params: UnenrollmentParams): Promise<{ deleted: boolean }> {
     // Delete from studentProgress
     const progressResult = await tx
       .delete(studentProgress)
@@ -147,12 +136,7 @@ export class EnrollmentOperations {
     // Delete from enrollments
     const enrollmentResult = await tx
       .delete(enrollments)
-      .where(
-        and(
-          eq(enrollments.userId, params.userId),
-          eq(enrollments.courseId, params.courseId)
-        )
-      );
+      .where(and(eq(enrollments.userId, params.userId), eq(enrollments.courseId, params.courseId)));
 
     const deleted = progressResult !== undefined || enrollmentResult !== undefined;
 
@@ -184,20 +168,22 @@ export class EnrollmentOperations {
     courseId: number
   ): Promise<{ inProgress: boolean; inEnrollments: boolean; verified: boolean }> {
     const [progressCheck, enrollmentCheck] = await Promise.all([
-      tx.select({ id: studentProgress.id })
+      tx
+        .select({ id: studentProgress.id })
         .from(studentProgress)
         .where(and(eq(studentProgress.studentId, userId), eq(studentProgress.courseId, courseId)))
         .limit(1),
-      tx.select({ id: enrollments.id })
+      tx
+        .select({ id: enrollments.id })
         .from(enrollments)
         .where(and(eq(enrollments.userId, userId), eq(enrollments.courseId, courseId)))
-        .limit(1)
+        .limit(1),
     ]);
-    
+
     return {
       inProgress: progressCheck.length > 0,
       inEnrollments: enrollmentCheck.length > 0,
-      verified: progressCheck.length > 0 && enrollmentCheck.length > 0
+      verified: progressCheck.length > 0 && enrollmentCheck.length > 0,
     };
   }
 
@@ -222,22 +208,12 @@ export class EnrollmentOperations {
       tx
         .select()
         .from(studentProgress)
-        .where(
-          and(
-            eq(studentProgress.studentId, userId),
-            eq(studentProgress.courseId, courseId)
-          )
-        )
+        .where(and(eq(studentProgress.studentId, userId), eq(studentProgress.courseId, courseId)))
         .limit(1),
       tx
         .select()
         .from(enrollments)
-        .where(
-          and(
-            eq(enrollments.userId, userId),
-            eq(enrollments.courseId, courseId)
-          )
-        )
+        .where(and(eq(enrollments.userId, userId), eq(enrollments.courseId, courseId)))
         .limit(1),
     ]);
 
@@ -288,4 +264,3 @@ export class EnrollmentOperations {
     return result;
   }
 }
-

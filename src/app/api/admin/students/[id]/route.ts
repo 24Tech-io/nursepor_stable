@@ -5,10 +5,7 @@ import { getDatabaseWithRetry } from '@/lib/db';
 import { users, studentProgress, courses, accessRequests, enrollments } from '@/lib/db/schema';
 import { eq, and, or, sql } from 'drizzle-orm';
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     logger.info('📥 GET /api/students/[id] called with params:', params);
     logger.info('📥 Request URL:', request.url);
@@ -96,12 +93,7 @@ export async function GET(
       const pendingRequests = await db
         .select({ courseId: accessRequests.courseId })
         .from(accessRequests)
-        .where(
-          and(
-            eq(accessRequests.studentId, student.id),
-            eq(accessRequests.status, 'pending')
-          )
-        )
+        .where(and(eq(accessRequests.studentId, student.id), eq(accessRequests.status, 'pending')))
         .limit(100); // Limit to prevent huge queries
 
       pendingRequestCourseIds = new Set(
@@ -211,7 +203,10 @@ export async function GET(
           } else {
             // Already in map from enrollments, but update lastAccessed if studentProgress is more recent
             const existing = enrollmentMap.get(courseIdStr);
-            if (e.lastAccessed && (!existing.lastAccessed || e.lastAccessed > existing.lastAccessed)) {
+            if (
+              e.lastAccessed &&
+              (!existing.lastAccessed || e.lastAccessed > existing.lastAccessed)
+            ) {
               existing.lastAccessed = e.lastAccessed;
             }
           }
@@ -245,12 +240,7 @@ export async function GET(
         })
         .from(accessRequests)
         .innerJoin(courses, eq(accessRequests.courseId, courses.id))
-        .where(
-          and(
-            eq(accessRequests.studentId, student.id),
-            eq(accessRequests.status, 'pending')
-          )
-        )
+        .where(and(eq(accessRequests.studentId, student.id), eq(accessRequests.status, 'pending')))
         .limit(100);
 
       pendingRequests = requestsData.map((r: any) => ({
@@ -285,10 +275,9 @@ export async function GET(
       {
         message: 'Failed to fetch student',
         error: error.message,
-        details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        details: process.env.NODE_ENV === 'development' ? error.stack : undefined,
       },
       { status: 500 }
     );
   }
 }
-

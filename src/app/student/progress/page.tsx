@@ -65,9 +65,9 @@ export default function ProgressPage() {
     const handleFocus = () => {
       fetchProgress();
     };
-    
+
     window.addEventListener('focus', handleFocus);
-    
+
     return () => {
       window.removeEventListener('focus', handleFocus);
       syncClient.off('sync', fetchProgress);
@@ -77,7 +77,7 @@ export default function ProgressPage() {
 
   const filtered = useMemo(() => {
     const q = query.toLowerCase();
-    return progress.filter(r => r.course.title.toLowerCase().includes(q));
+    return progress.filter((r) => r.course.title.toLowerCase().includes(q));
   }, [progress, query]);
 
   if (isLoading) {

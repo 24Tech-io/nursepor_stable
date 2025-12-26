@@ -8,13 +8,17 @@ import { createValidationError } from './error-handler';
 /**
  * Validate student ID
  */
-export function validateStudentId(studentId: any): { valid: boolean; error?: string; value?: number } {
+export function validateStudentId(studentId: any): {
+  valid: boolean;
+  error?: string;
+  value?: number;
+} {
   if (!studentId) {
     return { valid: false, error: 'Student ID is required' };
   }
 
   const id = typeof studentId === 'string' ? parseInt(studentId) : studentId;
-  
+
   if (isNaN(id) || id <= 0) {
     return { valid: false, error: 'Invalid student ID' };
   }
@@ -25,13 +29,17 @@ export function validateStudentId(studentId: any): { valid: boolean; error?: str
 /**
  * Validate course ID
  */
-export function validateCourseId(courseId: any): { valid: boolean; error?: string; value?: number } {
+export function validateCourseId(courseId: any): {
+  valid: boolean;
+  error?: string;
+  value?: number;
+} {
   if (!courseId) {
     return { valid: false, error: 'Course ID is required' };
   }
 
   const id = typeof courseId === 'string' ? parseInt(courseId) : courseId;
-  
+
   if (isNaN(id) || id <= 0) {
     return { valid: false, error: 'Invalid course ID' };
   }
@@ -94,10 +102,7 @@ export function validateAccessRequest(data: any): {
 /**
  * Validate pagination parameters
  */
-export function validatePagination(params: {
-  page?: any;
-  limit?: any;
-}): {
+export function validatePagination(params: { page?: any; limit?: any }): {
   valid: boolean;
   error?: string;
   page?: number;

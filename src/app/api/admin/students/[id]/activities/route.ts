@@ -7,10 +7,7 @@ import { getDatabaseWithRetry } from '@/lib/db';
 import { studentActivityLogs, users } from '@/lib/db/schema';
 import { eq, desc, and } from 'drizzle-orm';
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     const token = request.cookies.get('adminToken')?.value;
 
@@ -94,19 +91,12 @@ export async function GET(
     return NextResponse.json(
       {
         message: 'Failed to fetch student activities',
-        error: process.env.NODE_ENV === 'development' ? error.message : undefined
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined,
       },
       { status: 500 }
     );
   }
 }
-
-
-
-
-
-
-
 
 
 

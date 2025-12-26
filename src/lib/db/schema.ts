@@ -52,7 +52,9 @@ export const courses = pgTable('courses', {
 // Modules table
 export const modules = pgTable('modules', {
   id: serial('id').primaryKey(),
-  courseId: integer('course_id').notNull().references(() => courses.id, { onDelete: 'cascade' }),
+  courseId: integer('course_id')
+    .notNull()
+    .references(() => courses.id, { onDelete: 'cascade' }),
   title: text('title').notNull(),
   description: text('description'),
   order: integer('order').notNull(),
@@ -67,7 +69,9 @@ export const modules = pgTable('modules', {
 // Chapters table
 export const chapters = pgTable('chapters', {
   id: serial('id').primaryKey(),
-  moduleId: integer('module_id').notNull().references(() => modules.id, { onDelete: 'cascade' }),
+  moduleId: integer('module_id')
+    .notNull()
+    .references(() => modules.id, { onDelete: 'cascade' }),
   title: text('title').notNull(),
   description: text('description'),
   type: text('type').notNull(),
@@ -116,11 +120,15 @@ export const quizzes = pgTable('quizzes', {
 // Quiz Questions table (Legacy - for old quizzes)
 export const quizQuestions = pgTable('quiz_questions', {
   id: serial('id').primaryKey(),
-  quizId: integer('quiz_id').notNull().references(() => quizzes.id, { onDelete: 'cascade' }),
+  quizId: integer('quiz_id')
+    .notNull()
+    .references(() => quizzes.id, { onDelete: 'cascade' }),
   question: text('question').notNull(),
+  questionType: text('question_type').notNull().default('mcq'), // mcq, sata, ngn_case_study, bowtie, trend, etc.
   options: text('options').notNull(),
   correctAnswer: text('correct_answer').notNull(),
   explanation: text('explanation'),
+  imageUrl: text('image_url'), // URL to uploaded question image
   order: integer('order').notNull(),
 });
 
@@ -186,8 +194,12 @@ export const qbankQuestions = pgTable('qbank_questions', {
 // Quiz Q-Bank Questions (NEW - links quizzes to Q-Bank questions)
 export const quizQbankQuestions = pgTable('quiz_qbank_questions', {
   id: serial('id').primaryKey(),
-  quizId: integer('quiz_id').notNull().references(() => quizzes.id, { onDelete: 'cascade' }),
-  questionId: integer('question_id').notNull().references(() => qbankQuestions.id, { onDelete: 'cascade' }),
+  quizId: integer('quiz_id')
+    .notNull()
+    .references(() => quizzes.id, { onDelete: 'cascade' }),
+  questionId: integer('question_id')
+    .notNull()
+    .references(() => qbankQuestions.id, { onDelete: 'cascade' }),
   sortOrder: integer('sort_order').default(0),
   createdAt: timestamp('created_at').notNull().defaultNow(),
 });
@@ -209,8 +221,12 @@ export const blogPosts = pgTable('blog_posts', {
 // Access Requests table
 export const accessRequests = pgTable('access_requests', {
   id: serial('id').primaryKey(),
-  studentId: integer('student_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
-  courseId: integer('course_id').notNull().references(() => courses.id, { onDelete: 'cascade' }),
+  studentId: integer('student_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  courseId: integer('course_id')
+    .notNull()
+    .references(() => courses.id, { onDelete: 'cascade' }),
   reason: text('reason'),
   status: text('status').notNull().default('pending'),
   requestedAt: timestamp('requested_at').notNull().defaultNow(),
@@ -238,7 +254,9 @@ export const studentProgress = pgTable('student_progress', {
 // Notifications table
 export const notifications = pgTable('notifications', {
   id: serial('id').primaryKey(),
-  userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  userId: integer('user_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
   title: text('title').notNull(),
   message: text('message').notNull(),
   type: text('type').notNull().default('info'),
@@ -249,7 +267,9 @@ export const notifications = pgTable('notifications', {
 // Sessions table for session management
 export const sessions = pgTable('sessions', {
   id: serial('id').primaryKey(),
-  userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  userId: integer('user_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
   sessionToken: text('session_token').unique().notNull(),
   deviceInfo: text('device_info'),
   expiresAt: timestamp('expires_at').notNull(),
@@ -483,20 +503,28 @@ export const sessionsRelations = relations(sessions, ({ one }) => ({
 // Note: paymentsRelations is defined after textbooks to avoid forward reference issues
 
 // Course Reviews & Ratings
-export const courseReviews = pgTable('course_reviews', {
-  id: serial('id').primaryKey(),
-  courseId: integer('course_id').notNull().references(() => courses.id, { onDelete: 'cascade' }),
-  userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
-  rating: integer('rating').notNull(), // 1-5 stars
-  review: text('review'),
-  isPublished: boolean('is_published').notNull().default(true),
-  helpful: integer('helpful').notNull().default(0), // Number of helpful votes
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-  updatedAt: timestamp('updated_at').notNull().defaultNow(),
-}, (table) => ({
-  // One review per user per course
-  userCourseUnique: unique('user_course_review_unique').on(table.userId, table.courseId),
-}));
+export const courseReviews = pgTable(
+  'course_reviews',
+  {
+    id: serial('id').primaryKey(),
+    courseId: integer('course_id')
+      .notNull()
+      .references(() => courses.id, { onDelete: 'cascade' }),
+    userId: integer('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    rating: integer('rating').notNull(), // 1-5 stars
+    review: text('review'),
+    isPublished: boolean('is_published').notNull().default(true),
+    helpful: integer('helpful').notNull().default(0), // Number of helpful votes
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  },
+  (table) => ({
+    // One review per user per course
+    userCourseUnique: unique('user_course_review_unique').on(table.userId, table.courseId),
+  })
+);
 
 export const courseReviewsRelations = relations(courseReviews, ({ one }) => ({
   course: one(courses, {
@@ -510,15 +538,23 @@ export const courseReviewsRelations = relations(courseReviews, ({ one }) => ({
 }));
 
 // Wishlist / Favorites
-export const wishlist = pgTable('wishlist', {
-  id: serial('id').primaryKey(),
-  userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
-  courseId: integer('course_id').notNull().references(() => courses.id, { onDelete: 'cascade' }),
-  addedAt: timestamp('added_at').notNull().defaultNow(),
-}, (table) => ({
-  // One wishlist entry per user per course
-  userCourseUnique: unique('user_course_wishlist_unique').on(table.userId, table.courseId),
-}));
+export const wishlist = pgTable(
+  'wishlist',
+  {
+    id: serial('id').primaryKey(),
+    userId: integer('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    courseId: integer('course_id')
+      .notNull()
+      .references(() => courses.id, { onDelete: 'cascade' }),
+    addedAt: timestamp('added_at').notNull().defaultNow(),
+  },
+  (table) => ({
+    // One wishlist entry per user per course
+    userCourseUnique: unique('user_course_wishlist_unique').on(table.userId, table.courseId),
+  })
+);
 
 export const wishlistRelations = relations(wishlist, ({ one }) => ({
   user: one(users, {
@@ -550,26 +586,42 @@ export const categoriesRelations = relations(courseCategories, ({ one, many }) =
 }));
 
 // Course-Category mapping (many-to-many)
-export const courseCategoryMapping = pgTable('course_category_mapping', {
-  courseId: integer('course_id').notNull().references(() => courses.id, { onDelete: 'cascade' }),
-  categoryId: integer('category_id').notNull().references(() => courseCategories.id, { onDelete: 'cascade' }),
-}, (table) => ({
-  pk: unique('course_category_pk').on(table.courseId, table.categoryId),
-}));
+export const courseCategoryMapping = pgTable(
+  'course_category_mapping',
+  {
+    courseId: integer('course_id')
+      .notNull()
+      .references(() => courses.id, { onDelete: 'cascade' }),
+    categoryId: integer('category_id')
+      .notNull()
+      .references(() => courseCategories.id, { onDelete: 'cascade' }),
+  },
+  (table) => ({
+    pk: unique('course_category_pk').on(table.courseId, table.categoryId),
+  })
+);
 
 // Completion Certificates
-export const certificates = pgTable('certificates', {
-  id: serial('id').primaryKey(),
-  userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
-  courseId: integer('course_id').notNull().references(() => courses.id, { onDelete: 'cascade' }),
-  certificateNumber: text('certificate_number').notNull().unique(),
-  completedAt: timestamp('completed_at').notNull().defaultNow(),
-  pdfUrl: text('pdf_url'),
-  issuedAt: timestamp('issued_at').notNull().defaultNow(),
-}, (table) => ({
-  // One certificate per user per course
-  userCourseUnique: unique('user_course_certificate_unique').on(table.userId, table.courseId),
-}));
+export const certificates = pgTable(
+  'certificates',
+  {
+    id: serial('id').primaryKey(),
+    userId: integer('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    courseId: integer('course_id')
+      .notNull()
+      .references(() => courses.id, { onDelete: 'cascade' }),
+    certificateNumber: text('certificate_number').notNull().unique(),
+    completedAt: timestamp('completed_at').notNull().defaultNow(),
+    pdfUrl: text('pdf_url'),
+    issuedAt: timestamp('issued_at').notNull().defaultNow(),
+  },
+  (table) => ({
+    // One certificate per user per course
+    userCourseUnique: unique('user_course_certificate_unique').on(table.userId, table.courseId),
+  })
+);
 
 export const certificatesRelations = relations(certificates, ({ one }) => ({
   user: one(users, {
@@ -585,8 +637,12 @@ export const certificatesRelations = relations(certificates, ({ one }) => ({
 // Student Notes (Timestamped)
 export const courseNotes = pgTable('course_notes', {
   id: serial('id').primaryKey(),
-  userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
-  chapterId: integer('chapter_id').notNull().references(() => chapters.id, { onDelete: 'cascade' }),
+  userId: integer('user_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  chapterId: integer('chapter_id')
+    .notNull()
+    .references(() => chapters.id, { onDelete: 'cascade' }),
   timestamp: integer('timestamp'), // Video timestamp in seconds
   note: text('note').notNull(),
   createdAt: timestamp('created_at').notNull().defaultNow(),
@@ -607,8 +663,12 @@ export const courseNotesRelations = relations(courseNotes, ({ one }) => ({
 // Course Bookmarks
 export const courseBookmarks = pgTable('course_bookmarks', {
   id: serial('id').primaryKey(),
-  userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
-  chapterId: integer('chapter_id').notNull().references(() => chapters.id, { onDelete: 'cascade' }),
+  userId: integer('user_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  chapterId: integer('chapter_id')
+    .notNull()
+    .references(() => chapters.id, { onDelete: 'cascade' }),
   timestamp: integer('timestamp'), // Video timestamp in seconds
   title: text('title'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
@@ -628,9 +688,13 @@ export const courseBookmarksRelations = relations(courseBookmarks, ({ one }) => 
 // Course Q&A
 export const courseQuestions = pgTable('course_questions', {
   id: serial('id').primaryKey(),
-  courseId: integer('course_id').notNull().references(() => courses.id, { onDelete: 'cascade' }),
+  courseId: integer('course_id')
+    .notNull()
+    .references(() => courses.id, { onDelete: 'cascade' }),
   chapterId: integer('chapter_id').references(() => chapters.id, { onDelete: 'cascade' }),
-  userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  userId: integer('user_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
   question: text('question').notNull(),
   isAnswered: boolean('is_answered').notNull().default(false),
   upvotes: integer('upvotes').notNull().default(0),
@@ -657,8 +721,12 @@ export const courseQuestionsRelations = relations(courseQuestions, ({ one, many 
 // Course Answers
 export const courseAnswers = pgTable('course_answers', {
   id: serial('id').primaryKey(),
-  questionId: integer('question_id').notNull().references(() => courseQuestions.id, { onDelete: 'cascade' }),
-  userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  questionId: integer('question_id')
+    .notNull()
+    .references(() => courseQuestions.id, { onDelete: 'cascade' }),
+  userId: integer('user_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
   answer: text('answer').notNull(),
   isInstructorAnswer: boolean('is_instructor_answer').notNull().default(false),
   upvotes: integer('upvotes').notNull().default(0),
@@ -697,26 +765,38 @@ export const coupons = pgTable('coupons', {
 // Coupon Usage Tracking
 export const couponUsage = pgTable('coupon_usage', {
   id: serial('id').primaryKey(),
-  couponId: integer('coupon_id').notNull().references(() => coupons.id, { onDelete: 'cascade' }),
-  userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  couponId: integer('coupon_id')
+    .notNull()
+    .references(() => coupons.id, { onDelete: 'cascade' }),
+  userId: integer('user_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
   paymentId: integer('payment_id').references(() => payments.id),
   discountAmount: real('discount_amount').notNull(),
   usedAt: timestamp('used_at').notNull().defaultNow(),
 });
 
 // Video Progress Tracking (Detailed)
-export const videoProgress = pgTable('video_progress', {
-  id: serial('id').primaryKey(),
-  userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
-  chapterId: integer('chapter_id').notNull().references(() => chapters.id, { onDelete: 'cascade' }),
-  currentTime: integer('current_time').notNull().default(0), // In seconds
-  duration: integer('duration').notNull(), // In seconds
-  watchedPercentage: real('watched_percentage').notNull().default(0),
-  completed: boolean('completed').notNull().default(false),
-  lastWatchedAt: timestamp('last_watched_at').notNull().defaultNow(),
-}, (table) => ({
-  userChapterUnique: unique('user_chapter_progress_unique').on(table.userId, table.chapterId),
-}));
+export const videoProgress = pgTable(
+  'video_progress',
+  {
+    id: serial('id').primaryKey(),
+    userId: integer('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    chapterId: integer('chapter_id')
+      .notNull()
+      .references(() => chapters.id, { onDelete: 'cascade' }),
+    currentTime: integer('current_time').notNull().default(0), // In seconds
+    duration: integer('duration').notNull(), // In seconds
+    watchedPercentage: real('watched_percentage').notNull().default(0),
+    completed: boolean('completed').notNull().default(false),
+    lastWatchedAt: timestamp('last_watched_at').notNull().defaultNow(),
+  },
+  (table) => ({
+    userChapterUnique: unique('user_chapter_progress_unique').on(table.userId, table.chapterId),
+  })
+);
 
 export const videoProgressRelations = relations(videoProgress, ({ one }) => ({
   user: one(users, {
@@ -732,7 +812,9 @@ export const videoProgressRelations = relations(videoProgress, ({ one }) => ({
 // Course Announcements
 export const courseAnnouncements = pgTable('course_announcements', {
   id: serial('id').primaryKey(),
-  courseId: integer('course_id').notNull().references(() => courses.id, { onDelete: 'cascade' }),
+  courseId: integer('course_id')
+    .notNull()
+    .references(() => courses.id, { onDelete: 'cascade' }),
   title: text('title').notNull(),
   content: text('content').notNull(),
   isPublished: boolean('is_published').notNull().default(true),
@@ -770,9 +852,13 @@ export const nursingCandidateForms = pgTable('nursing_candidate_forms', {
 // Course Question Assignments - Link questions to courses/modules
 export const courseQuestionAssignments = pgTable('course_question_assignments', {
   id: serial('id').primaryKey(),
-  courseId: integer('course_id').notNull().references(() => courses.id, { onDelete: 'cascade' }),
+  courseId: integer('course_id')
+    .notNull()
+    .references(() => courses.id, { onDelete: 'cascade' }),
   moduleId: integer('module_id').references(() => modules.id, { onDelete: 'cascade' }),
-  questionId: integer('question_id').notNull().references(() => qbankQuestions.id, { onDelete: 'cascade' }),
+  questionId: integer('question_id')
+    .notNull()
+    .references(() => qbankQuestions.id, { onDelete: 'cascade' }),
   isModuleSpecific: boolean('is_module_specific').notNull().default(false),
   sortOrder: integer('sort_order').default(0),
   createdAt: timestamp('created_at').notNull().defaultNow(),
@@ -781,8 +867,12 @@ export const courseQuestionAssignments = pgTable('course_question_assignments', 
 // Q-Bank Tests
 export const qbankTests = pgTable('qbank_tests', {
   id: serial('id').primaryKey(),
-  questionBankId: integer('question_bank_id').notNull().references(() => questionBanks.id, { onDelete: 'cascade' }),
-  userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  questionBankId: integer('question_bank_id')
+    .notNull()
+    .references(() => questionBanks.id, { onDelete: 'cascade' }),
+  userId: integer('user_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
   testId: text('test_id').notNull().unique(), // Unique test identifier
   title: text('title'),
   mode: text('mode').notNull().default('tutorial'), // cat, tutorial, timed, readiness_assessment
@@ -804,9 +894,15 @@ export const qbankTests = pgTable('qbank_tests', {
 // Q-Bank Test Attempts (individual question attempts within a test)
 export const qbankQuestionAttempts = pgTable('qbank_question_attempts', {
   id: serial('id').primaryKey(),
-  testId: integer('test_id').notNull().references(() => qbankTests.id, { onDelete: 'cascade' }),
-  questionId: integer('question_id').notNull().references(() => qbankQuestions.id, { onDelete: 'cascade' }),
-  userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  testId: integer('test_id')
+    .notNull()
+    .references(() => qbankTests.id, { onDelete: 'cascade' }),
+  questionId: integer('question_id')
+    .notNull()
+    .references(() => qbankQuestions.id, { onDelete: 'cascade' }),
+  userId: integer('user_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
   userAnswer: text('user_answer').notNull(), // JSON array for SATA, single value for MCQ
   selectedAnswer: text('selected_answer'), // For new structure
   correctAnswer: text('correct_answer'), // For new structure
@@ -862,23 +958,61 @@ export const qbankAccessRequests = pgTable('qbank_access_requests', {
 
 
 // Q-Bank Question Statistics (aggregated per user per question)
-export const qbankQuestionStatistics = pgTable('qbank_question_statistics', {
-  id: serial('id').primaryKey(),
-  userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
-  questionId: integer('question_id').notNull().references(() => qbankQuestions.id, { onDelete: 'cascade' }),
-  questionBankId: integer('question_bank_id').notNull().references(() => questionBanks.id, { onDelete: 'cascade' }),
-  timesAttempted: integer('times_attempted').notNull().default(0),
-  timesCorrect: integer('times_correct').notNull().default(0),
-  timesIncorrect: integer('times_incorrect').notNull().default(0),
-  timesOmitted: integer('times_omitted').notNull().default(0),
-  timesCorrectOnReattempt: integer('times_correct_on_reattempt').notNull().default(0),
-  confidenceLevel: text('confidence_level'), // pending_review, low_confidence, high_confidence, correct_on_reattempt
-  lastAttemptedAt: timestamp('last_attempted_at'),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-  updatedAt: timestamp('updated_at').notNull().defaultNow(),
-}, (table) => ({
-  userQuestionUnique: unique('user_question_statistics_unique').on(table.userId, table.questionId),
-}));
+export const qbankQuestionStatistics = pgTable(
+  'qbank_question_statistics',
+  {
+    id: serial('id').primaryKey(),
+    userId: integer('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    questionId: integer('question_id')
+      .notNull()
+      .references(() => qbankQuestions.id, { onDelete: 'cascade' }),
+    questionBankId: integer('question_bank_id')
+      .notNull()
+      .references(() => questionBanks.id, { onDelete: 'cascade' }),
+    timesAttempted: integer('times_attempted').notNull().default(0),
+    timesCorrect: integer('times_correct').notNull().default(0),
+    timesIncorrect: integer('times_incorrect').notNull().default(0),
+    timesOmitted: integer('times_omitted').notNull().default(0),
+    timesCorrectOnReattempt: integer('times_correct_on_reattempt').notNull().default(0),
+    confidenceLevel: text('confidence_level'), // pending_review, low_confidence, high_confidence, correct_on_reattempt
+    lastAttemptedAt: timestamp('last_attempted_at'),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  },
+  (table) => ({
+    userQuestionUnique: unique('user_question_statistics_unique').on(
+      table.userId,
+      table.questionId
+    ),
+  })
+);
+
+// Q-Bank Marked Questions (questions marked for review by students)
+export const qbankMarkedQuestions = pgTable(
+  'qbank_marked_questions',
+  {
+    id: serial('id').primaryKey(),
+    userId: integer('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    questionId: integer('question_id')
+      .notNull()
+      .references(() => qbankQuestions.id, { onDelete: 'cascade' }),
+    questionBankId: integer('question_bank_id')
+      .notNull()
+      .references(() => questionBanks.id, { onDelete: 'cascade' }),
+    notes: text('notes'),
+    markedAt: timestamp('marked_at').notNull().defaultNow(),
+  },
+  (table) => ({
+    userQuestionUnique: unique('user_marked_question_unique').on(
+      table.userId,
+      table.questionId
+    ),
+  })
+);
 
 // Q-Bank Relations
 export const questionBanksRelations = relations(questionBanks, ({ one, many }) => ({
@@ -1289,18 +1423,26 @@ export const paymentsRelations = relations(payments, ({ one }) => ({
 // but if needed, it can be added to coursesRelations above
 
 // Enrollments table
-export const enrollments = pgTable('enrollments', {
-  id: serial('id').primaryKey(),
-  userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
-  courseId: integer('course_id').notNull().references(() => courses.id, { onDelete: 'cascade' }),
-  status: text('status').notNull().default('active'), // active, completed, cancelled
-  progress: integer('progress').notNull().default(0), // percentage
-  enrolledAt: timestamp('enrolled_at').notNull().defaultNow(),
-  updatedAt: timestamp('updated_at').notNull().defaultNow(), // ADD updatedAt for tracking
-  completedAt: timestamp('completed_at'),
-}, (table) => ({
-  userCourseUnique: unique('user_course_enrollment_unique').on(table.userId, table.courseId),
-}));
+export const enrollments = pgTable(
+  'enrollments',
+  {
+    id: serial('id').primaryKey(),
+    userId: integer('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    courseId: integer('course_id')
+      .notNull()
+      .references(() => courses.id, { onDelete: 'cascade' }),
+    status: text('status').notNull().default('active'), // active, completed, cancelled
+    progress: integer('progress').notNull().default(0), // percentage
+    enrolledAt: timestamp('enrolled_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at').notNull().defaultNow(), // ADD updatedAt for tracking
+    completedAt: timestamp('completed_at'),
+  },
+  (table) => ({
+    userCourseUnique: unique('user_course_enrollment_unique').on(table.userId, table.courseId),
+  })
+);
 
 export const enrollmentsRelations = relations(enrollments, ({ one }) => ({
   user: one(users, {

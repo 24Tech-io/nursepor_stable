@@ -39,4 +39,3 @@ export function convertFromStripeAmount(amount: number, currency: string = 'INR'
   }
   return amount / 100;
 }
-

@@ -10,19 +10,13 @@ export async function GET(request: NextRequest) {
     const token = request.cookies.get('student_token')?.value || request.cookies.get('token')?.value;
 
     if (!token) {
-      return NextResponse.json(
-        { message: 'Not authenticated' },
-        { status: 401 }
-      );
+      return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });
     }
 
     const decoded = await verifyToken(token);
 
     if (!decoded || !decoded.id) {
-      return NextResponse.json(
-        { message: 'Invalid token' },
-        { status: 401 }
-      );
+      return NextResponse.json({ message: 'Invalid token' }, { status: 401 });
     }
 
     // Get database instance
@@ -32,10 +26,10 @@ export async function GET(request: NextRequest) {
     } catch (dbError: any) {
       logger.error('❌ Database initialization error:', dbError);
       return NextResponse.json(
-        { 
+        {
           message: 'Database connection failed',
           error: dbError.message || 'Database is not available',
-          progress: []
+          progress: [],
         },
         { status: 500 }
       );
@@ -47,28 +41,18 @@ export async function GET(request: NextRequest) {
         courseId: accessRequests.courseId,
       })
       .from(accessRequests)
-      .where(
-        and(
-          eq(accessRequests.studentId, decoded.id),
-          eq(accessRequests.status, 'pending')
-        )
-      );
+      .where(and(eq(accessRequests.studentId, decoded.id), eq(accessRequests.status, 'pending')));
 
     const pendingRequestCourseIds = pendingRequests.map((r: any) => r.courseId);
-    
+
     // Also get approved requests to sync enrollments
     const approvedRequests = await db
       .select({
         courseId: accessRequests.courseId,
       })
       .from(accessRequests)
-      .where(
-        and(
-          eq(accessRequests.studentId, decoded.id),
-          eq(accessRequests.status, 'approved')
-        )
-      );
-    
+      .where(and(eq(accessRequests.studentId, decoded.id), eq(accessRequests.status, 'approved')));
+
     const approvedRequestCourseIds = approvedRequests.map((r: any) => r.courseId);
     
     logger.info(`🔍 [Progress Details] Student ${decoded.id}: Found ${pendingRequestCourseIds.length} pending requests and ${approvedRequestCourseIds.length} approved requests`);
@@ -82,13 +66,10 @@ export async function GET(request: NextRequest) {
             .select({ id: studentProgress.id })
             .from(studentProgress)
             .where(
-              and(
-                eq(studentProgress.studentId, decoded.id),
-                eq(studentProgress.courseId, courseId)
-              )
+              and(eq(studentProgress.studentId, decoded.id), eq(studentProgress.courseId, courseId))
             )
             .limit(1);
-          
+
           if (existing.length === 0) {
             logger.info(`🔄 [Progress Details] Syncing enrollment for approved request: student ${decoded.id}, course ${courseId}`);
             await syncEnrollmentAfterApproval(decoded.id, courseId);
@@ -102,7 +83,7 @@ export async function GET(request: NextRequest) {
     // Get all enrolled courses from both studentProgress and enrollments tables
     let progressRecords: any[] = [];
     let enrollmentRecords: any[] = [];
-    
+
     try {
       // Get from studentProgress table - Don't filter by status in query, filter after
       progressRecords = await db
@@ -142,7 +123,7 @@ export async function GET(request: NextRequest) {
     } catch (error: any) {
       logger.error('❌ [Progress Details] Error fetching progress records:', error);
     }
-    
+
     try {
       // Get from enrollments table
       const allEnrollmentRecords = await db
@@ -161,7 +142,7 @@ export async function GET(request: NextRequest) {
         .from(enrollments)
         .innerJoin(courses, eq(enrollments.courseId, courses.id))
         .where(eq(enrollments.userId, decoded.id));
-      
+
       // Filter by status (case-insensitive)
       enrollmentRecords = allEnrollmentRecords.filter((e: any) => {
         const status = (e.course.status || '').toLowerCase();
@@ -177,7 +158,7 @@ export async function GET(request: NextRequest) {
 
     // Create a map of all enrolled courses
     const enrolledCoursesMap = new Map();
-    
+
     // Add courses from studentProgress
     progressRecords.forEach((p: any) => {
       enrolledCoursesMap.set(p.courseId, {
@@ -190,7 +171,7 @@ export async function GET(request: NextRequest) {
         course: p.course,
       });
     });
-    
+
     // Add courses from enrollments that don't have progress records
     // Also create progress records for them in the database
     for (const e of enrollmentRecords) {
@@ -207,7 +188,7 @@ export async function GET(request: NextRequest) {
               )
             )
             .limit(1);
-          
+
           if (existingProgress.length === 0) {
             // Create progress record
             await db.insert(studentProgress).values({
@@ -223,7 +204,7 @@ export async function GET(request: NextRequest) {
         } catch (error: any) {
           logger.error(`Error creating progress record for course ${e.courseId}:`, error);
         }
-        
+
         // Add to map for response
         enrolledCoursesMap.set(e.courseId, {
           courseId: e.courseId,
@@ -289,7 +270,9 @@ export async function GET(request: NextRequest) {
         completedModules: completedChapters.length, // Using chapters as modules for now
         completedQuizzes: completedQuizzes,
         watchedVideos: watchedVideos.length,
-        lastAccessed: p.lastAccessed ? new Date(p.lastAccessed).toISOString() : new Date().toISOString(),
+        lastAccessed: p.lastAccessed
+          ? new Date(p.lastAccessed).toISOString()
+          : new Date().toISOString(),
       };
     });
     
@@ -308,14 +291,12 @@ export async function GET(request: NextRequest) {
   } catch (error: any) {
     logger.error('❌ Get progress details error:', error);
     return NextResponse.json(
-      { 
+      {
         message: 'Failed to get progress',
         error: process.env.NODE_ENV === 'development' ? error.message : undefined,
-        progress: []
+        progress: [],
       },
       { status: 500 }
     );
   }
 }
-
-

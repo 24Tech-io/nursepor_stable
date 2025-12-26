@@ -16,9 +16,9 @@ export const dynamic = 'force-dynamic';
  * @description The single authoritative endpoint for fetching a student's enrolled courses.
  * This should be used by both the student dashboard and admin panels to ensure data consistency.
  * It replaces the logic previously found in `/api/student/enrolled-courses` and the stale data from `/api/students`.
- * 
+ *
  * @param {string} studentId - The ID of the student whose enrollments are being fetched.
- * 
+ *
  * @returns A list of enrollment objects, each containing course details and the student's progress.
  */
 export async function GET(request: NextRequest) {
@@ -46,12 +46,7 @@ export async function GET(request: NextRequest) {
         courseId: accessRequests.courseId,
       })
       .from(accessRequests)
-      .where(
-        and(
-          eq(accessRequests.studentId, studentIdNum),
-          eq(accessRequests.status, 'pending')
-        )
-      );
+      .where(and(eq(accessRequests.studentId, studentIdNum), eq(accessRequests.status, 'pending')));
 
     const pendingRequestCourseIds = pendingRequests.map((r: any) => r.courseId);
 
@@ -152,7 +147,6 @@ export async function GET(request: NextRequest) {
     });
 
     return NextResponse.json({ enrollments: filteredEnrollments });
-
   } catch (error: any) {
     logger.error('❌ Error fetching enrollments:', error);
     return NextResponse.json(

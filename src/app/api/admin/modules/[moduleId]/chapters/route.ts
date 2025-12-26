@@ -12,12 +12,9 @@ import { createChapterSchema } from '@/lib/validation-schemas-extended';
 export const dynamic = 'force-dynamic';
 
 // GET - Fetch all chapters for a module
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { moduleId: string } }
-) {
+export async function GET(request: NextRequest, { params }: { params: { moduleId: string } }) {
   try {
-    const token = request.cookies.get('token')?.value;
+    const token = request.cookies.get('adminToken')?.value;
     if (!token) {
       return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });
     }
@@ -49,12 +46,9 @@ export async function GET(
 }
 
 // POST - Create new chapter
-export async function POST(
-  request: NextRequest,
-  { params }: { params: { moduleId: string } }
-) {
+export async function POST(request: NextRequest, { params }: { params: { moduleId: string } }) {
   try {
-    const token = request.cookies.get('token')?.value;
+    const token = request.cookies.get('adminToken')?.value;
     if (!token) {
       return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });
     }
@@ -84,7 +78,7 @@ export async function POST(
       textbookContent,
       textbookFileUrl,
       readingTime,
-      mcqData
+      mcqData,
     } = body;
 
     // Sanitize inputs
@@ -140,4 +134,3 @@ export async function POST(
     return handleApiError(error, request.nextUrl.pathname);
   }
 }
-

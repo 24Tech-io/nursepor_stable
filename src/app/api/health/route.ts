@@ -1,8 +1,9 @@
 import { logger } from '@/lib/logger';
 /**
- * Health Check Endpoint
- * Used for monitoring and load balancer health checks
+ * Health check endpoint with performance metrics
  */
+export async function GET() {
+  const startTime = performance.now();
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getDatabaseWithRetry } from '@/lib/db';
@@ -35,33 +36,18 @@ export async function GET(request: NextRequest) {
     const healthData = {
       status: isHealthy ? 'healthy' : 'degraded',
       timestamp: new Date().toISOString(),
-      uptime: process.uptime(),
-      environment: process.env.NODE_ENV || 'development',
-      version: process.env.npm_package_version || '1.0.0',
-      checks: {
-        database: {
-          status: dbStatus,
-          responseTime: `${dbResponseTime}ms`,
-        },
-        server: {
-          status: 'healthy',
-          responseTime: `${responseTime}ms`,
-        },
-        memory: {
-          status: 'healthy',
-          usage: {
-            rss: `${Math.round(process.memoryUsage().rss / 1024 / 1024)}MB`,
-            heapUsed: `${Math.round(process.memoryUsage().heapUsed / 1024 / 1024)}MB`,
-            heapTotal: `${Math.round(process.memoryUsage().heapTotal / 1024 / 1024)}MB`,
-          },
-        },
+      responseTime: `${responseTime.toFixed(2)}ms`,
+      database: {
+        connected: dbHealthy,
+        status: dbHealthy ? 'healthy' : 'unhealthy',
       },
-    };
-    
-    // Return 200 if healthy, 503 if degraded
-    const statusCode = isHealthy ? 200 : 503;
-    
-    return NextResponse.json(healthData, { status: statusCode });
+      performance: {
+        longTasks: perfReport.longTasks.length,
+        averageTaskTime: `${perfReport.averageTaskTime.toFixed(2)}ms`,
+      },
+      connection: connectionInfo,
+      cache: apiStats,
+    });
   } catch (error: any) {
     logger.error('Health check error:', error);
     
@@ -69,7 +55,7 @@ export async function GET(request: NextRequest) {
       {
         status: 'unhealthy',
         timestamp: new Date().toISOString(),
-        error: error.message || 'Unknown error',
+        error: error.message,
       },
       { status: 503 }
     );

@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
   try {
-    const token = request.cookies.get('token')?.value;
+    const token = request.cookies.get('adminToken')?.value;
 
     if (!token) {
       return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });
@@ -43,17 +43,15 @@ export async function GET(request: NextRequest) {
     const recentLogins = await db
       .select({ count: count() })
       .from(users)
-      .where(
-        sql`${users.role} = 'student' AND ${users.lastLogin} >= ${thirtyDaysAgo}`
-      );
+      .where(sql`${users.role} = 'student' AND ${users.lastLogin} >= ${thirtyDaysAgo}`);
 
     return NextResponse.json({
       students: {
         total: active + inactive,
         active,
         inactive,
-        recentActiveCount: recentLogins[0]?.count || 0
-      }
+        recentActiveCount: recentLogins[0]?.count || 0,
+      },
     });
   } catch (error: any) {
     log.error('Get student stats error', error);

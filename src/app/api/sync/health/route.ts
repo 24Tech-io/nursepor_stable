@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
     const health: any = {
       timestamp: new Date().toISOString(),
       status: 'healthy',
-      checks: {}
+      checks: {},
     };
 
     // Check 1: Database connectivity
@@ -41,10 +41,8 @@ export async function GET(request: NextRequest) {
     }
 
     // Check 2: Course count consistency
-    const [courseCount] = await db
-      .select({ count: sql<number>`count(*)` })
-      .from(courses);
-    
+    const [courseCount] = await db.select({ count: sql<number>`count(*)` }).from(courses);
+
     const [publishedCount] = await db
       .select({ count: sql<number>`count(*)` })
       .from(courses)
@@ -53,7 +51,7 @@ export async function GET(request: NextRequest) {
     health.checks.courses = {
       status: 'ok',
       total: Number(courseCount?.count || 0),
-      published: Number(publishedCount?.count || 0)
+      published: Number(publishedCount?.count || 0),
     };
 
     // Check 3: Student count
@@ -64,23 +62,24 @@ export async function GET(request: NextRequest) {
 
     health.checks.students = {
       status: 'ok',
-      total: Number(studentCount?.count || 0)
+      total: Number(studentCount?.count || 0),
     };
 
     // Check 4: Enrollment consistency
     const allProgress = await db.select().from(studentProgress);
     const allCourses = await db.select().from(courses);
-    const courseIds = new Set(allCourses.map(c => c.id));
-    
-    const orphanedProgress = allProgress.filter(p => !courseIds.has(p.courseId));
-    
+    const courseIds = new Set(allCourses.map((c) => c.id));
+
+    const orphanedProgress = allProgress.filter((p) => !courseIds.has(p.courseId));
+
     health.checks.enrollments = {
       status: orphanedProgress.length === 0 ? 'ok' : 'warning',
       total: allProgress.length,
       orphaned: orphanedProgress.length,
-      message: orphanedProgress.length === 0 
-        ? 'All enrollments are valid' 
-        : `${orphanedProgress.length} orphaned enrollment(s) found`
+      message:
+        orphanedProgress.length === 0
+          ? 'All enrollments are valid'
+          : `${orphanedProgress.length} orphaned enrollment(s) found`,
     };
 
     if (orphanedProgress.length > 0) {
@@ -95,14 +94,14 @@ export async function GET(request: NextRequest) {
 
     health.checks.requests = {
       status: 'ok',
-      pending: Number(pendingRequestsCount?.count || 0)
+      pending: Number(pendingRequestsCount?.count || 0),
     };
 
     // Check 6: Request-enrollment consistency
     const inconsistentCount = await Promise.all(
       allProgress.map(async (p) => {
         if (!courseIds.has(p.courseId)) return null;
-        
+
         const request = await db
           .select()
           .from(accessRequests)
@@ -114,19 +113,20 @@ export async function GET(request: NextRequest) {
             )
           )
           .limit(1);
-        
+
         return request.length > 0 ? 1 : 0;
       })
     );
 
     const inconsistent = inconsistentCount.reduce((sum, val) => sum + (val || 0), 0);
-    
+
     health.checks.consistency = {
       status: inconsistent === 0 ? 'ok' : 'warning',
       inconsistent,
-      message: inconsistent === 0 
-        ? 'No inconsistent enrollments found' 
-        : `${inconsistent} course(s) with both enrollment and pending request`
+      message:
+        inconsistent === 0
+          ? 'No inconsistent enrollments found'
+          : `${inconsistent} course(s) with both enrollment and pending request`,
     };
 
     if (inconsistent > 0) {
@@ -136,29 +136,23 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       success: true,
       health,
-      message: health.status === 'healthy' 
-        ? 'All systems synced and healthy' 
-        : 'Some sync issues detected'
+      message:
+        health.status === 'healthy'
+          ? 'All systems synced and healthy'
+          : 'Some sync issues detected',
     });
   } catch (error: any) {
     logger.error('Sync health check error:', error);
     return NextResponse.json(
-      { 
+      {
         success: false,
         message: 'Failed to check sync health',
-        error: process.env.NODE_ENV === 'development' ? error.message : undefined
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined,
       },
       { status: 500 }
     );
   }
 }
-
-
-
-
-
-
-
 
 
 

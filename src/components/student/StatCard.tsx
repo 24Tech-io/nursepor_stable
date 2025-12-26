@@ -10,14 +10,7 @@ interface StatCardProps {
   };
 }
 
-export default function StatCard({
-  icon,
-  label,
-  value,
-  bgColor,
-  textColor,
-  trend,
-}: StatCardProps) {
+export default function StatCard({ icon, label, value, bgColor, textColor, trend }: StatCardProps) {
   return (
     <div className="bg-white/5 backdrop-blur-xl rounded-2xl border border-white/10 p-6 hover:bg-white/[0.08] hover:border-nurse-red-500/30 hover:shadow-glow-red transition-all duration-300">
       <div className="flex items-center justify-between">

@@ -15,7 +15,7 @@ import { logger } from '@/lib/logger';
 // POST - Update video progress
 export async function POST(request: NextRequest) {
   try {
-    const token = request.cookies.get('token')?.value;
+    const token = request.cookies.get('adminToken')?.value;
     if (!token) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -37,15 +37,13 @@ export async function POST(request: NextRequest) {
 
     // Check if progress exists
     const existing = await db.query.videoProgress.findFirst({
-      where: and(
-        eq(videoProgress.userId, user.id),
-        eq(videoProgress.chapterId, chapterId)
-      ),
+      where: and(eq(videoProgress.userId, user.id), eq(videoProgress.chapterId, chapterId)),
     });
 
     if (existing) {
       // Update existing progress
-      await db.update(videoProgress)
+      await db
+        .update(videoProgress)
         .set({
           currentTime,
           duration,
@@ -76,7 +74,7 @@ export async function POST(request: NextRequest) {
 // GET - Get video progress
 export async function GET(request: NextRequest) {
   try {
-    const token = request.cookies.get('token')?.value;
+    const token = request.cookies.get('adminToken')?.value;
     if (!token) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -112,4 +110,3 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Failed to fetch progress' }, { status: 500 });
   }
 }
-

@@ -14,10 +14,7 @@ const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
 export async function POST(request: NextRequest) {
   if (!stripe) {
-    return NextResponse.json(
-      { error: 'Stripe is not configured' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Stripe is not configured' }, { status: 500 });
   }
 
   if (!webhookSecret) {
@@ -32,10 +29,7 @@ export async function POST(request: NextRequest) {
   const signature = request.headers.get('stripe-signature');
 
   if (!signature) {
-    return NextResponse.json(
-      { error: 'No signature provided' },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: 'No signature provided' }, { status: 400 });
   }
 
   let event;
@@ -58,7 +52,7 @@ export async function POST(request: NextRequest) {
     switch (event.type) {
       case 'checkout.session.completed': {
         const session = event.data.object as any;
-        
+
         // Use idempotency to prevent duplicate processing
         const idempotencyParams = {
           eventId: event.id,
@@ -72,9 +66,9 @@ export async function POST(request: NextRequest) {
           async () => {
             // Update payment status and get payment data
             const payment = await db
-                .select()
-                .from(payments)
-                .where(eq(payments.stripeSessionId, session.id))
+              .select()
+              .from(payments)
+              .where(eq(payments.stripeSessionId, session.id))
               .limit(1);
 
             if (payment.length === 0) {
@@ -92,13 +86,13 @@ export async function POST(request: NextRequest) {
 
             // Update payment status
             await db
-                .update(payments)
-                .set({
-                  status: 'completed',
-                  stripePaymentIntentId: session.payment_intent,
-                  transactionId: session.id,
-                  updatedAt: new Date(),
-                })
+              .update(payments)
+              .set({
+                status: 'completed',
+                stripePaymentIntentId: session.payment_intent,
+                transactionId: session.id,
+                updatedAt: new Date(),
+              })
               .where(eq(payments.stripeSessionId, session.id));
 
             // Handle based on item type
@@ -186,7 +180,7 @@ export async function POST(request: NextRequest) {
 
       case 'payment_intent.payment_failed': {
         const paymentIntent = event.data.object as any;
-        
+
         // Use idempotency for failed payments too
         const idempotencyParams = {
           eventId: event.id,
@@ -200,11 +194,11 @@ export async function POST(request: NextRequest) {
           async () => {
             // Update payment status to failed
             await db
-                .update(payments)
-                .set({
-                  status: 'failed',
-                  updatedAt: new Date(),
-                })
+              .update(payments)
+              .set({
+                status: 'failed',
+                updatedAt: new Date(),
+              })
               .where(eq(payments.stripePaymentIntentId, paymentIntent.id));
 
             log.info('Payment failed for intent', { paymentIntentId: paymentIntent.id });
@@ -226,4 +220,3 @@ export async function POST(request: NextRequest) {
     return createErrorResponse(error, 'Webhook handler failed');
   }
 }
-

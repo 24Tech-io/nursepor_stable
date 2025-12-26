@@ -63,7 +63,7 @@ export default function SimpleFaceLogin({
 
     try {
       const stream = await initializeCamera();
-      
+
       if (!stream) {
         throw new Error('Failed to access camera');
       }
@@ -136,7 +136,7 @@ export default function SimpleFaceLogin({
           setStatus('Saving face data...');
           await onEnroll(result.features, result.imageData);
           setStatus('Face enrolled successfully!');
-          
+
           setTimeout(() => {
             if (onComplete) {
               onComplete();
@@ -170,10 +170,10 @@ export default function SimpleFaceLogin({
         // In verify mode, we need stored features from parent
         // This is a simplified flow - parent should provide stored features
         setStatus('Verification in progress...');
-        
+
         // Capture current face
         const imageData = await enrollFace(videoRef.current!);
-        
+
         if (!imageData.success || !imageData.features) {
           setError('Failed to capture face');
           setIsProcessing(false);
@@ -183,13 +183,13 @@ export default function SimpleFaceLogin({
         // Parent component should handle verification with stored features
         if (onVerify) {
           const verified = await onVerify(imageData.features);
-          
+
           if (verified) {
             setStatus('✓ Face verified successfully!');
             setTimeout(() => {
               if (onComplete) {
-              onComplete();
-            }
+                onComplete();
+              }
             }, 1500);
           } else {
             setError('Face verification failed. Please try again.');
@@ -249,7 +249,9 @@ export default function SimpleFaceLogin({
                 </svg>
                 <h3 className="text-2xl font-bold mb-2">Camera Access Required</h3>
                 <p className="text-gray-200 mb-6">We need camera access for face authentication</p>
-                <p className="text-sm text-gray-300 mb-4">Your privacy is protected - images are not stored</p>
+                <p className="text-sm text-gray-300 mb-4">
+                  Your privacy is protected - images are not stored
+                </p>
               </div>
             </div>
           )}
@@ -409,7 +411,8 @@ export default function SimpleFaceLogin({
             {/* Privacy Notice */}
             <div className="bg-green-50 rounded-lg p-3 border border-green-200">
               <p className="text-xs text-green-800 text-center">
-                🔒 Your face data is encrypted and stored securely. We never share your biometric data.
+                🔒 Your face data is encrypted and stored securely. We never share your biometric
+                data.
               </p>
             </div>
           </div>
@@ -418,4 +421,3 @@ export default function SimpleFaceLogin({
     </div>
   );
 }
-

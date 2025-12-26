@@ -9,25 +9,15 @@ import { courses } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { logActivity } from '@/lib/activity-log';
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { courseId: string } }
-) {
+export async function GET(request: NextRequest, { params }: { params: { courseId: string } }) {
   try {
     const db = await getDatabaseWithRetry();
     const courseId = parseInt(params.courseId);
 
-    const [course] = await db
-      .select()
-      .from(courses)
-      .where(eq(courses.id, courseId))
-      .limit(1);
+    const [course] = await db.select().from(courses).where(eq(courses.id, courseId)).limit(1);
 
     if (!course) {
-      return NextResponse.json(
-        { message: 'Course not found' },
-        { status: 404 }
-      );
+      return NextResponse.json({ message: 'Course not found' }, { status: 404 });
     }
 
     return NextResponse.json({
@@ -49,16 +39,16 @@ export async function GET(
   } catch (error: any) {
     logger.error('Get course error:', error);
     return NextResponse.json(
-      { message: 'Failed to get course', error: process.env.NODE_ENV === 'development' ? error.message : undefined },
+      {
+        message: 'Failed to get course',
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+      },
       { status: 500 }
     );
   }
 }
 
-export async function PUT(
-  request: NextRequest,
-  { params }: { params: { courseId: string } }
-) {
+export async function PUT(request: NextRequest, { params }: { params: { courseId: string } }) {
   try {
     const db = await getDatabaseWithRetry();
     const courseId = parseInt(params.courseId);
@@ -75,7 +65,17 @@ export async function PUT(
       instructor: body.instructor
     });
 
-    const { title, description, instructor, thumbnail, pricing, status, isRequestable, isDefaultUnlocked, isPublic } = body;
+    const {
+      title,
+      description,
+      instructor,
+      thumbnail,
+      pricing,
+      status,
+      isRequestable,
+      isDefaultUnlocked,
+      isPublic,
+    } = body;
 
     // Check if course exists
     const [existingCourse] = await db
@@ -85,10 +85,7 @@ export async function PUT(
       .limit(1);
 
     if (!existingCourse) {
-      return NextResponse.json(
-        { message: 'Course not found' },
-        { status: 404 }
-      );
+      return NextResponse.json({ message: 'Course not found' }, { status: 404 });
     }
 
     // Update course (any admin can edit any course)
@@ -114,7 +111,8 @@ export async function PUT(
         pricing: pricing !== undefined ? pricing : existingCourse.pricing,
         status: newStatus,
         isRequestable: isRequestable !== undefined ? isRequestable : existingCourse.isRequestable,
-        isDefaultUnlocked: isDefaultUnlocked !== undefined ? isDefaultUnlocked : existingCourse.isDefaultUnlocked,
+        isDefaultUnlocked:
+          isDefaultUnlocked !== undefined ? isDefaultUnlocked : existingCourse.isDefaultUnlocked,
         isPublic: isPublic !== undefined ? isPublic : existingCourse.isPublic,
         updatedAt: new Date(),
       })
@@ -150,10 +148,16 @@ export async function PUT(
           entityName: updatedCourse.title,
           details: {
             changes: {
-              title: title !== existingCourse.title ? { from: existingCourse.title, to: title } : undefined,
-              status: status !== existingCourse.status ? { from: existingCourse.status, to: status } : undefined,
-            }
-          }
+              title:
+                title !== existingCourse.title
+                  ? { from: existingCourse.title, to: title }
+                  : undefined,
+              status:
+                status !== existingCourse.status
+                  ? { from: existingCourse.status, to: status }
+                  : undefined,
+            },
+          },
         });
       }
     }
@@ -175,16 +179,16 @@ export async function PUT(
   } catch (error: any) {
     logger.error('Update course error:', error);
     return NextResponse.json(
-      { message: 'Failed to update course', error: process.env.NODE_ENV === 'development' ? error.message : undefined },
+      {
+        message: 'Failed to update course',
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+      },
       { status: 500 }
     );
   }
 }
 
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: { courseId: string } }
-) {
+export async function DELETE(request: NextRequest, { params }: { params: { courseId: string } }) {
   try {
     const token = request.cookies.get('adminToken')?.value;
 
@@ -230,9 +234,7 @@ export async function DELETE(
     logger.info(`Deleting course: ${existingCourse.title} (ID: ${courseId})`);
 
     // Delete course (any admin can delete any course)
-    await db
-      .delete(courses)
-      .where(eq(courses.id, courseId));
+    await db.delete(courses).where(eq(courses.id, courseId));
 
     logger.info(`Successfully deleted course with ID: ${courseId}`);
 
@@ -261,7 +263,7 @@ export async function DELETE(
       {
         message: 'Failed to delete course',
         error: process.env.NODE_ENV === 'development' ? error.message : undefined,
-        details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        details: process.env.NODE_ENV === 'development' ? error.stack : undefined,
       },
       { status: 500 }
     );
@@ -269,10 +271,6 @@ export async function DELETE(
 }
 
 // PATCH handler (alias for PUT for compatibility with admin UI)
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: { courseId: string } }
-) {
+export async function PATCH(request: NextRequest, { params }: { params: { courseId: string } }) {
   return PUT(request, { params });
 }
-

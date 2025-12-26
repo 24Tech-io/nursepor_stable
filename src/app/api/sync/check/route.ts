@@ -9,7 +9,7 @@ import { performSyncCheck } from '@/lib/sync-service';
  */
 export async function GET(request: NextRequest) {
   try {
-    const token = request.cookies.get('token')?.value || request.cookies.get('adminToken')?.value;
+    const token = request.cookies.get('token')?.value || request.cookies.get('token')?.value;
 
     if (!token) {
       return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });
@@ -24,30 +24,17 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       ...result,
-      message: result.success 
-        ? 'Sync check completed successfully' 
-        : 'Sync check failed',
+      message: result.success ? 'Sync check completed successfully' : 'Sync check failed',
     });
   } catch (error: any) {
     logger.error('Sync check error:', error);
     return NextResponse.json(
-      { 
+      {
         success: false,
         message: 'Failed to perform sync check',
-        error: process.env.NODE_ENV === 'development' ? error.message : undefined
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined,
       },
       { status: 500 }
     );
   }
 }
-
-
-
-
-
-
-
-
-
-
-

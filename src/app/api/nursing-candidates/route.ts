@@ -9,6 +9,10 @@ import { getClientIP, rateLimit, validateBodySize } from '@/lib/security';
 import { verifyToken } from '@/lib/auth';
 import type { NursingCandidateFormPayload } from '@/types/nursing-candidate';
 
+// Prevent build-time database access
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
 const MAX_BODY_SIZE = 80 * 1024; // 80 KB
 
 export async function POST(request: NextRequest) {
@@ -44,7 +48,10 @@ export async function POST(request: NextRequest) {
     try {
       normalized = normalizeNursingCandidatePayload(parsedBody);
     } catch (error: any) {
-      return NextResponse.json({ message: error?.message || 'Invalid data submitted' }, { status: 400 });
+      return NextResponse.json(
+        { message: error?.message || 'Invalid data submitted' },
+        { status: 400 }
+      );
     }
 
     const referenceNumber = `NPA-${Date.now()}`;
@@ -54,6 +61,7 @@ export async function POST(request: NextRequest) {
       .insert(nursingCandidateForms)
       .values({
         referenceNumber,
+        country: normalized.country || 'Canada',
         personalDetails: normalized.personalDetails,
         educationDetails: normalized.educationDetails,
         registrationDetails: normalized.registrationDetails,
@@ -112,7 +120,7 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
-    const token = request.cookies.get('token')?.value;
+    const token = request.cookies.get('adminToken')?.value;
     if (!token) {
       return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });
     }
@@ -132,6 +140,7 @@ export async function GET(request: NextRequest) {
       submissions: submissions.map((submission: any) => ({
         id: submission.id,
         referenceNumber: submission.referenceNumber,
+        country: submission.country || 'Canada',
         personalDetails: submission.personalDetails,
         educationDetails: submission.educationDetails,
         registrationDetails: submission.registrationDetails,
@@ -158,4 +167,3 @@ export async function GET(request: NextRequest) {
     );
   }
 }
-

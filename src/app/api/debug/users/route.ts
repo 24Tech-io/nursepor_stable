@@ -7,7 +7,7 @@ import { verifyToken } from '@/lib/auth';
 export async function GET(request: NextRequest) {
   try {
     // Check authentication
-    const token = request.cookies.get('token')?.value;
+    const token = request.cookies.get('adminToken')?.value;
     if (!token) {
       return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });
     }
@@ -45,12 +45,11 @@ export async function GET(request: NextRequest) {
   } catch (error: any) {
     logger.error('Debug users error:', error);
     return NextResponse.json(
-      { 
+      {
         message: 'Failed to get users',
-        error: process.env.NODE_ENV === 'development' ? error.message : undefined
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined,
       },
       { status: 500 }
     );
   }
 }
-

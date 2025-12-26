@@ -15,7 +15,7 @@ import { logger } from '@/lib/logger';
 // GET - Get user's wishlist
 export async function GET(request: NextRequest) {
   try {
-    const token = request.cookies.get('token')?.value;
+    const token = request.cookies.get('adminToken')?.value;
     if (!token) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
 // POST - Add to wishlist
 export async function POST(request: NextRequest) {
   try {
-    const token = request.cookies.get('token')?.value;
+    const token = request.cookies.get('adminToken')?.value;
     if (!token) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -56,10 +56,7 @@ export async function POST(request: NextRequest) {
 
     // Check if already in wishlist
     const existing = await db.query.wishlist.findFirst({
-      where: and(
-        eq(wishlist.userId, user.id),
-        eq(wishlist.courseId, courseId)
-      ),
+      where: and(eq(wishlist.userId, user.id), eq(wishlist.courseId, courseId)),
     });
 
     if (existing) {
@@ -81,7 +78,7 @@ export async function POST(request: NextRequest) {
 // DELETE - Remove from wishlist
 export async function DELETE(request: NextRequest) {
   try {
-    const token = request.cookies.get('token')?.value;
+    const token = request.cookies.get('adminToken')?.value;
     if (!token) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -98,12 +95,9 @@ export async function DELETE(request: NextRequest) {
     }
     const { courseId } = bodyValidation.data;
 
-    await db.delete(wishlist).where(
-      and(
-        eq(wishlist.userId, user.id),
-        eq(wishlist.courseId, courseId)
-      )
-    );
+    await db
+      .delete(wishlist)
+      .where(and(eq(wishlist.userId, user.id), eq(wishlist.courseId, courseId)));
 
     return NextResponse.json({ success: true, message: 'Removed from wishlist' });
   } catch (error: any) {
@@ -111,4 +105,3 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ error: 'Failed to remove from wishlist' }, { status: 500 });
   }
 }
-

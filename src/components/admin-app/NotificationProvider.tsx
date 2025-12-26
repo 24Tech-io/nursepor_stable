@@ -23,7 +23,12 @@ interface NotificationContextType {
   showError: (title: string, message?: string) => void;
   showWarning: (title: string, message?: string) => void;
   showInfo: (title: string, message?: string) => void;
-  showConfirm: (title: string, message: string, onConfirm: () => void, onCancel?: () => void) => void;
+  showConfirm: (
+    title: string,
+    message: string,
+    onConfirm: () => void,
+    onCancel?: () => void
+  ) => void;
   showPrompt: (title: string, message: string, defaultValue?: string) => Promise<string | null>;
 }
 
@@ -111,33 +116,116 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const showPrompt = useCallback((title: string, message: string, defaultValue?: string): Promise<string | null> => {
     return new Promise((resolve) => {
       const id = Math.random().toString(36).substring(2, 15);
-      let inputValue = defaultValue || '';
-
-      const PromptNotification: Notification & { onInputChange?: (value: string) => void; defaultValue?: string } = {
+      const newNotification: Notification = {
+        ...notification,
         id,
-        type: 'info',
+        duration: notification.duration ?? (notification.type === 'confirm' ? 0 : 5000),
+      };
+
+      setNotifications((prev) => [...prev, newNotification]);
+
+      if (newNotification.duration && newNotification.duration > 0) {
+        setTimeout(() => {
+          removeNotification(id);
+        }, newNotification.duration);
+      }
+
+      return id;
+    },
+    [removeNotification]
+  );
+
+  const showSuccess = useCallback(
+    (title: string, message?: string) => {
+      showNotification({ type: 'success', title, message });
+    },
+    [showNotification]
+  );
+
+  const showError = useCallback(
+    (title: string, message?: string) => {
+      showNotification({ type: 'error', title, message });
+    },
+    [showNotification]
+  );
+
+  const showWarning = useCallback(
+    (title: string, message?: string) => {
+      showNotification({ type: 'warning', title, message });
+    },
+    [showNotification]
+  );
+
+  const showInfo = useCallback(
+    (title: string, message?: string) => {
+      showNotification({ type: 'info', title, message });
+    },
+    [showNotification]
+  );
+
+  const showConfirm = useCallback(
+    (title: string, message: string, onConfirm: () => void, onCancel?: () => void) => {
+      const id = Math.random().toString(36).substring(2, 15);
+
+      const newNotification: Notification = {
+        id,
+        type: 'confirm',
         title,
         message,
-        duration: 0,
+        duration: 0, // Don't auto-dismiss
         onConfirm: () => {
-          resolve(inputValue || null);
+          onConfirm();
           removeNotification(id);
         },
         onCancel: () => {
-          resolve(null);
+          if (onCancel) onCancel();
           removeNotification(id);
         },
-        confirmText: 'OK',
+        confirmText: 'Confirm',
         cancelText: 'Cancel',
-        defaultValue: defaultValue || '',
-        onInputChange: (value: string) => {
-          inputValue = value;
-        },
       };
 
-      setNotifications((prev) => [...prev, PromptNotification]);
-    });
-  }, [removeNotification]);
+      setNotifications((prev) => [...prev, newNotification]);
+    },
+    [removeNotification]
+  );
+
+  const showPrompt = useCallback(
+    (title: string, message: string, defaultValue?: string): Promise<string | null> => {
+      return new Promise((resolve) => {
+        const id = Math.random().toString(36).substring(2, 15);
+        let inputValue = defaultValue || '';
+
+        const PromptNotification: Notification & {
+          onInputChange?: (value: string) => void;
+          defaultValue?: string;
+        } = {
+          id,
+          type: 'info',
+          title,
+          message,
+          duration: 0,
+          onConfirm: () => {
+            resolve(inputValue || null);
+            removeNotification(id);
+          },
+          onCancel: () => {
+            resolve(null);
+            removeNotification(id);
+          },
+          confirmText: 'OK',
+          cancelText: 'Cancel',
+          defaultValue: defaultValue || '',
+          onInputChange: (value: string) => {
+            inputValue = value;
+          },
+        };
+
+        setNotifications((prev) => [...prev, PromptNotification]);
+      });
+    },
+    [removeNotification]
+  );
 
   return (
     <NotificationContext.Provider
@@ -164,11 +252,7 @@ const NotificationContainer: React.FC<{
   return (
     <div className="fixed top-4 right-4 z-[9999] space-y-3 pointer-events-none">
       {notifications.map((notification) => (
-        <NotificationItem
-          key={notification.id}
-          notification={notification}
-          onRemove={onRemove}
-        />
+        <NotificationItem key={notification.id} notification={notification} onRemove={onRemove} />
       ))}
     </div>
   );
@@ -261,7 +345,7 @@ const NotificationItem: React.FC<{
                 }
               }}
               className="w-full mt-2 px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:border-white/40 text-sm"
-              placeholder={notification.message || "Enter value..."}
+              placeholder={notification.message || 'Enter value...'}
               autoFocus
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && notification.onConfirm) {
@@ -328,4 +412,3 @@ const NotificationItem: React.FC<{
     </div>
   );
 };
-

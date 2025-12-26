@@ -12,6 +12,8 @@ import { startRouteMonitoring, recordCacheHit, recordCacheMiss } from '@/lib/per
 // Force dynamic rendering since this route uses request.url and cookies
 export const dynamic = 'force-dynamic';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
   const stopMonitoring = startRouteMonitoring('/api/auth/me');
   try {
@@ -23,6 +25,23 @@ export async function GET(request: NextRequest) {
     const cookieName = type === 'admin' ? 'admin_token' : 'student_token';
     const token = request.cookies.get(cookieName)?.value;
 
+    // Check for both admin and student tokens
+    const adminToken = request.cookies.get('adminToken')?.value;
+    const studentToken = request.cookies.get('studentToken')?.value;
+
+    let token;
+
+    // Strict Mode: If type is specified, ONLY check that specific token
+    if (authType === 'student') {
+      token = studentToken;
+    } else if (authType === 'admin') {
+      token = adminToken;
+    } else {
+      // Default / Legacy Mode: Check Admin first, then Student (fallback)
+      token = adminToken || studentToken;
+    }
+
+    // During build time, this is expected to have no token (static page generation)
     if (!token) {
       stopMonitoring();
       return NextResponse.json(
@@ -38,25 +57,8 @@ export async function GET(request: NextRequest) {
       CacheTTL.AUTH_TOKEN
     );
 
-    // If token is expired, try to extract user ID from payload
-    if (!decoded || !decoded.id) {
-      try {
-        const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
-        if (payload.id) {
-          // Use the ID from the expired token to get user from database
-          decoded = { id: payload.id } as any;
-        } else {
-          return NextResponse.json(
-            { message: 'Invalid token' },
-            { status: 401 }
-          );
-        }
-      } catch (e) {
-        return NextResponse.json(
-          { message: 'Invalid token' },
-          { status: 401 }
-        );
-      }
+    if (!decoded) {
+      return NextResponse.json({ message: 'Invalid token' }, { status: 401 });
     }
 
     // Get database instance (will throw if not available)
@@ -102,11 +104,8 @@ export async function GET(request: NextRequest) {
       { ttl: CacheTTL.USER_DATA, dedupe: true }
     );
 
-    if (!user.length) {
-      return NextResponse.json(
-        { message: 'User not found' },
-        { status: 404 }
-      );
+    if (!userResult.length) {
+      return NextResponse.json({ message: 'User not found' }, { status: 404 });
     }
 
     // Log user data for debugging
@@ -148,7 +147,21 @@ export async function GET(request: NextRequest) {
 
     stopMonitoring();
     return NextResponse.json({
-      user: userResponse,
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone && user.phone.trim() ? user.phone.trim() : null, // Return null for empty strings
+        bio: user.bio && user.bio.trim() ? user.bio.trim() : null,
+        role: user.role,
+        isActive: user.isActive,
+        profilePicture: user.profilePicture,
+        faceIdEnrolled: user.faceIdEnrolled,
+        fingerprintEnrolled: user.fingerprintEnrolled,
+        twoFactorEnabled: user.twoFactorEnabled,
+        joinedDate: user.joinedDate,
+        createdAt: user.createdAt,
+      },
     });
   } catch (error: any) {
     stopMonitoring();

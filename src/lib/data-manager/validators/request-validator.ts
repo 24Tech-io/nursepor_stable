@@ -73,7 +73,9 @@ export class RequestValidator {
           ]);
 
           if (progress.length > 0 || enrollment.length > 0) {
-            errors.push(`Student ${request[0].studentId} is already enrolled in course ${request[0].courseId}`);
+            errors.push(
+              `Student ${request[0].studentId} is already enrolled in course ${request[0].courseId}`
+            );
           }
         }
       }
@@ -114,11 +116,7 @@ export class RequestValidator {
       }
 
       // Validate course exists
-      const course = await db
-        .select()
-        .from(courses)
-        .where(eq(courses.id, courseId))
-        .limit(1);
+      const course = await db.select().from(courses).where(eq(courses.id, courseId)).limit(1);
 
       if (course.length === 0) {
         errors.push(`Course ${courseId} does not exist`);
@@ -130,21 +128,13 @@ export class RequestValidator {
           .select()
           .from(studentProgress)
           .where(
-            and(
-              eq(studentProgress.studentId, studentId),
-              eq(studentProgress.courseId, courseId)
-            )
+            and(eq(studentProgress.studentId, studentId), eq(studentProgress.courseId, courseId))
           )
           .limit(1),
         db
           .select()
           .from(enrollments)
-          .where(
-            and(
-              eq(enrollments.userId, studentId),
-              eq(enrollments.courseId, courseId)
-            )
-          )
+          .where(and(eq(enrollments.userId, studentId), eq(enrollments.courseId, courseId)))
           .limit(1),
       ]);
 
@@ -166,7 +156,9 @@ export class RequestValidator {
         .limit(1);
 
       if (pendingRequest.length > 0) {
-        errors.push(`Pending request already exists for student ${studentId} and course ${courseId}`);
+        errors.push(
+          `Pending request already exists for student ${studentId} and course ${courseId}`
+        );
       }
 
       return {
@@ -181,4 +173,3 @@ export class RequestValidator {
     }
   }
 }
-

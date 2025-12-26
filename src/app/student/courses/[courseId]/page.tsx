@@ -195,7 +195,7 @@ export default function CourseDetailPage({ params }: { params: { courseId: strin
           : [];
 
         // Merge with existing state to avoid overwriting recent updates
-        setCompletedChapters(prev => {
+        setCompletedChapters((prev) => {
           const newSet = new Set(prev);
           chapterIds.forEach((id: number) => newSet.add(id));
           console.log('✅ Progress fetched and merged, completed chapters:', Array.from(newSet));
@@ -279,13 +279,21 @@ export default function CourseDetailPage({ params }: { params: { courseId: strin
       case 'mcq':
         return (
           <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-            <path fillRule="evenodd" d="M6 2a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V7.414A2 2 0 0015.414 6L12 2.586A2 2 0 0010.586 2H6zm5 6a1 1 0 10-2 0v3.586l-1.293-1.293a1 1 0 10-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 11.586V8z" clipRule="evenodd" />
+            <path
+              fillRule="evenodd"
+              d="M6 2a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V7.414A2 2 0 0015.414 6L12 2.586A2 2 0 0010.586 2H6zm5 6a1 1 0 10-2 0v3.586l-1.293-1.293a1 1 0 10-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 11.586V8z"
+              clipRule="evenodd"
+            />
           </svg>
         );
       default:
         return (
           <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-            <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clipRule="evenodd" />
+            <path
+              fillRule="evenodd"
+              d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z"
+              clipRule="evenodd"
+            />
           </svg>
         );
     }
@@ -304,7 +312,12 @@ export default function CourseDetailPage({ params }: { params: { courseId: strin
           className="text-purple-400 hover:text-purple-300 font-medium flex items-center gap-2 mb-4"
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M15 19l-7-7 7-7"
+            />
           </svg>
           Back to Courses
         </Link>
@@ -395,7 +408,12 @@ export default function CourseDetailPage({ params }: { params: { courseId: strin
                   stroke="currentColor"
                   viewBox="0 0 24 24"
                 >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M19 9l-7 7-7-7"
+                  />
                 </svg>
               </button>
 
@@ -664,9 +682,12 @@ export default function CourseDetailPage({ params }: { params: { courseId: strin
                   <button
                     onClick={async () => {
                       try {
-                        const response = await fetch(`/api/student/quizzes/chapter/${selectedChapter.id}`, {
-                          credentials: 'include',
-                        });
+                        const response = await fetch(
+                          `/api/student/quizzes/chapter/${selectedChapter.id}`,
+                          {
+                            credentials: 'include',
+                          }
+                        );
                         if (response.ok) {
                           const data = await response.json();
                           router.push(`/student/quizzes/${data.quiz.id}`);

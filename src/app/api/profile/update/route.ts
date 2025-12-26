@@ -10,22 +10,16 @@ import { eq } from 'drizzle-orm';
 
 export async function PUT(request: NextRequest) {
   try {
-    const token = request.cookies.get('token')?.value;
+    const token = request.cookies.get('adminToken')?.value;
 
     if (!token) {
-      return NextResponse.json(
-        { message: 'Not authenticated' },
-        { status: 401 }
-      );
+      return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });
     }
 
     const decoded = await verifyToken(token);
 
     if (!decoded || !decoded.id) {
-      return NextResponse.json(
-        { message: 'Invalid token' },
-        { status: 401 }
-      );
+      return NextResponse.json({ message: 'Invalid token' }, { status: 401 });
     }
 
     // Get database instance
@@ -61,10 +55,7 @@ export async function PUT(request: NextRequest) {
       .returning();
 
     if (!updatedUser.length) {
-      return NextResponse.json(
-        { message: 'User not found' },
-        { status: 404 }
-      );
+      return NextResponse.json({ message: 'User not found' }, { status: 404 });
     }
 
     logger.info('✅ Profile updated for user:', decoded.id);
@@ -85,12 +76,11 @@ export async function PUT(request: NextRequest) {
   } catch (error: any) {
     logger.error('Update profile error:', error);
     return NextResponse.json(
-      { 
+      {
         message: 'Failed to update profile',
-        error: process.env.NODE_ENV === 'development' ? error.message : undefined
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined,
       },
       { status: 500 }
     );
   }
 }
-

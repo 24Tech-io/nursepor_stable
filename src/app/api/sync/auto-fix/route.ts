@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
   try {
     // This endpoint can be called by a cron job or scheduled task
     // For security, we can require an API key or make it admin-only
-    const token = request.cookies.get('token')?.value || request.cookies.get('adminToken')?.value;
+    const token = request.cookies.get('token')?.value || request.cookies.get('token')?.value;
     const apiKey = request.headers.get('x-api-key');
 
     // Allow either authenticated user or API key
@@ -29,43 +29,39 @@ export async function POST(request: NextRequest) {
     const allCourses = await db.select().from(courses);
     const allStudents = await db.select().from(users).where(eq(users.role, 'student'));
 
-    const courseIds = new Set(allCourses.map(c => c.id));
-    const studentIds = new Set(allStudents.map(s => s.id));
+    const courseIds = new Set(allCourses.map((c) => c.id));
+    const studentIds = new Set(allStudents.map((s) => s.id));
 
     // 1. Auto-fix orphaned studentProgress entries
     const allProgress = await db.select().from(studentProgress);
-    const orphanedProgress = allProgress.filter(p => 
-      !courseIds.has(p.courseId) || !studentIds.has(p.studentId)
+    const orphanedProgress = allProgress.filter(
+      (p) => !courseIds.has(p.courseId) || !studentIds.has(p.studentId)
     );
 
     if (orphanedProgress.length > 0) {
-      const orphanedIds = orphanedProgress.map(p => p.id);
-      await db
-        .delete(studentProgress)
-        .where(inArray(studentProgress.id, orphanedIds));
-      
+      const orphanedIds = orphanedProgress.map((p) => p.id);
+      await db.delete(studentProgress).where(inArray(studentProgress.id, orphanedIds));
+
       fixes.push({
         type: 'orphaned_progress',
-        count: orphanedProgress.length
+        count: orphanedProgress.length,
       });
       totalFixed += orphanedProgress.length;
     }
 
     // 2. Auto-fix orphaned accessRequests
     const allRequests = await db.select().from(accessRequests);
-    const orphanedRequests = allRequests.filter(r => 
-      !courseIds.has(r.courseId) || !studentIds.has(r.studentId)
+    const orphanedRequests = allRequests.filter(
+      (r) => !courseIds.has(r.courseId) || !studentIds.has(r.studentId)
     );
 
     if (orphanedRequests.length > 0) {
-      const orphanedIds = orphanedRequests.map(r => r.id);
-      await db
-        .delete(accessRequests)
-        .where(inArray(accessRequests.id, orphanedIds));
-      
+      const orphanedIds = orphanedRequests.map((r) => r.id);
+      await db.delete(accessRequests).where(inArray(accessRequests.id, orphanedIds));
+
       fixes.push({
         type: 'orphaned_requests',
-        count: orphanedRequests.length
+        count: orphanedRequests.length,
       });
       totalFixed += orphanedRequests.length;
     }
@@ -87,9 +83,7 @@ export async function POST(request: NextRequest) {
           .limit(1);
 
         if (pendingRequest.length > 0) {
-          await db
-            .delete(accessRequests)
-            .where(eq(accessRequests.id, pendingRequest[0].id));
+          await db.delete(accessRequests).where(eq(accessRequests.id, pendingRequest[0].id));
           inconsistentFixed++;
         }
       }
@@ -98,7 +92,7 @@ export async function POST(request: NextRequest) {
     if (inconsistentFixed > 0) {
       fixes.push({
         type: 'inconsistent_enrollment',
-        count: inconsistentFixed
+        count: inconsistentFixed,
       });
       totalFixed += inconsistentFixed;
     }
@@ -108,29 +102,20 @@ export async function POST(request: NextRequest) {
       timestamp: new Date().toISOString(),
       fixes,
       totalFixed,
-      message: totalFixed > 0 
-        ? `Auto-fixed ${totalFixed} sync issue(s)` 
-        : 'No sync issues found'
+      message: totalFixed > 0 ? `Auto-fixed ${totalFixed} sync issue(s)` : 'No sync issues found',
     });
   } catch (error: any) {
     logger.error('Auto-fix error:', error);
     return NextResponse.json(
-      { 
+      {
         success: false,
         message: 'Failed to auto-fix sync issues',
-        error: process.env.NODE_ENV === 'development' ? error.message : undefined
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined,
       },
       { status: 500 }
     );
   }
 }
-
-
-
-
-
-
-
 
 
 

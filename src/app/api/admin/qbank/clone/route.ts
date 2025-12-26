@@ -42,10 +42,7 @@ export async function POST(request: NextRequest) {
       .limit(1);
 
     if (!originalQuestion) {
-      return NextResponse.json(
-        { message: 'Question not found' },
-        { status: 404 }
-      );
+      return NextResponse.json({ message: 'Question not found' }, { status: 404 });
     }
 
     // Create a clone with new categoryId
@@ -87,4 +84,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-

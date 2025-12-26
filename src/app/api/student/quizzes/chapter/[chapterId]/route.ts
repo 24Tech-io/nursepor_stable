@@ -6,10 +6,7 @@ import { quizzes } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
 
 // GET - Fetch quiz for a chapter
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { chapterId: string } }
-) {
+export async function GET(request: NextRequest, { params }: { params: { chapterId: string } }) {
   try {
     const token = request.cookies.get('student_token')?.value || request.cookies.get('token')?.value;
     if (!token) {
@@ -28,12 +25,7 @@ export async function GET(
     const chapterQuizzes = await db
       .select()
       .from(quizzes)
-      .where(
-        and(
-          eq(quizzes.chapterId, chapterId),
-          eq(quizzes.isPublished, true)
-        )
-      );
+      .where(and(eq(quizzes.chapterId, chapterId), eq(quizzes.isPublished, true)));
 
     if (chapterQuizzes.length === 0) {
       return NextResponse.json({ message: 'No quiz found for this chapter' }, { status: 404 });

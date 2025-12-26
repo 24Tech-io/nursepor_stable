@@ -41,8 +41,8 @@ export default function QuizPage() {
 
   const handleComplete = async (score: number, passed: boolean) => {
     // Quiz submission is handled by QuizCard component
-    // This is just for navigation after completion
-    router.push(`/student/quizzes/${quizId}/results?score=${score}&passed=${passed}`);
+    // Results are shown inline in QuizCard, no need to redirect
+    console.log(`✅ Quiz completed: Score ${score}%, Passed: ${passed}`);
   };
 
   if (isLoading) {
@@ -82,7 +82,12 @@ export default function QuizPage() {
           className="text-nurse-silver-400 hover:text-white font-medium flex items-center gap-2 mb-4 transition-colors"
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M15 19l-7-7 7-7"
+            />
           </svg>
           Back
         </button>
@@ -127,4 +132,3 @@ export default function QuizPage() {
     </div>
   );
 }
-

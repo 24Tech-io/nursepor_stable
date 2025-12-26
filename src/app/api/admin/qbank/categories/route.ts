@@ -24,10 +24,7 @@ export async function GET(request: NextRequest) {
     const db = await getDatabaseWithRetry();
 
     // Fetch all categories with question counts
-    const categories = await db
-      .select()
-      .from(qbankCategories)
-      .orderBy(qbankCategories.sortOrder);
+    const categories = await db.select().from(qbankCategories).orderBy(qbankCategories.sortOrder);
 
     // Get question counts for each category
     const categoriesWithCounts = await Promise.all(
@@ -96,17 +93,20 @@ export async function POST(request: NextRequest) {
       })
       .returning();
 
-    return NextResponse.json({
-      category: {
-        id: newCategory.id,
-        name: newCategory.name,
-        description: newCategory.description,
-        color: newCategory.color,
-        icon: newCategory.icon,
-        parentCategoryId: newCategory.parentCategoryId,
-        sortOrder: newCategory.sortOrder,
+    return NextResponse.json(
+      {
+        category: {
+          id: newCategory.id,
+          name: newCategory.name,
+          description: newCategory.description,
+          color: newCategory.color,
+          icon: newCategory.icon,
+          parentCategoryId: newCategory.parentCategoryId,
+          sortOrder: newCategory.sortOrder,
+        },
       },
-    }, { status: 201 });
+      { status: 201 }
+    );
   } catch (error: any) {
     logger.error('Create category error:', error);
     return NextResponse.json(
@@ -115,4 +115,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-

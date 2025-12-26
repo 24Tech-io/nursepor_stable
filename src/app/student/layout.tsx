@@ -78,11 +78,7 @@ const navigation = [
   },
 ];
 
-export default function StudentLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function StudentLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -286,15 +282,15 @@ export default function StudentLayout({
             </div>
 
             {/* Desktop Navigation */}
-            <div className="hidden md:flex items-center space-x-1">
-              {navigation.map((item) => {
+            <div className="hidden md:flex items-center space-x-0.5">
+              {getNavigation(hasDailyVideo).map((item) => {
                 const isActive = pathname === item.href;
                 return (
                   <Link
                     key={item.name}
                     href={item.href}
                     className={`
-                      relative px-4 py-2 rounded-xl font-medium text-sm transition-all duration-200 flex items-center space-x-2
+                      relative px-3 py-2 rounded-xl font-medium text-xs transition-all duration-200 flex items-center space-x-1.5 whitespace-nowrap
                       ${isActive
                         ? 'bg-gradient-to-r from-nurse-red-600 to-red-600 text-white shadow-glow-red'
                         : 'text-nurse-silver-400 hover:text-white hover:bg-white/10'
@@ -317,7 +313,12 @@ export default function StudentLayout({
                   className="relative p-2 text-nurse-silver-400 hover:text-white hover:bg-white/10 rounded-xl transition"
                 >
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
+                    />
                   </svg>
                   {unreadCount > 0 && (
                     <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-nurse-red-500 rounded-full animate-pulse"></span>
@@ -333,8 +334,18 @@ export default function StudentLayout({
                         onClick={() => setShowNotifications(false)}
                         className="text-nurse-silver-500 hover:text-white"
                       >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        <svg
+                          className="w-5 h-5"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M6 18L18 6M6 6l12 12"
+                          />
                         </svg>
                       </button>
                     </div>
@@ -356,7 +367,7 @@ export default function StudentLayout({
                                   setNotifications(prev =>
                                     prev.map(n => n.id === notification.id ? { ...n, read: true } : n)
                                   );
-                                  setUnreadCount(prev => Math.max(0, prev - 1));
+                                  setUnreadCount((prev) => Math.max(0, prev - 1));
                                 } catch (error) {
                                   console.error('Failed to mark notification as read:', error);
                                 }
@@ -417,7 +428,12 @@ export default function StudentLayout({
                 className="md:hidden p-2 text-nurse-silver-400 hover:text-white hover:bg-white/10 rounded-xl"
               >
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M4 6h16M4 12h16M4 18h16"
+                  />
                 </svg>
               </button>
             </div>

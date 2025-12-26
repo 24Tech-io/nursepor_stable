@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
   try {
-    const token = request.cookies.get('token')?.value;
+    const token = request.cookies.get('adminToken')?.value;
 
     if (!token) {
       return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });
@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
     // Get total watch time from videoProgress
     const watchTimeResult = await db
       .select({
-        totalWatchTime: sql<number>`coalesce(sum(${videoProgress.currentTime}), 0)`
+        totalWatchTime: sql<number>`coalesce(sum(${videoProgress.currentTime}), 0)`,
       })
       .from(videoProgress);
 
@@ -36,21 +36,21 @@ export async function GET(request: NextRequest) {
     const videoStats = await db
       .select({
         totalVideos: count(),
-        completedVideos: sql<number>`sum(case when ${videoProgress.completed} = true then 1 else 0 end)`
+        completedVideos: sql<number>`sum(case when ${videoProgress.completed} = true then 1 else 0 end)`,
       })
       .from(videoProgress);
 
-    // Get quiz completion stats  
+    // Get quiz completion stats
     const quizStats = await db
       .select({
-        totalQuizAttempts: count()
+        totalQuizAttempts: count(),
       })
       .from(quizzes);
 
     // Get student progress stats
     const progressStats = await db
       .select({
-        avgProgress: sql<number>`coalesce(avg(cast(${studentProgress.totalProgress} as float)), 0)`
+        avgProgress: sql<number>`coalesce(avg(cast(${studentProgress.totalProgress} as float)), 0)`,
       })
       .from(studentProgress);
 
@@ -62,12 +62,15 @@ export async function GET(request: NextRequest) {
           total: videoStats[0]?.totalVideos || 0,
           completed: Number(videoStats[0]?.completedVideos || 0),
           completionRate: videoStats[0]?.totalVideos
-            ? ((Number(videoStats[0]?.completedVideos || 0) / videoStats[0]?.totalVideos) * 100).toFixed(2)
-            : '0'
+            ? (
+                (Number(videoStats[0]?.completedVideos || 0) / videoStats[0]?.totalVideos) *
+                100
+              ).toFixed(2)
+            : '0',
         },
         quizAttempts: quizStats[0]?.totalQuizAttempts || 0,
-        avgStudentProgress: Number(progressStats[0]?.avgProgress || 0).toFixed(2)
-      }
+        avgStudentProgress: Number(progressStats[0]?.avgProgress || 0).toFixed(2),
+      },
     });
   } catch (error: any) {
     log.error('Get engagement report error', error);

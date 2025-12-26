@@ -13,10 +13,7 @@ import { enrollStudentSchema, unenrollStudentSchema } from '@/lib/validation-sch
 import { z } from 'zod';
 
 // POST - Enroll student in a course
-export async function POST(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     const token = request.cookies.get('adminToken')?.value;
 
@@ -60,11 +57,7 @@ export async function POST(
     }
 
     // Verify course exists
-    const [course] = await db
-      .select()
-      .from(courses)
-      .where(eq(courses.id, courseId))
-      .limit(1);
+    const [course] = await db.select().from(courses).where(eq(courses.id, courseId)).limit(1);
 
     if (!course) {
       return NextResponse.json({ message: 'Course not found' }, { status: 404 });
@@ -74,14 +67,14 @@ export async function POST(
     const [existing] = await db
       .select()
       .from(studentProgress)
-      .where(and(
-        eq(studentProgress.studentId, studentId),
-        eq(studentProgress.courseId, courseId)
-      ))
+      .where(and(eq(studentProgress.studentId, studentId), eq(studentProgress.courseId, courseId)))
       .limit(1);
 
     if (existing) {
-      return NextResponse.json({ message: 'Student is already enrolled in this course' }, { status: 400 });
+      return NextResponse.json(
+        { message: 'Student is already enrolled in this course' },
+        { status: 400 }
+      );
     }
 
     // Enroll student using data-manager to ensure dual-table sync
@@ -131,10 +124,7 @@ export async function POST(
 }
 
 // DELETE - Unenroll student from a course
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     const token = request.cookies.get('adminToken')?.value;
 

@@ -3,6 +3,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getDatabaseWithRetry } from '@/lib/db';
 import { courses } from '@/lib/db/schema';
 
+// Prevent static generation - this route requires database access
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
 /**
  * Debug endpoint to check what courses are actually in the database
  * This helps verify sync between admin and student apps
@@ -12,10 +16,7 @@ export async function GET(request: NextRequest) {
     const db = await getDatabaseWithRetry();
 
     // Get ALL courses from database (no filtering)
-    const allCourses = await db
-      .select()
-      .from(courses)
-      .orderBy(courses.createdAt);
+    const allCourses = await db.select().from(courses).orderBy(courses.createdAt);
 
     // Categorize by status
     const byStatus = allCourses.reduce((acc: any, course: any) => {
@@ -59,19 +60,12 @@ export async function GET(request: NextRequest) {
   } catch (error: any) {
     logger.error('Debug courses error:', error);
     return NextResponse.json(
-      { 
+      {
         success: false,
         message: 'Failed to fetch courses from database',
-        error: process.env.NODE_ENV === 'development' ? error.message : undefined
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined,
       },
       { status: 500 }
     );
   }
 }
-
-
-
-
-
-
-

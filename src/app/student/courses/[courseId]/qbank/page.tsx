@@ -48,12 +48,16 @@ export default function CourseQBankPage({ params }: { params: { courseId: string
   };
 
   const handleAnswerChange = (questionId: number, answer: any) => {
-    setAnswers(prev => ({ ...prev, [questionId]: answer }));
+    setAnswers((prev) => ({ ...prev, [questionId]: answer }));
   };
 
   const handleSubmit = async () => {
     if (Object.keys(answers).length < questions.length) {
-      if (!confirm(`You've only answered ${Object.keys(answers).length} out of ${questions.length} questions. Submit anyway?`)) {
+      if (
+        !confirm(
+          `You've only answered ${Object.keys(answers).length} out of ${questions.length} questions. Submit anyway?`
+        )
+      ) {
         return;
       }
     }

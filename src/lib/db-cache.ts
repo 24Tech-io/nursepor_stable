@@ -22,10 +22,10 @@ export async function cacheQuery<T>(
 
   // Execute query if not in cache
   const result = await queryFn();
-  
+
   // Store in cache
   await setInCache(key, result, ttlSeconds);
-  
+
   return result;
 }
 
@@ -146,11 +146,7 @@ export const CacheStrategy = {
    * Cache-aside pattern (most common)
    * Try cache first, then query DB, then cache result
    */
-  async cacheAside<T>(
-    key: string,
-    queryFn: () => Promise<T>,
-    ttl: number = 300
-  ): Promise<T> {
+  async cacheAside<T>(key: string, queryFn: () => Promise<T>, ttl: number = 300): Promise<T> {
     return cacheQuery(key, queryFn, ttl);
   },
 
@@ -176,19 +172,19 @@ export const CacheStrategy = {
  */
 export async function warmCache(): Promise<void> {
   console.log('🔥 Starting cache warming...');
-  
+
   // This function should be called on app startup to pre-populate cache
   // with frequently accessed data like:
   // - Popular courses
   // - Active users
   // - Common queries
-  
+
   // Example: Warm up top 10 most popular courses
   // const popularCourses = await db.query.courses.findMany({ limit: 10, orderBy: popularity });
   // for (const course of popularCourses) {
   //   await setInCache(CacheKeys.COURSE(course.id), course, 600);
   // }
-  
+
   console.log('✅ Cache warming complete');
 }
 
@@ -228,4 +224,3 @@ export function resetCacheStats(): void {
   cacheStats.hits = 0;
   cacheStats.misses = 0;
 }
-

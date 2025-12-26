@@ -181,8 +181,18 @@ export default function RegisterPage() {
               <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4">
                 <div className="flex">
                   <div className="flex-shrink-0">
-                    <svg className="h-5 w-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    <svg
+                      className="h-5 w-5 text-red-400"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                      />
                     </svg>
                   </div>
                   <div className="ml-3">
@@ -192,7 +202,34 @@ export default function RegisterPage() {
               </div>
             )}
 
-            <div>
+            <div className="space-y-3">
+              {/* Primary button - Register directly without Face ID */}
+              <button
+                type="button"
+                onClick={async (e) => {
+                  e.preventDefault();
+                  setError('');
+                  
+                  // Validate form
+                  if (formData.password !== formData.confirmPassword) {
+                    setError('Passwords do not match');
+                    return;
+                  }
+                  if (formData.password.length < 6) {
+                    setError('Password must be at least 6 characters long');
+                    return;
+                  }
+                  
+                  // Register without face setup
+                  await submitRegistration(null);
+                }}
+                disabled={isLoading}
+                className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-xl text-white bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 shadow-lg shadow-blue-500/30 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isLoading ? 'Creating account...' : 'Create Account'}
+              </button>
+
+              {/* Secondary button - Setup Face ID (optional) */}
               <button
                 type="submit"
                 disabled={isLoading}
@@ -200,6 +237,10 @@ export default function RegisterPage() {
               >
                 {isLoading ? 'Creating account...' : 'Create account'}
               </button>
+
+              <p className="text-xs text-center text-gray-500 italic">
+                💡 You can add Face ID later from your profile settings
+              </p>
             </div>
 
             <div className="text-center">

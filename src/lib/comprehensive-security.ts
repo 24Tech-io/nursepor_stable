@@ -207,7 +207,10 @@ export function validateAPIRequest(req: NextRequest): {
     const contentType = req.headers.get('content-type');
     if (!contentType) {
       errors.push('Content-Type header is required');
-    } else if (!contentType.includes('application/json') && !contentType.includes('multipart/form-data')) {
+    } else if (
+      !contentType.includes('application/json') &&
+      !contentType.includes('multipart/form-data')
+    ) {
       errors.push('Invalid Content-Type');
     }
   }
@@ -369,5 +372,3 @@ export function checkRateLimit(
 
 // Export validation functions
 export { validateEmail, validateUsername, detectSSRF };
-
-

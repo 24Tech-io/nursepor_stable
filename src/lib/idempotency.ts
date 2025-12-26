@@ -16,16 +16,13 @@ export interface IdempotencyResult<T> {
 /**
  * Generate idempotency key from operation and parameters
  */
-export function generateIdempotencyKey(
-  operation: string,
-  params: Record<string, any>
-): string {
+export function generateIdempotencyKey(operation: string, params: Record<string, any>): string {
   // Sort params for consistent key generation
   const sortedParams = Object.keys(params)
     .sort()
     .map((key) => `${key}:${JSON.stringify(params[key])}`)
     .join('|');
-  
+
   // Create hash-like key (simple approach - in production, use crypto)
   const keyString = `${operation}|${sortedParams}`;
   return Buffer.from(keyString).toString('base64').substring(0, 64);
@@ -41,7 +38,7 @@ export async function checkIdempotency<T = any>(
 ): Promise<IdempotencyResult<T> | null> {
   try {
     const db = getDatabase();
-    
+
     const existing = await db
       .select()
       .from(idempotencyKeys)
@@ -57,7 +54,7 @@ export async function checkIdempotency<T = any>(
     if (existing.length > 0) {
       const record = existing[0];
       let existingResult: T | undefined;
-      
+
       if (record.result) {
         try {
           existingResult = JSON.parse(record.result) as T;
@@ -103,18 +100,21 @@ export async function storeIdempotencyKey<T = any>(
     const expiresAt = new Date();
     expiresAt.setHours(expiresAt.getHours() + ttlHours);
 
-    await db.insert(idempotencyKeys).values({
-      key,
-      operation,
-      result: JSON.stringify(result),
-      expiresAt,
-    }).onConflictDoUpdate({
-      target: idempotencyKeys.key,
-      set: {
-        result: sql`${idempotencyKeys.result}`,
-        expiresAt: sql`${idempotencyKeys.expiresAt}`,
-      },
-    });
+    await db
+      .insert(idempotencyKeys)
+      .values({
+        key,
+        operation,
+        result: JSON.stringify(result),
+        expiresAt,
+      })
+      .onConflictDoUpdate({
+        target: idempotencyKeys.key,
+        set: {
+          result: sql`${idempotencyKeys.result}`,
+          expiresAt: sql`${idempotencyKeys.expiresAt}`,
+        },
+      });
   } catch (error: any) {
     console.error('Error storing idempotency key:', error);
     // Don't throw - idempotency storage failure shouldn't break the operation
@@ -132,10 +132,10 @@ export async function executeWithIdempotency<T = any>(
   ttlHours: number = 24
 ): Promise<{ result: T; wasDuplicate: boolean }> {
   const key = generateIdempotencyKey(operation, params);
-  
+
   // Check if already processed
   const idempotencyCheck = await checkIdempotency<T>(key, operation);
-  
+
   if (idempotencyCheck?.isDuplicate && idempotencyCheck.existingResult !== undefined) {
     return {
       result: idempotencyCheck.existingResult,
@@ -161,7 +161,7 @@ export async function executeWithIdempotency<T = any>(
 export async function cleanupExpiredIdempotencyKeys(): Promise<number> {
   try {
     const db = getDatabase();
-    
+
     const result = await db
       .delete(idempotencyKeys)
       .where(sql`${idempotencyKeys.expiresAt} <= NOW()`);

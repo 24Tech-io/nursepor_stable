@@ -24,7 +24,7 @@ export class ConnectionManager {
    */
   addConnection(connectionId: string, userId: number, role: 'student' | 'admin'): void {
     const rooms = this.getRoomsForUser(userId, role);
-    
+
     this.connections.set(connectionId, {
       userId,
       role,
@@ -34,14 +34,16 @@ export class ConnectionManager {
     });
 
     // Subscribe to rooms
-    rooms.forEach(room => {
+    rooms.forEach((room) => {
       if (!this.rooms.has(room)) {
         this.rooms.set(room, new Set());
       }
       this.rooms.get(room)!.add(connectionId);
     });
 
-    console.log(`✅ Connection ${connectionId} added for user ${userId} (${role}), subscribed to ${rooms.length} rooms`);
+    console.log(
+      `✅ Connection ${connectionId} added for user ${userId} (${role}), subscribed to ${rooms.length} rooms`
+    );
   }
 
   /**
@@ -51,7 +53,7 @@ export class ConnectionManager {
     const connection = this.connections.get(connectionId);
     if (connection) {
       // Unsubscribe from all rooms
-      connection.rooms.forEach(room => {
+      connection.rooms.forEach((room) => {
         const roomConnections = this.rooms.get(room);
         if (roomConnections) {
           roomConnections.delete(connectionId);
@@ -129,4 +131,3 @@ export class ConnectionManager {
     return this.rooms.size;
   }
 }
-

@@ -8,7 +8,11 @@ import { eq } from 'drizzle-orm';
 import { stripe } from '@/lib/stripe';
 import { enrollStudent } from '@/lib/data-manager/helpers/enrollment-helper';
 import { withEnrollmentLock } from '@/lib/operation-lock';
-import { createErrorResponse, createValidationError, createNotFoundError } from '@/lib/error-handler';
+import {
+  createErrorResponse,
+  createValidationError,
+  createNotFoundError,
+} from '@/lib/error-handler';
 import { retryDatabase } from '@/lib/retry';
 
 // Force dynamic rendering since we use searchParams
@@ -28,11 +32,7 @@ export async function GET(request: NextRequest) {
 
     // Check payment status
     const payment: any = await retryDatabase(() =>
-      db
-        .select()
-        .from(payments)
-        .where(eq(payments.stripeSessionId, sessionId))
-        .limit(1)
+      db.select().from(payments).where(eq(payments.stripeSessionId, sessionId)).limit(1)
     );
 
     if (!payment.length) {
@@ -98,10 +98,8 @@ export async function GET(request: NextRequest) {
         courseId: paymentData.courseId,
       },
     });
-
   } catch (error: any) {
     logger.error('Payment verification error:', error);
     return createErrorResponse(error, 'Failed to verify payment');
   }
 }
-

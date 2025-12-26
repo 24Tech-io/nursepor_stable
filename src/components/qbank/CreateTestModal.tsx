@@ -16,12 +16,20 @@ interface QuestionFilters {
   questionTypes: string[];
 }
 
-export default function CreateTestModal({ courseId, onClose, onTestCreated }: CreateTestModalProps) {
-  const [mode, setMode] = useState<'cat' | 'tutorial' | 'timed' | 'readiness_assessment'>('tutorial');
+export default function CreateTestModal({
+  courseId,
+  onClose,
+  onTestCreated,
+}: CreateTestModalProps) {
+  const [mode, setMode] = useState<'cat' | 'tutorial' | 'timed' | 'readiness_assessment'>(
+    'tutorial'
+  );
   const [testType, setTestType] = useState<'classic' | 'ngn' | 'mixed'>('mixed');
   const [organization, setOrganization] = useState<'subject' | 'client_need'>('subject');
   const [questionType, setQuestionType] = useState<string>('all');
-  const [questionFilter, setQuestionFilter] = useState<'all' | 'unused' | 'marked' | 'incorrect' | 'correct_reattempt' | 'omitted'>('all');
+  const [questionFilter, setQuestionFilter] = useState<
+    'all' | 'unused' | 'marked' | 'incorrect' | 'correct_reattempt' | 'omitted'
+  >('all');
   const [testLength, setTestLength] = useState<number>(85);
   const [selectedSubject, setSelectedSubject] = useState<string>('');
   const [selectedLesson, setSelectedLesson] = useState<string>('');
@@ -35,18 +43,16 @@ export default function CreateTestModal({ courseId, onClose, onTestCreated }: Cr
     questionTypes: [],
   });
   const [availableQuestions, setAvailableQuestions] = useState<any[]>([]);
+  const [questionCounts, setQuestionCounts] = useState({
+    all: { classic: 0, ngn: 0 },
+    unused: { classic: 0, ngn: 0 },
+    marked: { classic: 0, ngn: 0 },
+    incorrect: { classic: 0, ngn: 0 },
+    correct_reattempt: { classic: 0, ngn: 0 },
+    omitted: { classic: 0, ngn: 0 },
+  });
   const [isLoading, setIsLoading] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
-
-  // Mock question counts
-  const questionCounts = {
-    all: { classic: 2010, ngn: 1171 },
-    unused: { classic: 416, ngn: 281 },
-    marked: { classic: 1, ngn: 0 },
-    incorrect: { classic: 834, ngn: 685 },
-    correct_reattempt: { classic: 5, ngn: 4 },
-    omitted: { classic: 3, ngn: 0 },
-  };
 
   useEffect(() => {
     fetchFilterOptions();
@@ -54,23 +60,31 @@ export default function CreateTestModal({ courseId, onClose, onTestCreated }: Cr
 
   useEffect(() => {
     fetchAvailableQuestions();
-  }, [courseId, testType, organization, questionType, selectedSubject, selectedLesson, selectedClientNeedArea, selectedSubcategory]);
+  }, [
+    courseId,
+    testType,
+    organization,
+    questionType,
+    selectedSubject,
+    selectedLesson,
+    selectedClientNeedArea,
+    selectedSubcategory,
+  ]);
 
   async function fetchFilterOptions() {
     try {
-      const response = await fetch(
-        `/api/qbank/${courseId}/questions`,
-        { credentials: 'include' }
-      );
+      const response = await fetch(`/api/qbank/${courseId}/questions`, { credentials: 'include' });
       if (response.ok) {
         const data = await response.json();
-        setFilters(data.filters || {
-          subjects: [],
-          lessons: [],
-          clientNeedAreas: [],
-          subcategories: [],
-          questionTypes: [],
-        });
+        setFilters(
+          data.filters || {
+            subjects: [],
+            lessons: [],
+            clientNeedAreas: [],
+            subcategories: [],
+            questionTypes: [],
+          }
+        );
       }
     } catch (error) {
       console.error('Error fetching filter options:', error);
@@ -80,21 +94,13 @@ export default function CreateTestModal({ courseId, onClose, onTestCreated }: Cr
   async function fetchAvailableQuestions() {
     try {
       setIsLoading(true);
-      const params = new URLSearchParams();
-      params.append('testType', testType);
-      if (selectedSubject) params.append('subject', selectedSubject);
-      if (selectedLesson) params.append('lesson', selectedLesson);
-      if (selectedClientNeedArea) params.append('clientNeedArea', selectedClientNeedArea);
-      if (selectedSubcategory) params.append('subcategory', selectedSubcategory);
-      if (questionType !== 'all') params.append('questionType', questionType);
-
-      const response = await fetch(
-        `/api/qbank/${courseId}/questions?${params.toString()}`,
-        { credentials: 'include' }
-      );
+      const response = await fetch(`/api/qbank/${courseId}/questions`, {
+        credentials: 'include',
+      });
       if (response.ok) {
         const data = await response.json();
         setAvailableQuestions(data.questions || []);
+        setQuestionCounts(data.counts || questionCounts);
       }
     } catch (error) {
       console.error('Error fetching available questions:', error);
@@ -103,15 +109,75 @@ export default function CreateTestModal({ courseId, onClose, onTestCreated }: Cr
     }
   }
 
+  // Filter questions based on selected questionFilter
+  const getFilteredQuestions = () => {
+    let filtered = availableQuestions;
+
+    // Apply question filter
+    switch (questionFilter) {
+      case 'unused':
+        filtered = filtered.filter(q => q.statistics?.isUnused === true);
+        break;
+      case 'marked':
+        filtered = filtered.filter(q => q.statistics?.isMarked === true);
+        break;
+      case 'incorrect':
+        filtered = filtered.filter(q => (q.statistics?.timesIncorrect || 0) > 0);
+        break;
+      case 'correct_reattempt':
+        filtered = filtered.filter(q => (q.statistics?.timesCorrectOnReattempt || 0) > 0);
+        break;
+      case 'omitted':
+        filtered = filtered.filter(q => (q.statistics?.timesOmitted || 0) > 0);
+        break;
+      case 'all':
+      default:
+        // No additional filtering
+        break;
+    }
+
+    // Apply test type filter
+    if (testType !== 'mixed') {
+      filtered = filtered.filter(q => q.testType === testType || q.testType === 'mixed');
+    }
+
+    // Apply question type filter
+    if (questionType !== 'all') {
+      filtered = filtered.filter(q => q.format === questionType);
+    }
+
+    // Apply organization filters
+    if (organization === 'subject') {
+      if (selectedSubject) {
+        filtered = filtered.filter(q => q.subject === selectedSubject);
+      }
+      if (selectedLesson) {
+        filtered = filtered.filter(q => q.lesson === selectedLesson);
+      }
+    } else {
+      if (selectedClientNeedArea) {
+        filtered = filtered.filter(q => q.clientNeedArea === selectedClientNeedArea);
+      }
+      if (selectedSubcategory) {
+        filtered = filtered.filter(q => q.subcategory === selectedSubcategory);
+      }
+    }
+
+    return filtered;
+  };
+
   async function handleCreateTest() {
     try {
       setIsCreating(true);
-      
+
+      // Get filtered questions
+      const filtered = getFilteredQuestions();
+
       // Select random questions up to testLength
-      const selectedQuestions = availableQuestions
+      const selectedQuestions = filtered
         .sort(() => Math.random() - 0.5)
-        .slice(0, Math.min(testLength, availableQuestions.length))
-        .map(q => q.id);
+        .slice(0, Math.min(testLength, filtered.length))
+        .map((q) => q.id);
 
       if (selectedQuestions.length === 0) {
         alert('No questions available with the selected filters. Please adjust your filters.');
@@ -119,21 +185,18 @@ export default function CreateTestModal({ courseId, onClose, onTestCreated }: Cr
         return;
       }
 
-      const response = await fetch(
-        `/api/qbank/${courseId}/tests`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({
-            mode,
-            testType,
-            organization,
-            questionIds: selectedQuestions,
-            timeLimit: mode === 'timed' ? Math.ceil(testLength * 1.5) : null, // 1.5 minutes per question
-          }),
-        }
-      );
+      const response = await fetch(`/api/qbank/${courseId}/tests`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          mode,
+          testType,
+          organization,
+          questionIds: selectedQuestions,
+          timeLimit: mode === 'timed' ? Math.ceil(testLength * 1.5) : null, // 1.5 minutes per question
+        }),
+      });
 
       if (response.ok) {
         onTestCreated();
@@ -154,12 +217,14 @@ export default function CreateTestModal({ courseId, onClose, onTestCreated }: Cr
       <div className="bg-white rounded-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
         <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
           <h2 className="text-2xl font-bold text-gray-900">Create Test</h2>
-          <button
-            onClick={onClose}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-          >
+          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M6 18L18 6M6 6l12 12"
+              />
             </svg>
           </button>
         </div>
@@ -178,8 +243,18 @@ export default function CreateTestModal({ courseId, onClose, onTestCreated }: Cr
                 }`}
               >
                 <div className="flex items-center space-x-2 mb-2">
-                  <svg className="w-5 h-5 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  <svg
+                    className="w-5 h-5 text-orange-500"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M13 10V3L4 14h7v7l9-11h-7z"
+                    />
                   </svg>
                   <span className="font-semibold text-gray-900">CAT</span>
                 </div>
@@ -194,8 +269,18 @@ export default function CreateTestModal({ courseId, onClose, onTestCreated }: Cr
                 }`}
               >
                 <div className="flex items-center space-x-2 mb-2">
-                  <svg className="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                  <svg
+                    className="w-5 h-5 text-blue-500"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
+                    />
                   </svg>
                   <span className="font-semibold text-gray-900">Tutorial</span>
                 </div>
@@ -210,8 +295,18 @@ export default function CreateTestModal({ courseId, onClose, onTestCreated }: Cr
                 }`}
               >
                 <div className="flex items-center space-x-2 mb-2">
-                  <svg className="w-5 h-5 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  <svg
+                    className="w-5 h-5 text-purple-500"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
                   </svg>
                   <span className="font-semibold text-gray-900">Timed</span>
                 </div>
@@ -229,13 +324,23 @@ export default function CreateTestModal({ courseId, onClose, onTestCreated }: Cr
                 <div className="text-xs text-gray-600">Full assessment</div>
               </button>
             </div>
-            
+
             {/* Mode Description */}
             {mode === 'tutorial' && (
               <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
                 <div className="flex items-start space-x-3">
-                  <svg className="w-5 h-5 text-blue-600 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  <svg
+                    className="w-5 h-5 text-blue-600 mt-0.5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
                   </svg>
                   <div>
                     <p className="font-semibold text-blue-900">Tutorial</p>
@@ -254,30 +359,30 @@ export default function CreateTestModal({ courseId, onClose, onTestCreated }: Cr
             <div className="flex space-x-3">
               <button
                 onClick={() => setTestType('classic')}
-                className={`px-6 py-3 rounded-lg border-2 transition-all ${
+                className={`px-6 py-3 rounded-lg border-2 transition-all font-semibold ${
                   testType === 'classic'
-                    ? 'border-gray-600 bg-gray-100'
-                    : 'border-gray-200 hover:border-gray-300'
+                    ? 'border-gray-700 bg-gray-100 text-gray-900'
+                    : 'border-gray-300 hover:border-gray-400 text-gray-700'
                 }`}
               >
                 Classic
               </button>
               <button
                 onClick={() => setTestType('ngn')}
-                className={`px-6 py-3 rounded-lg border-2 transition-all ${
+                className={`px-6 py-3 rounded-lg border-2 transition-all font-semibold ${
                   testType === 'ngn'
-                    ? 'border-green-600 bg-green-50'
-                    : 'border-gray-200 hover:border-gray-300'
+                    ? 'border-green-600 bg-green-50 text-green-900'
+                    : 'border-gray-300 hover:border-gray-400 text-gray-700'
                 }`}
               >
                 NGN
               </button>
               <button
                 onClick={() => setTestType('mixed')}
-                className={`px-6 py-3 rounded-lg border-2 transition-all ${
+                className={`px-6 py-3 rounded-lg border-2 transition-all font-semibold ${
                   testType === 'mixed'
-                    ? 'border-blue-600 bg-blue-50'
-                    : 'border-gray-200 hover:border-gray-300'
+                    ? 'border-blue-600 bg-blue-50 text-blue-900'
+                    : 'border-gray-300 hover:border-gray-400 text-gray-700'
                 }`}
               >
                 Mixed
@@ -291,20 +396,20 @@ export default function CreateTestModal({ courseId, onClose, onTestCreated }: Cr
             <div className="flex space-x-3">
               <button
                 onClick={() => setOrganization('subject')}
-                className={`px-6 py-3 rounded-lg border-2 transition-all ${
+                className={`px-6 py-3 rounded-lg border-2 transition-all font-semibold ${
                   organization === 'subject'
-                    ? 'border-blue-600 bg-blue-50'
-                    : 'border-gray-200 hover:border-gray-300'
+                    ? 'border-blue-600 bg-blue-50 text-blue-900'
+                    : 'border-gray-200 hover:border-gray-300 text-gray-700'
                 }`}
               >
                 Subject or System
               </button>
               <button
                 onClick={() => setOrganization('client_need')}
-                className={`px-6 py-3 rounded-lg border-2 transition-all ${
+                className={`px-6 py-3 rounded-lg border-2 transition-all font-semibold ${
                   organization === 'client_need'
-                    ? 'border-blue-600 bg-blue-50'
-                    : 'border-gray-200 hover:border-gray-300'
+                    ? 'border-blue-600 bg-blue-50 text-blue-900'
+                    : 'border-gray-200 hover:border-gray-300 text-gray-700'
                 }`}
               >
                 Client Need Areas
@@ -320,28 +425,30 @@ export default function CreateTestModal({ courseId, onClose, onTestCreated }: Cr
                 onClick={() => setQuestionType('all')}
                 className={`p-3 rounded-lg border-2 transition-all text-sm ${
                   questionType === 'all'
-                    ? 'border-blue-600 bg-blue-50 font-semibold'
-                    : 'border-gray-200 hover:border-gray-300'
+                    ? 'border-blue-600 bg-blue-50 font-semibold text-blue-900'
+                    : 'border-gray-200 hover:border-gray-300 text-gray-700'
                 }`}
               >
-                <div className="font-medium">All (3181)</div>
+                <div className="font-medium">
+                  All ({(questionCounts.all.classic || 0) + (questionCounts.all.ngn || 0)})
+                </div>
               </button>
               <button
                 onClick={() => setQuestionType('sata')}
                 className={`p-3 rounded-lg border-2 transition-all text-sm ${
                   questionType === 'sata'
-                    ? 'border-blue-600 bg-blue-50 font-semibold'
-                    : 'border-gray-200 hover:border-gray-300'
+                    ? 'border-blue-600 bg-blue-50 font-semibold text-blue-900'
+                    : 'border-gray-200 hover:border-gray-300 text-gray-700'
                 }`}
               >
-                <div className="font-medium">SATA (548)</div>
+                <div className="font-medium">SATA</div>
               </button>
               <button
                 onClick={() => setQuestionType('unfolding_ngn')}
                 className={`p-3 rounded-lg border-2 transition-all text-sm ${
                   questionType === 'unfolding_ngn'
-                    ? 'border-blue-600 bg-blue-50 font-semibold'
-                    : 'border-gray-200 hover:border-gray-300'
+                    ? 'border-blue-600 bg-blue-50 font-semibold text-blue-900'
+                    : 'border-gray-200 hover:border-gray-300 text-gray-700'
                 }`}
               >
                 <div className="font-medium">Unfolding NGN Case Studies (70)</div>
@@ -350,11 +457,11 @@ export default function CreateTestModal({ courseId, onClose, onTestCreated }: Cr
                 onClick={() => setQuestionType('standalone_ngn')}
                 className={`p-3 rounded-lg border-2 transition-all text-sm ${
                   questionType === 'standalone_ngn'
-                    ? 'border-blue-600 bg-blue-50 font-semibold'
-                    : 'border-gray-200 hover:border-gray-300'
+                    ? 'border-blue-600 bg-blue-50 font-semibold text-blue-900'
+                    : 'border-gray-200 hover:border-gray-300 text-gray-700'
                 }`}
               >
-                <div className="font-medium">Standalone NGN Case Studies (177)</div>
+                <div className="font-medium">Standalone NGN Case Studies</div>
               </button>
             </div>
           </div>
@@ -425,7 +532,8 @@ export default function CreateTestModal({ courseId, onClose, onTestCreated }: Cr
               >
                 <div className="font-semibold text-gray-900">Correct On Reattempt</div>
                 <div className="text-xs text-gray-600 mt-1">
-                  {questionCounts.correct_reattempt.classic} Classic + {questionCounts.correct_reattempt.ngn} NGN
+                  {questionCounts.correct_reattempt.classic} Classic +{' '}
+                  {questionCounts.correct_reattempt.ngn} NGN
                 </div>
               </button>
               <button
@@ -448,9 +556,7 @@ export default function CreateTestModal({ courseId, onClose, onTestCreated }: Cr
           {organization === 'subject' ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Subject
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Subject</label>
                 <select
                   value={selectedSubject}
                   onChange={(e) => setSelectedSubject(e.target.value)}
@@ -465,9 +571,7 @@ export default function CreateTestModal({ courseId, onClose, onTestCreated }: Cr
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Lesson
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Lesson</label>
                 <select
                   value={selectedLesson}
                   onChange={(e) => setSelectedLesson(e.target.value)}
@@ -502,9 +606,7 @@ export default function CreateTestModal({ courseId, onClose, onTestCreated }: Cr
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Subcategory
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Subcategory</label>
                 <select
                   value={selectedSubcategory}
                   onChange={(e) => setSelectedSubcategory(e.target.value)}
@@ -532,11 +634,14 @@ export default function CreateTestModal({ courseId, onClose, onTestCreated }: Cr
               min="1"
               max="150"
               value={testLength}
-              onChange={(e) => setTestLength(Math.min(150, Math.max(1, parseInt(e.target.value) || 1)))}
+              onChange={(e) =>
+                setTestLength(Math.min(150, Math.max(1, parseInt(e.target.value) || 1)))
+              }
               className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-center text-2xl font-bold"
             />
             <p className="mt-3 text-sm text-gray-600 text-center">
-              {Math.min(testLength, availableQuestions.length)} questions will be selected for this test
+              {Math.min(testLength, availableQuestions.length)} questions will be selected for this
+              test
             </p>
           </div>
 
@@ -561,4 +666,3 @@ export default function CreateTestModal({ courseId, onClose, onTestCreated }: Cr
     </div>
   );
 }
-

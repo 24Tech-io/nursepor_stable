@@ -31,7 +31,10 @@ export default function AnimatedLogo3D({
   };
 
   return (
-    <div style={{ width, height }} className="flex items-center justify-center bg-gradient-to-br from-purple-100 to-blue-100 rounded-lg">
+    <div
+      style={{ width, height }}
+      className="flex items-center justify-center bg-gradient-to-br from-purple-100 to-blue-100 rounded-lg"
+    >
       <div className="text-6xl animate-bounce">{getIcon()}</div>
     </div>
   );

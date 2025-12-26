@@ -4,6 +4,10 @@ import { getDatabaseWithRetry } from '@/lib/db';
 import { courses, questionBanks, qbankQuestions, users, qbankTests, qbankQuestionAttempts, qbankQuestionStatistics } from '@/lib/db/schema';
 import { eq, or, and } from 'drizzle-orm';
 
+// Prevent static generation - this route requires database access
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
 /**
  * Comprehensive test endpoint to create Nurse Pro course with full Q-Bank data
  * Includes: Course, Question Bank, Questions, Tests, Attempts, and Statistics
@@ -20,12 +24,7 @@ export async function GET(request: NextRequest) {
     const existing = await db
       .select()
       .from(courses)
-      .where(
-        or(
-          eq(courses.title, 'Nurse Pro'),
-          eq(courses.title, 'Q-Bank')
-        )
-      );
+      .where(or(eq(courses.title, 'Nurse Pro'), eq(courses.title, 'Q-Bank')));
 
     if (existing.length > 0) {
       course = existing[0];
@@ -42,7 +41,8 @@ export async function GET(request: NextRequest) {
         .insert(courses)
         .values({
           title: 'Nurse Pro',
-          description: 'Comprehensive nursing education platform with Q-Bank, live reviews, notes, and cheat sheets.',
+          description:
+            'Comprehensive nursing education platform with Q-Bank, live reviews, notes, and cheat sheets.',
           instructor: 'Nurse Pro Academy',
           thumbnail: null,
           pricing: 0,
@@ -81,11 +81,11 @@ export async function GET(request: NextRequest) {
       .limit(5);
 
     let questionsCreated = 0;
-    
+
     if (existingQuestions.length === 0) {
       // Create comprehensive test questions
       const questions = generateTestQuestions(questionBank.id);
-      
+
       for (const question of questions) {
         await db.insert(qbankQuestions).values(question);
         questionsCreated++;
@@ -93,11 +93,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Step 4: Get student users for test data
-    const studentUsers = await db
-      .select()
-      .from(users)
-      .where(eq(users.role, 'student'))
-      .limit(3);
+    const studentUsers = await db.select().from(users).where(eq(users.role, 'student')).limit(3);
 
     let testsCreated = 0;
     let attemptsCreated = 0;
@@ -123,7 +119,7 @@ export async function GET(request: NextRequest) {
             mode: 'tutorial',
             testType: 'mixed',
             organization: 'subject',
-            questionIds: JSON.stringify(allQuestions.slice(0, 20).map(q => q.id)),
+            questionIds: JSON.stringify(allQuestions.slice(0, 20).map((q) => q.id)),
             totalQuestions: 20,
             timeLimit: null,
             status: 'completed',
@@ -141,7 +137,7 @@ export async function GET(request: NextRequest) {
             mode: 'timed',
             testType: 'classic',
             organization: 'subject',
-            questionIds: JSON.stringify(allQuestions.slice(20, 40).map(q => q.id)),
+            questionIds: JSON.stringify(allQuestions.slice(20, 40).map((q) => q.id)),
             totalQuestions: 20,
             timeLimit: 60,
             status: 'pending',
@@ -163,7 +159,7 @@ export async function GET(request: NextRequest) {
             for (let i = 0; i < testQuestions.length; i++) {
               const question = testQuestions[i];
               const isCorrect = Math.random() > 0.25; // 75% correct rate
-              
+
               await db.insert(qbankQuestionAttempts).values({
                 testId: createdTest.id,
                 questionId: question.id,
@@ -246,20 +242,41 @@ export async function GET(request: NextRequest) {
 }
 
 function generateTestQuestions(questionBankId: number) {
-  const subjects = ['Adult Health', 'Child Health', 'Mental Health', 'Pharmacology', 'Fundamentals'];
+  const subjects = [
+    'Adult Health',
+    'Child Health',
+    'Mental Health',
+    'Pharmacology',
+    'Fundamentals',
+  ];
   const lessons = ['Cardiovascular', 'Respiratory', 'Endocrine', 'Gastrointestinal', 'Neurologic'];
-  const clientNeeds = ['Physiological Adaptation', 'Reduction of Risk Potential', 'Pharmacological and Parenteral Therapies'];
-  const subcategories = ['Alterations in Body Systems', 'Illness Management', 'Medical Emergencies'];
+  const clientNeeds = [
+    'Physiological Adaptation',
+    'Reduction of Risk Potential',
+    'Pharmacological and Parenteral Therapies',
+  ];
+  const subcategories = [
+    'Alterations in Body Systems',
+    'Illness Management',
+    'Medical Emergencies',
+  ];
 
   const questions = [
     // Multiple Choice Questions
     {
       questionBankId,
-      question: 'A nurse is caring for a client with heart failure. Which assessment finding indicates fluid overload?',
+      question:
+        'A nurse is caring for a client with heart failure. Which assessment finding indicates fluid overload?',
       questionType: 'multiple_choice',
-      options: JSON.stringify(['Decreased urine output', 'Increased blood pressure', 'Crackles in lungs', 'All of the above']),
+      options: JSON.stringify([
+        'Decreased urine output',
+        'Increased blood pressure',
+        'Crackles in lungs',
+        'All of the above',
+      ]),
       correctAnswer: 'All of the above',
-      explanation: 'Fluid overload in heart failure manifests as decreased urine output, increased blood pressure, and crackles in lungs due to pulmonary congestion.',
+      explanation:
+        'Fluid overload in heart failure manifests as decreased urine output, increased blood pressure, and crackles in lungs due to pulmonary congestion.',
       subject: 'Adult Health',
       lesson: 'Cardiovascular',
       clientNeedArea: 'Physiological Adaptation',
@@ -270,11 +287,18 @@ function generateTestQuestions(questionBankId: number) {
     },
     {
       questionBankId,
-      question: 'A client with diabetes mellitus is prescribed insulin. What is the priority nursing action?',
+      question:
+        'A client with diabetes mellitus is prescribed insulin. What is the priority nursing action?',
       questionType: 'multiple_choice',
-      options: JSON.stringify(['Monitor blood glucose levels', 'Assess for hypoglycemia', 'Teach injection technique', 'All are important']),
+      options: JSON.stringify([
+        'Monitor blood glucose levels',
+        'Assess for hypoglycemia',
+        'Teach injection technique',
+        'All are important',
+      ]),
       correctAnswer: 'All are important',
-      explanation: 'All actions are critical when a client is prescribed insulin to ensure safe administration and prevent complications.',
+      explanation:
+        'All actions are critical when a client is prescribed insulin to ensure safe administration and prevent complications.',
       subject: 'Adult Health',
       lesson: 'Endocrine',
       clientNeedArea: 'Pharmacological and Parenteral Therapies',
@@ -287,9 +311,15 @@ function generateTestQuestions(questionBankId: number) {
       questionBankId,
       question: 'Which vital sign change indicates early hypovolemic shock?',
       questionType: 'multiple_choice',
-      options: JSON.stringify(['Decreased heart rate', 'Increased blood pressure', 'Tachycardia', 'Bradypnea']),
+      options: JSON.stringify([
+        'Decreased heart rate',
+        'Increased blood pressure',
+        'Tachycardia',
+        'Bradypnea',
+      ]),
       correctAnswer: 'Tachycardia',
-      explanation: 'Tachycardia is an early compensatory mechanism in hypovolemic shock as the body attempts to maintain cardiac output.',
+      explanation:
+        'Tachycardia is an early compensatory mechanism in hypovolemic shock as the body attempts to maintain cardiac output.',
       subject: 'Adult Health',
       lesson: 'Cardiovascular',
       clientNeedArea: 'Physiological Adaptation',
@@ -300,11 +330,13 @@ function generateTestQuestions(questionBankId: number) {
     },
     {
       questionBankId,
-      question: 'A client is receiving oxygen therapy. What is the maximum safe oxygen flow rate via nasal cannula?',
+      question:
+        'A client is receiving oxygen therapy. What is the maximum safe oxygen flow rate via nasal cannula?',
       questionType: 'multiple_choice',
       options: JSON.stringify(['2 L/min', '4 L/min', '6 L/min', '10 L/min']),
       correctAnswer: '6 L/min',
-      explanation: 'The maximum recommended oxygen flow rate via nasal cannula is 6 L/min to prevent drying of mucous membranes.',
+      explanation:
+        'The maximum recommended oxygen flow rate via nasal cannula is 6 L/min to prevent drying of mucous membranes.',
       subject: 'Adult Health',
       lesson: 'Respiratory',
       clientNeedArea: 'Reduction of Risk Potential',
@@ -335,7 +367,8 @@ function generateTestQuestions(questionBankId: number) {
       questionType: 'sata',
       options: JSON.stringify(['Sweating', 'Tremors', 'Confusion', 'Dry skin', 'Fruity breath']),
       correctAnswer: JSON.stringify(['Sweating', 'Tremors', 'Confusion']),
-      explanation: 'Hypoglycemia presents with sweating, tremors, and confusion. Dry skin and fruity breath are signs of hyperglycemia.',
+      explanation:
+        'Hypoglycemia presents with sweating, tremors, and confusion. Dry skin and fruity breath are signs of hyperglycemia.',
       subject: 'Adult Health',
       lesson: 'Endocrine',
       clientNeedArea: 'Physiological Adaptation',
@@ -346,11 +379,23 @@ function generateTestQuestions(questionBankId: number) {
     },
     {
       questionBankId,
-      question: 'What are appropriate interventions for a client experiencing chest pain? (Select all that apply)',
+      question:
+        'What are appropriate interventions for a client experiencing chest pain? (Select all that apply)',
       questionType: 'sata',
-      options: JSON.stringify(['Administer oxygen', 'Place in supine position', 'Obtain ECG', 'Administer nitroglycerin', 'Encourage ambulation']),
-      correctAnswer: JSON.stringify(['Administer oxygen', 'Obtain ECG', 'Administer nitroglycerin']),
-      explanation: 'For chest pain, administer oxygen, obtain ECG, and give nitroglycerin as ordered. The client should be in semi-Fowler position, not supine, and should rest, not ambulate.',
+      options: JSON.stringify([
+        'Administer oxygen',
+        'Place in supine position',
+        'Obtain ECG',
+        'Administer nitroglycerin',
+        'Encourage ambulation',
+      ]),
+      correctAnswer: JSON.stringify([
+        'Administer oxygen',
+        'Obtain ECG',
+        'Administer nitroglycerin',
+      ]),
+      explanation:
+        'For chest pain, administer oxygen, obtain ECG, and give nitroglycerin as ordered. The client should be in semi-Fowler position, not supine, and should rest, not ambulate.',
       subject: 'Adult Health',
       lesson: 'Cardiovascular',
       clientNeedArea: 'Physiological Adaptation',
@@ -363,9 +408,16 @@ function generateTestQuestions(questionBankId: number) {
       questionBankId,
       question: 'Which findings indicate respiratory distress in a child? (Select all that apply)',
       questionType: 'sata',
-      options: JSON.stringify(['Nasal flaring', 'Bradypnea', 'Retractions', 'Grunting', 'Pink skin color']),
+      options: JSON.stringify([
+        'Nasal flaring',
+        'Bradypnea',
+        'Retractions',
+        'Grunting',
+        'Pink skin color',
+      ]),
       correctAnswer: JSON.stringify(['Nasal flaring', 'Retractions', 'Grunting']),
-      explanation: 'Nasal flaring, retractions, and grunting are signs of respiratory distress. Bradypnea and pink skin color are normal findings.',
+      explanation:
+        'Nasal flaring, retractions, and grunting are signs of respiratory distress. Bradypnea and pink skin color are normal findings.',
       subject: 'Child Health',
       lesson: 'Respiratory',
       clientNeedArea: 'Physiological Adaptation',
@@ -378,9 +430,16 @@ function generateTestQuestions(questionBankId: number) {
       questionBankId,
       question: 'What are risk factors for pressure ulcer development? (Select all that apply)',
       questionType: 'sata',
-      options: JSON.stringify(['Immobility', 'Adequate nutrition', 'Moisture', 'Friction', 'Young age']),
+      options: JSON.stringify([
+        'Immobility',
+        'Adequate nutrition',
+        'Moisture',
+        'Friction',
+        'Young age',
+      ]),
       correctAnswer: JSON.stringify(['Immobility', 'Moisture', 'Friction']),
-      explanation: 'Immobility, moisture, and friction increase pressure ulcer risk. Adequate nutrition prevents ulcers, and young age is not a risk factor.',
+      explanation:
+        'Immobility, moisture, and friction increase pressure ulcer risk. Adequate nutrition prevents ulcers, and young age is not a risk factor.',
       subject: 'Fundamentals',
       lesson: 'Integumentary',
       clientNeedArea: 'Reduction of Risk Potential',
@@ -393,9 +452,21 @@ function generateTestQuestions(questionBankId: number) {
       questionBankId,
       question: 'Which interventions promote patient safety? (Select all that apply)',
       questionType: 'sata',
-      options: JSON.stringify(['Use two patient identifiers', 'Skip hand hygiene if wearing gloves', 'Keep bed in lowest position', 'Use side rails appropriately', 'Leave call light within reach']),
-      correctAnswer: JSON.stringify(['Use two patient identifiers', 'Keep bed in lowest position', 'Use side rails appropriately', 'Leave call light within reach']),
-      explanation: 'All options except skipping hand hygiene promote safety. Hand hygiene is required even when wearing gloves.',
+      options: JSON.stringify([
+        'Use two patient identifiers',
+        'Skip hand hygiene if wearing gloves',
+        'Keep bed in lowest position',
+        'Use side rails appropriately',
+        'Leave call light within reach',
+      ]),
+      correctAnswer: JSON.stringify([
+        'Use two patient identifiers',
+        'Keep bed in lowest position',
+        'Use side rails appropriately',
+        'Leave call light within reach',
+      ]),
+      explanation:
+        'All options except skipping hand hygiene promote safety. Hand hygiene is required even when wearing gloves.',
       subject: 'Fundamentals',
       lesson: 'Safety',
       clientNeedArea: 'Reduction of Risk Potential',
@@ -424,4 +495,3 @@ function generateTestQuestions(questionBankId: number) {
 
   return questions;
 }
-
