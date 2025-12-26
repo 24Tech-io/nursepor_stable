@@ -86,10 +86,10 @@ export default function RoleSwitcher() {
 
       if (response.ok) {
         const data = await response.json();
-        // Redirect to appropriate dashboard
-        // Admin routes are on separate port 3001
+        const adminUrl = process.env.NEXT_PUBLIC_ADMIN_URL || window.location.origin;
+
         if (data.user.role === 'admin') {
-          window.location.href = 'http://localhost:3001/dashboard';
+          window.location.href = `${adminUrl}/admin/dashboard`;
         } else {
           window.location.href = '/student/dashboard';
         }
@@ -131,11 +131,10 @@ export default function RoleSwitcher() {
       <button
         onClick={() => hasMultipleAccounts && setShowSwitcher(!showSwitcher)}
         disabled={isLoading || !hasMultipleAccounts}
-        className={`flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all text-sm font-bold text-white shadow-xl border-2 ${
-          hasMultipleAccounts
-            ? 'bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 cursor-pointer border-indigo-400/50 hover:border-indigo-300 hover:shadow-2xl hover:scale-105'
-            : 'bg-gray-500/80 cursor-not-allowed opacity-80 border-gray-400/30'
-        } disabled:opacity-50`}
+        className={`flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all text-sm font-bold text-white shadow-xl border-2 ${hasMultipleAccounts
+          ? 'bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 cursor-pointer border-indigo-400/50 hover:border-indigo-300 hover:shadow-2xl hover:scale-105'
+          : 'bg-gray-500/80 cursor-not-allowed opacity-80 border-gray-400/30'
+          } disabled:opacity-50`}
         title={hasMultipleAccounts ? `Switch to ${otherAccount?.role || ''} account` : 'Only one account available'}
       >
         <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -161,7 +160,7 @@ export default function RoleSwitcher() {
             className="fixed inset-0 z-40"
             onClick={() => setShowSwitcher(false)}
           />
-          
+
           {/* Dropdown */}
           <div className="absolute right-0 mt-2 w-56 rounded-lg bg-white border border-gray-200 shadow-xl z-50 overflow-hidden">
             <div className="p-2 bg-gradient-to-r from-indigo-500 to-purple-500 text-white">
@@ -173,19 +172,17 @@ export default function RoleSwitcher() {
                   key={account.id}
                   onClick={() => handleSwitchRole(account.role)}
                   disabled={isLoading || account.role === currentUser.role}
-                  className={`w-full px-3 py-2 rounded-md text-left transition-all mb-1 ${
-                    account.role === currentUser.role
-                      ? 'bg-indigo-50 border border-indigo-500 text-indigo-700 cursor-default'
-                      : 'bg-gray-50 border border-gray-200 text-gray-700 hover:bg-indigo-50 hover:border-indigo-300 hover:text-indigo-700'
-                  } ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  className={`w-full px-3 py-2 rounded-md text-left transition-all mb-1 ${account.role === currentUser.role
+                    ? 'bg-indigo-50 border border-indigo-500 text-indigo-700 cursor-default'
+                    : 'bg-gray-50 border border-gray-200 text-gray-700 hover:bg-indigo-50 hover:border-indigo-300 hover:text-indigo-700'
+                    } ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <div className={`w-8 h-8 rounded-md flex items-center justify-center ${
-                        account.role === 'admin' 
-                          ? 'bg-purple-100 text-purple-600' 
-                          : 'bg-blue-100 text-blue-600'
-                      }`}>
+                      <div className={`w-8 h-8 rounded-md flex items-center justify-center ${account.role === 'admin'
+                        ? 'bg-purple-100 text-purple-600'
+                        : 'bg-blue-100 text-blue-600'
+                        }`}>
                         {account.role === 'admin' ? (
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />

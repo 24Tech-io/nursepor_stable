@@ -1,16 +1,19 @@
+import { logger } from '@/lib/logger';
 import { NextRequest, NextResponse } from 'next/server';
-import { getDatabase } from '@/lib/db';
-import { studentProgress, chapters, modules } from '@/lib/db/schema';
+import { getDatabaseWithRetry } from '@/lib/db';
+import { studentProgress, chapters, modules, enrollments } from '@/lib/db/schema';
 import { eq, and, sql } from 'drizzle-orm';
 import { requireAuth } from '@/lib/auth-helpers';
 import { verifyToken } from '@/lib/auth';
 import { markChapterComplete } from '@/lib/data-manager/helpers/progress-helper';
+import { extractAndValidate } from '@/lib/api-validation';
+import { chapterCompleteSchema } from '@/lib/validation-schemas-extended';
 
 export async function POST(request: NextRequest) {
     try {
         // Verify authentication
-        const token = request.cookies.get('token')?.value;
-        
+        const token = request.cookies.get('student_token')?.value || request.cookies.get('token')?.value;
+
         if (!token) {
             return NextResponse.json(
                 { message: 'Unauthorized - No token provided' },
@@ -20,7 +23,7 @@ export async function POST(request: NextRequest) {
 
         let user;
         try {
-            user = verifyToken(token);
+            user = await verifyToken(token);
             if (!user || !user.id) {
                 return NextResponse.json(
                     { message: 'Unauthorized - Invalid token' },
@@ -28,7 +31,7 @@ export async function POST(request: NextRequest) {
                 );
             }
         } catch (error: any) {
-            console.error('Token verification error:', error);
+            logger.error('Token verification error:', error);
             return NextResponse.json(
                 { message: 'Unauthorized - Token verification failed', error: error.message },
                 { status: 401 }
@@ -36,22 +39,21 @@ export async function POST(request: NextRequest) {
         }
 
         const userId = user.id;
-        const { chapterId, courseId } = await request.json();
 
-        if (!chapterId || !courseId) {
-            return NextResponse.json(
-                { message: 'Chapter ID and Course ID are required' },
-                { status: 400 }
-            );
+        // Validate request body
+        const bodyValidation = await extractAndValidate(request, chapterCompleteSchema);
+        if (!bodyValidation.success) {
+            return bodyValidation.error;
         }
+        const { chapterId, courseId } = bodyValidation.data;
 
         let db;
         try {
-            db = getDatabase();
+            db = await getDatabaseWithRetry();
         } catch (dbError: any) {
-            console.error('❌ Database connection error:', dbError);
+            logger.error('❌ Database connection error:', dbError);
             return NextResponse.json(
-                { 
+                {
                     message: 'Database connection error',
                     error: process.env.NODE_ENV === 'development' ? dbError.message : undefined
                 },
@@ -68,9 +70,9 @@ export async function POST(request: NextRequest) {
                 .where(eq(chapters.id, Number(chapterId)))
                 .limit(1);
         } catch (error: any) {
-            console.error('❌ Error fetching chapter:', error);
+            logger.error('❌ Error fetching chapter:', error);
             return NextResponse.json(
-                { 
+                {
                     message: 'Error fetching chapter',
                     error: process.env.NODE_ENV === 'development' ? error.message : undefined
                 },
@@ -99,12 +101,43 @@ export async function POST(request: NextRequest) {
                 )
                 .limit(1);
         } catch (error: any) {
-            console.error('❌ Error fetching student progress:', error);
+            logger.error('❌ Error fetching student progress:', error);
             return NextResponse.json(
-                { 
+                {
                     message: 'Error fetching student progress',
                     error: process.env.NODE_ENV === 'development' ? error.message : undefined
                 },
+                { status: 500 }
+            );
+        }
+
+        // Verify enrollment
+        try {
+            const enrollment = await db
+                .select()
+                .from(enrollments)
+                .where(
+                    and(
+                        eq(enrollments.userId, userId),
+                        eq(enrollments.courseId, Number(courseId)),
+                        eq(enrollments.status, 'active')
+                    )
+                )
+                .limit(1);
+
+            if (!enrollment.length) {
+                // Determine if we should allow it anyway (e.g. if studentProgress exists? No, strictly enrollments per report)
+                // But let's check legacy support if needed. For now, strict check.
+                return NextResponse.json(
+                    { message: 'You are not enrolled in this course' },
+                    { status: 403 }
+                );
+            }
+        } catch (error: any) {
+            logger.error('❌ Error checking enrollment:', error);
+            // Fail open? Or closed? Closed is safer.
+            return NextResponse.json(
+                { message: 'Error verifying enrollment' },
                 { status: 500 }
             );
         }
@@ -133,7 +166,7 @@ export async function POST(request: NextRequest) {
             success: true,
         });
     } catch (error: any) {
-        console.error('Mark chapter complete error:', error);
+        logger.error('Mark chapter complete error:', error);
         return NextResponse.json(
             { message: 'Failed to mark chapter complete', error: error.message },
             { status: 500 }

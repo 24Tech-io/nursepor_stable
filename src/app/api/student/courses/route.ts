@@ -1,8 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/auth';
-import { getDatabase } from '@/lib/db';
+import { getDatabaseWithRetry } from '@/lib/db';
 import { courses, studentProgress, payments, accessRequests, enrollments } from '@/lib/db/schema';
-import { desc, eq, and, or } from 'drizzle-orm';
+import { desc, eq, and, or, sql, inArray } from 'drizzle-orm';
+import { logger } from '@/lib/logger';
+import { withCache, CacheKeys, CacheTTL } from '@/lib/api-cache';
+import { startRouteMonitoring, trackQuery } from '@/lib/performance-monitor';
+
+export const dynamic = 'force-dynamic';
+
+const AGENT_LOG_ENABLED = process.env.AGENT_LOG === 'true';
 
 // Helper function to retry database operations for reliability
 async function retryOperation<T>(operation: () => Promise<T>, retries = 3): Promise<T> {
@@ -11,7 +18,7 @@ async function retryOperation<T>(operation: () => Promise<T>, retries = 3): Prom
       return await operation();
     } catch (error: any) {
       if (i === retries - 1) throw error;
-      console.warn(`Retry ${i + 1}/${retries} after error:`, error.message);
+      logger.warn(`Retry ${i + 1}/${retries} after error:`, error.message);
       await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1)));
     }
   }
@@ -19,104 +26,275 @@ async function retryOperation<T>(operation: () => Promise<T>, retries = 3): Prom
 }
 
 export async function GET(request: NextRequest) {
+  const stopMonitoring = startRouteMonitoring('/api/student/courses');
+  // #region agent log
+  if (AGENT_LOG_ENABLED) {
+    fetch('http://127.0.0.1:7242/ingest/ce5b96bb-1fe8-4a94-9149-04fb97555724',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/app/api/student/courses/route.ts:24',message:'Course API GET entry',data:{timestamp:Date.now()},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+  }
+  // #endregion
   try {
-    const token = request.cookies.get('token')?.value;
+    const token = request.cookies.get('student_token')?.value || request.cookies.get('token')?.value;
 
     if (!token) {
-      console.log('❌ No token found in cookies');
+      // #region agent log
+      if (AGENT_LOG_ENABLED) {
+        fetch('http://127.0.0.1:7242/ingest/ce5b96bb-1fe8-4a94-9149-04fb97555724',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/app/api/student/courses/route.ts:30',message:'No token found',data:{hasToken:false},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+      }
+      // #endregion
+      logger.info('❌ No token found in cookies');
       return NextResponse.json(
         { message: 'Not authenticated' },
         { status: 401 }
       );
     }
 
-    const decoded = verifyToken(token);
+    const decoded = await verifyToken(token);
 
     if (!decoded || !decoded.id) {
-      console.log('❌ Token verification failed');
+      // #region agent log
+      if (AGENT_LOG_ENABLED) {
+        fetch('http://127.0.0.1:7242/ingest/ce5b96bb-1fe8-4a94-9149-04fb97555724',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/app/api/student/courses/route.ts:40',message:'Token verification failed',data:{hasDecoded:!!decoded,hasId:!!decoded?.id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+      }
+      // #endregion
+      logger.info('❌ Token verification failed');
       return NextResponse.json(
         { message: 'Invalid or expired token. Please log in again.' },
         { status: 401 }
       );
     }
 
-    console.log('✅ User authenticated:', decoded.id, decoded.email);
+    // #region agent log
+    if (AGENT_LOG_ENABLED) {
+      fetch('http://127.0.0.1:7242/ingest/ce5b96bb-1fe8-4a94-9149-04fb97555724',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/app/api/student/courses/route.ts:46',message:'User authenticated',data:{userId:decoded.id,email:decoded.email},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+    }
+    // #endregion
+    if (process.env.NODE_ENV === 'development') {
+      logger.info('✅ User authenticated:', decoded.id, decoded.email);
+    }
 
     let db;
     try {
-      db = getDatabase();
+      // #region agent log
+      if (AGENT_LOG_ENABLED) {
+        fetch('http://127.0.0.1:7242/ingest/ce5b96bb-1fe8-4a94-9149-04fb97555724',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/app/api/student/courses/route.ts:50',message:'Before getDatabaseWithRetry',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+      }
+      // #endregion
+      db = await getDatabaseWithRetry();
+      // #region agent log
+      if (AGENT_LOG_ENABLED) {
+        fetch('http://127.0.0.1:7242/ingest/ce5b96bb-1fe8-4a94-9149-04fb97555724',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/app/api/student/courses/route.ts:52',message:'Database connection successful',data:{hasDb:!!db},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+      }
+      // #endregion
     } catch (dbError: any) {
-      console.error('❌ Database initialization error:', dbError);
+      // #region agent log
+      if (AGENT_LOG_ENABLED) {
+        fetch('http://127.0.0.1:7242/ingest/ce5b96bb-1fe8-4a94-9149-04fb97555724',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/app/api/student/courses/route.ts:54',message:'Database connection failed',data:{error:dbError?.message,code:dbError?.code,stack:dbError?.stack?.substring(0,200)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+      }
+      // #endregion
+      logger.error('❌ Database initialization error:', dbError);
+      logger.error('Error details:', dbError?.message, dbError?.stack);
       return NextResponse.json(
         {
           message: 'Database connection failed',
-          error: dbError.message || 'Database is not available',
+          error: dbError?.message || 'Database is not available',
           courses: []
         },
         { status: 500 }
       );
     }
 
-    // Fetch courses with retry logic for reliability
-    const allCourses = await retryOperation(async () => {
-      return await db
-        .select()
-        .from(courses)
-        .where(
-          or(
-            eq(courses.status, 'published'),
-            eq(courses.status, 'active'),
-            eq(courses.status, 'Active')
-          )
-        )
-        .orderBy(desc(courses.createdAt));
-    });
+    // Fetch courses with caching and optimized query (filter by status in database, not JS)
+    const cacheKey = CacheKeys.USER_ENROLLED_COURSES(decoded.id);
+    const rawCourses = await withCache(
+      `cache:student:courses:published:${decoded.id}`,
+      async () => {
+        return await trackQuery(
+          'Get published courses',
+          async () => {
+            return await retryOperation(async () => {
+              return await db
+                .select({
+                  id: courses.id,
+                  title: courses.title,
+                  description: courses.description,
+                  instructor: courses.instructor,
+                  thumbnail: courses.thumbnail,
+                  pricing: courses.pricing,
+                  status: courses.status,
+                  isRequestable: courses.isRequestable,
+                  isDefaultUnlocked: courses.isDefaultUnlocked,
+                  isPublic: courses.isPublic,
+                  createdAt: courses.createdAt,
+                  updatedAt: courses.updatedAt,
+                })
+                .from(courses)
+                .where(
+                  sql`LOWER(${courses.status}) IN ('published', 'active')`
+                )
+                .orderBy(desc(courses.createdAt));
+            });
+          }
+        );
+      },
+      { ttl: CacheTTL.COURSE_LIST, dedupe: true }
+    );
 
-    console.log(`📚 Found ${allCourses.length} published courses`);
+    if (process.env.NODE_ENV === 'development') {
+      logger.info(`🔍 [DEBUG] Raw courses found: ${rawCourses.length}`);
+      rawCourses.forEach(c => {
+        const statusLower = (c.status || '').toLowerCase();
+        const isPublished = statusLower === 'published' || statusLower === 'active';
+        logger.info(`   - ID: ${c.id}, Title: "${c.title}", Status: "${c.status}" (lowercase: "${statusLower}", published: ${isPublished})`);
+      });
+    }
+
+    // Filter out quiz courses (keep Q-Banks) - this is application logic, can't be in DB
+    const allCourses = rawCourses.filter(c => {
+      const titleLower = (c.title || '').toLowerCase();
+      const isQuiz = titleLower.includes('quiz') && !titleLower.includes('q-bank') && !titleLower.includes('qbank');
+      if (isQuiz) {
+        if (process.env.NODE_ENV === 'development') {
+          logger.info(`ℹ️ Course "${c.title}" (ID: ${c.id}) filtered out - identified as quiz course`);
+        }
+        return false;
+      }
+      return true;
+    });
+    if (process.env.NODE_ENV === 'development') {
+      logger.info(`✅ [DEBUG] Filtered published courses: ${allCourses.length} out of ${rawCourses.length} total`);
+      logger.info(`📚 Found ${allCourses.length} published courses`);
+    }
 
     if (allCourses.length === 0) {
-      console.warn('⚠️ No published courses found');
+      logger.warn('⚠️ No published courses found');
       return NextResponse.json({ courses: [] });
     }
 
-    // Get enrollment status in parallel for better performance
-    const [enrolledProgress, purchasedCourses, enrolledRecords, pendingRequests] = await Promise.all([
-      retryOperation(async () =>
-        await db.select({ courseId: studentProgress.courseId })
-          .from(studentProgress)
-          .where(eq(studentProgress.studentId, decoded.id))
-      ),
-      retryOperation(async () =>
-        await db.select({ courseId: payments.courseId })
-          .from(payments)
-          .where(
-            and(
-              eq(payments.userId, decoded.id),
-              eq(payments.status, 'completed')
-            )
-          )
-      ),
-      retryOperation(async () =>
-        await db.select({ courseId: enrollments.courseId })
-          .from(enrollments)
-          .where(
-            and(
-              eq(enrollments.userId, decoded.id),
-              eq(enrollments.status, 'active')
-            )
-          )
-      ),
-      retryOperation(async () =>
-        await db.select({ 
-          courseId: accessRequests.courseId,
-          status: accessRequests.status 
-        })
-          .from(accessRequests)
-          .where(
-            eq(accessRequests.studentId, decoded.id)
-          )
-      )
+    // Get enrollment status in parallel with optimized queries and caching
+    const enrollmentCacheKey = `cache:student:enrollments:${decoded.id}`;
+    const [enrolledProgress, purchasedCourses, enrolledRecords, pendingRequests] = await withCache(
+      enrollmentCacheKey,
+      async () => {
+        return await Promise.all([
+      // Wrap studentProgress query in try-catch to handle missing table
+      (async () => {
+        try {
+          return await retryOperation(async () =>
+            await db.select({ courseId: studentProgress.courseId })
+              .from(studentProgress)
+              .where(eq(studentProgress.studentId, decoded.id))
+          );
+        } catch (error: any) {
+          // If student_progress table doesn't exist, log and return empty array
+          if (error.message?.includes('does not exist') || 
+              error.message?.includes('relation') ||
+              error.code === '42P01' ||
+              error.message?.includes('student_progress')) {
+            logger.warn('⚠️ student_progress table does not exist, continuing without it:', error.message);
+            return [];
+          }
+          // Re-throw other errors
+          throw error;
+        }
+      })(),
+      // Wrap payments query in try-catch to handle missing table
+      (async () => {
+        try {
+          return await retryOperation(async () =>
+            await db.select({ courseId: payments.courseId })
+              .from(payments)
+              .where(
+                and(
+                  eq(payments.userId, decoded.id),
+                  eq(payments.status, 'completed')
+                )
+              )
+          );
+        } catch (error: any) {
+          // If payments table doesn't exist, log and return empty array
+          if (error.message?.includes('does not exist') || 
+              error.message?.includes('relation') ||
+              error.code === '42P01' ||
+              error.message?.includes('payments')) {
+            logger.warn('⚠️ payments table does not exist, continuing without it:', error.message);
+            return [];
+          }
+          // Re-throw other errors
+          throw error;
+        }
+      })(),
+      // Wrap enrollments query in try-catch to handle missing table
+      (async () => {
+        try {
+          // #region agent log
+          if (AGENT_LOG_ENABLED) {
+            fetch('http://127.0.0.1:7242/ingest/ce5b96bb-1fe8-4a94-9149-04fb97555724',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/app/api/student/courses/route.ts:118',message:'Before enrollments query',data:{userId:decoded.id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+          }
+          // #endregion
+          const result = await retryOperation(async () =>
+            await db.select({ courseId: enrollments.courseId })
+              .from(enrollments)
+              .where(
+                and(
+                  eq(enrollments.userId, decoded.id),
+                  eq(enrollments.status, 'active')
+                )
+              )
+          );
+          // #region agent log
+          if (AGENT_LOG_ENABLED) {
+            fetch('http://127.0.0.1:7242/ingest/ce5b96bb-1fe8-4a94-9149-04fb97555724',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/app/api/student/courses/route.ts:128',message:'Enrollments query successful',data:{count:result.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+          }
+          // #endregion
+          return result;
+        } catch (error: any) {
+          // #region agent log
+          if (AGENT_LOG_ENABLED) {
+            fetch('http://127.0.0.1:7242/ingest/ce5b96bb-1fe8-4a94-9149-04fb97555724',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/app/api/student/courses/route.ts:131',message:'Enrollments query error',data:{error:error?.message,code:error?.code,includesDoesNotExist:error?.message?.includes('does not exist'),includesRelation:error?.message?.includes('relation'),code42P01:error?.code === '42P01'},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+          }
+          // #endregion
+          // If enrollments table doesn't exist, log and return empty array
+          if (error.message?.includes('does not exist') || 
+              error.message?.includes('relation') ||
+              error.code === '42P01' ||
+              error.message?.includes('enrollments')) {
+            logger.warn('⚠️ enrollments table does not exist, continuing without it:', error.message);
+            return [];
+          }
+          // Re-throw other errors
+          throw error;
+        }
+      })(),
+      // Wrap accessRequests query in try-catch to handle missing table
+      (async () => {
+        try {
+          return await retryOperation(async () =>
+            await db.select({
+              courseId: accessRequests.courseId,
+              status: accessRequests.status
+            })
+              .from(accessRequests)
+              .where(
+                eq(accessRequests.studentId, decoded.id)
+              )
+          );
+        } catch (error: any) {
+          // If access_requests table doesn't exist, log and return empty array
+          if (error.message?.includes('does not exist') || 
+              error.message?.includes('relation') ||
+              error.code === '42P01' ||
+              error.message?.includes('access_requests')) {
+            logger.warn('⚠️ access_requests table does not exist, continuing without it:', error.message);
+            return [];
+          }
+          // Re-throw other errors
+          throw error;
+        }
+      })()
     ]);
+      },
+      { ttl: CacheTTL.USER_DATA, dedupe: true }
+    );
 
     const enrolledCourseIds = new Set([
       ...enrolledProgress.map((p: any) => p.courseId.toString()),
@@ -130,7 +308,7 @@ export async function GET(request: NextRequest) {
         .filter((r: any) => r.status === 'pending')
         .map((r: any) => r.courseId.toString())
     );
-    
+
     const approvedRequestCourseIds = new Set(
       pendingRequests
         .filter((r: any) => r.status === 'approved')
@@ -141,28 +319,49 @@ export async function GET(request: NextRequest) {
     for (const course of allCourses.filter((c: any) => c.isDefaultUnlocked)) {
       if (!enrolledCourseIds.has(course.id.toString())) {
         try {
-          // We already checked enrolledCourseIds which includes studentProgress
-          // So we can safely insert without checking DB again
-
-          // Use Promise.all to insert both records in parallel
-          await Promise.all([
-            db.insert(studentProgress).values({
+          // Try to insert into studentProgress (may not exist)
+          try {
+            await db.insert(studentProgress).values({
               studentId: decoded.id,
               courseId: course.id,
               totalProgress: 0,
-            }),
-            db.insert(enrollments).values({
+            });
+          } catch (progressError: any) {
+            // If student_progress table doesn't exist, just log and continue
+            if (progressError.message?.includes('does not exist') || 
+                progressError.message?.includes('relation') ||
+                progressError.code === '42P01' ||
+                progressError.message?.includes('student_progress')) {
+              logger.warn(`⚠️ student_progress table not available, skipping progress record for course ${course.id}`);
+            } else {
+              throw progressError; // Re-throw other errors
+            }
+          }
+
+          // Try to insert into enrollments (optional - may not exist)
+          try {
+            await db.insert(enrollments).values({
               userId: decoded.id,
               courseId: course.id,
               status: 'active',
               progress: 0,
-            })
-          ]);
+            });
+          } catch (enrollError: any) {
+            // If enrollments table doesn't exist, just log and continue
+            if (enrollError.message?.includes('does not exist') || 
+                enrollError.message?.includes('relation') ||
+                enrollError.code === '42P01' ||
+                enrollError.message?.includes('enrollments')) {
+              logger.warn(`⚠️ enrollments table not available, skipping enrollment record for course ${course.id}`);
+            } else {
+              throw enrollError; // Re-throw other errors
+            }
+          }
 
           enrolledCourseIds.add(course.id.toString());
-          console.log(`✅ Auto-granted access to default unlocked: ${course.title}`);
+          logger.info(`✅ Auto-granted access to default unlocked: ${course.title}`);
         } catch (error) {
-          console.error(`Error auto-granting access to course ${course.id}:`, error);
+          logger.error(`Error auto-granting access to course ${course.id}:`, error);
         }
       }
     }
@@ -179,15 +378,15 @@ export async function GET(request: NextRequest) {
       // - Approved requests should also be treated as enrolled (enrollment sync may be in progress)
       const hasApprovedRequest = approvedRequestCourseIds.has(courseIdStr);
       const isEnrolled = hasEnrollment || hasApprovedRequest;
-      
+
       // If enrolled, pending request is stale - treat as enrolled
       // If not enrolled but has pending request, show as requested
       const finalIsEnrolled = isEnrolled;
 
       // Normalize status to lowercase for consistent frontend handling
-      const normalizedStatus = course.status?.toLowerCase() === 'active' ? 'active' : 
-                              course.status?.toLowerCase() === 'published' ? 'published' : 
-                              course.status;
+      const normalizedStatus = course.status?.toLowerCase() === 'active' ? 'active' :
+        course.status?.toLowerCase() === 'published' ? 'published' :
+          course.status;
 
       return {
         id: courseIdStr,
@@ -208,23 +407,49 @@ export async function GET(request: NextRequest) {
       };
     });
 
-    console.log(`✅ Returning ${coursesList.length} courses to student ${decoded.id}`);
-    coursesList.forEach((c, idx) => {
-      console.log(`  ${idx + 1}. "${c.title}" (ID: ${c.id}, Status: ${c.status}, Enrolled: ${c.isEnrolled})`);
-    });
+    if (process.env.NODE_ENV === 'development') {
+      logger.info(`✅ Returning ${coursesList.length} courses to student ${decoded.id}`);
+      if (coursesList.length > 0) {
+        coursesList.forEach((c, idx) => {
+          logger.info(`  ${idx + 1}. "${c.title}" (ID: ${c.id}, Status: ${c.status}, Enrolled: ${c.isEnrolled}, Public: ${c.isPublic}, Requestable: ${c.isRequestable})`);
+        });
+      } else {
+        logger.warn(`⚠️ WARNING: No courses being returned to student! Raw courses: ${rawCourses.length}, Filtered: ${allCourses.length}, Final list: ${coursesList.length}`);
+        logger.warn(`⚠️ Raw course statuses:`, rawCourses.map((c: any) => ({ id: c.id, title: c.title, status: c.status })));
+      }
+    }
 
+    // #region agent log
+    if (AGENT_LOG_ENABLED) {
+      fetch('http://127.0.0.1:7242/ingest/ce5b96bb-1fe8-4a94-9149-04fb97555724',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/app/api/student/courses/route.ts:256',message:'Before returning courses',data:{coursesCount:coursesList.length,rawCount:rawCourses.length,filteredCount:allCourses.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+    }
+    // #endregion
+    stopMonitoring();
     return NextResponse.json({
       courses: coursesList,
+      debug: process.env.NODE_ENV === 'development' ? {
+        rawCoursesCount: rawCourses.length,
+        filteredCoursesCount: allCourses.length,
+        finalCoursesCount: coursesList.length,
+        rawStatuses: rawCourses.map((c: any) => ({ id: c.id, status: c.status })),
+      } : undefined,
     });
   } catch (error: any) {
-    console.error('❌ Get student courses error:', error);
+    stopMonitoring();
+    // #region agent log
+    if (AGENT_LOG_ENABLED) {
+      fetch('http://127.0.0.1:7242/ingest/ce5b96bb-1fe8-4a94-9149-04fb97555724',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'src/app/api/student/courses/route.ts:263',message:'Course API error caught',data:{error:error?.message,code:error?.code,stack:error?.stack?.substring(0,300)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+    }
+    // #endregion
+    logger.error('❌ Get student courses error:', error);
 
-    // Return empty array instead of error to ensure UI doesn't break
+    // Return ERROR details for debugging
     return NextResponse.json(
       {
         message: 'Failed to fetch courses',
         error: error.message,
-        courses: [], // Always return courses array even on error
+        stack: error.stack,
+        courses: [],
       },
       { status: 500 }
     );

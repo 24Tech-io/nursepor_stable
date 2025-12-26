@@ -8,6 +8,9 @@ import { db } from '@/lib/db';
 import { coupons } from '@/lib/db/schema';
 import { verifyToken } from '@/lib/auth';
 import { eq, and, lte, gte, or, isNull } from 'drizzle-orm';
+import { extractAndValidate } from '@/lib/api-validation';
+import { validateCouponSchema } from '@/lib/validation-schemas-extended';
+import { logger } from '@/lib/logger';
 
 export async function POST(request: NextRequest) {
   try {
@@ -16,16 +19,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const user = verifyToken(token);
+    const user = await verifyToken(token);
     if (!user) {
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
     }
 
-    const { code, courseId, amount } = await request.json();
-
-    if (!code) {
-      return NextResponse.json({ error: 'Coupon code required' }, { status: 400 });
+    // Validate request body
+    const bodyValidation = await extractAndValidate(request, validateCouponSchema);
+    if (!bodyValidation.success) {
+      return bodyValidation.error;
     }
+    const { code, courseId, amount = 0 } = bodyValidation.data;
 
     // Find coupon
     const coupon = await db.query.coupons.findFirst({
@@ -96,6 +100,7 @@ export async function POST(request: NextRequest) {
       finalAmount,
     });
   } catch (error: any) {
+    logger.error('Validate coupon error:', error);
     return NextResponse.json({ error: 'Failed to validate coupon' }, { status: 500 });
   }
 }

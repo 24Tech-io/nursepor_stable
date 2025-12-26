@@ -1,3 +1,6 @@
+import { logger } from '@/lib/logger';
+import { extractAndValidate, validateQueryParams, validateRouteParams } from '@/lib/api-validation';
+import { z } from 'zod';
 import { NextRequest, NextResponse } from 'next/server';
 import { getUserAccounts } from '@/lib/auth';
 import { sanitizeString, validateEmail, getClientIP, rateLimit } from '@/lib/security';
@@ -40,9 +43,9 @@ export async function POST(request: NextRequest) {
     // Get all accounts for this email
     const accounts = await getUserAccounts(sanitizedEmail);
 
-    console.log('get-roles API - Email requested:', sanitizedEmail);
-    console.log('get-roles API - Accounts found:', accounts.length);
-    console.log('get-roles API - Accounts:', accounts.map(a => ({ id: a.id, role: a.role, name: a.name, email: a.email, isActive: a.isActive })));
+    logger.info('get-roles API - Email requested:', sanitizedEmail);
+    logger.info('get-roles API - Accounts found:', accounts.length);
+    logger.info('get-roles API - Accounts:', accounts.map(a => ({ id: a.id, role: a.role, name: a.name, email: a.email, isActive: a.isActive })));
 
     return NextResponse.json({
       email: sanitizedEmail,
@@ -54,7 +57,7 @@ export async function POST(request: NextRequest) {
       hasMultipleRoles: accounts.length > 1,
     });
   } catch (error: any) {
-    console.error('Get roles error:', error);
+    logger.error('Get roles error:', error);
     return NextResponse.json(
       { 
         message: 'Failed to get user roles',

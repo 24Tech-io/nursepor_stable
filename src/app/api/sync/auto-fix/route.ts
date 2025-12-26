@@ -1,6 +1,7 @@
+import { logger } from '@/lib/logger';
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/auth';
-import { getDatabase } from '@/lib/db';
+import { getDatabaseWithRetry } from '@/lib/db';
 import { courses, studentProgress, accessRequests, users, payments } from '@/lib/db/schema';
 import { eq, and, or, sql, inArray } from 'drizzle-orm';
 
@@ -20,7 +21,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });
     }
 
-    const db = getDatabase();
+    const db = await getDatabaseWithRetry();
     const fixes: any[] = [];
     let totalFixed = 0;
 
@@ -112,7 +113,7 @@ export async function POST(request: NextRequest) {
         : 'No sync issues found'
     });
   } catch (error: any) {
-    console.error('Auto-fix error:', error);
+    logger.error('Auto-fix error:', error);
     return NextResponse.json(
       { 
         success: false,

@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDatabase } from '@/lib/db';
+import { getDatabaseWithRetry } from '@/lib/db';
 import { users } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { SignJWT } from 'jose';
+import bcrypt from 'bcryptjs';
+import { logger } from '@/lib/logger';
+import { extractAndValidate, validateQueryParams, validateRouteParams } from '@/lib/api-validation';
+import { z } from 'zod';
 
 const JWT_SECRET = new TextEncoder().encode(
     process.env.JWT_SECRET || 'your-secret-key-change-in-production'
@@ -10,7 +14,7 @@ const JWT_SECRET = new TextEncoder().encode(
 
 export async function POST(request: NextRequest) {
     try {
-        const { email, otp, role } = await request.json();
+        const { email, otp, role, password } = await request.json();
 
         if (!email || !otp) {
             return NextResponse.json(
@@ -19,7 +23,7 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        const db = getDatabase();
+        const db = await getDatabaseWithRetry();
         const normalizedEmail = email.toLowerCase().trim();
 
         // Find user - filter by role if specified
@@ -47,6 +51,28 @@ export async function POST(request: NextRequest) {
         }
 
         const user = userResult[0];
+
+        // Check if user has 2FA enabled - they need to provide password too
+        if (user.twoFactorEnabled && !password) {
+            return NextResponse.json(
+                { 
+                    message: 'Two-Factor Authentication is enabled. Password is required for OTP login.',
+                    requires2FAPassword: true
+                },
+                { status: 400 }
+            );
+        }
+
+        // If 2FA is enabled, verify password
+        if (user.twoFactorEnabled && password) {
+            const isValidPassword = await bcrypt.compare(password, user.password);
+            if (!isValidPassword) {
+                return NextResponse.json(
+                    { message: 'Invalid password' },
+                    { status: 401 }
+                );
+            }
+        }
 
         // Verify OTP
         if (!user.otpSecret || !user.otpExpiry) {
@@ -104,10 +130,13 @@ export async function POST(request: NextRequest) {
                 name: user.name,
                 email: user.email,
                 role: user.role,
+                twoFactorEnabled: user.twoFactorEnabled || false,
             },
+            redirectUrl: user.role === 'admin' ? '/admin/dashboard' : '/student/dashboard',
         });
 
-        const cookieName = user.role === 'admin' ? 'adminToken' : 'token';
+        // Use student_token for students for consistency
+        const cookieName = user.role === 'admin' ? 'adminToken' : 'student_token';
         response.cookies.set(cookieName, token, {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
@@ -118,7 +147,7 @@ export async function POST(request: NextRequest) {
 
         return response;
     } catch (error: any) {
-        console.error('Verify OTP error:', error);
+        logger.error('Verify OTP error:', error);
         return NextResponse.json(
             { message: 'Failed to verify OTP', error: error.message },
             { status: 500 }

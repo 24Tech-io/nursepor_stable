@@ -10,7 +10,10 @@ import { ConnectionManager } from '@/lib/sync-manager/server/connection-manager'
 import { SyncEvent } from '@/lib/sync-manager/types';
 
 export async function GET(request: NextRequest) {
-  const token = request.cookies.get('token')?.value || request.cookies.get('adminToken')?.value;
+  const token = request.cookies.get('student_token')?.value ||
+    request.cookies.get('admin_token')?.value ||
+    request.cookies.get('token')?.value ||
+    request.cookies.get('adminToken')?.value;
 
   if (!token) {
     return new Response('Unauthorized', { status: 401 });

@@ -6,13 +6,16 @@ import { guardDebugEndpoints } from './middleware/production-guard';
 import { checkRequestSize } from './middleware/request-size-limit';
 // Note: checkRateLimit is imported dynamically below to avoid build-time import of optional Redis packages
 import { validateCSRF } from './middleware/csrf-validation';
+// Performance monitoring (only for API routes, not in Edge runtime)
+// Performance monitoring removed
+
 
 // CORS configuration - uses centralized config (no hardcoded URLs)
 const ALLOWED_ORIGINS = appConfig.allowedOrigins;
 
 // Rate limiting configuration
 const RATE_LIMIT_WINDOW = 60 * 1000; // 1 minute
-const RATE_LIMIT_MAX = 100; // requests per window
+const RATE_LIMIT_MAX = 1000; // requests per window
 
 export async function middleware(request: NextRequest) {
   // Guard debug endpoints in production
@@ -20,14 +23,45 @@ export async function middleware(request: NextRequest) {
   if (debugGuard) {
     return debugGuard;
   }
-  
+
   // Check request size (sync check in Edge runtime)
   const sizeCheck = checkRequestSize(request);
   if (sizeCheck) {
     return sizeCheck;
   }
-  
+
+  // Authentication guards for protected routes
+  const url = new URL(request.url);
+  const pathname = url.pathname;
+
+  // Protect admin routes - require admin_token
+  // Allow /admin/login, /admin/register, and /admin (welcome page)
+  if (pathname.startsWith('/admin') &&
+    !pathname.startsWith('/admin/login') &&
+    !pathname.startsWith('/admin/register') &&
+    pathname !== '/admin') {
+    const adminToken = request.cookies.get('admin_token')?.value;
+    if (!adminToken) {
+      return NextResponse.redirect(new URL('/admin/login', request.url));
+    }
+  }
+
+  // Protect student routes - require student_token
+  // Allow /student/register
+  // Note: We allow pages to load and handle auth client-side for better UX
+  // This prevents 404s and allows pages to show loading states
+  // Pages will check auth via /api/auth/me and redirect if needed
+  if (pathname.startsWith('/student') && !pathname.startsWith('/student/register')) {
+    const studentToken = request.cookies.get('student_token')?.value;
+    // Allow route to load - pages handle auth client-side
+    // This is better UX than blocking at middleware level
+    // If no token, pages will show loading then redirect
+  }
+
   const response = NextResponse.next();
+
+  // Performance monitoring logic removed
+
 
   // CORS headers
   const origin = request.headers.get('origin');
@@ -44,7 +78,7 @@ export async function middleware(request: NextRequest) {
   }
 
   // CSRF validation for state-changing operations
-  if (request.nextUrl.pathname.startsWith('/api')) {
+  if (pathname.startsWith('/api')) {
     const csrfValidation = validateCSRF(request);
     if (csrfValidation) {
       return csrfValidation;
@@ -61,19 +95,20 @@ export async function middleware(request: NextRequest) {
   // Content Security Policy
   const csp = [
     "default-src 'self'",
-    "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com",
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: https:",
     "font-src 'self' data:",
     "connect-src 'self' https:",
+    "frame-src 'self' https://js.stripe.com https://hooks.stripe.com https://docs.google.com https://www.youtube.com https://player.vimeo.com",
     "frame-ancestors 'none'",
   ].join('; ');
   response.headers.set('Content-Security-Policy', csp);
 
   // Rate limiting for API routes (using Redis with fallback)
-  if (request.nextUrl.pathname.startsWith('/api')) {
+  if (pathname.startsWith('/api')) {
     const ip = request.ip || request.headers.get('x-forwarded-for') || 'unknown';
-    const identifier = `${ip}:${request.nextUrl.pathname}`;
+    const identifier = `${ip}:${pathname}`;
 
     try {
       // Import at runtime via shim to avoid build-time issues with optional Redis packages

@@ -4,7 +4,7 @@
  * Ensures consistency by querying both studentProgress and enrollments tables
  */
 
-import { getDatabase } from '@/lib/db';
+import { getDatabaseWithRetry } from '@/lib/db';
 import { studentProgress, enrollments, courses, accessRequests } from '@/lib/db/schema';
 import { eq, and, or, sql, inArray } from 'drizzle-orm';
 
@@ -35,7 +35,7 @@ export function getPublishedCourseFilter() {
  */
 export async function getStudentEnrollmentCount(studentId: number): Promise<number> {
   try {
-    const db = getDatabase();
+    const db = await getDatabaseWithRetry();
 
     // Get pending request course IDs to exclude
     const pendingRequests = await db
@@ -120,7 +120,7 @@ export async function getStudentEnrollmentStatus(studentId: number): Promise<Arr
   requestedAt: Date | null;
 }>> {
   try {
-    const db = getDatabase();
+    const db = await getDatabaseWithRetry();
 
     // Get all published/active courses
     const allCourses = await db
@@ -277,7 +277,7 @@ export async function getStudentEnrollmentStatus(studentId: number): Promise<Arr
  */
 export async function getPendingRequestCourseIds(studentId: number): Promise<number[]> {
   try {
-    const db = getDatabase();
+    const db = await getDatabaseWithRetry();
 
     const pendingRequests = await db
       .select({
@@ -307,7 +307,7 @@ export async function getPendingRequestCourseIds(studentId: number): Promise<num
  */
 export async function getEnrolledCourseIds(studentId: number): Promise<number[]> {
   try {
-    const db = getDatabase();
+    const db = await getDatabaseWithRetry();
 
     // Get pending request course IDs to exclude
     const pendingRequestCourseIds = await getPendingRequestCourseIds(studentId);

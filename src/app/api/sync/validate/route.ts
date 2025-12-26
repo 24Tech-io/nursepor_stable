@@ -1,6 +1,7 @@
+import { logger } from '@/lib/logger';
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/auth';
-import { getDatabase } from '@/lib/db';
+import { getDatabaseWithRetry } from '@/lib/db';
 import { courses, studentProgress, accessRequests, users, payments } from '@/lib/db/schema';
 import { eq, and, or, sql, inArray } from 'drizzle-orm';
 
@@ -16,12 +17,12 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });
     }
 
-    const decoded = verifyToken(token);
+    const decoded = await verifyToken(token);
     if (!decoded) {
       return NextResponse.json({ message: 'Invalid token' }, { status: 403 });
     }
 
-    const db = getDatabase();
+    const db = await getDatabaseWithRetry();
     const issues: any[] = [];
     const stats: any = {};
 
@@ -222,7 +223,7 @@ export async function GET(request: NextRequest) {
         : `Found ${issues.length} type(s) of data inconsistencies`
     });
   } catch (error: any) {
-    console.error('Sync validation error:', error);
+    logger.error('Sync validation error:', error);
     return NextResponse.json(
       { 
         success: false,

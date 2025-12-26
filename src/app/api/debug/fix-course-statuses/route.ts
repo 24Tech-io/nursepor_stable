@@ -1,6 +1,7 @@
+import { logger } from '@/lib/logger';
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/auth';
-import { getDatabase } from '@/lib/db';
+import { getDatabaseWithRetry } from '@/lib/db';
 import { courses } from '@/lib/db/schema';
 import { eq, or } from 'drizzle-orm';
 
@@ -19,7 +20,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const decoded = verifyToken(token);
+    const decoded = await verifyToken(token);
     if (!decoded || decoded.role !== 'admin') {
       return NextResponse.json(
         { message: 'Admin access required' },
@@ -29,7 +30,7 @@ export async function POST(request: NextRequest) {
 
     let db;
     try {
-      db = getDatabase();
+      db = await getDatabaseWithRetry();
     } catch (dbError: any) {
       return NextResponse.json(
         {
@@ -53,7 +54,7 @@ export async function POST(request: NextRequest) {
         )
       );
 
-    console.log(`🔧 Found ${activeCourses.length} courses with "active" status`);
+    logger.info(`🔧 Found ${activeCourses.length} courses with "active" status`);
 
     // Update them to "published"
     const updated: any[] = [];
@@ -73,7 +74,7 @@ export async function POST(request: NextRequest) {
         newStatus: 'published',
       });
 
-      console.log(`✅ Updated course "${course.title}" from "${course.status}" to "published"`);
+      logger.info(`✅ Updated course "${course.title}" from "${course.status}" to "published"`);
     }
 
     // Also check for any other variations
@@ -97,7 +98,7 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error: any) {
-    console.error('❌ Fix course statuses error:', error);
+    logger.error('❌ Fix course statuses error:', error);
     return NextResponse.json(
       {
         success: false,

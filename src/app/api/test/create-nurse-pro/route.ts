@@ -1,5 +1,6 @@
+import { logger } from '@/lib/logger';
 import { NextRequest, NextResponse } from 'next/server';
-import { getDatabase } from '@/lib/db';
+import { getDatabaseWithRetry } from '@/lib/db';
 import { courses, questionBanks, qbankQuestions, users, qbankTests, qbankQuestionAttempts, qbankQuestionStatistics } from '@/lib/db/schema';
 import { eq, or, and } from 'drizzle-orm';
 
@@ -10,7 +11,7 @@ import { eq, or, and } from 'drizzle-orm';
  */
 export async function GET(request: NextRequest) {
   try {
-    const db = getDatabase();
+    const db = await getDatabaseWithRetry();
     
     let course;
     let questionBank;
@@ -231,7 +232,7 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error: any) {
-    console.error('Test create course error:', error);
+    logger.error('Test create course error:', error);
     return NextResponse.json(
       {
         success: false,

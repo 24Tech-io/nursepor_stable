@@ -21,19 +21,34 @@ export function validateEmail(email: string): boolean {
 }
 
 export function validatePassword(password: string): { valid: boolean; error?: string } {
+  // Minimum length
   if (password.length < 8) {
     return { valid: false, error: 'Password must be at least 8 characters long' };
   }
   if (password.length > 128) {
     return { valid: false, error: 'Password must be less than 128 characters' };
   }
-  // Require at least one letter and one number
-  if (!/[a-zA-Z]/.test(password)) {
-    return { valid: false, error: 'Password must contain at least one letter' };
+  
+  // Require uppercase letter
+  if (!/[A-Z]/.test(password)) {
+    return { valid: false, error: 'Password must contain at least one uppercase letter' };
   }
+  
+  // Require lowercase letter
+  if (!/[a-z]/.test(password)) {
+    return { valid: false, error: 'Password must contain at least one lowercase letter' };
+  }
+  
+  // Require number
   if (!/[0-9]/.test(password)) {
     return { valid: false, error: 'Password must contain at least one number' };
   }
+  
+  // Require special character
+  if (!/[^A-Za-z0-9]/.test(password)) {
+    return { valid: false, error: 'Password must contain at least one special character (!@#$%^&*()_+-=[]{}|;:,.<>?)' };
+  }
+  
   return { valid: true };
 }
 

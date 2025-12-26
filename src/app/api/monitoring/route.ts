@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 import { NextRequest, NextResponse } from 'next/server';
 import { db, isDatabaseAvailable } from '@/lib/db';
 import { performanceLogger } from '@/lib/logger';
@@ -52,7 +53,7 @@ export async function GET(request: NextRequest) {
                 dbStatus = dbLatency < 100 ? 'healthy' : dbLatency < 500 ? 'slow' : 'degraded';
             } catch (error) {
                 dbStatus = 'error';
-                console.error('Database health check failed:', error);
+                logger.error('Database health check failed:', error);
             }
         }
 
@@ -112,7 +113,7 @@ export async function GET(request: NextRequest) {
         const statusCode = metrics.status === 'healthy' ? 200 : 503;
         return NextResponse.json(metrics, { status: statusCode });
     } catch (error) {
-        console.error('Monitoring error:', error);
+        logger.error('Monitoring error:', error);
         return NextResponse.json(
             {
                 status: 'error',

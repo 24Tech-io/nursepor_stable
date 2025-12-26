@@ -34,11 +34,22 @@ export async function checkRateLimit(
   const record = rateLimitStore.get(key);
   
   if (!record || now >= record.resetTime) {
+    // Clean up expired entry if it exists
+    if (record && now >= record.resetTime) {
+      rateLimitStore.delete(key);
+    }
+    
     // New time window or first request
     rateLimitStore.set(key, {
       count: 1,
       resetTime,
     });
+    
+    // Periodically clean up other expired entries (1% chance per request)
+    if (Math.random() < 0.01) {
+      cleanupExpiredEntries(now);
+    }
+    
     return {
       allowed: true,
       remaining: maxRequests - 1,
@@ -71,5 +82,22 @@ export async function checkRateLimit(
 export async function clearRateLimit(identifier: string): Promise<void> {
   const key = `rate_limit:${identifier}`;
   rateLimitStore.delete(key);
+}
+
+/**
+ * Clean up expired entries from the rate limit store to prevent memory leaks
+ * @param now - Current timestamp
+ */
+function cleanupExpiredEntries(now: number): void {
+  let cleanedCount = 0;
+  for (const [key, record] of rateLimitStore.entries()) {
+    if (now >= record.resetTime) {
+      rateLimitStore.delete(key);
+      cleanedCount++;
+    }
+  }
+  if (cleanedCount > 0) {
+    console.log(`🧹 Cleaned up ${cleanedCount} expired rate limit entries`);
+  }
 }
 

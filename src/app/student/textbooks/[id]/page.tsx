@@ -33,17 +33,19 @@ function TextbookDetailContent() {
   const [studentEmail, setStudentEmail] = useState<string>('');
   const [viewing, setViewing] = useState(false);
 
+  // Extract purchase parameter value to avoid re-renders from searchParams object reference changes
+  const purchaseStatus = searchParams.get('purchase');
+
   useEffect(() => {
     // Check for purchase success
-    const purchaseStatus = searchParams.get('purchase');
     if (purchaseStatus === 'success') {
       alert('Purchase successful! You can now access the textbook.');
-      fetchTextbook();
     }
 
+    // Always fetch textbook and student info when textbookId or purchaseStatus changes
     fetchTextbook();
     fetchStudentInfo();
-  }, [textbookId]);
+  }, [textbookId, purchaseStatus]);
 
   const fetchStudentInfo = async () => {
     try {

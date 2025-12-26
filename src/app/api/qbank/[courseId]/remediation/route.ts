@@ -1,6 +1,7 @@
+import { logger } from '@/lib/logger';
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/auth';
-import { getDatabase } from '@/lib/db';
+import { getDatabaseWithRetry } from '@/lib/db';
 import { 
   questionBanks, 
   qbankQuestions, 
@@ -23,7 +24,7 @@ export async function GET(
       );
     }
 
-    const decoded = verifyToken(token);
+    const decoded = await verifyToken(token);
 
     if (!decoded || !decoded.id) {
       return NextResponse.json(
@@ -32,7 +33,7 @@ export async function GET(
       );
     }
 
-    const db = getDatabase();
+    const db = await getDatabaseWithRetry();
     const courseIdNum = parseInt(params.courseId);
 
     // Check enrollment
@@ -151,7 +152,7 @@ export async function GET(
       },
     });
   } catch (error: any) {
-    console.error('Get remediation error:', error);
+    logger.error('Get remediation error:', error);
     return NextResponse.json(
       { message: 'Internal server error', error: error.message },
       { status: 500 }

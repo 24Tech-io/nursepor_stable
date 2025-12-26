@@ -1,10 +1,14 @@
+import { logger } from '@/lib/logger';
+import { extractAndValidate, validateQueryParams, validateRouteParams } from '@/lib/api-validation';
+import { z } from 'zod';
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/auth';
-import { getDatabase } from '@/lib/db';
+import { getDatabaseWithRetry } from '@/lib/db';
 import { accessRequests, studentProgress, courses, enrollments } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
-import { sendRequestStatusNotification } from '@/lib/notification-helpers';
 import { approveRequest, rejectRequest } from '@/lib/data-manager/helpers/request-helper';
+import { withRequestLock } from '@/lib/operation-lock';
+import { createErrorResponse } from '@/lib/error-handler';
 
 // PATCH - Approve or deny request
 export async function PATCH(
@@ -12,35 +16,35 @@ export async function PATCH(
   { params }: { params: { id: string } }
 ) {
   try {
-    console.log('🔄 [PATCH /api/admin/requests/[id]] Starting request approval/denial...');
-    
-    // Check authentication - try both token and adminToken
-    const token = request.cookies.get('token')?.value || request.cookies.get('adminToken')?.value;
+    logger.info('🔄 [PATCH /api/requests/[id]] Starting request approval/denial...');
 
+    // Check authentication
+    // Check for admin_token first (new auth system), then fallback to adminToken for backward compatibility
+    const token = request.cookies.get('admin_token')?.value || request.cookies.get('adminToken')?.value;
     if (!token) {
-      console.error('❌ No token cookie found');
+      logger.error('❌ No admin token cookie found');
       return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });
     }
 
-    const decoded = verifyToken(token);
+    const decoded = await verifyToken(token);
     if (!decoded) {
-      console.error('❌ Token verification failed');
+      logger.error('❌ Token verification failed');
       return NextResponse.json({ message: 'Invalid token' }, { status: 401 });
     }
-    
+
     if (decoded.role !== 'admin') {
-      console.error('❌ User is not an admin. Role:', decoded.role);
+      logger.error('❌ User is not an admin. Role:', decoded.role);
       return NextResponse.json({ message: 'Admin access required' }, { status: 403 });
     }
 
-    console.log('✅ Admin authenticated:', { id: decoded.id, email: decoded.email });
+    logger.info('✅ Admin authenticated:', { id: decoded.id, email: decoded.email });
 
     // Parse request body
     let body;
     try {
       body = await request.json();
     } catch (e) {
-      console.error('❌ Failed to parse request body:', e);
+      logger.error('❌ Failed to parse request body:', e);
       return NextResponse.json(
         { message: 'Invalid request body' },
         { status: 400 }
@@ -50,7 +54,7 @@ export async function PATCH(
     const { action } = body; // 'approve' or 'deny'
     const requestId = parseInt(params.id);
 
-    console.log('📋 Request details:', { requestId, action, paramsId: params.id });
+    logger.info('📋 Request details:', { requestId, action, paramsId: params.id });
 
     if (!action || !['approve', 'deny'].includes(action)) {
       return NextResponse.json(
@@ -69,10 +73,10 @@ export async function PATCH(
     // Get database connection
     let db;
     try {
-      db = getDatabase();
-      console.log('✅ Database connection established');
+      db = await getDatabaseWithRetry();
+      logger.info('✅ Database connection established');
     } catch (dbError: any) {
-      console.error('❌ Database connection failed:', dbError);
+      logger.error('❌ Database connection failed:', dbError);
       return NextResponse.json(
         { message: 'Database connection failed', error: dbError.message },
         { status: 500 }
@@ -95,9 +99,9 @@ export async function PATCH(
         .where(eq(accessRequests.id, requestId))
         .limit(1);
 
-      console.log('📊 Request query result:', requestDataWithCourse.length, 'found');
+      logger.info('📊 Request query result:', requestDataWithCourse.length, 'found');
     } catch (queryError: any) {
-      console.error('❌ Error querying request:', queryError);
+      logger.error('❌ Error querying request:', queryError);
       return NextResponse.json(
         { message: 'Failed to fetch request', error: queryError.message },
         { status: 500 }
@@ -105,12 +109,12 @@ export async function PATCH(
     }
 
     if (requestDataWithCourse.length === 0) {
-      console.error('❌ Request not found with ID:', requestId);
+      logger.error('❌ Request not found with ID:', requestId);
       return NextResponse.json({ message: 'Request not found' }, { status: 404 });
     }
 
     const accessRequest = requestDataWithCourse[0];
-    console.log('📋 Request found:', {
+    logger.info('📋 Request found:', {
       id: accessRequest.id,
       studentId: accessRequest.studentId,
       courseId: accessRequest.courseId,
@@ -118,13 +122,48 @@ export async function PATCH(
       courseTitle: accessRequest.courseTitle
     });
 
-    // If request is already approved/rejected, just delete it and return success
-    // This handles cases where the request was approved but not deleted
+    // If request is already approved/rejected, verify enrollment exists and delete it
+    // This handles cases where the request was approved but not properly processed
     if (accessRequest.status !== 'pending') {
-      console.warn(`⚠️ Request #${requestId} already reviewed (status: ${accessRequest.status}). Deleting it now.`);
+      logger.warn(`⚠️ Request #${requestId} already reviewed (status: ${accessRequest.status}). Verifying and cleaning up...`);
+
+      // If approved, verify enrollment exists
+      if (accessRequest.status === 'approved') {
+        const [progressCheck, enrollmentCheck] = await Promise.all([
+          db
+            .select({ id: studentProgress.id })
+            .from(studentProgress)
+            .where(
+              and(
+                eq(studentProgress.studentId, accessRequest.studentId),
+                eq(studentProgress.courseId, accessRequest.courseId)
+              )
+            )
+            .limit(1),
+          db
+            .select({ id: enrollments.id })
+            .from(enrollments)
+            .where(
+              and(
+                eq(enrollments.userId, accessRequest.studentId),
+                eq(enrollments.courseId, accessRequest.courseId),
+                eq(enrollments.status, 'active')
+              )
+            )
+            .limit(1),
+        ]);
+
+        if (progressCheck.length === 0 && enrollmentCheck.length === 0) {
+          logger.error(`❌ Request #${requestId} was approved but enrollment doesn't exist!`);
+          // Don't try to repair here - just log the error and delete the request
+          // The repair should happen in the enrollment status endpoint
+        }
+      }
+
+      // Delete the request regardless of status
       try {
         await db.delete(accessRequests).where(eq(accessRequests.id, requestId));
-        console.log(`🗑️ Deleted already-reviewed request #${requestId}`);
+        logger.info(`🗑️ Deleted already-reviewed request #${requestId} (status: ${accessRequest.status})`);
         return NextResponse.json({
           message: `Request was already ${accessRequest.status} and has been removed`,
           action: accessRequest.status === 'approved' ? 'approve' : 'deny',
@@ -134,7 +173,7 @@ export async function PATCH(
           deleted: true,
         });
       } catch (deleteError: any) {
-        console.error(`❌ Failed to delete already-reviewed request #${requestId}:`, deleteError);
+        logger.error(`❌ Failed to delete already-reviewed request #${requestId}:`, deleteError);
         return NextResponse.json(
           { message: `Request already reviewed (status: ${accessRequest.status})` },
           { status: 400 }
@@ -142,23 +181,28 @@ export async function PATCH(
       }
     }
 
-    // Use DataManager for request approval/rejection (with validation, transaction, and event emission)
+    // Use DataManager with operation lock for atomic approval/rejection
+    // This ensures: 1) Status is updated, 2) Enrollment is created (if approved), 3) Request is deleted - all atomically
     if (action === 'approve') {
-      const result = await approveRequest({
-        requestId,
-        action: 'approve',
-        adminId: decoded.id,
-        reason: body.reason,
-      });
+      // Use request lock to prevent concurrent approvals
+      const result = await withRequestLock(
+        accessRequest.studentId,
+        accessRequest.courseId,
+        async () => {
+          return await approveRequest({
+            requestId,
+            action: 'approve',
+            adminId: decoded.id,
+            reason: body.reason,
+          });
+        }
+      );
 
       if (!result.success) {
-        return NextResponse.json(
-          {
-            message: result.error?.message || 'Failed to approve request',
-            error: result.error?.code,
-            details: result.error?.details,
-          },
-          { status: result.error?.retryable ? 503 : 400 }
+        return createErrorResponse(
+          result.error,
+          result.error?.message || 'Failed to approve request',
+          result.error?.retryable ? 503 : 400
         );
       }
 
@@ -188,23 +232,11 @@ export async function PATCH(
       ]);
 
       if (progressCheck.length === 0 && enrollmentCheck.length === 0) {
-        console.error(`❌ [PATCH /api/admin/requests/${requestId}] CRITICAL: Enrollment not created after approval!`);
+        logger.error(`❌ [PATCH /api/requests/${requestId}] CRITICAL: Enrollment not created after approval!`);
         // This is a critical error - enrollment should have been created by DataManager
         // Log it but don't fail the request - the transaction should have rolled back
       } else {
-        console.log(`✅ [PATCH /api/admin/requests/${requestId}] Enrollment verified: progress=${progressCheck.length > 0}, enrollment=${enrollmentCheck.length > 0}`);
-      }
-
-      // Send notification to student (non-blocking)
-      try {
-        await sendRequestStatusNotification(
-          accessRequest.studentId,
-          accessRequest.courseTitle,
-          'approved'
-        );
-        console.log('✅ Notification sent to student');
-      } catch (notifError: any) {
-        console.error('⚠️ Failed to send notification (non-critical):', notifError);
+        logger.info(`✅ [PATCH /api/requests/${requestId}] Enrollment verified: progress=${progressCheck.length > 0}, enrollment=${enrollmentCheck.length > 0}`);
       }
 
       return NextResponse.json({
@@ -218,34 +250,26 @@ export async function PATCH(
         enrollmentCreated: result.data?.enrollmentCreated || false,
       });
     } else {
-      const result = await rejectRequest({
-        requestId,
-        action: 'reject',
-        adminId: decoded.id,
-        reason: body.reason,
-      });
+      // Reject request
+      const result = await withRequestLock(
+        accessRequest.studentId,
+        accessRequest.courseId,
+        async () => {
+          return await rejectRequest({
+            requestId,
+            action: 'reject',
+            adminId: decoded.id,
+            reason: body.reason,
+          });
+        }
+      );
 
       if (!result.success) {
-        return NextResponse.json(
-          {
-            message: result.error?.message || 'Failed to reject request',
-            error: result.error?.code,
-            details: result.error?.details,
-          },
-          { status: result.error?.retryable ? 503 : 400 }
+        return createErrorResponse(
+          result.error,
+          result.error?.message || 'Failed to reject request',
+          result.error?.retryable ? 503 : 400
         );
-      }
-
-      // Send notification for denied requests (non-blocking)
-      try {
-        await sendRequestStatusNotification(
-          accessRequest.studentId,
-          accessRequest.courseTitle,
-          'rejected'
-        );
-        console.log('✅ Notification sent to student');
-      } catch (notifError: any) {
-        console.error('⚠️ Failed to send notification (non-critical):', notifError);
       }
 
       return NextResponse.json({
@@ -258,16 +282,80 @@ export async function PATCH(
         operationId: result.operationId,
       });
     }
-
-    // Response is already returned in the approve/reject blocks above
   } catch (error: any) {
-    console.error('❌ [PATCH /api/admin/requests/[id]] Unexpected error:', error);
-    console.error('Error stack:', error.stack);
+    logger.error('❌ [PATCH /api/requests/[id]] Unexpected error:', error);
+    logger.error('Error stack:', error.stack);
     return NextResponse.json(
-      { 
-        message: 'Failed to update request', 
+      {
+        message: 'Failed to update request',
         error: error.message,
         details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      },
+      { status: 500 }
+    );
+  }
+}
+
+// DELETE - Delete an orphaned access request
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    logger.info('🗑️ [DELETE /api/requests/[id]] Starting request deletion...');
+
+    // Check authentication
+    const token = request.cookies.get('admin_token')?.value || request.cookies.get('adminToken')?.value;
+    if (!token) {
+      logger.error('❌ No admin token cookie found');
+      return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });
+    }
+
+    const decoded = await verifyToken(token);
+    if (!decoded) {
+      logger.error('❌ Token verification failed');
+      return NextResponse.json({ message: 'Invalid token' }, { status: 401 });
+    }
+
+    if (decoded.role !== 'admin') {
+      logger.error('❌ User is not an admin. Role:', decoded.role);
+      return NextResponse.json({ message: 'Admin access required' }, { status: 403 });
+    }
+
+    const requestId = parseInt(params.id);
+    if (isNaN(requestId)) {
+      return NextResponse.json({ message: 'Invalid request ID' }, { status: 400 });
+    }
+
+    const db = await getDatabaseWithRetry();
+
+    // Check if request exists
+    const existingRequest = await db
+      .select()
+      .from(accessRequests)
+      .where(eq(accessRequests.id, requestId))
+      .limit(1);
+
+    if (existingRequest.length === 0) {
+      logger.warn(`⚠️ Request #${requestId} not found`);
+      return NextResponse.json({ message: 'Request not found' }, { status: 404 });
+    }
+
+    // Delete the request
+    await db.delete(accessRequests).where(eq(accessRequests.id, requestId));
+
+    logger.info(`🗑️ Deleted orphaned access request #${requestId}`);
+
+    return NextResponse.json({
+      message: 'Orphaned request deleted successfully',
+      requestId,
+    });
+  } catch (error: any) {
+    logger.error('❌ [DELETE /api/requests/[id]] Unexpected error:', error);
+    return NextResponse.json(
+      {
+        message: 'Failed to delete request',
+        error: error.message,
       },
       { status: 500 }
     );

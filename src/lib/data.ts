@@ -1,4 +1,4 @@
-import { User, Course, BlogPost, AccessRequest, StudentProgress, Achievement, DailyVideo, Notification } from './types'
+import { User, Course, BlogPost, AccessRequest, StudentProgress, Achievement, Notification } from './types'
 
 export const mockUsers: User[] = [
   {
@@ -9,7 +9,6 @@ export const mockUsers: User[] = [
     phone: '+91-9876543210',
     isActive: true,
     joinedDate: new Date('2024-01-15'),
-    faceIdEnrolled: true,
     bio: 'Passionate learner exploring web development and design.'
   },
   {
@@ -20,7 +19,6 @@ export const mockUsers: User[] = [
     phone: '+91-9876543211',
     isActive: true,
     joinedDate: new Date('2023-12-01'),
-    faceIdEnrolled: false
   },
   {
     id: '3',
@@ -30,7 +28,6 @@ export const mockUsers: User[] = [
     phone: '+91-9876543212',
     isActive: true,
     joinedDate: new Date('2024-02-01'),
-    faceIdEnrolled: false,
     bio: 'Full-stack developer with 5 years of experience.'
   },
   {
@@ -41,7 +38,6 @@ export const mockUsers: User[] = [
     phone: '+91-9876543213',
     isActive: false,
     joinedDate: new Date('2024-01-20'),
-    faceIdEnrolled: true,
     bio: 'Data scientist and machine learning enthusiast.'
   },
   {
@@ -52,7 +48,6 @@ export const mockUsers: User[] = [
     phone: '+91-9876543214',
     isActive: true,
     joinedDate: new Date('2024-02-10'),
-    faceIdEnrolled: false,
     bio: 'UI/UX designer passionate about creating beautiful interfaces.'
   }
 ]
@@ -434,38 +429,6 @@ export const mockAchievements: Achievement[] = [
     icon: '🏆',
     color: 'bg-yellow-100 text-yellow-600',
     unlockedAt: new Date('2024-02-15')
-  },
-  {
-    id: 'ach-4',
-    title: 'Early Bird',
-    description: 'Completed a daily video before 8 AM',
-    icon: '🌅',
-    color: 'bg-purple-100 text-purple-600',
-    unlockedAt: new Date('2024-02-05')
-  }
-]
-
-export const mockDailyVideos: DailyVideo[] = [
-  {
-    id: 'daily-1',
-    title: 'Understanding React Hooks',
-    description: 'Learn how to use useState, useEffect, and other essential React hooks',
-    url: 'https://www.youtube.com/embed/dQw4w9WgXcQ',
-    provider: 'youtube',
-    duration: 15,
-    day: 1,
-    isCompleted: true,
-    completedAt: new Date('2024-02-26')
-  },
-  {
-    id: 'daily-2',
-    title: 'CSS Flexbox Deep Dive',
-    description: 'Master CSS Flexbox for modern web layouts',
-    url: 'https://www.youtube.com/embed/dQw4w9WgXcQ',
-    provider: 'youtube',
-    duration: 12,
-    day: 2,
-    isCompleted: false
   }
 ]
 
@@ -495,5 +458,4 @@ export const getBlogPosts = () => mockBlogPosts
 export const getAccessRequests = () => mockAccessRequests
 export const getStudentProgress = (studentId: string) => mockStudentProgress.filter(p => p.studentId === studentId)
 export const getAchievements = () => mockAchievements
-export const getDailyVideos = () => mockDailyVideos
 export const getNotifications = () => mockNotifications

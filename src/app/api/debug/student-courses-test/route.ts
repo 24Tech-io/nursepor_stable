@@ -1,14 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/auth';
-import { getDatabase } from '@/lib/db';
+import { getDatabaseWithRetry } from '@/lib/db';
 import { courses, studentProgress, accessRequests } from '@/lib/db/schema';
 import { desc, eq, and, or } from 'drizzle-orm';
+import { config } from '@/lib/config';
+
+export const dynamic = 'force-dynamic';
 
 /**
  * Test API that mimics the student courses API exactly
  * Helps debug why courses aren't showing on student dashboard
+ * 
+ * NOTE: This endpoint is disabled in production for security
  */
 export async function GET(request: NextRequest) {
+  // Block in production
+  if (config.isProduction) {
+    return NextResponse.json(
+      { error: 'Not found' },
+      { status: 404 }
+    );
+  }
   try {
     const token = request.cookies.get('token')?.value;
 
@@ -19,7 +31,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const decoded = verifyToken(token);
+    const decoded = await verifyToken(token);
 
     if (!decoded || !decoded.id) {
       return NextResponse.json(
@@ -30,7 +42,7 @@ export async function GET(request: NextRequest) {
 
     let db;
     try {
-      db = getDatabase();
+      db = await getDatabaseWithRetry();
     } catch (dbError: any) {
       return NextResponse.json(
         {
@@ -85,9 +97,7 @@ export async function GET(request: NextRequest) {
         .where(
           or(
             eq(courses.status, 'published'),
-            eq(courses.status, 'active'),
-            eq(courses.status, 'Active'),
-            eq(courses.status, 'ACTIVE')
+            eq(courses.status, 'active')
           )
         )
         .orderBy(desc(courses.createdAt));
@@ -207,7 +217,8 @@ export async function GET(request: NextRequest) {
           : 'Courses found successfully.',
     });
   } catch (error: any) {
-    console.error('❌ Student courses test error:', error);
+    const { log } = await import('@/lib/logger-helper');
+    log.error('Student courses test error', error);
     return NextResponse.json(
       {
         success: false,

@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import FaceLogin from '@/components/auth/FaceLogin';
+import CustomCursor from '@/components/CustomCursor';
 
 export default function RegisterPage() {
   const [formData, setFormData] = useState({
@@ -15,8 +15,6 @@ export default function RegisterPage() {
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
-  const [step, setStep] = useState<'details' | 'face'>('details');
-  const [faceDescriptor, setFaceDescriptor] = useState<Float32Array | null>(null);
   const router = useRouter();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -26,7 +24,7 @@ export default function RegisterPage() {
     });
   };
 
-  const handleDetailsSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
@@ -40,19 +38,7 @@ export default function RegisterPage() {
       return;
     }
 
-    setStep('face');
-  };
-
-  const handleFaceEnroll = async (descriptor: Float32Array) => {
-    setFaceDescriptor(descriptor);
-    // Auto-submit after enrollment
-    await submitRegistration(descriptor);
-  };
-
-  const submitRegistration = async (descriptor: Float32Array | null) => {
     setIsLoading(true);
-    setError('');
-
     try {
       const response = await fetch('/api/auth/register', {
         method: 'POST',
@@ -65,7 +51,6 @@ export default function RegisterPage() {
           phone: formData.phone,
           password: formData.password,
           role: 'student',
-          faceDescriptor: descriptor ? Array.from(descriptor) : null,
         }),
       });
 
@@ -76,9 +61,6 @@ export default function RegisterPage() {
       } else {
         setError(data.message || 'Registration failed');
         setIsLoading(false);
-        if (step === 'face') {
-          // Stay on face step or go back? Stay for now.
-        }
       }
     } catch (error) {
       setError('Network error. Please try again.');
@@ -87,32 +69,29 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
+    <div className="min-h-screen bg-slate-950 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+      <CustomCursor />
+      {/* Background Effects */}
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(227,28,37,0.15),_transparent_50%)]" />
+      
+      <div className="relative max-w-md w-full space-y-8">
         {/* Header */}
         <div className="text-center">
-          <div className="mx-auto h-16 w-16 bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg">
+          <div className="mx-auto h-16 w-16 bg-gradient-to-r from-nurse-red-500 to-red-500 rounded-2xl flex items-center justify-center shadow-lg glow-pulse">
             <svg className="h-8 w-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
             </svg>
           </div>
-          <h2 className="mt-6 text-3xl font-bold text-gray-900">Create your student account</h2>
-          <p className="mt-2 text-sm text-gray-600">
-            {step === 'details' ? 'Join our learning community today' : 'Setup Face ID for secure login'}
+          <h2 className="mt-6 text-3xl font-bold text-white">Create your student account</h2>
+          <p className="mt-2 text-sm text-nurse-silver-400">
+            Join our learning community today
           </p>
         </div>
 
-        {/* Steps Indicator */}
-        <div className="flex justify-center space-x-2 mb-6">
-          <div className={`h-2 w-16 rounded-full ${step === 'details' ? 'bg-blue-600' : 'bg-green-500'}`} />
-          <div className={`h-2 w-16 rounded-full ${step === 'face' ? 'bg-blue-600' : 'bg-gray-200'}`} />
-        </div>
-
-        {step === 'details' ? (
-          <form className="mt-8 space-y-6" onSubmit={handleDetailsSubmit}>
+        <form className="mt-8 space-y-6 bg-white/5 backdrop-blur-xl p-8 rounded-2xl border border-white/10" onSubmit={handleSubmit}>
             <div className="space-y-4">
               <div>
-                <label htmlFor="name" className="block text-sm font-medium text-gray-700">
+                <label htmlFor="name" className="block text-sm font-medium text-nurse-silver-300">
                   Full Name
                 </label>
                 <input
@@ -123,13 +102,13 @@ export default function RegisterPage() {
                   required
                   value={formData.name}
                   onChange={handleChange}
-                  className="mt-1 block w-full px-3 py-3 border border-gray-300 rounded-xl shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 bg-white"
+                  className="mt-1 block w-full px-3 py-3 border border-white/20 rounded-xl shadow-sm placeholder-nurse-silver-500 focus:outline-none focus:ring-2 focus:ring-nurse-red-500 focus:border-transparent text-white bg-white/5"
                   placeholder="Enter your full name"
                 />
               </div>
 
               <div>
-                <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+                <label htmlFor="email" className="block text-sm font-medium text-nurse-silver-300">
                   Email address
                 </label>
                 <input
@@ -140,30 +119,29 @@ export default function RegisterPage() {
                   required
                   value={formData.email}
                   onChange={handleChange}
-                  className="mt-1 block w-full px-3 py-3 border border-gray-300 rounded-xl shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 bg-white"
+                  className="mt-1 block w-full px-3 py-3 border border-white/20 rounded-xl shadow-sm placeholder-nurse-silver-500 focus:outline-none focus:ring-2 focus:ring-nurse-red-500 focus:border-transparent text-white bg-white/5"
                   placeholder="Enter your email"
                 />
               </div>
 
               <div>
-                <label htmlFor="phone" className="block text-sm font-medium text-gray-700">
-                  Phone Number
+                <label htmlFor="phone" className="block text-sm font-medium text-nurse-silver-300">
+                  Phone Number <span className="text-nurse-silver-500 font-normal">(optional)</span>
                 </label>
                 <input
                   id="phone"
                   name="phone"
                   type="tel"
                   autoComplete="tel"
-                  required
                   value={formData.phone}
                   onChange={handleChange}
-                  className="mt-1 block w-full px-3 py-3 border border-gray-300 rounded-xl shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 bg-white"
-                  placeholder="Enter your phone number"
+                  className="mt-1 block w-full px-3 py-3 border border-white/20 rounded-xl shadow-sm placeholder-nurse-silver-500 focus:outline-none focus:ring-2 focus:ring-nurse-red-500 focus:border-transparent text-white bg-white/5"
+                  placeholder="Enter your phone number (optional)"
                 />
               </div>
 
               <div>
-                <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+                <label htmlFor="password" className="block text-sm font-medium text-nurse-silver-300">
                   Password
                 </label>
                 <input
@@ -174,14 +152,14 @@ export default function RegisterPage() {
                   required
                   value={formData.password}
                   onChange={handleChange}
-                  className="mt-1 block w-full px-3 py-3 border border-gray-300 rounded-xl shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 bg-white"
+                  className="mt-1 block w-full px-3 py-3 border border-white/20 rounded-xl shadow-sm placeholder-nurse-silver-500 focus:outline-none focus:ring-2 focus:ring-nurse-red-500 focus:border-transparent text-white bg-white/5"
                   placeholder="Create a password"
                   minLength={6}
                 />
               </div>
 
               <div>
-                <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
+                <label htmlFor="confirmPassword" className="block text-sm font-medium text-nurse-silver-300">
                   Confirm Password
                 </label>
                 <input
@@ -192,7 +170,7 @@ export default function RegisterPage() {
                   required
                   value={formData.confirmPassword}
                   onChange={handleChange}
-                  className="mt-1 block w-full px-3 py-3 border border-gray-300 rounded-xl shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 bg-white"
+                  className="mt-1 block w-full px-3 py-3 border border-white/20 rounded-xl shadow-sm placeholder-nurse-silver-500 focus:outline-none focus:ring-2 focus:ring-nurse-red-500 focus:border-transparent text-white bg-white/5"
                   placeholder="Confirm your password"
                   minLength={6}
                 />
@@ -200,7 +178,7 @@ export default function RegisterPage() {
             </div>
 
             {error && (
-              <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+              <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4">
                 <div className="flex">
                   <div className="flex-shrink-0">
                     <svg className="h-5 w-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -208,7 +186,7 @@ export default function RegisterPage() {
                     </svg>
                   </div>
                   <div className="ml-3">
-                    <p className="text-sm text-red-800">{error}</p>
+                    <p className="text-sm text-red-400">{error}</p>
                   </div>
                 </div>
               </div>
@@ -217,62 +195,25 @@ export default function RegisterPage() {
             <div>
               <button
                 type="submit"
-                className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-xl text-white bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200"
+                disabled={isLoading}
+                className="glow-pulse group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-xl text-white bg-gradient-to-r from-nurse-red-600 to-red-600 hover:from-nurse-red-700 hover:to-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-nurse-red-500 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-[0_0_30px_rgba(227,28,37,0.5)]"
               >
-                Continue to Face Setup
+                {isLoading ? 'Creating account...' : 'Create account'}
               </button>
             </div>
 
             <div className="text-center">
-              <p className="text-sm text-gray-600">
+              <p className="text-sm text-nurse-silver-400">
                 Already have an account?{' '}
                 <Link
                   href="/login"
-                  className="font-medium text-blue-600 hover:text-blue-500"
+                  className="font-medium text-nurse-red-500 hover:text-nurse-red-400"
                 >
                   Sign in
                 </Link>
               </p>
             </div>
           </form>
-        ) : (
-          <div className="mt-8 space-y-6">
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-              <h3 className="text-lg font-medium text-gray-900 mb-4 text-center">Setup Face ID</h3>
-              <p className="text-sm text-gray-500 mb-6 text-center">
-                Enable Face ID for faster, more secure login. This is optional but recommended.
-              </p>
-
-              <FaceLogin
-                mode="enroll"
-                onEnroll={handleFaceEnroll}
-                onError={(err) => setError(err)}
-              />
-            </div>
-
-            {error && (
-              <div className="bg-red-50 border border-red-200 rounded-xl p-4">
-                <p className="text-sm text-red-800">{error}</p>
-              </div>
-            )}
-
-            <div className="flex space-x-4">
-              <button
-                onClick={() => setStep('details')}
-                className="flex-1 py-3 px-4 border border-gray-300 text-sm font-medium rounded-xl text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-              >
-                Back
-              </button>
-              <button
-                onClick={() => submitRegistration(null)}
-                disabled={isLoading}
-                className="flex-1 py-3 px-4 border border-transparent text-sm font-medium rounded-xl text-blue-700 bg-blue-100 hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-              >
-                Skip for now
-              </button>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );

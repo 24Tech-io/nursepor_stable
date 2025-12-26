@@ -7,7 +7,10 @@ import { eq } from 'drizzle-orm';
 
 // Get authenticated user from request
 export async function getAuthenticatedUser(request: NextRequest): Promise<AuthUser | null> {
-  const token = request.cookies.get('token')?.value;
+  const token =
+    request.cookies.get('student_token')?.value ||
+    request.cookies.get('admin_token')?.value ||
+    request.cookies.get('token')?.value;
   if (!token) {
     return null;
   }
@@ -37,7 +40,7 @@ export async function getAuthenticatedUser(request: NextRequest): Promise<AuthUs
 
 // Check if user is admin
 export async function requireAdmin(request: NextRequest): Promise<{ user: AuthUser } | NextResponse> {
-  const token = request.cookies.get('token')?.value;
+  const token = request.cookies.get('admin_token')?.value || request.cookies.get('token')?.value;
   
   console.log('🔐 requireAdmin check - Token exists:', !!token, 'Path:', request.nextUrl.pathname);
   
@@ -95,7 +98,6 @@ export async function requireAdmin(request: NextRequest): Promise<{ user: AuthUs
             bio: adminAccount.bio || null,
             role: adminAccount.role,
             isActive: adminAccount.isActive,
-            faceIdEnrolled: adminAccount.faceIdEnrolled || false,
             fingerprintEnrolled: adminAccount.fingerprintEnrolled || false,
             twoFactorEnabled: adminAccount.twoFactorEnabled || false,
             joinedDate: adminAccount.joinedDate || null,
@@ -151,7 +153,6 @@ export async function requireAdmin(request: NextRequest): Promise<{ user: AuthUs
           bio: adminAccount.bio || null,
           role: adminAccount.role,
           isActive: adminAccount.isActive,
-          faceIdEnrolled: adminAccount.faceIdEnrolled || false,
           fingerprintEnrolled: adminAccount.fingerprintEnrolled || false,
           twoFactorEnabled: adminAccount.twoFactorEnabled || false,
           joinedDate: adminAccount.joinedDate || null,

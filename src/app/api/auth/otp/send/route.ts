@@ -3,6 +3,9 @@ import { db } from '@/lib/db';
 import { users } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { securityLogger } from '@/lib/logger';
+import { logger } from '@/lib/logger';
+import { extractAndValidate, validateQueryParams, validateRouteParams } from '@/lib/api-validation';
+import { z } from 'zod';
 
 export async function POST(request: NextRequest) {
     try {
@@ -40,7 +43,7 @@ export async function POST(request: NextRequest) {
 
         // Log to console in development
         if (process.env.NODE_ENV === 'development') {
-            console.log(`📱 OTP for ${phone || email}: ${otp}`);
+            logger.info(`📱 OTP for ${phone || email}: ${otp}`);
         }
 
         return NextResponse.json({
@@ -49,7 +52,7 @@ export async function POST(request: NextRequest) {
             ...(process.env.NODE_ENV === 'development' && { otp })
         });
     } catch (error) {
-        console.error('Send OTP error:', error);
+        logger.error('Send OTP error:', error);
         securityLogger.error('OTP Send Error', { error: String(error) });
         return NextResponse.json({ message: 'Internal server error' }, { status: 500 });
     }

@@ -71,6 +71,27 @@
       "when": 1763452285605,
       "tag": "0009_black_misty_knight",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1765889141133,
+      "tag": "0010_illegal_adam_destine",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1766142094121,
+      "tag": "0011_funny_songbird",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1766486539944,
+      "tag": "0012_ambitious_jack_flag",
+      "breakpoints": true
     }
   ]
 }

@@ -1,6 +1,7 @@
+import { logger } from '@/lib/logger';
 import { NextRequest, NextResponse } from 'next/server';
 import { desc, eq } from 'drizzle-orm';
-import { getDatabase } from '@/lib/db';
+import { getDatabaseWithRetry } from '@/lib/db';
 import { nursingCandidateForms } from '@/lib/db/schema';
 import { normalizeNursingCandidatePayload } from '@/lib/nursing-candidate';
 import { sendNursingCandidateSubmissionEmail } from '@/lib/email';
@@ -47,7 +48,7 @@ export async function POST(request: NextRequest) {
     }
 
     const referenceNumber = `NPA-${Date.now()}`;
-    const db = getDatabase();
+    const db = await getDatabaseWithRetry();
 
     const [record] = await db
       .insert(nursingCandidateForms)
@@ -58,6 +59,8 @@ export async function POST(request: NextRequest) {
         registrationDetails: normalized.registrationDetails,
         employmentHistory: normalized.employmentHistory,
         canadaEmploymentHistory: normalized.canadaEmploymentHistory,
+        nclexHistory: normalized.nclexHistory,
+        targetCountry: normalized.targetCountry,
         documentChecklistAcknowledged: normalized.documentChecklistAcknowledged,
         disciplinaryAction: normalized.registrationDetails.hasDisciplinaryAction,
         documentEmailStatus: 'pending',
@@ -96,7 +99,7 @@ export async function POST(request: NextRequest) {
       { status: 201 }
     );
   } catch (error: any) {
-    console.error('Nursing candidate submission error:', error);
+    logger.error('Nursing candidate submission error:', error);
     return NextResponse.json(
       {
         message: 'Unable to submit your information right now. Please try again shortly.',
@@ -114,12 +117,12 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });
     }
 
-    const decoded = verifyToken(token);
+    const decoded = await verifyToken(token);
     if (!decoded || decoded.role !== 'admin') {
       return NextResponse.json({ message: 'Admin access required' }, { status: 403 });
     }
 
-    const db = getDatabase();
+    const db = await getDatabaseWithRetry();
     const submissions = await db
       .select()
       .from(nursingCandidateForms)
@@ -134,6 +137,8 @@ export async function GET(request: NextRequest) {
         registrationDetails: submission.registrationDetails,
         employmentHistory: submission.employmentHistory,
         canadaEmploymentHistory: submission.canadaEmploymentHistory,
+        nclexHistory: submission.nclexHistory,
+        targetCountry: submission.targetCountry,
         disciplinaryAction: submission.disciplinaryAction,
         documentChecklistAcknowledged: submission.documentChecklistAcknowledged,
         documentEmailStatus: submission.documentEmailStatus,
@@ -143,7 +148,7 @@ export async function GET(request: NextRequest) {
       })),
     });
   } catch (error: any) {
-    console.error('Failed to fetch nursing candidate submissions:', error);
+    logger.error('Failed to fetch nursing candidate submissions:', error);
     return NextResponse.json(
       {
         message: 'Failed to fetch submissions',

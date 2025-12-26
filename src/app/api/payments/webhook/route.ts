@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { stripe } from '@/lib/stripe';
-import { getDatabase } from '@/lib/db';
-import { payments } from '@/lib/db/schema';
-import { eq } from 'drizzle-orm';
+import { getDatabaseWithRetry } from '@/lib/db';
+import { payments, textbookPurchases } from '@/lib/db/schema';
+import { eq, and } from 'drizzle-orm';
 import { enrollStudent } from '@/lib/data-manager/helpers/enrollment-helper';
 import { executeWithIdempotency, checkIdempotency } from '@/lib/idempotency';
 import { withEnrollmentLock } from '@/lib/operation-lock';
 import { createErrorResponse, createValidationError } from '@/lib/error-handler';
 import { retryDatabase } from '@/lib/retry';
+import { log } from '@/lib/logger-helper';
 
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
@@ -20,7 +21,7 @@ export async function POST(request: NextRequest) {
   }
 
   if (!webhookSecret) {
-    console.error('STRIPE_WEBHOOK_SECRET is not set');
+    log.error('STRIPE_WEBHOOK_SECRET is not set');
     return NextResponse.json(
       { error: 'Webhook secret not configured' },
       { status: 500 }
@@ -42,7 +43,7 @@ export async function POST(request: NextRequest) {
   try {
     event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
   } catch (err: any) {
-    console.error('Webhook signature verification failed:', err.message);
+    log.error('Webhook signature verification failed', { error: err.message });
     return NextResponse.json(
       { error: `Webhook Error: ${err.message}` },
       { status: 400 }
@@ -51,7 +52,7 @@ export async function POST(request: NextRequest) {
 
   try {
     // Get database instance
-    const db = getDatabase();
+    const db = await getDatabaseWithRetry();
 
     // Handle the event with idempotency
     switch (event.type) {
@@ -77,7 +78,7 @@ export async function POST(request: NextRequest) {
               .limit(1);
 
             if (payment.length === 0) {
-              console.warn(`⚠️ Payment not found for session: ${session.id}`);
+              log.warn('Payment not found for session', { sessionId: session.id });
               return { processed: false, reason: 'Payment not found' };
             }
 
@@ -85,7 +86,7 @@ export async function POST(request: NextRequest) {
 
             // Skip if already processed
             if (paymentData.status === 'completed') {
-              console.log(`ℹ️ Payment ${paymentData.id} already completed, skipping`);
+              log.debug('Payment already completed, skipping', { paymentId: paymentData.id });
               return { processed: false, reason: 'Already completed' };
             }
 
@@ -100,36 +101,84 @@ export async function POST(request: NextRequest) {
                 })
               .where(eq(payments.stripeSessionId, session.id));
 
-            // Use DataManager with lock for enrollment (atomic operation)
-            await withEnrollmentLock(paymentData.userId, paymentData.courseId, async () => {
-              const enrollmentResult = await enrollStudent({
-                userId: paymentData.userId,
-                courseId: paymentData.courseId,
-                source: 'payment',
-              });
-
-              if (!enrollmentResult.success) {
-                console.error('❌ Error enrolling student after payment:', enrollmentResult.error);
-                // Don't throw - payment is recorded, enrollment can be retried
-              } else {
-                console.log(`✅ Student ${paymentData.userId} enrolled in course ${paymentData.courseId} after payment`);
+            // Handle based on item type
+            const itemType = paymentData.itemType || session.metadata?.itemType || 'course';
+            
+            if (itemType === 'textbook') {
+              // Handle textbook purchase
+              const textbookId = paymentData.textbookId || parseInt(session.metadata?.textbookId || '0');
+              
+              if (!textbookId) {
+                log.error('Textbook ID not found in payment metadata', { paymentId: paymentData.id });
+                return { processed: false, reason: 'Textbook ID missing' };
               }
-            });
+
+              // Check if purchase already exists
+              const existingPurchase = await db
+                .select()
+                .from(textbookPurchases)
+                .where(
+                  and(
+                    eq(textbookPurchases.studentId, paymentData.userId),
+                    eq(textbookPurchases.textbookId, textbookId)
+                  )
+                )
+                .limit(1);
+
+              if (existingPurchase.length === 0) {
+                // Create textbook purchase record
+                await db.insert(textbookPurchases).values({
+                  studentId: paymentData.userId,
+                  textbookId,
+                  paymentId: paymentData.id,
+                  amount: paymentData.amount,
+                  currency: paymentData.currency,
+                  status: 'completed',
+                });
+
+                log.info('Textbook purchase created', { studentId: paymentData.userId, textbookId });
+              } else {
+                log.debug('Textbook purchase already exists', { studentId: paymentData.userId, textbookId });
+              }
+            } else {
+              // Handle course enrollment (existing logic)
+              if (!paymentData.courseId) {
+                log.error('Course ID not found in payment data', { paymentId: paymentData.id });
+                return { processed: false, reason: 'Course ID missing' };
+              }
+
+              // Use DataManager with lock for enrollment (atomic operation)
+              await withEnrollmentLock(paymentData.userId, paymentData.courseId, async () => {
+                const enrollmentResult = await enrollStudent({
+                  userId: paymentData.userId,
+                  courseId: paymentData.courseId,
+                  source: 'payment',
+                });
+
+                if (!enrollmentResult.success) {
+                  log.error('Error enrolling student after payment', { error: enrollmentResult.error, userId: paymentData.userId, courseId: paymentData.courseId });
+                  // Don't throw - payment is recorded, enrollment can be retried
+                } else {
+                  log.info('Student enrolled in course after payment', { userId: paymentData.userId, courseId: paymentData.courseId });
+                }
+              });
+            }
 
             return {
               processed: true,
               paymentId: paymentData.id,
               userId: paymentData.userId,
               courseId: paymentData.courseId,
+              itemType,
             };
           },
           48 // 48 hour TTL for webhook idempotency
         );
 
         if (wasDuplicate) {
-          console.log(`ℹ️ Webhook event ${event.id} already processed, returning cached result`);
+          log.debug('Webhook event already processed, returning cached result', { eventId: event.id });
         } else {
-          console.log(`✅ Payment webhook processed for session: ${session.id}`);
+          log.info('Payment webhook processed', { sessionId: session.id });
         }
 
         break;
@@ -158,7 +207,7 @@ export async function POST(request: NextRequest) {
                 })
               .where(eq(payments.stripePaymentIntentId, paymentIntent.id));
 
-            console.log('Payment failed for intent:', paymentIntent.id);
+            log.info('Payment failed for intent', { paymentIntentId: paymentIntent.id });
             return { processed: true };
           },
           24 // 24 hour TTL
@@ -168,12 +217,12 @@ export async function POST(request: NextRequest) {
       }
 
       default:
-        console.log(`Unhandled event type: ${event.type}`);
+        log.debug('Unhandled event type', { eventType: event.type });
     }
 
     return NextResponse.json({ received: true });
   } catch (error: any) {
-    console.error('Webhook handler error:', error);
+    log.error('Webhook handler error', error);
     return createErrorResponse(error, 'Webhook handler failed');
   }
 }

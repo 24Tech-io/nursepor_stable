@@ -8,6 +8,9 @@ import { db } from '@/lib/db';
 import { courseReviews, courses } from '@/lib/db/schema';
 import { verifyToken } from '@/lib/auth';
 import { eq, and, desc } from 'drizzle-orm';
+import { extractAndValidate } from '@/lib/api-validation';
+import { createCourseReviewSchema } from '@/lib/validation-schemas-extended';
+import { logger } from '@/lib/logger';
 
 // GET - Get all reviews for a course
 export async function GET(
@@ -78,15 +81,13 @@ export async function POST(
     }
 
     const courseId = parseInt(params.courseId);
-    const body = await request.json();
-    const { rating, review } = body;
-
-    if (!rating || rating < 1 || rating > 5) {
-      return NextResponse.json(
-        { error: 'Rating must be between 1 and 5' },
-        { status: 400 }
-      );
+    
+    // Validate request body
+    const bodyValidation = await extractAndValidate(request, createCourseReviewSchema);
+    if (!bodyValidation.success) {
+      return bodyValidation.error;
     }
+    const { rating, review } = bodyValidation.data;
 
     // Check if user already reviewed
     const existing = await db.query.courseReviews.findFirst({
@@ -113,6 +114,7 @@ export async function POST(
 
     return NextResponse.json({ success: true, review: newReview });
   } catch (error: any) {
+    logger.error('Create review error:', error);
     return NextResponse.json(
       { error: 'Failed to create review' },
       { status: 500 }

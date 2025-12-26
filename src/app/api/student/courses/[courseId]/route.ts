@@ -1,15 +1,17 @@
+import { logger } from '@/lib/logger';
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/auth';
-import { getDatabase } from '@/lib/db';
-import { courses, studentProgress } from '@/lib/db/schema';
+import { getDatabaseWithRetry } from '@/lib/db';
+import { courses, enrollments } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
+import { logStudentActivity } from '@/lib/student-activity-log';
 
 export async function GET(
   request: NextRequest,
   { params }: { params: { courseId: string } }
 ) {
   try {
-    const token = request.cookies.get('token')?.value;
+    const token = request.cookies.get('student_token')?.value || request.cookies.get('token')?.value;
 
     if (!token) {
       return NextResponse.json(
@@ -18,7 +20,15 @@ export async function GET(
       );
     }
 
-    const decoded = verifyToken(token);
+    let decoded: any = null;
+    try {
+      decoded = await verifyToken(token);
+    } catch {
+      return NextResponse.json(
+        { message: 'Invalid token' },
+        { status: 401 }
+      );
+    }
 
     if (!decoded || !decoded.id) {
       return NextResponse.json(
@@ -27,8 +37,15 @@ export async function GET(
       );
     }
 
-    const db = getDatabase();
+    const db = await getDatabaseWithRetry();
     const courseIdNum = parseInt(params.courseId);
+
+    if (isNaN(courseIdNum)) {
+      return NextResponse.json(
+        { message: 'Invalid course ID' },
+        { status: 400 }
+      );
+    }
 
     // Get course
     const courseData = await db
@@ -44,28 +61,44 @@ export async function GET(
       );
     }
 
-    // Check enrollment
+    // Check enrollment using enrollments table
     const enrollment = await db
       .select()
-      .from(studentProgress)
+      .from(enrollments)
       .where(
         and(
-          eq(studentProgress.studentId, decoded.id),
-          eq(studentProgress.courseId, courseIdNum)
+          eq(enrollments.userId, decoded.id),
+          eq(enrollments.courseId, courseIdNum),
+          eq(enrollments.status, 'active')
         )
       )
       .limit(1);
+
+    // Log course view activity
+    try {
+      await logStudentActivity({
+        studentId: decoded.id,
+        activityType: 'course_view',
+        title: `Viewed Course: ${courseData[0].title}`,
+        metadata: {
+          courseId: courseData[0].id,
+          courseTitle: courseData[0].title,
+        }
+      });
+    } catch (logError) {
+      // Non-blocking log error
+      console.error('Failed to log course view', logError);
+    }
 
     return NextResponse.json({
       course: courseData[0],
       isEnrolled: enrollment.length > 0,
     });
   } catch (error: any) {
-    console.error('Get course error:', error);
+    logger.error('Get course error:', error);
     return NextResponse.json(
       { message: 'Internal server error', error: error.message },
       { status: 500 }
     );
   }
 }
-

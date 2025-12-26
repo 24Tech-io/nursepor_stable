@@ -1,6 +1,9 @@
+import { logger } from '@/lib/logger';
+import { extractAndValidate, validateQueryParams, validateRouteParams } from '@/lib/api-validation';
+import { z } from 'zod';
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth-helpers';
-import { getDatabase } from '@/lib/db';
+import { getDatabaseWithRetry } from '@/lib/db';
 import { users } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 
@@ -14,7 +17,7 @@ export async function POST(request: NextRequest) {
     const currentUser = authResult.user;
 
     // Get database instance
-    const db = getDatabase();
+    const db = await getDatabaseWithRetry();
 
     const { credentialId, clientDataJSON, attestationObject } = await request.json();
 
@@ -39,7 +42,7 @@ export async function POST(request: NextRequest) {
       message: 'Fingerprint enrolled successfully',
     });
   } catch (error: any) {
-    console.error('Fingerprint enrollment error:', error);
+    logger.error('Fingerprint enrollment error:', error);
     return NextResponse.json(
       {
         message: 'Failed to enroll fingerprint',

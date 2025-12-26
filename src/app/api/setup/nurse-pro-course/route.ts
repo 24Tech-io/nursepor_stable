@@ -1,6 +1,7 @@
+import { logger } from '@/lib/logger';
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/auth-helpers';
-import { getDatabase } from '@/lib/db';
+import { getDatabaseWithRetry } from '@/lib/db';
 import { courses, questionBanks, qbankQuestions, studentProgress, users } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
 
@@ -13,7 +14,7 @@ export async function POST(request: NextRequest) {
     }
     const { user: decoded } = authResult;
 
-    const db = getDatabase();
+    const db = await getDatabaseWithRetry();
 
     // Check if course already exists (check both "Nurse Pro" and "Q-Bank")
     let existingCourse = await db
@@ -187,7 +188,7 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error: any) {
-    console.error('Setup error:', error);
+    logger.error('Setup error:', error);
     return NextResponse.json(
       { 
         message: 'Failed to setup course',

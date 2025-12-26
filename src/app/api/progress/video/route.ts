@@ -8,6 +8,9 @@ import { db } from '@/lib/db';
 import { videoProgress } from '@/lib/db/schema';
 import { verifyToken } from '@/lib/auth';
 import { eq, and } from 'drizzle-orm';
+import { extractAndValidate } from '@/lib/api-validation';
+import { videoProgressLegacySchema } from '@/lib/validation-schemas-extended';
+import { logger } from '@/lib/logger';
 
 // POST - Update video progress
 export async function POST(request: NextRequest) {
@@ -22,7 +25,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
     }
 
-    const { chapterId, currentTime, duration } = await request.json();
+    // Validate request body
+    const bodyValidation = await extractAndValidate(request, videoProgressLegacySchema);
+    if (!bodyValidation.success) {
+      return bodyValidation.error;
+    }
+    const { chapterId, currentTime, duration } = bodyValidation.data;
     
     const watchedPercentage = (currentTime / duration) * 100;
     const completed = watchedPercentage >= 90; // 90% watched = completed
@@ -59,7 +67,8 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json({ success: true, completed });
-  } catch (error) {
+  } catch (error: any) {
+    logger.error('Update video progress error:', error);
     return NextResponse.json({ error: 'Failed to update progress' }, { status: 500 });
   }
 }
@@ -98,7 +107,8 @@ export async function GET(request: NextRequest) {
     });
 
     return NextResponse.json({ progress: allProgress });
-  } catch (error) {
+  } catch (error: any) {
+    logger.error('Get video progress error:', error);
     return NextResponse.json({ error: 'Failed to fetch progress' }, { status: 500 });
   }
 }

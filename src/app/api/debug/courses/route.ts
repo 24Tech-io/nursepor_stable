@@ -1,5 +1,6 @@
+import { logger } from '@/lib/logger';
 import { NextRequest, NextResponse } from 'next/server';
-import { getDatabase } from '@/lib/db';
+import { getDatabaseWithRetry } from '@/lib/db';
 import { courses, questionBanks } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 
@@ -8,11 +9,11 @@ import { eq } from 'drizzle-orm';
  */
 export async function GET(request: NextRequest) {
   try {
-    const db = getDatabase();
+    const db = await getDatabaseWithRetry();
 
     // Get ALL courses (not filtered)
     const allCourses = await db.select().from(courses);
-    
+
     // Get published courses
     const publishedCourses = await db
       .select()
@@ -66,12 +67,12 @@ export async function GET(request: NextRequest) {
       })),
       questionBanks: allQuestionBanks.map(qb => ({
         id: qb.id.toString(),
-        courseId: qb.courseId.toString(),
+        courseId: qb.courseId?.toString() || 'standalone',
         name: qb.name,
       })),
     });
   } catch (error: any) {
-    console.error('Debug courses error:', error);
+    logger.error('Debug courses error:', error);
     return NextResponse.json(
       {
         message: 'Failed to debug courses',

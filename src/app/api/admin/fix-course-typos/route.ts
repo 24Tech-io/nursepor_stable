@@ -1,6 +1,7 @@
+import { logger } from '@/lib/logger';
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/auth';
-import { getDatabase } from '@/lib/db';
+import { getDatabaseWithRetry } from '@/lib/db';
 import { courses } from '@/lib/db/schema';
 import { eq, like } from 'drizzle-orm';
 
@@ -15,12 +16,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });
     }
 
-    const decoded = verifyToken(token);
+    const decoded = await verifyToken(token);
     if (!decoded || decoded.role !== 'admin') {
       return NextResponse.json({ message: 'Admin access required' }, { status: 403 });
     }
 
-    const db = getDatabase();
+    const db = await getDatabaseWithRetry();
 
     // Find courses with "Dharmacology" typo
     const typoCourses = await db
@@ -58,7 +59,7 @@ export async function POST(request: NextRequest) {
       fixedCourses,
     });
   } catch (error: any) {
-    console.error('Fix course typos error:', error);
+    logger.error('Fix course typos error:', error);
     return NextResponse.json(
       { 
         success: false,

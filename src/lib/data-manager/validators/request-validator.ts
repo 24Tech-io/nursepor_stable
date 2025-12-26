@@ -51,7 +51,7 @@ export class RequestValidator {
         if (action === 'approve') {
           const [progress, enrollment] = await Promise.all([
             db
-              .select()
+              .select({ id: studentProgress.id })
               .from(studentProgress)
               .where(
                 and(
@@ -61,7 +61,7 @@ export class RequestValidator {
               )
               .limit(1),
             db
-              .select()
+              .select({ id: enrollments.id })
               .from(enrollments)
               .where(
                 and(

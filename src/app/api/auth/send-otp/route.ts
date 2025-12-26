@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDatabase } from '@/lib/db';
+import { getDatabaseWithRetry } from '@/lib/db';
 import { users } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
+import { logger } from '@/lib/logger';
+import { extractAndValidate, validateQueryParams, validateRouteParams } from '@/lib/api-validation';
+import { z } from 'zod';
 
 function generateOTP(): string {
     return Math.floor(100000 + Math.random() * 900000).toString();
@@ -18,7 +21,7 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        const db = getDatabase();
+        const db = await getDatabaseWithRetry();
         const normalizedEmail = email.toLowerCase().trim();
 
         // Check if user exists
@@ -59,10 +62,10 @@ export async function POST(request: NextRequest) {
 
         // Log OTP for development (in production, send via email)
         if (process.env.NODE_ENV === 'development') {
-            console.log(`🔐 OTP for ${email}: ${otp} (expires in 10 minutes)`);
+            logger.info(`🔐 OTP for ${email}: ${otp} (expires in 10 minutes)`);
         }
 
-        // TODO: Send email with OTP in production
+        // Note: Email sending should be implemented in production
         // await sendEmail({
         //   to: email,
         //   subject: 'Your Login OTP - NursePro Academy',
@@ -76,11 +79,13 @@ export async function POST(request: NextRequest) {
 
         return NextResponse.json({
             message: 'OTP sent successfully. Please check your email.',
+            // Tell client if 2FA is enabled (password will be required)
+            requires2FAPassword: user.twoFactorEnabled || false,
             // In development, include OTP in response for testing
             ...(process.env.NODE_ENV === 'development' && { otp, expiresAt }),
         });
     } catch (error: any) {
-        console.error('Send OTP error:', error);
+        logger.error('Send OTP error:', error);
         return NextResponse.json(
             { message: 'Failed to send OTP', error: error.message },
             { status: 500 }

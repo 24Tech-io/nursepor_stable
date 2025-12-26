@@ -1,13 +1,17 @@
+import { logger } from '@/lib/logger';
+import { extractAndValidate, validateQueryParams, validateRouteParams } from '@/lib/api-validation';
+import { enrollStudentSchema } from '@/lib/validation-schemas-extended';
+import { z } from 'zod';
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/auth';
-import { getDatabase } from '@/lib/db';
+import { getDatabaseWithRetry } from '@/lib/db';
 import { courses, studentProgress, payments, enrollments } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { enrollStudent } from '@/lib/data-manager/helpers/enrollment-helper';
 
 export async function POST(request: NextRequest) {
   try {
-    const token = request.cookies.get('token')?.value;
+    const token = request.cookies.get('student_token')?.value || request.cookies.get('token')?.value;
 
     if (!token) {
       return NextResponse.json(
@@ -16,7 +20,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const decoded = verifyToken(token);
+    const decoded = await verifyToken(token);
 
     if (!decoded || !decoded.id) {
       return NextResponse.json(
@@ -25,18 +29,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const body = await request.json();
-    const { courseId } = body;
-
-    if (!courseId) {
-      return NextResponse.json(
-        { message: 'Course ID is required' },
-        { status: 400 }
-      );
+    // Validate request body
+    const bodyValidation = await extractAndValidate(request, enrollStudentSchema);
+    if (!bodyValidation.success) {
+      return bodyValidation.error;
     }
+    const { courseId } = bodyValidation.data;
 
-    const db = getDatabase();
-    const courseIdNum = parseInt(courseId);
+    const db = await getDatabaseWithRetry();
+    const courseIdNum = courseId;
 
     // Get course
     const courseData = await db
@@ -98,7 +99,7 @@ export async function POST(request: NextRequest) {
       message: 'Successfully enrolled in course',
     });
   } catch (error: any) {
-    console.error('Free enrollment error:', error);
+    logger.error('Free enrollment error:', error);
     return NextResponse.json(
       { 
         message: 'Failed to enroll',

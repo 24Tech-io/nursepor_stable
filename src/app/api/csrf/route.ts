@@ -6,11 +6,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { generateCSRFToken } from '@/lib/csrf-protection';
 import { verifyToken } from '@/lib/auth';
+import { log } from '@/lib/logger-helper';
+import { handleApiError } from '@/lib/api-error';
 
 export async function GET(request: NextRequest) {
   try {
     // Get session token from cookie
-    const token = request.cookies.get('token')?.value;
+    const token =
+      request.cookies.get('student_token')?.value ||
+      request.cookies.get('admin_token')?.value ||
+      request.cookies.get('token')?.value;
     
     if (!token) {
       return NextResponse.json(
@@ -35,11 +40,8 @@ export async function GET(request: NextRequest) {
       csrfToken,
     });
   } catch (error: any) {
-    console.error('CSRF token generation error:', error);
-    return NextResponse.json(
-      { error: 'Failed to generate CSRF token' },
-      { status: 500 }
-    );
+    log.error('CSRF token generation error', error);
+    return handleApiError(error, request.nextUrl.pathname);
   }
 }
 

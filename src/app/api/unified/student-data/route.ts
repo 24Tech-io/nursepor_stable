@@ -1,3 +1,6 @@
+import { logger } from '@/lib/logger';
+import { extractAndValidate, validateQueryParams, validateRouteParams } from '@/lib/api-validation';
+import { z } from 'zod';
 /**
  * Unified Student Data API
  * Single endpoint that returns ALL student data
@@ -29,12 +32,12 @@ export async function GET(request: NextRequest) {
       return createAuthError('Not authenticated');
     }
 
-    const decoded = verifyToken(token);
+    const decoded = await verifyToken(token);
     if (!decoded || !decoded.id) {
       return createAuthError('Invalid token');
     }
 
-    console.log(`📊 [Unified API] Fetching data for user ${decoded.id}`);
+    logger.info(`📊 [Unified API] Fetching data for user ${decoded.id}`);
 
     // Check if cache bypass is requested
     const { searchParams } = new URL(request.url);
@@ -60,12 +63,12 @@ export async function GET(request: NextRequest) {
       timestamp: snapshot.timestamp,
     };
 
-    console.log(`✅ [Unified API] Returning data: ${response.enrollments.length} enrollments, ${response.courses.length} courses, ${response.requests.length} requests`);
+    logger.info(`✅ [Unified API] Returning data: ${response.enrollments.length} enrollments, ${response.courses.length} courses, ${response.requests.length} requests`);
 
     return NextResponse.json(response);
 
   } catch (error: any) {
-    console.error('❌ [Unified API] Error:', error);
+    logger.error('❌ [Unified API] Error:', error);
     return NextResponse.json(
       {
         message: 'Failed to fetch student data',
@@ -86,7 +89,7 @@ export async function POST(request: NextRequest) {
       return createAuthError('Not authenticated');
     }
 
-    const decoded = verifyToken(token);
+    const decoded = await verifyToken(token);
     if (!decoded || !decoded.id) {
       return createAuthError('Invalid token');
     }
@@ -100,7 +103,7 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error: any) {
-    console.error('❌ [Unified API] Cache invalidation error:', error);
+    logger.error('❌ [Unified API] Cache invalidation error:', error);
     return NextResponse.json(
       {
         message: 'Failed to invalidate cache',

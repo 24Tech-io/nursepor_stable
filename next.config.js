@@ -2,44 +2,38 @@
 const nextConfig = {
   // Security: Disable X-Powered-By header
   poweredByHeader: false,
-  
+
   // Security: Enable strict mode
   reactStrictMode: true,
-  
+
   // Security: Compress responses
   compress: true,
-  
+
   // Note: output: 'standalone' is disabled for AWS Amplify deployment
   // Uncomment if deploying to Docker/containers
   // output: 'standalone',
-  
-  // Next.js 15 optimizations
+
+  // Next.js optimizations
   experimental: {
-    // Disable Webpack build worker to avoid circular dependency issues
-    // webpackBuildWorker: true, // Disabled due to circular dependency issues
-    
-    // Turbopack for faster development (Next.js 15+)
-    turbo: {
-      rules: {
-        '*.svg': {
-          loaders: ['@svgr/webpack'],
-          as: '*.js',
-        },
-      },
-    },
+    // Enable Webpack build worker for better performance
+    webpackBuildWorker: true,
+    // Note: Turbopack disabled due to @tanstack module resolution issues
   },
-  
+
   // Temporarily ignore TypeScript errors during build (until all type issues are fixed)
   typescript: {
     ignoreBuildErrors: true,
   },
-  
-  // Skip page data collection for API routes to avoid circular dependency issues
-  // API routes don't need pre-rendering
+
+  // Generate stable build ID to prevent chunk loading errors
+  // Use a consistent build ID in development, timestamp in production
   generateBuildId: async () => {
+    if (process.env.NODE_ENV === 'development') {
+      return 'dev-build';
+    }
     return 'build-' + Date.now();
   },
-  
+
   // Fix for face-api.js trying to use 'fs' module in browser
   // Also handle circular dependencies in schema relations
   webpack: (config, { isServer }) => {
@@ -50,25 +44,45 @@ const nextConfig = {
         path: false,
         crypto: false,
       };
+
+      // Fix for canvas/jsdom in client-side bundle (isomorphic-dompurify)
+      config.resolve.alias.canvas = false;
+      config.resolve.alias.jsdom = false;
     }
-    
+
     // Handle optional Redis packages - they're not required in some environments
     // They're dynamically imported with fallback handling in rate-limit-redis.ts
-    
+
     // Handle circular dependencies in schema relations
     config.optimization = {
       ...config.optimization,
       moduleIds: 'deterministic',
       chunkIds: 'deterministic',
+      // Improve chunk loading reliability
+      splitChunks: {
+        chunks: 'all',
+        cacheGroups: {
+          default: false,
+          vendors: false,
+          // Create more stable chunks
+          framework: {
+            name: 'framework',
+            chunks: 'all',
+            test: /(?<!node_modules.*[\\/])(react|react-dom|scheduler|prop-types|use-subscription)[\\/]/,
+            priority: 40,
+            enforce: true,
+          },
+        },
+      },
     };
-    
+
     // Ignore circular dependency warnings
     const originalEntry = config.entry;
     config.entry = async () => {
       const entries = await originalEntry();
       return entries;
     };
-    
+
     // Suppress circular dependency warnings for schema files
     if (config.ignoreWarnings) {
       config.ignoreWarnings.push(
@@ -83,10 +97,10 @@ const nextConfig = {
         { module: /rate-limit-redis\.ts$/ },
       ];
     }
-    
+
     return config;
   },
-  
+
   // Security: Headers (additional to middleware)
   async headers() {
     return [

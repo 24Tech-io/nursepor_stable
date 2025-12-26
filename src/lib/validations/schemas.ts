@@ -53,14 +53,6 @@ export const createQuestionSchema = z.object({
     points: z.number().int().positive().default(1),
 });
 
-// Daily Video validation schemas
-export const createDailyVideoSchema = z.object({
-    chapterId: z.number().int().positive(),
-    title: z.string().min(3).max(200),
-    description: z.string().optional(),
-    day: z.number().int().min(0).max(365),
-});
-
 // Blog validation schemas
 export const createBlogSchema = z.object({
     title: z.string().min(3).max(200),

@@ -1,5 +1,8 @@
+import { logger } from '@/lib/logger';
+import { extractAndValidate, validateQueryParams, validateRouteParams } from '@/lib/api-validation';
+import { z } from 'zod';
 import { NextRequest, NextResponse } from 'next/server';
-import { getDatabase } from '@/lib/db';
+import { getDatabaseWithRetry } from '@/lib/db';
 import { payments } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { stripe } from '@/lib/stripe';
@@ -21,7 +24,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get database instance
-    const db = getDatabase();
+    const db = await getDatabaseWithRetry();
 
     // Check payment status
     const payment: any = await retryDatabase(() =>
@@ -65,7 +68,7 @@ export async function GET(request: NextRequest) {
             });
 
             if (!enrollmentResult.success) {
-              console.error('Error enrolling student after payment verification:', enrollmentResult.error);
+              logger.error('Error enrolling student after payment verification:', enrollmentResult.error);
               // Don't throw - payment is recorded, enrollment can be retried
             }
           });
@@ -81,7 +84,7 @@ export async function GET(request: NextRequest) {
           });
         }
       } catch (stripeError: any) {
-        console.error('Error checking Stripe session:', stripeError);
+        logger.error('Error checking Stripe session:', stripeError);
         // Continue to return current payment status
       }
     }
@@ -97,7 +100,7 @@ export async function GET(request: NextRequest) {
     });
 
   } catch (error: any) {
-    console.error('Payment verification error:', error);
+    logger.error('Payment verification error:', error);
     return createErrorResponse(error, 'Failed to verify payment');
   }
 }

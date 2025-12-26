@@ -1,53 +1,23 @@
-exec_mode: 'cluster',
-    env: {
-    NODE_ENV: 'production',
-        PORT: 3000,
+module.exports = {
+    apps: [
+        {
+            name: 'lms-student',
+            script: 'node_modules/next/dist/bin/next',
+            args: 'start -p 3000',
+            instances: 1,
+            autorestart: true,
+            watch: false,
+            max_memory_restart: '1G',
+            env: {
+                NODE_ENV: 'production',
+                PORT: 3000,
             },
-error_file: './logs/student-error.log',
-    out_file: './logs/student-out.log',
-        log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
-            merge_logs: true,
-                autorestart: true,
-                    watch: false,
-                        max_memory_restart: '1G',
-                            min_uptime: '10s',
-                                max_restarts: 10,
-        },
-{
-    name: 'lms-admin',
-        script: 'node_modules/next/dist/bin/next',
-            args: 'start -p 3001',
-                cwd: './admin-app',
-                    instances: 2,
-                        exec_mode: 'cluster',
-                            env: {
-        NODE_ENV: 'production',
-            PORT: 3001,
-            },
-    error_file: './logs/admin-error.log',
-        out_file: './logs/admin-out.log',
+            error_file: './logs/student-error.log',
+            out_file: './logs/student-out.log',
             log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
-                merge_logs: true,
-                    autorestart: true,
-                        watch: false,
-                            max_memory_restart: '1G',
-                                min_uptime: '10s',
-                                    max_restarts: 10,
+            merge_logs: true,
+            min_uptime: '10s',
+            max_restarts: 10,
         },
     ],
-
-deploy: {
-    production: {
-        user: 'ubuntu',
-            host: 'your-server.com',
-                ref: 'origin/main',
-                    repo: 'git@github.com:username/lms-platform.git',
-                        path: '/var/www/lms-platform',
-                            'post-deploy': 'npm install && npm run build && pm2 reload ecosystem.config.js --env production',
-                                'pre-deploy-local': 'echo "Deploying to production..."',
-                                    'post-deploy': 'pm2 reload ecosystem.config.js',
-        },
-},
 };
-
-export default config;

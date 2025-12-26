@@ -1,3 +1,6 @@
+import { logger } from '@/lib/logger';
+import { extractAndValidate, validateQueryParams, validateRouteParams } from '@/lib/api-validation';
+import { z } from 'zod';
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/auth';
 
@@ -9,7 +12,7 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });
         }
 
-        const decoded = verifyToken(token);
+        const decoded = await verifyToken(token);
         if (!decoded || decoded.role !== 'admin') {
             return NextResponse.json({ message: 'Admin access required' }, { status: 403 });
         }
@@ -50,7 +53,7 @@ export async function POST(request: NextRequest) {
 
         return NextResponse.json({ message: 'Unsupported format' }, { status: 400 });
     } catch (error) {
-        console.error('Export error:', error);
+        logger.error('Export error:', error);
         return NextResponse.json({
             message: 'Export failed',
             error: process.env.NODE_ENV === 'development' ? String(error) : undefined

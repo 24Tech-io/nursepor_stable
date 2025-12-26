@@ -1,8 +1,43 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState, useEffect, useRef } from 'react';
+import { QueryProvider } from '@/components/admin-app/QueryProvider';
+import { syncClient } from '@/lib/sync-client';
+import LoadingScreen from '@/components/student/LoadingScreen';
+
+// Auth caching
+const AUTH_CACHE_KEY = 'student_auth_cache';
+const AUTH_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+function getCachedAuth(): { user: any; timestamp: number } | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const cached = sessionStorage.getItem(AUTH_CACHE_KEY);
+    if (!cached) return null;
+    const parsed = JSON.parse(cached);
+    const age = Date.now() - parsed.timestamp;
+    if (age > AUTH_CACHE_TTL) {
+      sessionStorage.removeItem(AUTH_CACHE_KEY);
+      return null;
+    }
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function setCachedAuth(user: any): void {
+  if (typeof window === 'undefined') return;
+  try {
+    sessionStorage.setItem(AUTH_CACHE_KEY, JSON.stringify({
+      user,
+      timestamp: Date.now(),
+    }));
+  } catch { }
+}
 
 const navigation = [
   {
@@ -24,15 +59,13 @@ const navigation = [
     )
   },
   {
-    name: 'Daily Video',
-    href: '/student/daily-video',
+    name: 'Q-Banks',
+    href: '/student/qbanks',
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
       </svg>
-    ),
-    badge: '1 New'
+    )
   },
   {
     name: 'Progress',
@@ -40,15 +73,6 @@ const navigation = [
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-      </svg>
-    )
-  },
-  {
-    name: 'Blogs',
-    href: '/student/blogs',
-    icon: (
-      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
       </svg>
     )
   },
@@ -64,19 +88,89 @@ export default function StudentLayout({
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const notificationsRef = useRef<HTMLDivElement>(null);
+
+  // Auth state
   const [user, setUser] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  // Notifications state
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  // Authentication Check
+  useEffect(() => {
+    async function checkAuth() {
+      try {
+        // 1. Check Cache
+        const cached = getCachedAuth();
+        if (cached && cached.user && cached.user.role === 'student') {
+          setUser(cached.user);
+          setIsAuthenticated(true);
+          setIsLoading(false);
+          return;
+        }
+
+        // 2. Fetch from API
+        const response = await fetch('/api/auth/me?type=student', {
+          credentials: 'include',
+          cache: 'no-store',
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data.user && data.user.role === 'student') {
+            setCachedAuth(data.user);
+            setUser(data.user);
+            setIsAuthenticated(true);
+            setIsLoading(false);
+            return;
+          }
+        }
+
+        // 3. Retry logic for reliability
+        const shouldRetry = sessionStorage.getItem('shouldRedirect') === 'true';
+        if (shouldRetry || response.status === 401) {
+          await new Promise(r => setTimeout(r, 1000));
+          const retryRes = await fetch('/api/auth/me?type=student', {
+            credentials: 'include', cache: 'no-store'
+          });
+          if (retryRes.ok) {
+            const retryData = await retryRes.json();
+            if (retryData.user && retryData.user.role === 'student') {
+              setCachedAuth(retryData.user);
+              setUser(retryData.user);
+              setIsAuthenticated(true);
+              setIsLoading(false);
+              return;
+            }
+          }
+        }
+
+        // Failed
+        sessionStorage.removeItem(AUTH_CACHE_KEY);
+        router.replace('/login');
+      } catch (error) {
+        console.error('Auth check error:', error);
+        sessionStorage.removeItem(AUTH_CACHE_KEY);
+        router.replace('/login');
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    checkAuth();
+  }, [router]);
 
   async function handleLogout() {
     try {
       await fetch('/api/auth/logout', { method: 'POST' });
-    } catch {}
-    router.push('/login');
+      sessionStorage.clear();
+    } catch { }
+    router.replace('/login');
   }
 
-  const [notifications, setNotifications] = useState<any[]>([]);
-  const [unreadCount, setUnreadCount] = useState(0);
-
-  // Helper function to format time ago
+  // Format time ago
   const formatTimeAgo = (date: Date) => {
     const now = new Date();
     const diffMs = now.getTime() - date.getTime();
@@ -91,20 +185,17 @@ export default function StudentLayout({
     return date.toLocaleDateString();
   };
 
-  // Fetch real notifications
+  // Fetch Notifications when authenticated
   useEffect(() => {
+    if (!isAuthenticated || !user) return;
+
     const fetchNotifications = async () => {
-      if (!user) return;
-      
       try {
         const response = await fetch('/api/notifications', {
           credentials: 'include',
           cache: 'no-store',
-          headers: {
-            'Cache-Control': 'no-cache, no-store, must-revalidate',
-          }
         });
-        
+
         if (response.ok) {
           const data = await response.json();
           const notifs = (data.notifications || []).map((n: any) => ({
@@ -117,110 +208,25 @@ export default function StudentLayout({
           }));
           setNotifications(notifs);
           setUnreadCount(notifs.filter((n: any) => !n.read).length);
-          console.log('✅ Notifications fetched (REAL DATA):', notifs.length);
-        } else {
-          console.error('❌ Failed to fetch notifications:', response.status);
-          setNotifications([]);
         }
       } catch (error) {
-        console.error('❌ Error fetching notifications:', error);
-        setNotifications([]);
+        console.error('Error fetching notifications:', error);
       }
     };
 
-    if (user) {
-      fetchNotifications();
-      // Poll for new notifications every 120 seconds (2 minutes)
-      const interval = setInterval(fetchNotifications, 120000);
-      return () => clearInterval(interval);
+    fetchNotifications();
+    const interval = setInterval(fetchNotifications, 300000);
+
+    // Start sync client
+    if (typeof window !== 'undefined') {
+      syncClient.start();
     }
-  }, [user]);
-
-  // Fetch user data for profile display
-  useEffect(() => {
-    const abortController = new AbortController();
-    let isMounted = true;
-
-    const fetchUser = async () => {
-      // First, try to get user data from sessionStorage (set during login)
-      const storedUserData = sessionStorage.getItem('userData');
-      if (storedUserData && isMounted) {
-        try {
-          const parsedUser = JSON.parse(storedUserData);
-          console.log('📦 Layout: Using user data from sessionStorage:', parsedUser);
-          setUser(parsedUser);
-        } catch (e) {
-          console.error('Failed to parse stored user data:', e);
-        }
-      }
-      
-      // Wait a bit for cookie to be available, then fetch from API
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      if (!isMounted) return;
-      
-      try {
-        console.log('🔍 Layout: Fetching user data from /api/auth/me...');
-        const response = await fetch('/api/auth/me', { 
-          credentials: 'include',
-          signal: abortController.signal,
-          cache: 'no-store',
-          headers: {
-            'Content-Type': 'application/json',
-          }
-        });
-        
-        if (!isMounted) return;
-        
-        if (response.ok) {
-          const data = await response.json();
-          console.log('✅ Layout: User data received from API:', data.user);
-          if (data.user) {
-            setUser(data.user);
-            // Clear sessionStorage only after successful API fetch
-            if (storedUserData) {
-              sessionStorage.removeItem('userData');
-            }
-          }
-        } else if (response.status === 401) {
-          console.error('❌ Layout: Unauthorized (401) - cookie might not be set yet');
-          // If we have stored data, use it temporarily and retry ONCE
-          if (storedUserData && isMounted) {
-            setTimeout(async () => {
-              if (!isMounted) return;
-              try {
-                const retryResponse = await fetch('/api/auth/me', { 
-                  credentials: 'include',
-                  signal: abortController.signal,
-                  cache: 'no-store'
-                });
-                if (retryResponse.ok && isMounted) {
-                  const retryData = await retryResponse.json();
-                  if (retryData.user) {
-                    setUser(retryData.user);
-                    sessionStorage.removeItem('userData');
-                  }
-                }
-              } catch (e: any) {
-                if (e.name === 'AbortError') return;
-                console.error('Layout retry failed:', e);
-              }
-            }, 3000);
-          }
-        }
-      } catch (error: any) {
-        if (error.name === 'AbortError') return;
-        console.error('❌ Layout: Exception fetching user:', error);
-      }
-    };
-    
-    fetchUser();
 
     return () => {
-      isMounted = false;
-      abortController.abort();
+      clearInterval(interval);
+      syncClient.stop();
     };
-  }, []);
+  }, [isAuthenticated, user]);
 
   // Close notifications when clicking outside
   useEffect(() => {
@@ -229,44 +235,52 @@ export default function StudentLayout({
         setShowNotifications(false);
       }
     }
-
     if (showNotifications) {
       document.addEventListener('mousedown', handleClickOutside);
     }
-
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [showNotifications]);
 
-  // Helper function to get user initials
   const getUserInitials = (name: string) => {
-    if (!name) {
-      return 'U';
-    }
+    if (!name) return 'U';
     const parts = name.trim().split(' ');
-    if (parts.length >= 2) {
-      return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-    }
+    if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
     return name.substring(0, 2).toUpperCase();
   };
 
+  // Render Loading State
+  if (isLoading) {
+    return <LoadingScreen message="Loading Student Portal..." />;
+  }
+
+  // Prevent flash of content if not authenticated (though router.replace handles it)
+  if (!isAuthenticated && !isLoading) {
+    return null;
+  }
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50">
-      {/* Top Navigation Bar */}
-      <nav className="bg-white shadow-sm border-b border-gray-100 sticky top-0 z-50">
+    <div className="min-h-screen bg-slate-950">
+      {/* Top Navigation Bar - Dark Glass */}
+      <nav className="glass-nav sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16">
             {/* Logo */}
             <div className="flex items-center">
-              <Link href="/student/dashboard" className="flex items-center space-x-2">
-                <div className="w-10 h-10 bg-gradient-to-br from-purple-600 to-blue-600 rounded-xl flex items-center justify-center shadow-lg">
-                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                  </svg>
-                </div>
-                <span className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
-                  Nurse Pro Academy
+              <Link href="/student/dashboard" className="flex items-center space-x-3">
+                <Image
+                  src="/logo.png"
+                  alt="Nurse Pro Academy"
+                  width={44}
+                  height={44}
+                  loading="lazy"
+                  fetchPriority="low"
+                  unoptimized
+                  className="animate-pulse-glow"
+                />
+                <span className="text-2xl font-bold text-white">
+                  Nurse Pro <span className="text-nurse-red-500">Academy</span>
                 </span>
               </Link>
             </div>
@@ -282,18 +296,13 @@ export default function StudentLayout({
                     className={`
                       relative px-4 py-2 rounded-xl font-medium text-sm transition-all duration-200 flex items-center space-x-2
                       ${isActive
-                        ? 'bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-lg'
-                        : 'text-gray-700 hover:bg-gray-100'
+                        ? 'bg-gradient-to-r from-nurse-red-600 to-red-600 text-white shadow-glow-red'
+                        : 'text-nurse-silver-400 hover:text-white hover:bg-white/10'
                       }
                     `}
                   >
                     {item.icon}
                     <span>{item.name}</span>
-                    {item.badge && !isActive && (
-                      <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">
-                        {item.badge}
-                      </span>
-                    )}
                   </Link>
                 );
               })}
@@ -303,38 +312,38 @@ export default function StudentLayout({
             <div className="flex items-center space-x-4">
               {/* Notifications */}
               <div className="relative" ref={notificationsRef}>
-                <button 
+                <button
                   onClick={() => setShowNotifications(!showNotifications)}
-                  className="relative p-2 text-gray-600 hover:bg-gray-100 rounded-xl transition"
+                  className="relative p-2 text-nurse-silver-400 hover:text-white hover:bg-white/10 rounded-xl transition"
                 >
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
                   </svg>
                   {unreadCount > 0 && (
-                    <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
+                    <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-nurse-red-500 rounded-full animate-pulse"></span>
                   )}
                 </button>
 
                 {/* Notifications Dropdown */}
                 {showNotifications && (
-                  <div className="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-xl border border-gray-100 z-50 max-h-96 overflow-y-auto">
-                    <div className="p-4 border-b border-gray-100 flex items-center justify-between">
-                      <h3 className="font-bold text-gray-900">Notifications</h3>
-                      <button 
+                  <div className="absolute right-0 mt-2 w-80 bg-slate-900/95 backdrop-blur-xl rounded-xl shadow-dark-xl border border-white/10 z-50 max-h-96 overflow-y-auto">
+                    <div className="p-4 border-b border-white/10 flex items-center justify-between">
+                      <h3 className="font-bold text-white">Notifications</h3>
+                      <button
                         onClick={() => setShowNotifications(false)}
-                        className="text-gray-400 hover:text-gray-600"
+                        className="text-nurse-silver-500 hover:text-white"
                       >
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                         </svg>
                       </button>
                     </div>
-                    <div className="divide-y divide-gray-100">
+                    <div className="divide-y divide-white/10">
                       {notifications.length > 0 ? (
                         notifications.map(notification => (
-                          <div 
-                            key={notification.id} 
-                            className={`p-4 hover:bg-gray-50 transition cursor-pointer ${!notification.read ? 'bg-blue-50' : ''}`}
+                          <div
+                            key={notification.id}
+                            className={`p-4 hover:bg-white/5 transition cursor-pointer ${!notification.read ? 'bg-nurse-red-500/10 border-l-2 border-nurse-red-500' : ''}`}
                             onClick={async () => {
                               if (!notification.read) {
                                 try {
@@ -344,8 +353,7 @@ export default function StudentLayout({
                                     credentials: 'include',
                                     body: JSON.stringify({ notificationId: notification.id }),
                                   });
-                                  // Update local state
-                                  setNotifications(prev => 
+                                  setNotifications(prev =>
                                     prev.map(n => n.id === notification.id ? { ...n, read: true } : n)
                                   );
                                   setUnreadCount(prev => Math.max(0, prev - 1));
@@ -355,15 +363,12 @@ export default function StudentLayout({
                               }
                             }}
                           >
-                            <p className="text-sm text-gray-900 font-medium">{notification.title || notification.message}</p>
-                            {notification.title && notification.message !== notification.title && (
-                              <p className="text-xs text-gray-600 mt-1">{notification.message}</p>
-                            )}
-                            <p className="text-xs text-gray-500 mt-1">{notification.time}</p>
+                            <p className="text-sm text-white font-medium">{notification.title || notification.message}</p>
+                            <p className="text-xs text-nurse-silver-500 mt-1">{notification.time}</p>
                           </div>
                         ))
                       ) : (
-                        <div className="p-4 text-center text-gray-500 text-sm">No notifications</div>
+                        <div className="p-4 text-center text-nurse-silver-500 text-sm">No notifications</div>
                       )}
                     </div>
                   </div>
@@ -372,52 +377,34 @@ export default function StudentLayout({
 
               {/* Profile Dropdown */}
               <div className="relative group">
-                <button className="flex items-center space-x-3 p-2 hover:bg-gray-100 rounded-xl transition">
-                  <div className="w-9 h-9 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center shadow-md">
+                <button className="flex items-center space-x-3 p-2 hover:bg-white/10 rounded-xl transition">
+                  <div className="w-9 h-9 bg-gradient-to-br from-nurse-red-500 to-red-600 rounded-xl flex items-center justify-center shadow-glow-red">
                     <span className="text-white font-bold text-sm">
                       {user ? getUserInitials(user.name) : 'U'}
                     </span>
                   </div>
                   <div className="hidden lg:block text-left">
-                    <p className="text-sm font-semibold text-gray-900">
+                    <p className="text-sm font-semibold text-white">
                       {user?.name || 'Loading...'}
                     </p>
-                    <p className="text-xs text-gray-500 capitalize">
+                    <p className="text-xs text-nurse-silver-400 capitalize">
                       {user?.role || 'Student'}
                     </p>
                   </div>
                 </button>
 
-                {/* Dropdown Menu */}
-                <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-gray-100 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
-                  <div className="p-4 border-b border-gray-100">
-                    <p className="font-semibold text-gray-900">
-                      {user?.name || 'Loading...'}
-                    </p>
-                    <p className="text-sm text-gray-500">
-                      {user?.email || 'Loading...'}
-                    </p>
+                <div className="absolute right-0 mt-2 w-56 bg-slate-900/95 backdrop-blur-xl rounded-xl shadow-dark-xl border border-white/10 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
+                  <div className="p-4 border-b border-white/10">
+                    <p className="font-semibold text-white">{user?.name}</p>
+                    <p className="text-sm text-nurse-silver-400">{user?.email}</p>
                   </div>
                   <div className="p-2">
-                    <Link href="/student/profile" className="flex items-center space-x-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg">
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                      </svg>
+                    <Link href="/student/profile" className="flex items-center space-x-2 px-4 py-2 text-sm text-nurse-silver-300 hover:text-white hover:bg-white/10 rounded-lg transition">
                       <span>My Profile</span>
                     </Link>
-                    <Link href="/student/settings" className="flex items-center space-x-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg">
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                      </svg>
-                      <span>Settings</span>
-                    </Link>
                   </div>
-                  <div className="p-2 border-t border-gray-100">
-                    <button onClick={handleLogout} className="w-full text-left flex items-center space-x-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg">
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                      </svg>
+                  <div className="p-2 border-t border-white/10">
+                    <button onClick={handleLogout} className="w-full text-left flex items-center space-x-2 px-4 py-2 text-sm text-nurse-red-400 hover:bg-nurse-red-500/10 rounded-lg transition">
                       <span>Logout</span>
                     </button>
                   </div>
@@ -427,7 +414,7 @@ export default function StudentLayout({
               {/* Mobile Menu Toggle */}
               <button
                 onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                className="md:hidden p-2 text-gray-600 hover:bg-gray-100 rounded-xl"
+                className="md:hidden p-2 text-nurse-silver-400 hover:text-white hover:bg-white/10 rounded-xl"
               >
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
@@ -439,48 +426,40 @@ export default function StudentLayout({
 
         {/* Mobile Navigation */}
         {isMobileMenuOpen && (
-          <div className="md:hidden border-t border-gray-100 bg-white">
+          <div className="md:hidden border-t border-white/10 bg-slate-900/95 backdrop-blur-xl">
             <div className="px-4 py-3 space-y-1">
-              {navigation.map((item) => {
-                const isActive = pathname === item.href;
-                return (
-                  <Link
-                    key={item.name}
-                    href={item.href}
-                    onClick={() => setIsMobileMenuOpen(false)}
-                    className={`
-                      flex items-center space-x-3 px-4 py-3 rounded-xl font-medium transition-all
-                      ${isActive
-                        ? 'bg-gradient-to-r from-purple-600 to-blue-600 text-white'
-                        : 'text-gray-700 hover:bg-gray-100'
-                      }
-                    `}
-                  >
-                    {item.icon}
-                    <span>{item.name}</span>
-                    {item.badge && (
-                      <span className="ml-auto bg-red-500 text-white text-xs px-2 py-1 rounded-full">
-                        {item.badge}
-                      </span>
-                    )}
-                  </Link>
-                );
-              })}
+              {navigation.map((item) => (
+                <Link
+                  key={item.name}
+                  href={item.href}
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className={`
+                    flex items-center space-x-3 px-4 py-3 rounded-xl font-medium transition-all
+                    ${pathname === item.href
+                      ? 'bg-gradient-to-r from-nurse-red-600 to-red-600 text-white shadow-glow-red'
+                      : 'text-nurse-silver-400 hover:text-white hover:bg-white/10'
+                    }
+                  `}
+                >
+                  {item.icon}
+                  <span>{item.name}</span>
+                </Link>
+              ))}
             </div>
           </div>
         )}
       </nav>
 
-      {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {children}
+        <QueryProvider>
+          {children}
+        </QueryProvider>
       </main>
 
-      {/* Footer */}
-      <footer className="bg-white border-t border-gray-100 mt-12">
+      <footer className="bg-slate-900/50 border-t border-white/10 mt-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="text-center text-sm text-gray-500">
-            © 2024 Nurse Pro Academy. All rights reserved. | <Link href="/terms" className="hover:text-purple-600">Terms</Link> | <Link href="/privacy" className="hover:text-purple-600">Privacy</Link>
+          <div className="text-center text-sm text-nurse-silver-500">
+            © 2024 Nurse Pro Academy. All rights reserved.
           </div>
         </div>
       </footer>

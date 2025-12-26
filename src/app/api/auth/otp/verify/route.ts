@@ -7,6 +7,9 @@ import { generateToken } from '@/lib/auth';
 import { securityLogger } from '@/lib/logger';
 import { cookies } from 'next/headers';
 import { getClientIP } from '@/lib/security-middleware';
+import { logger } from '@/lib/logger';
+import { extractAndValidate, validateQueryParams, validateRouteParams } from '@/lib/api-validation';
+import { z } from 'zod';
 
 export async function POST(request: NextRequest) {
     try {
@@ -69,7 +72,6 @@ export async function POST(request: NextRequest) {
             isActive: user.isActive,
             phone: user.phone,
             bio: user.bio,
-            faceIdEnrolled: user.faceIdEnrolled || false,
             fingerprintEnrolled: user.fingerprintEnrolled || false,
             twoFactorEnabled: user.twoFactorEnabled || false,
             joinedDate: user.joinedDate,
@@ -97,7 +99,7 @@ export async function POST(request: NextRequest) {
         });
 
     } catch (error) {
-        console.error('Verify OTP error:', error);
+        logger.error('Verify OTP error:', error);
         return NextResponse.json({ message: 'Internal server error' }, { status: 500 });
     }
 }

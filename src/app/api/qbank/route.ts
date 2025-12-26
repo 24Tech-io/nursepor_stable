@@ -1,22 +1,25 @@
+import { logger } from '@/lib/logger';
+import { extractAndValidate, validateQueryParams, validateRouteParams } from '@/lib/api-validation';
+import { z } from 'zod';
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { qbankQuestions, questionBanks } from '@/lib/db/schema';
-import { desc, eq } from 'drizzle-orm';
+import { desc, eq, count } from 'drizzle-orm';
 
 // Force dynamic rendering - this route uses request.url
 export const dynamic = 'force-dynamic';
 
 // Safe JSON parser that handles both JSON strings and plain values
 function safeJsonParse(value: any, fallback: any = null) {
-  if (!value) return fallback;
-  if (typeof value !== 'string') return value;
-  
-  try {
-    return JSON.parse(value);
-  } catch {
-    // If it's not valid JSON, return as-is (e.g., single letter answers like 'b')
-    return value;
-  }
+    if (!value) return fallback;
+    if (typeof value !== 'string') return value;
+
+    try {
+        return JSON.parse(value);
+    } catch {
+        // If it's not valid JSON, return as-is (e.g., single letter answers like 'b')
+        return value;
+    }
 }
 
 export async function GET(request: Request) {
@@ -25,6 +28,18 @@ export async function GET(request: Request) {
         const url = new URL(request.url);
         const limit = parseInt(url.searchParams.get('limit') || '50');
         const offset = parseInt(url.searchParams.get('offset') || '0');
+        const countOnly = url.searchParams.get('countOnly') === 'true';
+
+        // ⚡ PERFORMANCE: If only count is needed, use efficient COUNT query
+        if (countOnly) {
+            const [result] = await db
+                .select({ count: count() })
+                .from(qbankQuestions);
+
+            return NextResponse.json({
+                totalCount: result.count
+            });
+        }
 
         // Fetch real questions from database
         const questions = await db
@@ -69,7 +84,7 @@ export async function GET(request: Request) {
             offset
         });
     } catch (error) {
-        console.error('Get qbank error:', error);
+        logger.error('Get qbank error:', error);
         return NextResponse.json({
             message: 'Internal server error',
             error: process.env.NODE_ENV === 'development' ? String(error) : undefined

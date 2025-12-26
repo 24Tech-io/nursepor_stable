@@ -3,45 +3,45 @@ import { verifyToken } from '@/lib/auth';
 
 export async function GET(request: NextRequest) {
   try {
-    const token = request.cookies.get('token')?.value;
-    
+    const token = request.cookies.get('student_token')?.value || request.cookies.get('token')?.value;
+
     if (!token) {
       return NextResponse.json({ error: 'No token' }, { status: 401 });
     }
-    
-    const decoded = verifyToken(token);
-    
+
+    const decoded = await verifyToken(token);
+
     if (!decoded || !decoded.id) {
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
     }
-    
+
     // Fetch all the data the dashboard needs
     const [coursesRes, enrolledRes, statsRes, requestsRes] = await Promise.all([
-      fetch(`http://localhost:${process.env.PORT || 3000}/api/student/courses`, {
+      fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/student/courses`, {
         headers: { Cookie: `token=${token}` }
       }),
-      fetch(`http://localhost:${process.env.PORT || 3000}/api/student/enrolled-courses`, {
+      fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/student/enrolled-courses`, {
         headers: { Cookie: `token=${token}` }
       }),
-      fetch(`http://localhost:${process.env.PORT || 3000}/api/student/stats`, {
+      fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/student/stats`, {
         headers: { Cookie: `token=${token}` }
       }),
-      fetch(`http://localhost:${process.env.PORT || 3000}/api/student/requests`, {
+      fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/student/requests`, {
         headers: { Cookie: `token=${token}` }
       }),
     ]);
-    
+
     const [courses, enrolled, stats, requests] = await Promise.all([
       coursesRes.json(),
       enrolledRes.json(),
       statsRes.json(),
       requestsRes.json(),
     ]);
-    
+
     const enrolledCourseIds = enrolled.enrolledCourses?.map((ec: any) => String(ec.courseId)) || [];
     const pendingRequestIds = requests.requests?.filter((r: any) => r.status === 'pending')
       .map((r: any) => String(r.courseId)) || [];
-    
+
     return NextResponse.json({
       userId: decoded.id,
       totalCourses: courses.courses?.length || 0,
@@ -54,9 +54,9 @@ export async function GET(request: NextRequest) {
         isEnrolled: c.isEnrolled,
         isInEnrolledList: enrolledCourseIds.includes(String(c.id)),
         hasPendingRequest: pendingRequestIds.includes(String(c.id)),
-        shouldShowAsEnrolled: enrolledCourseIds.includes(String(c.id)) && 
-                              !pendingRequestIds.includes(String(c.id)) &&
-                              (c.status === 'published' || c.status === 'active'),
+        shouldShowAsEnrolled: enrolledCourseIds.includes(String(c.id)) &&
+          !pendingRequestIds.includes(String(c.id)) &&
+          (c.status === 'published' || c.status === 'active'),
       })),
       stats: stats.stats,
     }, { status: 200 });

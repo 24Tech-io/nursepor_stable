@@ -1,9 +1,12 @@
+import { logger } from '@/lib/logger';
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/auth';
-import { getDatabase } from '@/lib/db';
+import { getDatabaseWithRetry } from '@/lib/db';
 import { courses, studentProgress, accessRequests, enrollments } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { enrollStudent } from '@/lib/data-manager/helpers/enrollment-helper';
+import { extractAndValidate } from '@/lib/api-validation';
+import { enrollStudentSchema } from '@/lib/validation-schemas-extended';
 
 /**
  * POST - Direct enrollment for public courses
@@ -11,27 +14,25 @@ import { enrollStudent } from '@/lib/data-manager/helpers/enrollment-helper';
  */
 export async function POST(request: NextRequest) {
   try {
-    const token = request.cookies.get('token')?.value;
+    const token = request.cookies.get('student_token')?.value || request.cookies.get('token')?.value;
 
     if (!token) {
       return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });
     }
 
-    const decoded = verifyToken(token);
+    const decoded = await verifyToken(token);
     if (!decoded || !decoded.id || decoded.role !== 'student') {
       return NextResponse.json({ message: 'Student access required' }, { status: 403 });
     }
 
-    const { courseId } = await request.json();
-
-    if (!courseId) {
-      return NextResponse.json(
-        { message: 'Course ID is required' },
-        { status: 400 }
-      );
+    // Validate request body
+    const bodyValidation = await extractAndValidate(request, enrollStudentSchema);
+    if (!bodyValidation.success) {
+      return bodyValidation.error;
     }
+    const { courseId } = bodyValidation.data;
 
-    const db = getDatabase();
+    const db = await getDatabaseWithRetry();
     const courseIdNum = parseInt(courseId.toString());
     const studentId = decoded.id;
 
@@ -49,7 +50,8 @@ export async function POST(request: NextRequest) {
     const course = courseData[0];
 
     // Check if course is published
-    if (course.status !== 'published' && course.status !== 'active' && course.status !== 'Active') {
+    const normalizedStatus = course.status?.toLowerCase();
+    if (normalizedStatus !== 'published' && normalizedStatus !== 'active') {
       return NextResponse.json(
         { message: 'Course is not available for enrollment' },
         { status: 400 }
@@ -93,7 +95,7 @@ export async function POST(request: NextRequest) {
       syncResult: result.data,
     });
   } catch (error: any) {
-    console.error('Direct enrollment error:', error);
+    logger.error('Direct enrollment error:', error);
     return NextResponse.json(
       {
         message: 'Failed to enroll in course',

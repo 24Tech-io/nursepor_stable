@@ -45,23 +45,27 @@ export interface NursingCanadaExperienceEntry extends NursingExperienceEntry {
   hoursPerMonth: string;
 }
 
+export interface NclexExamAttempt {
+  examDate: string;
+  country: string;
+  province: string;
+  result?: string;
+}
+
 export interface NursingCandidateFormPayload {
+  targetCountry: 'Canada' | 'USA' | 'Australia';
   personalDetails: NursingPersonalDetails;
-  educationDetails: {
-    gnm: NursingEducationEntry;
-    bsc: NursingEducationEntry;
-    postBasic: NursingEducationEntry;
-    msc: NursingEducationEntry;
-    plusTwo: NursingEducationEntry;
-    tenthGrade: NursingEducationEntry;
-    primaryHighSchool: NursingEducationEntry;
-  };
+  educationDetails: NursingEducationEntry[];
   registrationDetails: {
     hasDisciplinaryAction: 'Yes' | 'No';
     entries: NursingRegistrationEntry[];
   };
   employmentHistory: NursingExperienceEntry[];
   canadaEmploymentHistory: NursingCanadaExperienceEntry[];
+  nclexHistory: {
+    hasTakenBefore: 'Yes' | 'No';
+    attempts: NclexExamAttempt[];
+  };
   referenceNumber?: string;
   documentChecklistAcknowledged: boolean;
 }

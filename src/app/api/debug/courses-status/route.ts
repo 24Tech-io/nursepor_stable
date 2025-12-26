@@ -1,6 +1,7 @@
+import { logger } from '@/lib/logger';
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/auth';
-import { getDatabase } from '@/lib/db';
+import { getDatabaseWithRetry } from '@/lib/db';
 import { courses } from '@/lib/db/schema';
 import { desc } from 'drizzle-orm';
 
@@ -19,7 +20,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const decoded = verifyToken(token);
+    const decoded = await verifyToken(token);
     if (!decoded || decoded.role !== 'admin') {
       return NextResponse.json(
         { message: 'Admin access required' },
@@ -29,7 +30,7 @@ export async function GET(request: NextRequest) {
 
     let db;
     try {
-      db = getDatabase();
+      db = await getDatabaseWithRetry();
     } catch (dbError: any) {
       return NextResponse.json(
         {
@@ -118,7 +119,7 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error: any) {
-    console.error('❌ Diagnostic API error:', error);
+    logger.error('❌ Diagnostic API error:', error);
     return NextResponse.json(
       {
         success: false,

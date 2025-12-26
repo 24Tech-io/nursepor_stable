@@ -4,7 +4,7 @@
  * Run with: npx tsx scripts/create-test-data.ts
  */
 
-import { courses, modules, chapters, users, enrollments, quizAttempts, videoProgress } from '../src/lib/db/schema';
+import { courses, modules, chapters, users, enrollments, quizAttempts, videoProgress, quizzes } from '../src/lib/db/schema';
 import { hash } from 'bcryptjs';
 import { eq } from 'drizzle-orm';
 import dotenv from 'dotenv';
@@ -200,17 +200,27 @@ async function createTestData() {
 
             const quizChapter = firstModuleChapters.find((ch: any) => ch.type === 'quiz');
             if (quizChapter) {
-                await db.insert(quizAttempts).values({
-                    userId: studentId,
-                    chapterId: quizChapter.id,
-                    score: 85,
-                    totalQuestions: 10,
-                    correctAnswers: 8,
-                    answers: JSON.stringify({ q1: 'A', q2: 'B', q3: 'C' }),
-                    timeTaken: 450, // 7.5 minutes
-                    passed: true,
-                });
-                console.log(`✅ Created quiz attempt (85% score, 8/10 correct)`);
+                // Find the quiz associated with this chapter
+                const quizRecords = await db.select().from(quizzes)
+                    .where(eq(quizzes.chapterId, quizChapter.id))
+                    .limit(1);
+
+                if (quizRecords.length > 0) {
+                    await db.insert(quizAttempts).values({
+                        userId: studentId,
+                        quizId: quizRecords[0].id,
+                        chapterId: quizChapter.id,
+                        score: 85,
+                        totalQuestions: 10,
+                        correctAnswers: 8,
+                        answers: JSON.stringify({ q1: 'A', q2: 'B', q3: 'C' }),
+                        timeTaken: 450, // 7.5 minutes
+                        passed: true,
+                    });
+                    console.log(`✅ Created quiz attempt (85% score, 8/10 correct)`);
+                } else {
+                    console.log(`⚠️  No quiz found for quiz chapter, skipping quiz attempt creation`);
+                }
             }
         }
 

@@ -79,33 +79,51 @@ export default function QuizPage() {
       <div className="mb-6">
         <button
           onClick={() => router.back()}
-          className="text-purple-600 hover:text-purple-700 font-medium flex items-center gap-2 mb-4"
+          className="text-nurse-silver-400 hover:text-white font-medium flex items-center gap-2 mb-4 transition-colors"
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
           Back
         </button>
-        <h1 className="text-3xl font-bold text-gray-900">{quiz.title}</h1>
-        <div className="flex items-center gap-4 mt-2 text-sm text-gray-600">
-          <span>Pass Mark: {quiz.passMark}%</span>
-          {quiz.timeLimit && <span>Time Limit: {quiz.timeLimit} minutes</span>}
+        <h1 className="text-3xl font-bold text-white shadow-sm">{quiz.title}</h1>
+        <div className="flex items-center gap-4 mt-2 text-sm text-nurse-silver-400">
+          <span className="bg-white/5 px-3 py-1 rounded-full border border-white/10">Pass Mark: {quiz.passMark}%</span>
+          {quiz.timeLimit && <span className="bg-white/5 px-3 py-1 rounded-full border border-white/10">Time Limit: {quiz.timeLimit} minutes</span>}
           {quiz.maxAttempts && (
-            <span>
+            <span className="bg-white/5 px-3 py-1 rounded-full border border-white/10">
               Attempts: {quiz.previousAttempts?.length || 0} / {quiz.maxAttempts}
             </span>
           )}
         </div>
       </div>
 
-      <QuizCard
-        questions={questions}
-        passMark={quiz.passMark}
-        showAnswers={quiz.showAnswers}
-        timeLimit={quiz.timeLimit}
-        quizId={quizId}
-        onComplete={handleComplete}
-      />
+      {questions.length === 0 ? (
+        <div className="bg-slate-800/50 rounded-xl p-8 text-center border border-slate-700">
+          <div className="w-16 h-16 bg-slate-700/50 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg className="w-8 h-8 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <h3 className="text-xl font-bold text-white mb-2">No Questions Available</h3>
+          <p className="text-nurse-silver-400 mb-6">This quiz currently has no questions assigned to it.</p>
+          <button
+            onClick={() => router.back()}
+            className="px-6 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors font-medium"
+          >
+            Go Back
+          </button>
+        </div>
+      ) : (
+        <QuizCard
+          questions={questions}
+          passMark={quiz.passMark}
+          showAnswers={quiz.showAnswers}
+          timeLimit={quiz.timeLimit}
+          quizId={quizId}
+          onComplete={handleComplete}
+        />
+      )}
     </div>
   );
 }

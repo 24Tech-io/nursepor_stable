@@ -8,6 +8,9 @@ import { db } from '@/lib/db';
 import { certificates, studentProgress } from '@/lib/db/schema';
 import { verifyToken } from '@/lib/auth';
 import { eq, and } from 'drizzle-orm';
+import { extractAndValidate } from '@/lib/api-validation';
+import { generateCertificateSchema } from '@/lib/validation-schemas-extended';
+import { logger } from '@/lib/logger';
 
 export async function POST(request: NextRequest) {
   try {
@@ -21,7 +24,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
     }
 
-    const { courseId } = await request.json();
+    // Validate request body
+    const bodyValidation = await extractAndValidate(request, generateCertificateSchema);
+    if (!bodyValidation.success) {
+      return bodyValidation.error;
+    }
+    const { courseId } = bodyValidation.data;
 
     // Check if course is completed
     const progress = await db.query.studentProgress.findFirst({
@@ -70,6 +78,7 @@ export async function POST(request: NextRequest) {
       message: 'Certificate generated successfully!',
     });
   } catch (error: any) {
+    logger.error('Generate certificate error:', error);
     return NextResponse.json(
       { error: 'Failed to generate certificate' },
       { status: 500 }

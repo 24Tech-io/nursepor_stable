@@ -1,8 +1,11 @@
+import { logger } from '@/lib/logger';
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/auth';
-import { getDatabase } from '@/lib/db';
+import { getDatabaseWithRetry } from '@/lib/db';
 import { accessRequests } from '@/lib/db/schema';
 import { eq, and, isNotNull, or } from 'drizzle-orm';
+
+export const dynamic = 'force-dynamic';
 
 /**
  * Cleanup Stuck Requests API
@@ -17,12 +20,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });
     }
 
-    const decoded = verifyToken(token);
+    const decoded = await verifyToken(token);
     if (!decoded || decoded.role !== 'admin') {
       return NextResponse.json({ message: 'Admin access required' }, { status: 403 });
     }
 
-    const db = getDatabase();
+    const db = await getDatabaseWithRetry();
 
     // Find all requests where reviewedAt is set but status is still pending
     const stuckRequests = await db
@@ -35,7 +38,7 @@ export async function POST(request: NextRequest) {
         )
       );
 
-    console.log(`🔍 Found ${stuckRequests.length} stuck requests to clean up`);
+    logger.info(`🔍 Found ${stuckRequests.length} stuck requests to clean up`);
 
     // Delete all stuck requests (they should have been deleted after processing)
     let deletedCount = 0;
@@ -43,9 +46,9 @@ export async function POST(request: NextRequest) {
       try {
         await db.delete(accessRequests).where(eq(accessRequests.id, request.id));
         deletedCount++;
-        console.log(`✅ Deleted stuck request #${request.id} (reviewedAt: ${request.reviewedAt}, status: ${request.status})`);
+        logger.info(`✅ Deleted stuck request #${request.id} (reviewedAt: ${request.reviewedAt}, status: ${request.status})`);
       } catch (error: any) {
-        console.error(`❌ Failed to delete stuck request #${request.id}:`, error);
+        logger.error(`❌ Failed to delete stuck request #${request.id}:`, error);
       }
     }
 
@@ -55,7 +58,7 @@ export async function POST(request: NextRequest) {
       totalFound: stuckRequests.length,
     });
   } catch (error: any) {
-    console.error('❌ Cleanup stuck requests error:', error);
+    logger.error('❌ Cleanup stuck requests error:', error);
     return NextResponse.json(
       { 
         message: 'Failed to cleanup stuck requests',

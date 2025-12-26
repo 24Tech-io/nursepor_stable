@@ -1,5 +1,6 @@
+import { logger } from '@/lib/logger';
 import { NextRequest, NextResponse } from 'next/server';
-import { getDatabase } from '@/lib/db';
+import { getDatabaseWithRetry } from '@/lib/db';
 import { courses } from '@/lib/db/schema';
 
 /**
@@ -42,7 +43,7 @@ export async function GET(request: NextRequest) {
     // Try to connect to database
     let db;
     try {
-      db = getDatabase();
+      db = await getDatabaseWithRetry();
       checks.connection.status = 'connected';
     } catch (dbError: any) {
       checks.connection.status = 'failed';
@@ -89,7 +90,7 @@ export async function GET(request: NextRequest) {
       timestamp: new Date().toISOString(),
     });
   } catch (error: any) {
-    console.error('❌ DB Connection diagnostic error:', error);
+    logger.error('❌ DB Connection diagnostic error:', error);
     return NextResponse.json(
       {
         success: false,

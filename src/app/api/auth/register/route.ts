@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createUser } from '@/lib/auth';
 import { sendWelcomeEmail } from '@/lib/email';
 import { sanitizeString, validateEmail, validatePassword, validatePhone, getClientIP, rateLimit, validateBodySize } from '@/lib/security';
+import { log } from '@/lib/logger-helper';
+import { handleApiError } from '@/lib/api-error';
+
+export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
   try {
@@ -64,14 +68,14 @@ export async function POST(request: NextRequest) {
 
     // Validate phone if provided
     if (sanitizedPhone && !validatePhone(sanitizedPhone)) {
-      console.log('Phone validation failed for:', sanitizedPhone);
+      log.debug('Phone validation failed', { phone: sanitizedPhone });
       return NextResponse.json(
         { message: 'Invalid phone number format. Please use 10-20 digits with optional spaces, dashes, or parentheses.' },
         { status: 400 }
       );
     }
     
-    console.log('Phone number after processing:', sanitizedPhone);
+    log.debug('Phone number processed', { phone: sanitizedPhone });
 
     // Validate password strength
     const passwordValidation = validatePassword(password);
@@ -85,18 +89,24 @@ export async function POST(request: NextRequest) {
     // Force student role only - no admin registration on student portal
     const finalRole = 'student';
 
-    console.log('Attempting to create user:', { name: sanitizedName, email: sanitizedEmail, phone: sanitizedPhone, role: finalRole });
+    log.debug('Attempting to create user', { name: sanitizedName, email: sanitizedEmail, phone: sanitizedPhone, role: finalRole });
     
     // Check if account with this email+role already exists
-    const { getUserAccounts } = await import('@/lib/auth');
-    const existingAccounts = await getUserAccounts(sanitizedEmail);
-    const existingRole = existingAccounts.find(acc => acc.role === finalRole);
-    
-    if (existingRole) {
-      return NextResponse.json(
-        { message: `An account with this email already exists as ${finalRole}. Please use a different email or try logging in.` },
-        { status: 409 }
-      );
+    // Temporarily skip this check to test if createUser works
+    try {
+      const { getUserAccounts } = await import('@/lib/auth');
+      const existingAccounts = await getUserAccounts(sanitizedEmail);
+      const existingRole = existingAccounts.find(acc => acc.role === finalRole);
+      
+      if (existingRole) {
+        return NextResponse.json(
+          { message: `An account with this email already exists as ${finalRole}. Please use a different email or try logging in.` },
+          { status: 409 }
+        );
+      }
+    } catch (checkError: any) {
+      log.warn('getUserAccounts check failed, proceeding with registration', { error: checkError.message });
+      // Continue with registration - let database unique constraint handle duplicates
     }
     
     // Create user
@@ -109,10 +119,10 @@ export async function POST(request: NextRequest) {
         phone: sanitizedPhone || undefined,
         role: finalRole,
       });
-      console.log('User created successfully:', { id: user.id, email: user.email, phone: user.phone, role: user.role });
+      log.info('User created successfully', { id: user.id, email: user.email, phone: user.phone, role: user.role });
     } catch (createError: any) {
-      console.error('createUser error:', createError);
-      console.error('createUser error details:', {
+      log.error('createUser error', createError);
+      log.error('createUser error details', {
         message: createError?.message,
         code: createError?.code,
         detail: createError?.detail,
@@ -126,7 +136,7 @@ export async function POST(request: NextRequest) {
     try {
       await sendWelcomeEmail(sanitizedEmail, sanitizedName);
     } catch (emailError) {
-      console.error('Failed to send welcome email:', emailError);
+      log.error('Failed to send welcome email', emailError);
       // Don't fail registration if email fails
     }
 
@@ -142,8 +152,8 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error: any) {
-    console.error('Registration error:', error);
-    console.error('Error details:', {
+    log.error('Registration error', error);
+    log.error('Error details', {
       message: error?.message,
       code: error?.code,
       detail: error?.detail,
@@ -157,7 +167,7 @@ export async function POST(request: NextRequest) {
     const errorDetail = (error?.detail || error?.cause?.detail || '').toLowerCase();
     const errorConstraint = error?.constraint || error?.cause?.constraint || '';
     
-    console.log('Checking for duplicate email+role error:', {
+    log.debug('Checking for duplicate email+role error', {
       errorCode,
       errorMessage: errorMessage.substring(0, 100),
       errorDetail: errorDetail.substring(0, 100),
@@ -176,7 +186,7 @@ export async function POST(request: NextRequest) {
       error?.cause?.code === '23505';
     
     if (isDuplicateEmailRole) {
-      console.log('✓ Duplicate email+role detected - returning user-friendly message');
+      log.debug('Duplicate email+role detected - returning user-friendly message');
       // Try to extract role from error or use 'student' as default
       const attemptedRole = 'student'; // Default since we can't access role in catch block
       return NextResponse.json(

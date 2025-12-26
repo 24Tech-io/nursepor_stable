@@ -6,12 +6,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { validateCSRFToken } from './csrf-protection';
 import { isIPBlocked as isBruteForceBlocked, isUsernameBlocked } from './brute-force-protection';
-import { 
-  validateRequestBody, 
-  detectSSRF, 
+import {
+  validateRequestBody,
+  detectSSRF,
   generateCSP,
   validateEmail,
-  validateUsername 
+  validateUsername
 } from './advanced-security';
 import {
   isIPBlocked,
@@ -45,13 +45,13 @@ export async function applySecurity(
   const userAgent = req.headers.get('user-agent') || '';
   const path = req.nextUrl.pathname;
   const method = req.method;
-  
+
   // Convert headers to plain object
   const headers: Record<string, string> = {};
   req.headers.forEach((value, key) => {
     headers[key] = value;
   });
-  
+
   // 1. Check if IP is blocked (from threat detection)
   if (config.enableThreatDetection && isIPBlocked(ip)) {
     securityLogger.info('Blocked IP attempted access', { ip, path });
@@ -64,7 +64,7 @@ export async function applySecurity(
       reason: 'IP blocked',
     };
   }
-  
+
   // 2. Check if IP is blocked (from brute force protection)
   if (config.enableBruteForceProtection && isBruteForceBlocked(ip)) {
     return {
@@ -76,7 +76,7 @@ export async function applySecurity(
       reason: 'Brute force protection',
     };
   }
-  
+
   // 3. Analyze request for threats
   if (config.enableThreatDetection) {
     const analysis = analyzeRequest({
@@ -86,13 +86,13 @@ export async function applySecurity(
       method,
       headers,
     });
-    
+
     if (!analysis.safe) {
       reportSecurityIncident(ip, 'Request analysis failed', {
         threats: analysis.threats,
         path,
       }, 'high');
-      
+
       return {
         allowed: false,
         response: NextResponse.json(
@@ -103,22 +103,22 @@ export async function applySecurity(
       };
     }
   }
-  
+
   // 4. Validate request body (for POST/PUT/PATCH)
   if (config.enableInputValidation && ['POST', 'PUT', 'PATCH'].includes(method)) {
     try {
       const contentType = req.headers.get('content-type');
-      
+
       if (contentType?.includes('application/json')) {
         const body = await req.json();
         const validation = validateRequestBody(body);
-        
+
         if (!validation.safe) {
           reportSecurityIncident(ip, 'Malicious input detected', {
             threats: validation.threats,
             path,
           }, 'critical');
-          
+
           return {
             allowed: false,
             response: NextResponse.json(
@@ -136,7 +136,7 @@ export async function applySecurity(
       }
     }
   }
-  
+
   // 5. Log request if configured
   if (config.logAllRequests) {
     const threatScore = getThreatScore(ip);
@@ -149,7 +149,7 @@ export async function applySecurity(
       });
     }
   }
-  
+
   return { allowed: true };
 }
 
@@ -159,25 +159,25 @@ export async function applySecurity(
 export function applySecurityHeaders(response: NextResponse): NextResponse {
   // Content Security Policy
   response.headers.set('Content-Security-Policy', generateCSP());
-  
+
   // Prevent clickjacking
   response.headers.set('X-Frame-Options', 'DENY');
-  
+
   // Prevent MIME type sniffing
   response.headers.set('X-Content-Type-Options', 'nosniff');
-  
+
   // XSS Protection (legacy but still useful)
   response.headers.set('X-XSS-Protection', '1; mode=block');
-  
+
   // Referrer Policy
   response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
-  
+
   // Permissions Policy
   response.headers.set(
     'Permissions-Policy',
     'geolocation=(), microphone=(), camera=(self), payment=()'
   );
-  
+
   // Strict Transport Security (HTTPS only)
   if (process.env.NODE_ENV === 'production') {
     response.headers.set(
@@ -185,11 +185,11 @@ export function applySecurityHeaders(response: NextResponse): NextResponse {
       'max-age=31536000; includeSubDomains; preload'
     );
   }
-  
+
   // Remove identifying headers
   response.headers.delete('X-Powered-By');
   response.headers.delete('Server');
-  
+
   return response;
 }
 
@@ -201,7 +201,7 @@ export function validateAPIRequest(req: NextRequest): {
   errors: string[];
 } {
   const errors: string[] = [];
-  
+
   // Check Content-Type for POST/PUT/PATCH
   if (['POST', 'PUT', 'PATCH'].includes(req.method)) {
     const contentType = req.headers.get('content-type');
@@ -211,13 +211,13 @@ export function validateAPIRequest(req: NextRequest): {
       errors.push('Invalid Content-Type');
     }
   }
-  
+
   // Check for suspicious patterns in URL
   const path = req.nextUrl.pathname;
   if (path.includes('..') || path.includes('%2e')) {
     errors.push('Invalid path');
   }
-  
+
   // Check Origin header for cross-origin requests
   const origin = req.headers.get('origin');
   if (origin && req.method !== 'GET') {
@@ -225,14 +225,13 @@ export function validateAPIRequest(req: NextRequest): {
     const allowedOrigins = [
       process.env.NEXT_PUBLIC_APP_URL,
       'http://localhost:3000',
-      'http://localhost:3001',
     ].filter(Boolean);
-    
+
     if (!allowedOrigins.some(allowed => origin.startsWith(allowed as string))) {
       errors.push('Invalid origin');
     }
   }
-  
+
   return {
     valid: errors.length === 0,
     errors,
@@ -254,7 +253,7 @@ export function sanitizeUserInput(input: {
 } {
   const errors: string[] = [];
   const sanitized: any = { ...input };
-  
+
   // Validate email
   if (input.email) {
     if (!validateEmail(input.email)) {
@@ -262,7 +261,7 @@ export function sanitizeUserInput(input: {
     }
     sanitized.email = input.email.toLowerCase().trim();
   }
-  
+
   // Validate username
   if (input.username) {
     if (!validateUsername(input.username)) {
@@ -270,7 +269,7 @@ export function sanitizeUserInput(input: {
     }
     sanitized.username = input.username.toLowerCase().trim();
   }
-  
+
   // Sanitize name
   if (input.name) {
     // Remove any HTML/script tags
@@ -279,7 +278,7 @@ export function sanitizeUserInput(input: {
       errors.push('Name is too long');
     }
   }
-  
+
   return {
     valid: errors.length === 0,
     errors,
@@ -297,21 +296,21 @@ export function validateURLParameter(url: string): {
   if (!url) {
     return { valid: false, error: 'URL is required' };
   }
-  
+
   // Check for SSRF
   if (detectSSRF(url)) {
     return { valid: false, error: 'URL points to a restricted resource' };
   }
-  
+
   // Validate URL format
   try {
     const urlObj = new URL(url);
-    
+
     // Only allow HTTP(S)
     if (!['http:', 'https:'].includes(urlObj.protocol)) {
       return { valid: false, error: 'Only HTTP(S) URLs are allowed' };
     }
-    
+
     return { valid: true };
   } catch {
     return { valid: false, error: 'Invalid URL format' };
@@ -335,9 +334,9 @@ export function checkRateLimit(
 } {
   const key = `${ip}:${endpoint}`;
   const now = Date.now();
-  
+
   let data = requestCounts.get(key);
-  
+
   if (!data || now > data.resetAt) {
     data = {
       count: 1,
@@ -350,9 +349,9 @@ export function checkRateLimit(
       resetAt: data.resetAt,
     };
   }
-  
+
   data.count++;
-  
+
   if (data.count > limit) {
     return {
       allowed: false,
@@ -360,7 +359,7 @@ export function checkRateLimit(
       resetAt: data.resetAt,
     };
   }
-  
+
   return {
     allowed: true,
     remaining: limit - data.count,

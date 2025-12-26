@@ -7,6 +7,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { unblockIP as unblockThreatIP } from '@/lib/threat-detection';
 import { unblockIP as unblockBruteForceIP } from '@/lib/brute-force-protection';
+import { extractAndValidate } from '@/lib/api-validation';
+import { unblockIPSchema } from '@/lib/validation-schemas-extended';
+import { logger } from '@/lib/logger';
 
 export async function POST(request: NextRequest) {
   // Only allow in development
@@ -18,15 +21,12 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const body = await request.json();
-    const { ip } = body;
-
-    if (!ip) {
-      return NextResponse.json(
-        { error: 'IP address is required' },
-        { status: 400 }
-      );
+    // Validate request body
+    const bodyValidation = await extractAndValidate(request, unblockIPSchema);
+    if (!bodyValidation.success) {
+      return bodyValidation.error;
     }
+    const { ip } = bodyValidation.data;
 
     // Unblock from both systems
     unblockThreatIP(ip);
@@ -36,7 +36,8 @@ export async function POST(request: NextRequest) {
       success: true,
       message: `IP ${ip} has been unblocked`,
     });
-  } catch (error) {
+  } catch (error: any) {
+    logger.error('Unblock IP error:', error);
     return NextResponse.json(
       { error: 'Failed to unblock IP' },
       { status: 500 }

@@ -1,17 +1,25 @@
+import { logger } from '@/lib/logger';
+import { extractAndValidate, validateQueryParams, validateRouteParams } from '@/lib/api-validation';
+import { submitQuizSchema } from '@/lib/validation-schemas-extended';
+import { z } from 'zod';
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAuth } from '@/lib/auth-helpers';
 import { db } from '@/lib/db';
 import { courseQuestionAssignments, qbankQuestions, courses } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
 
-// GET - Fetch Q-Bank questions for a course (student view)
+// GET - Fetch Quiz Bank questions for a course (student view)
 export async function GET(
   request: NextRequest,
   { params }: { params: { courseId: string } }
 ) {
   try {
     const authResult = await verifyAuth(request);
-    if (!authResult.authenticated || !authResult.user) {
+    // Type narrowing: if authResult is a NextResponse, return it directly
+    if (authResult instanceof NextResponse) {
+      return authResult;
+    }
+    if (!authResult.user) {
       return NextResponse.json({ message: 'Authentication required' }, { status: 401 });
     }
 
@@ -68,7 +76,7 @@ export async function GET(
       totalQuestions: questions.length,
     });
   } catch (error: any) {
-    console.error('Get student course qbank error:', error);
+    logger.error('Get student course qbank error:', error);
     return NextResponse.json(
       { message: 'Failed to fetch questions', error: error.message },
       { status: 500 }
@@ -76,27 +84,31 @@ export async function GET(
   }
 }
 
-// POST - Submit Q-Bank test answers
+// POST - Submit Quiz Bank test answers
 export async function POST(
   request: NextRequest,
   { params }: { params: { courseId: string } }
 ) {
   try {
     const authResult = await verifyAuth(request);
-    if (!authResult.authenticated || !authResult.user) {
+    // Type narrowing: if authResult is a NextResponse, return it directly
+    if (authResult instanceof NextResponse) {
+      return authResult;
+    }
+    if (!authResult.user) {
       return NextResponse.json({ message: 'Authentication required' }, { status: 401 });
     }
 
     const courseId = parseInt(params.courseId);
-    const body = await request.json();
-    const { answers, moduleId } = body; // answers: { questionId: answer }
 
-    if (!answers || typeof answers !== 'object') {
-      return NextResponse.json(
-        { message: 'Answers object is required' },
-        { status: 400 }
-      );
+    // Validate request body
+    const bodyValidation = await extractAndValidate(request, submitQuizSchema.extend({
+      moduleId: z.number().int().positive().optional(),
+    }));
+    if (!bodyValidation.success) {
+      return bodyValidation.error;
     }
+    const { answers, moduleId } = bodyValidation.data;
 
     // Get all assigned questions with correct answers
     const assignedQuestions = await db
@@ -110,7 +122,7 @@ export async function POST(
       .where(
         and(
           eq(courseQuestionAssignments.courseId, courseId),
-          moduleId ? eq(courseQuestionAssignments.moduleId, parseInt(moduleId)) : undefined
+          moduleId ? eq(courseQuestionAssignments.moduleId, moduleId) : undefined
         )
       );
 
@@ -134,14 +146,14 @@ export async function POST(
     assignedQuestions.forEach(q => {
       const studentAnswer = answers[q.questionId];
       const correctAnswer = safeJsonParse(q.correctAnswer);
-      
+
       totalPoints += q.points;
-      
+
       let isCorrect = false;
       if (Array.isArray(correctAnswer) && Array.isArray(studentAnswer)) {
         // SATA - check if arrays match
-        isCorrect = correctAnswer.length === studentAnswer.length && 
-                    correctAnswer.every((a: any) => studentAnswer.includes(a));
+        isCorrect = correctAnswer.length === studentAnswer.length &&
+          correctAnswer.every((a: any) => studentAnswer.includes(a));
       } else {
         // MCQ - direct comparison
         isCorrect = studentAnswer === correctAnswer;
@@ -172,7 +184,7 @@ export async function POST(
       passed: percentage >= 70,
     });
   } catch (error: any) {
-    console.error('Submit qbank test error:', error);
+    logger.error('Submit qbank test error:', error);
     return NextResponse.json(
       { message: 'Failed to submit test', error: error.message },
       { status: 500 }

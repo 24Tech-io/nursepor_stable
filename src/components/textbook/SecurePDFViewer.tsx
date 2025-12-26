@@ -119,7 +119,20 @@ export default function SecurePDFViewer({
     }
   };
 
-  const renderPage = async (pageNum: number, doc = pdfDoc) => {
+  const updateProgress = useCallback(async (page: number) => {
+    try {
+      await fetch(`/api/student/textbooks/${textbookId}/progress`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ currentPage: page, totalPagesRead: page }),
+      });
+    } catch (error) {
+      console.error('Error updating progress:', error);
+    }
+  }, [textbookId]);
+
+  const renderPage = useCallback(async (pageNum: number, doc = pdfDoc) => {
     if (!doc || !canvasRef.current) return;
 
     try {
@@ -160,52 +173,39 @@ export default function SecurePDFViewer({
     } catch (error) {
       console.error('Error rendering page:', error);
     }
-  };
-
-  const updateProgress = async (page: number) => {
-    try {
-      await fetch(`/api/student/textbooks/${textbookId}/progress`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ currentPage: page, totalPagesRead: page }),
-      });
-    } catch (error) {
-      console.error('Error updating progress:', error);
-    }
-  };
+  }, [pdfDoc, scale, studentEmail, totalPages, onPageChange, updateProgress]);
 
   const nextPage = useCallback(() => {
     if (currentPage < totalPages && pdfDoc) {
       renderPage(currentPage + 1);
     }
-  }, [currentPage, totalPages, pdfDoc]);
+  }, [currentPage, totalPages, pdfDoc, renderPage]);
 
   const prevPage = useCallback(() => {
     if (currentPage > 1 && pdfDoc) {
       renderPage(currentPage - 1);
     }
-  }, [currentPage, pdfDoc]);
+  }, [currentPage, pdfDoc, renderPage]);
 
-  const zoomIn = () => {
+  const zoomIn = useCallback(() => {
     setScale(prev => Math.min(prev + 0.25, 3));
     if (pdfDoc) {
       renderPage(currentPage);
     }
-  };
+  }, [currentPage, pdfDoc, renderPage]);
 
-  const zoomOut = () => {
+  const zoomOut = useCallback(() => {
     setScale(prev => Math.max(prev - 0.25, 0.5));
     if (pdfDoc) {
       renderPage(currentPage);
     }
-  };
+  }, [currentPage, pdfDoc, renderPage]);
 
   useEffect(() => {
     if (pdfDoc) {
       renderPage(currentPage);
     }
-  }, [scale]);
+  }, [scale, pdfDoc, currentPage, renderPage]);
 
   if (loading) {
     return (

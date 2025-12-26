@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { CheckCircle, XCircle, Clock, Award, TrendingUp } from 'lucide-react';
 import LoadingSpinner from '@/components/student/LoadingSpinner';
+import { syncClient } from '@/lib/sync-client';
 
 interface QuizResult {
     score: number;
@@ -31,17 +32,44 @@ export default function QuizResultsPage() {
 
     useEffect(() => {
         fetchQuizHistory();
+        
+        // Start sync client for real-time updates
+        // TEMP DISABLED: Causing excessive requests`r`n
+        // syncClient.start();
+        const handleSync = () => {
+            fetchQuizHistory();
+        };
+        syncClient.on('sync', handleSync);
+        
+        return () => {
+            syncClient.off('sync', handleSync);
+            syncClient.stop();
+        };
     }, []);
 
     const fetchQuizHistory = async () => {
         try {
-            const response = await fetch('/api/student/quiz-history', {
+            // Use unified analysis API
+            const response = await fetch('/api/analysis/quiz-history', {
                 credentials: 'include'
             });
 
             if (response.ok) {
                 const data = await response.json();
-                setQuizHistory(data.quizHistory || []);
+                // Transform unified format to match existing interface
+                const transformedHistory = (data.attempts || []).map((attempt: any) => ({
+                    id: attempt.id,
+                    testId: attempt.id.toString(),
+                    title: attempt.title || (attempt.type === 'qbank' ? 'Q-Bank Test' : 'Course Quiz'),
+                    score: attempt.correctCount || attempt.correctAnswers || 0,
+                    maxScore: attempt.questionCount || attempt.totalQuestions || 0,
+                    percentage: attempt.percentage || 0,
+                    status: 'completed',
+                    completedAt: attempt.completedAt || attempt.startedAt,
+                    type: attempt.type,
+                    courseTitle: attempt.courseTitle,
+                }));
+                setQuizHistory(transformedHistory);
             }
         } catch (error) {
             console.error('Error fetching quiz history:', error);

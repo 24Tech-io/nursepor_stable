@@ -1,19 +1,20 @@
+import { logger } from '@/lib/logger';
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/auth';
 import { db } from '@/lib/db';
-import { studentProgress, chapters, modules, courses } from '@/lib/db/schema';
+import { studentProgress, chapters, modules, courses, enrollments } from '@/lib/db/schema';
 import { eq, and, desc } from 'drizzle-orm';
 
 // GET - Get continue learning recommendations
 export async function GET(request: NextRequest) {
     try {
-        const token = request.cookies.get('token')?.value;
+        const token = request.cookies.get('student_token')?.value || request.cookies.get('token')?.value;
 
         if (!token) {
             return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });
         }
 
-        const decoded = verifyToken(token);
+        const decoded = await verifyToken(token);
         if (!decoded) {
             return NextResponse.json({ message: 'Invalid token' }, { status: 403 });
         }
@@ -30,6 +31,11 @@ export async function GET(request: NextRequest) {
             })
             .from(studentProgress)
             .innerJoin(courses, eq(studentProgress.courseId, courses.id))
+            .innerJoin(enrollments, and(
+                eq(enrollments.userId, decoded.id),
+                eq(enrollments.courseId, studentProgress.courseId),
+                eq(enrollments.status, 'active')
+            ))
             .where(eq(studentProgress.studentId, decoded.id))
             .orderBy(desc(studentProgress.lastAccessed));
 
@@ -78,7 +84,7 @@ export async function GET(request: NextRequest) {
             recommendations: recommendations.slice(0, 5) // Top 5 recommendations
         });
     } catch (error) {
-        console.error('Get recommendations error:', error);
+        logger.error('Get recommendations error:', error);
         return NextResponse.json({
             message: 'Internal server error',
             error: process.env.NODE_ENV === 'development' ? String(error) : undefined

@@ -1,13 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { authenticateUser, createSession } from '@/lib/auth';
 import { sanitizeString, validateEmail, getClientIP, rateLimit, validateBodySize } from '@/lib/security';
-import { 
-  isIPBlocked, 
-  isUsernameBlocked, 
-  recordFailedAttempt, 
-  recordSuccessfulLogin 
+import {
+  isIPBlocked,
+  isUsernameBlocked,
+  recordFailedAttempt,
+  recordSuccessfulLogin
 } from '@/lib/brute-force-protection';
 import { reportSecurityIncident } from '@/lib/threat-detection';
+import { log } from '@/lib/logger-helper';
+import { handleApiError, ApiErrors } from '@/lib/api-error';
+import { getDatabaseWithRetry } from '@/lib/db';
+import { users } from '@/lib/db/schema';
+import { eq } from 'drizzle-orm';
+import { logStudentActivity } from '@/lib/student-activity-log';
+
+export const dynamic = 'force-dynamic';
 import { securityLogger } from '@/lib/edge-logger';
 
 export async function POST(request: NextRequest) {
@@ -17,44 +25,44 @@ export async function POST(request: NextRequest) {
     try {
       clientIP = getClientIP(request);
     } catch (ipError: any) {
-      console.error('❌ Error getting client IP:', ipError);
+      log.error('Error getting client IP', ipError);
       clientIP = 'unknown';
     }
-    
+
     // Check brute force protection (with error handling)
     let isBlocked = false;
     try {
       isBlocked = isIPBlocked(clientIP);
     } catch (blockError: any) {
-      console.error('❌ Error checking IP block:', blockError);
+      log.error('Error checking IP block', blockError);
       // Continue with login if block check fails
     }
-    
+
     if (isBlocked) {
       try {
         securityLogger.info('Blocked IP attempted login', { ip: clientIP });
       } catch (logError) {
-        console.error('❌ Error logging security event:', logError);
+        log.error('Error logging security event', logError);
       }
       return NextResponse.json(
         { message: 'Too many failed login attempts. Please try again later.' },
         { status: 429 }
       );
     }
-    
+
     // Rate limiting (with error handling)
     let rateLimitResult: any = { allowed: true };
     try {
       rateLimitResult = rateLimit(`login:${clientIP}`, 5, 15 * 60 * 1000); // 5 attempts per 15 minutes
     } catch (rateError: any) {
-      console.error('❌ Error in rate limiting:', rateError);
+      log.error('Error in rate limiting', rateError);
       // Continue with login if rate limiting fails
     }
-    
+
     if (!rateLimitResult.allowed) {
       return NextResponse.json(
         { message: 'Too many login attempts. Please try again later.' },
-        { 
+        {
           status: 429,
           headers: {
             'Retry-After': Math.ceil((rateLimitResult.resetTime - Date.now()) / 1000).toString(),
@@ -68,21 +76,18 @@ export async function POST(request: NextRequest) {
     try {
       body = await request.text();
     } catch (bodyError: any) {
-      console.error('❌ Error reading request body:', bodyError);
-      return NextResponse.json(
-        { message: 'Failed to read request body' },
-        { status: 400 }
-      );
+      log.error('Error reading request body', bodyError);
+      return handleApiError(ApiErrors.validation('Failed to read request body'), request.nextUrl.pathname);
     }
-    
+
     let bodySizeValid = true;
     try {
       bodySizeValid = validateBodySize(body, 512); // 512 bytes max
     } catch (sizeError: any) {
-      console.error('❌ Error validating body size:', sizeError);
+      log.error('Error validating body size', sizeError);
       // Continue if validation fails
     }
-    
+
     if (!bodySizeValid) {
       return NextResponse.json(
         { message: 'Request body too large' },
@@ -99,7 +104,7 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-    const { email, password } = data;
+    const { email, password, rememberMe } = data;
 
     if (!email || !password) {
       return NextResponse.json(
@@ -113,19 +118,19 @@ export async function POST(request: NextRequest) {
     try {
       sanitizedEmail = sanitizeString(email.toLowerCase(), 255);
     } catch (sanitizeError: any) {
-      console.error('❌ Error sanitizing email:', sanitizeError);
+      log.error('Error sanitizing email', sanitizeError);
       sanitizedEmail = email.toLowerCase().trim();
     }
-    
+
     let emailValid = true;
     try {
       emailValid = validateEmail(sanitizedEmail);
     } catch (validateError: any) {
-      console.error('❌ Error validating email:', validateError);
+      log.error('Error validating email', validateError);
       // Basic email validation fallback
       emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(sanitizedEmail);
     }
-    
+
     if (!emailValid) {
       return NextResponse.json(
         { message: 'Invalid email format' },
@@ -141,80 +146,79 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log('Attempting to authenticate user:', sanitizedEmail);
-    console.log('Received role from client:', data.role);
-    console.log('Role type:', typeof data.role);
-    
+    log.debug('Attempting to authenticate user', { email: sanitizedEmail, requestedRole: data.role });
+
     // Check if user has multiple accounts (roles) with this email (with error handling)
     let allAccounts: any[] = [];
     try {
       const { getUserAccounts } = await import('@/lib/auth');
       allAccounts = await getUserAccounts(sanitizedEmail);
     } catch (accountsError: any) {
-      console.error('❌ Error getting user accounts:', accountsError);
+      log.error('Error getting user accounts', accountsError);
       // If getUserAccounts fails, try to authenticate directly
       // This is a fallback for when the function fails
-      console.log('⚠️ Falling back to direct authentication');
+      log.warn('Falling back to direct authentication');
     }
-    console.log('All accounts found:', allAccounts.length);
-    console.log('Accounts:', allAccounts.map(a => ({ role: a.role, name: a.name })));
-    
-    // Only show multiple accounts selector if role is 'auto', undefined, or not specified
-    // If user explicitly selected 'student' or 'admin', login directly with that role
-    const hasExplicitRole = data.role && data.role !== 'auto' && (data.role === 'student' || data.role === 'admin');
-    const isAutoRole = !hasExplicitRole; // If no explicit role, treat as 'auto'
-    
-    console.log('Has explicit role:', hasExplicitRole);
-    console.log('Is auto role:', isAutoRole);
-    
-    // If explicit role is provided, filter accounts to only that role
-    // This ensures student login only checks student accounts, admin login only checks admin accounts
-    const relevantAccounts = hasExplicitRole 
-      ? allAccounts.filter(acc => acc.role === data.role)
-      : allAccounts;
-    
-    console.log('Relevant accounts (filtered by role):', relevantAccounts.length);
-    console.log('Relevant accounts:', relevantAccounts.map(a => ({ role: a.role, name: a.name })));
-    
+    log.debug('User accounts found', { count: allAccounts.length, accounts: allAccounts.map(a => ({ role: a.role, name: a.name })) });
+
+    // Reject admin role requests - admins should use /api/auth/admin-login
+    if (data.role === 'admin') {
+      log.warn('Admin login attempt via student endpoint', { email: sanitizedEmail });
+      return NextResponse.json({
+        message: 'Admin accounts must use the admin login endpoint. Please use /api/auth/admin-login or visit /admin/login',
+      }, { status: 400 });
+    }
+
+    // Default to student role for this endpoint
+    const targetRole = data.role === 'student' ? 'student' : 'student';
+    const hasExplicitRole = data.role === 'student';
+    const isAutoRole = !hasExplicitRole;
+
+    log.debug('Role selection', { hasExplicitRole, isAutoRole, targetRole });
+
+    // Filter accounts to only student accounts
+    const relevantAccounts = allAccounts.filter(acc => acc.role === 'student');
+
+    log.debug('Relevant accounts', { count: relevantAccounts.length, accounts: relevantAccounts.map(a => ({ role: a.role, name: a.name })) });
+
     // Only show multiple accounts selector if:
     // 1. No explicit role was provided (auto mode)
-    // 2. AND there are multiple accounts of different roles
-    if (allAccounts.length > 1 && isAutoRole) {
-      // Multiple accounts and user selected 'auto' or didn't specify - show selector
-      console.log('Showing multiple accounts selector');
+    // 2. AND there are multiple student accounts
+    if (relevantAccounts.length > 1 && isAutoRole) {
+      log.debug('Multiple student accounts detected, showing selector');
       return NextResponse.json({
-        message: 'Multiple accounts found. Please select a role.',
+        message: 'Multiple student accounts found. Please select an account.',
         hasMultipleRoles: true,
-        accounts: allAccounts.map(acc => ({
+        accounts: relevantAccounts.map(acc => ({
           id: acc.id,
           role: acc.role,
           name: acc.name,
         })),
-      }, { status: 200 }); // 200 because we want to show the role selector
+      }, { status: 200 });
     }
-    
-    // If explicit role is provided but no account exists for that role, return error
-    if (hasExplicitRole && relevantAccounts.length === 0) {
-      console.log('No account found for explicit role:', data.role);
+
+    // If no student account exists, return error
+    if (relevantAccounts.length === 0) {
+      log.warn('No student account found', { email: sanitizedEmail });
       return NextResponse.json({
-        message: `No ${data.role} account found with this email. Please check your credentials or register a ${data.role} account.`,
+        message: 'No student account found with this email. Please check your credentials or register a student account.',
       }, { status: 404 });
     }
-    
+
     // Check if username is blocked (with error handling)
     let usernameBlocked = false;
     try {
       usernameBlocked = isUsernameBlocked(sanitizedEmail);
     } catch (blockError: any) {
-      console.error('❌ Error checking username block:', blockError);
+      log.error('Error checking username block', blockError);
       // Continue if check fails
     }
-    
+
     if (usernameBlocked) {
       try {
         securityLogger.info('Blocked username attempted login', { email: sanitizedEmail, ip: clientIP });
       } catch (logError) {
-        console.error('❌ Error logging security event:', logError);
+        log.error('Error logging security event', logError);
       }
       return NextResponse.json(
         { message: 'Too many failed login attempts for this account. Please try again later.' },
@@ -222,24 +226,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Authenticate with specific role if provided, or first account if only one
-    // When explicit role is provided, use it directly (authenticateUser will filter by role)
-    // When auto mode, use the first account from relevant accounts
-    const targetRole = hasExplicitRole ? data.role : (relevantAccounts.length > 0 ? relevantAccounts[0].role : undefined);
-    console.log('Target role for authentication:', targetRole);
-    
+    // Authenticate as student (targetRole is already set to 'student' above)
+    log.debug('Target role for authentication', { role: targetRole });
+
     let user;
     try {
       user = await authenticateUser(sanitizedEmail, password, targetRole);
     } catch (authError: any) {
-      console.error('❌ Error in authenticateUser:', authError);
-      console.error('Auth error details:', {
+      log.error('Error in authenticateUser', authError, {
         message: authError.message,
         stack: authError.stack,
       });
       // Return a more specific error
       return NextResponse.json(
-        { 
+        {
           message: 'Authentication failed',
           error: process.env.NODE_ENV === 'development' ? authError.message : undefined
         },
@@ -248,35 +248,35 @@ export async function POST(request: NextRequest) {
     }
 
     if (!user) {
-      console.log('Authentication failed: Invalid email or password');
-      
+      log.warn('Authentication failed', { email: sanitizedEmail, reason: 'Invalid credentials' });
+
       // Record failed attempt (with error handling)
       let attemptResult: any = { remainingAttempts: 5, delayMs: 0, blocked: false };
       try {
         attemptResult = recordFailedAttempt(clientIP, sanitizedEmail);
       } catch (recordError: any) {
-        console.error('❌ Error recording failed attempt:', recordError);
+        log.error('Error recording failed attempt', recordError);
       }
-      
+
       try {
         securityLogger.info('failed_auth', { ip: clientIP, email: sanitizedEmail, reason: 'Invalid credentials' });
       } catch (logError) {
-        console.error('❌ Error logging failed auth:', logError);
+        log.error('Error logging failed auth', logError);
       }
-      
+
       try {
         reportSecurityIncident(clientIP, 'Failed login attempt', { email: sanitizedEmail }, 'low');
       } catch (reportError) {
-        console.error('❌ Error reporting security incident:', reportError);
+        log.error('Error reporting security incident', reportError);
       }
-      
+
       // Add delay for failed attempt (progressive delay)
       if (attemptResult.delayMs > 0) {
         await new Promise(resolve => setTimeout(resolve, attemptResult.delayMs));
       }
-      
+
       const response = NextResponse.json(
-        { 
+        {
           message: 'Invalid email or password',
           remainingAttempts: attemptResult.remainingAttempts,
           ...(attemptResult.blocked && {
@@ -286,14 +286,47 @@ export async function POST(request: NextRequest) {
         },
         { status: 401 }
       );
-      
+
       return response;
     }
 
-    console.log('User authenticated:', { id: user.id, email: user.email, role: user.role });
+    log.info('User authenticated successfully', { userId: user.id, email: user.email, role: user.role });
+
+    // Check if user has 2FA enabled
+    if (user.twoFactorEnabled) {
+      log.info('User has 2FA enabled, sending OTP', { userId: user.id });
+
+      // Generate and send OTP
+      try {
+        const { generateOTP, saveOTP, sendOTPEmail } = await import('@/lib/otp');
+        const otpCode = generateOTP();
+        await saveOTP(sanitizedEmail, otpCode, 'student');
+        await sendOTPEmail(sanitizedEmail, otpCode, user.name || 'User');
+
+        // Generate temp token for 2FA verification
+        const jwt = await import('jsonwebtoken');
+        const tempToken = jwt.default.sign(
+          { userId: user.id, email: sanitizedEmail, purpose: '2fa' },
+          process.env.JWT_SECRET || 'your-secret-key',
+          { expiresIn: '10m' }
+        );
+
+        return NextResponse.json({
+          requires2FA: true,
+          tempToken,
+          message: 'Two-Factor Authentication required. OTP sent to your email.',
+        });
+      } catch (otpError: any) {
+        log.error('Error sending 2FA OTP', otpError);
+        return NextResponse.json(
+          { message: 'Failed to send verification code. Please try again.' },
+          { status: 500 }
+        );
+      }
+    }
 
     if (!user.isActive) {
-      console.log('Account is deactivated:', user.email);
+      log.warn('Deactivated account attempted login', { email: user.email });
       return NextResponse.json(
         { message: 'Account is deactivated. Please contact administrator.' },
         { status: 403 }
@@ -304,24 +337,23 @@ export async function POST(request: NextRequest) {
     try {
       recordSuccessfulLogin(clientIP, sanitizedEmail);
     } catch (recordError: any) {
-      console.error('❌ Error recording successful login:', recordError);
+      log.error('Error recording successful login', recordError);
     }
-    
+
     try {
       securityLogger.info('successful_auth', { ip: clientIP, email: sanitizedEmail });
     } catch (logError) {
-      console.error('❌ Error logging successful auth:', logError);
+      log.error('Error logging successful auth', logError);
     }
 
     // Create session with user data (with error handling)
-    console.log('Creating session for user:', user.id);
+    log.debug('Creating session', { userId: user.id });
     let sessionToken: string;
     try {
       sessionToken = await createSession(user.id, undefined, user);
-      console.log('Session created, token length:', sessionToken.length);
+      log.debug('Session created', { tokenLength: sessionToken.length });
     } catch (sessionError: any) {
-      console.error('❌ Error creating session:', sessionError);
-      console.error('Session error details:', {
+      log.error('Error creating session', sessionError, {
         message: sessionError.message,
         stack: sessionError.stack,
       });
@@ -329,11 +361,11 @@ export async function POST(request: NextRequest) {
       try {
         const { generateToken } = await import('@/lib/auth');
         sessionToken = generateToken(user);
-        console.log('⚠️ Using JWT token as fallback');
+        log.warn('Using JWT token as fallback');
       } catch (tokenError: any) {
-        console.error('❌ Error generating fallback token:', tokenError);
+        log.error('Error generating fallback token', tokenError);
         return NextResponse.json(
-          { 
+          {
             message: 'Failed to create session',
             error: process.env.NODE_ENV === 'development' ? sessionError.message : undefined
           },
@@ -342,34 +374,31 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const response = NextResponse.json({
-      message: 'Login successful',
-      user: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        isActive: user.isActive,
-      },
-    });
+    // Update last login timestamp and IP address
+    try {
+      const db = await getDatabaseWithRetry();
+      await db
+        .update(users)
+        .set({
+          lastLogin: new Date(),
+          lastLoginIp: clientIP,
+          updatedAt: new Date(),
+        })
+        .where(eq(users.id, user.id));
+      log.debug('Last login updated', { userId: user.id, ip: clientIP });
+    } catch (updateError: any) {
+      log.error('Error updating last login', updateError);
+      // Don't fail the login if this update fails
+    }
 
-    // Set HttpOnly cookie for token with secure settings
-    // Using 'lax' instead of 'strict' to allow redirects after login
-    // In development, we don't use secure flag to allow http://localhost
-    response.cookies.set('token', sessionToken, {
-      httpOnly: true,
-      sameSite: 'lax', // 'lax' allows redirects while still providing CSRF protection
-      secure: false, // Set to false for localhost development
-      path: '/',
-      maxAge: 7 * 24 * 60 * 60, // 7 days
-    });
-    
-    console.log('✓ Cookie set for user:', user.email);
-    console.log('✓ Response prepared with user data:', { id: user.id, role: user.role });
-    
-    // Determine redirect URL
-    const redirectUrl = user.role === 'admin' ? '/admin' : '/student';
-    console.log('=== LOGIN API SUCCESS - Redirecting to:', redirectUrl);
+    // Set cookie expiration based on rememberMe
+    const maxAge = rememberMe
+      ? 30 * 24 * 60 * 60  // 30 days if remember me is checked
+      : 7 * 24 * 60 * 60;  // 7 days default
+
+    // Always redirect to student dashboard (this endpoint is for students only)
+    const redirectUrl = '/student/dashboard';
+    log.info('Login successful', { redirectUrl, rememberMe });
 
     // Return JSON response with redirect URL - let client handle redirect
     // This is more reliable than server-side redirects with fetch
@@ -383,68 +412,52 @@ export async function POST(request: NextRequest) {
         bio: user.bio || null,
         role: user.role,
         isActive: user.isActive,
-        faceIdEnrolled: user.faceIdEnrolled || false,
         fingerprintEnrolled: user.fingerprintEnrolled || false,
         twoFactorEnabled: user.twoFactorEnabled || false,
         joinedDate: user.joinedDate ? new Date(user.joinedDate).toISOString() : null,
       },
       redirectUrl: redirectUrl,
     });
-    
-    // Set cookie in JSON response
-    jsonResponse.cookies.set('token', sessionToken, {
+
+    // Set student_token cookie in JSON response with dynamic expiration
+    jsonResponse.cookies.set('student_token', sessionToken, {
       httpOnly: true,
       sameSite: 'lax', // 'lax' allows redirects while still providing CSRF protection
-      secure: false, // Set to false for localhost development (http://)
+      secure: process.env.NODE_ENV === 'production' && (process.env.NEXT_PUBLIC_APP_URL || '').startsWith('https'), // Secure only if production AND https
       path: '/',
-      maxAge: 7 * 24 * 60 * 60, // 7 days
+      maxAge: maxAge, // Use dynamic maxAge based on rememberMe
       domain: undefined, // Don't set domain for localhost
     });
-    
-    console.log('✓ Cookie set in JSON response for user:', user.email);
-    console.log('✓ Redirect URL in response:', redirectUrl);
+
+    // Backward compatibility: some API routes still read `token`
+    jsonResponse.cookies.set('token', sessionToken, {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production' && (process.env.NEXT_PUBLIC_APP_URL || '').startsWith('https'),
+      path: '/',
+      maxAge: maxAge,
+    });
+
+    // Log login activity
+    try {
+      await logStudentActivity({
+        studentId: user.id,
+        activityType: 'login',
+        title: 'User Login',
+        description: 'Successful login session started',
+        ipAddress: clientIP,
+        userAgent: request.headers.get('user-agent') || undefined,
+      });
+    } catch (logActivityError) {
+      log.error('Error logging login activity', logActivityError);
+    }
+
+    log.debug('Login response prepared', { userId: user.id, role: user.role });
 
     return jsonResponse;
 
   } catch (error: any) {
-    console.error('Login error:', error);
-    console.error('Error details:', {
-      message: error?.message,
-      code: error?.code,
-      detail: error?.detail,
-    });
-
-    // Handle database connection errors
-    if (error?.message?.includes('DATABASE_URL') || 
-        error?.message?.includes('connection') ||
-        error?.code === 'ECONNREFUSED') {
-      return NextResponse.json(
-        { 
-          message: 'Database connection error. Please check your DATABASE_URL in .env.local',
-          error: process.env.NODE_ENV === 'development' ? error.message : undefined
-        },
-        { status: 500 }
-      );
-    }
-
-    // Handle table not found errors (migrations not run)
-    if (error?.message?.includes('does not exist') || 
-        error?.code === '42P01') {
-      return NextResponse.json(
-        { 
-          message: 'Database tables not found. Please run migrations: npx drizzle-kit migrate',
-          error: process.env.NODE_ENV === 'development' ? error.message : undefined
-        },
-        { status: 500 }
-      );
-    }
-
-    return NextResponse.json(
-      { 
-        message: 'Internal server error',
-        error: process.env.NODE_ENV === 'development' ? error.message : undefined
-      },
-      { status: 500 }
-    );
+    log.error('Login API error', error);
+    return handleApiError(error, request.nextUrl.pathname);
   }
 }

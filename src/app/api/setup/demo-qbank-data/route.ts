@@ -1,6 +1,7 @@
+import { logger } from '@/lib/logger';
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/auth-helpers';
-import { getDatabase } from '@/lib/db';
+import { getDatabaseWithRetry } from '@/lib/db';
 import { courses, questionBanks, qbankQuestions, qbankTests, qbankQuestionAttempts, qbankQuestionStatistics, studentProgress, users } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
 
@@ -12,7 +13,7 @@ export async function POST(request: NextRequest) {
     }
     const { user: adminUser } = authResult;
 
-    const db = getDatabase();
+    const db = await getDatabaseWithRetry();
 
     // Find or create the Q-Bank course
     let course = await db
@@ -326,7 +327,7 @@ export async function POST(request: NextRequest) {
           await db.insert(qbankQuestionStatistics).values(statsToInsert.slice(i, i + batchSize));
         } catch (error) {
           // Skip duplicates
-          console.log('Skipping duplicate statistics');
+          logger.info('Skipping duplicate statistics');
         }
       }
 
@@ -453,7 +454,7 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error: any) {
-    console.error('Demo data creation error:', error);
+    logger.error('Demo data creation error:', error);
     return NextResponse.json(
       { 
         message: 'Failed to create demo data',

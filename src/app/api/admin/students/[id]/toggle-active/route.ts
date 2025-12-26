@@ -1,8 +1,10 @@
+import { logger } from '@/lib/logger';
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/auth';
-import { getDatabase } from '@/lib/db';
+import { getDatabaseWithRetry } from '@/lib/db';
 import { users } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
+import { logActivity } from '@/lib/activity-log';
 
 // PATCH - Toggle student active/inactive status
 export async function PATCH(
@@ -10,19 +12,19 @@ export async function PATCH(
   { params }: { params: { id: string } }
 ) {
   try {
-    const token = request.cookies.get('token')?.value;
+    const token = request.cookies.get('adminToken')?.value;
 
     if (!token) {
       return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });
     }
 
-    const decoded = verifyToken(token);
+    const decoded = await verifyToken(token);
     if (!decoded || decoded.role !== 'admin') {
       return NextResponse.json({ message: 'Admin access required' }, { status: 403 });
     }
 
     const studentId = parseInt(params.id);
-    const db = getDatabase();
+    const db = await getDatabaseWithRetry();
 
     // Get current student
     const student = await db
@@ -42,14 +44,24 @@ export async function PATCH(
       .set({ isActive: newStatus })
       .where(eq(users.id, studentId));
 
-    console.log(`✅ Student ${studentId} active status changed to: ${newStatus}`);
+    logger.info(`✅ Student ${studentId} active status changed to: ${newStatus}`);
+
+    // Log activity
+    await logActivity({
+      adminId: decoded.id,
+      adminName: decoded.name || 'Admin',
+      action: newStatus ? 'activated' : 'deactivated',
+      entityType: 'student',
+      entityId: studentId,
+      entityName: student[0].name,
+    });
 
     return NextResponse.json({
       message: `Student ${newStatus ? 'activated' : 'deactivated'} successfully`,
       isActive: newStatus,
     });
   } catch (error: any) {
-    console.error('Toggle student active error:', error);
+    logger.error('Toggle student active error:', error);
     return NextResponse.json(
       { message: 'Failed to update student status', error: error.message },
       { status: 500 }

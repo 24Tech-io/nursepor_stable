@@ -1,5 +1,6 @@
+import { logger } from '@/lib/logger';
 import { NextRequest, NextResponse } from 'next/server';
-import { getDatabase } from '@/lib/db';
+import { getDatabaseWithRetry } from '@/lib/db';
 import { users } from '@/lib/db/schema';
 import { verifyToken } from '@/lib/auth';
 
@@ -11,13 +12,13 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });
     }
 
-    const decoded = verifyToken(token);
+    const decoded = await verifyToken(token);
     if (!decoded || decoded.role !== 'admin') {
       return NextResponse.json({ message: 'Admin access required' }, { status: 403 });
     }
 
     // Get database instance
-    const db = getDatabase();
+    const db = await getDatabaseWithRetry();
 
     // Get all users from database
     const allUsers = await db.select().from(users);
@@ -42,7 +43,7 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error: any) {
-    console.error('Debug users error:', error);
+    logger.error('Debug users error:', error);
     return NextResponse.json(
       { 
         message: 'Failed to get users',

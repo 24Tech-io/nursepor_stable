@@ -132,34 +132,22 @@ npm run seed
 
 6. Start the development servers:
 ```bash
-# Start both student (port 3000) and admin (port 3001) apps
-npm run dev:all
-
-# Or start them separately:
-npm run dev          # Student app on port 3000
-npm run dev:admin    # Admin app on port 3001
+# Start the unified app (student + admin) on port 3000
+npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) for student portal and [http://localhost:3001](http://localhost:3001) for admin portal.
+Open [http://localhost:3000](http://localhost:3000). Admin portal is at [http://localhost:3000/admin](http://localhost:3000/admin).
 
 ## Project Structure
 
 ```
 lms-platform/
-├── src/                      # Student app (port 3000)
-│   ├── app/                  # Next.js app router pages
+├── src/                      # Unified app source
+│   ├── app/                  # Next.js app router
 │   │   ├── student/          # Student dashboard pages
+│   │   ├── admin/            # Admin dashboard pages
 │   │   ├── api/              # API routes
-│   │   ├── login/            # Authentication pages
 │   │   └── page.tsx           # Home page
-│   ├── components/           # Reusable React components
-│   └── lib/                  # Utility functions
-├── admin-app/                # Admin app (port 3001)
-│   ├── src/
-│   │   ├── app/              # Admin pages and API routes
-│   │   ├── components/       # Admin components
-│   │   └── lib/             # Admin utilities
-│   └── package.json
 ├── drizzle/                  # Database migrations
 ├── public/                   # Static assets
 ├── docs/                     # Documentation
@@ -179,15 +167,11 @@ lms-platform/
 ## Available Scripts
 
 ### Development
-- `npm run dev` - Start student app (port 3000)
-- `npm run dev:admin` - Start admin app (port 3001)
-- `npm run dev:all` - Start both apps simultaneously
+- `npm run dev` - Start unified app (port 3000)
 
 ### Production
-- `npm run build` - Build student app for production
-- `npm run build:admin` - Build admin app for production
-- `npm run start` - Start student app in production mode
-- `npm run start:admin` - Start admin app in production mode
+- `npm run build` - Build app for production
+- `npm run start` - Start app in production mode
 
 ### Utilities
 - `npm run lint` - Run ESLint

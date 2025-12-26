@@ -1,5 +1,6 @@
+import { logger } from '@/lib/logger';
 import { NextRequest, NextResponse } from 'next/server';
-import { getDatabase } from '@/lib/db';
+import { getDatabaseWithRetry } from '@/lib/db';
 import { blogPosts } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 
@@ -8,7 +9,7 @@ export async function GET(
   { params }: { params: { slug: string } }
 ) {
   try {
-    const db = getDatabase();
+    const db = await getDatabaseWithRetry();
     const slug = params.slug;
     
     const blog = await db
@@ -39,7 +40,7 @@ export async function GET(
       },
     });
   } catch (error: any) {
-    console.error('Get blog by slug error:', error);
+    logger.error('Get blog by slug error:', error);
     return NextResponse.json(
       { 
         message: 'Failed to get blog',

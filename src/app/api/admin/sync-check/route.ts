@@ -1,6 +1,7 @@
+import { logger } from '@/lib/logger';
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/auth';
-import { getDatabase } from '@/lib/db';
+import { getDatabaseWithRetry } from '@/lib/db';
 import { studentProgress, enrollments, accessRequests } from '@/lib/db/schema';
 import { eq, and, sql } from 'drizzle-orm';
 
@@ -11,12 +12,12 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });
     }
 
-    const decoded = verifyToken(token);
+    const decoded = await verifyToken(token);
     if (!decoded || decoded.role !== 'admin') {
       return NextResponse.json({ message: 'Admin access required' }, { status: 403 });
     }
 
-    const db = getDatabase();
+    const db = await getDatabaseWithRetry();
     
     // 1. Find enrollments in studentProgress but NOT in enrollments
     const progressOnly = await db
@@ -103,7 +104,7 @@ export async function GET(request: NextRequest) {
       }
     });
   } catch (error) {
-    console.error('Consistency check error:', error);
+    logger.error('Consistency check error:', error);
     return NextResponse.json({
       message: 'Internal server error',
       error: process.env.NODE_ENV === 'development' ? String(error) : undefined

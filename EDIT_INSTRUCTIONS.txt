@@ -1,0 +1,53 @@
+// INSTRUCTIONS: Replace the editChapter function in UnifiedAdminSuite.tsx (around line 2054)
+// Replace lines 2054-2070 with this code:
+
+  const editChapter = async (chapter: any, modId: number) => {
+    setEditingChapter(chapter);
+    setCurrentModuleId(modId);
+    
+    // Open appropriate modal based on chapter type
+    if (chapter.type === 'video') {
+      setShowVideoModal(true);
+    } else if (chapter.type === 'textbook') {
+      setShowReadingModal(true);
+    } else if (chapter.type === 'document') {
+      setShowDocumentModal(true);
+    } else if (chapter.type === 'mcq' || chapter.type === 'qbank') {
+      // Fetch quiz data first before opening modal
+      try {
+        // Get quiz ID from chapter
+        const quizResponse = await fetch(`/api/chapters/${chapter.id}/quiz`, {
+          credentials: 'include'
+        });
+        
+        if (quizResponse.ok) {
+          const { quizId } = await quizResponse.json();
+          
+          // Fetch full quiz data with questions
+          const dataResponse = await fetch(`/api/quizzes/${quizId}`, {
+            credentials: 'include'
+          });
+          
+          if (dataResponse.ok) {
+            const quizData = await dataResponse.json();
+            // Store fetched data in editingChapter
+            setEditingChapter({
+              ...chapter,
+              quizData: quizData.quiz,
+              questions: quizData.questions
+            });
+            setShowQuizSelectorModal(true);
+          } else {
+            notification.showError('Failed to load quiz data');
+          }
+        } else {
+          notification.showError('Failed to find quiz');
+        }
+      } catch (error) {
+        console.error('Error loading quiz:', error);
+        notification.showError('Failed to load quiz');
+      }
+    } else {
+      notification.showInfo('Chapter editing not supported for this type');
+    }
+  };

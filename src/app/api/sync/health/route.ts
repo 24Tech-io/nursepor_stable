@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/auth';
-import { getDatabase } from '@/lib/db';
+import { getDatabaseWithRetry } from '@/lib/db';
 import { courses, studentProgress, accessRequests, users, payments } from '@/lib/db/schema';
 import { eq, and, or, sql } from 'drizzle-orm';
+import { logger } from '@/lib/logger';
 
 /**
  * Sync Health Check
@@ -10,18 +11,18 @@ import { eq, and, or, sql } from 'drizzle-orm';
  */
 export async function GET(request: NextRequest) {
   try {
-    const token = request.cookies.get('token')?.value || request.cookies.get('adminToken')?.value;
+    const token = request.cookies.get('student_token')?.value || request.cookies.get('token')?.value || request.cookies.get('admin_token')?.value || request.cookies.get('adminToken')?.value;
 
     if (!token) {
       return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });
     }
 
-    const decoded = verifyToken(token);
+    const decoded = await verifyToken(token);
     if (!decoded) {
       return NextResponse.json({ message: 'Invalid token' }, { status: 403 });
     }
 
-    const db = getDatabase();
+    const db = await getDatabaseWithRetry();
 
     // Quick health checks
     const health: any = {
@@ -140,7 +141,7 @@ export async function GET(request: NextRequest) {
         : 'Some sync issues detected'
     });
   } catch (error: any) {
-    console.error('Sync health check error:', error);
+    logger.error('Sync health check error:', error);
     return NextResponse.json(
       { 
         success: false,

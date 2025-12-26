@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/auth';
 import { getSyncStatus } from '@/lib/sync-service';
@@ -14,7 +15,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });
     }
 
-    const decoded = verifyToken(token);
+    const decoded = await verifyToken(token);
     if (!decoded) {
       return NextResponse.json({ message: 'Invalid token' }, { status: 403 });
     }
@@ -34,7 +35,7 @@ export async function GET(request: NextRequest) {
       message: 'Sync status retrieved successfully',
     });
   } catch (error: any) {
-    console.error('Sync status error:', error);
+    logger.error('Sync status error:', error);
     return NextResponse.json(
       { 
         success: false,

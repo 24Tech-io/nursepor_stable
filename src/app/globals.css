@@ -14,6 +14,7 @@
   html, body {
     max-width: 100vw;
     overflow-x: hidden;
+    background-color: #020617; /* slate-950 - Dark theme base */
   }
   
   a { text-decoration: none; }
@@ -31,7 +32,7 @@
     cursor: text;
   }
   
-  /* Fix input text color for white backgrounds */
+  /* Dark theme inputs - light text by default */
   input[type="text"],
   input[type="email"],
   input[type="password"],
@@ -40,15 +41,14 @@
   input[type="search"],
   textarea,
   select {
-    color: #111827; /* gray-900 */
+    color: #f1f5f9; /* slate-100 - Light text for dark backgrounds */
   }
   
-  /* Dark background inputs should have light text */
-  input[type="text"].bg-white\/5,
-  input[type="email"].bg-white\/5,
-  input[type="password"].bg-white\/5,
-  input[type="tel"].bg-white\/5 {
-    color: #f1f5f9; /* slate-100 */
+  /* Light background inputs should have dark text (for admin or special cases) */
+  input.bg-white,
+  textarea.bg-white,
+  select.bg-white {
+    color: #111827; /* gray-900 */
   }
 }
 
@@ -126,10 +126,10 @@
   
   @keyframes pulse-glow {
     0%, 100% {
-      box-shadow: 0 0 20px rgba(139, 92, 246, 0.4);
+      box-shadow: 0 0 20px rgba(227, 28, 37, 0.4);
     }
     50% {
-      box-shadow: 0 0 40px rgba(139, 92, 246, 0.8);
+      box-shadow: 0 0 40px rgba(227, 28, 37, 0.8);
     }
   }
   
@@ -148,25 +148,25 @@
     transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
   }
   
-  /* Glass Morphism */
+  /* Glass Morphism - Dark Theme */
   .glass {
-    background: rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.05);
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.1);
   }
   
-  /* Premium Gradient */
+  /* Premium Gradient - Nurse Red */
   .gradient-premium {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #E31C25 0%, #b91c1c 100%);
   }
   
   .gradient-success {
-    background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
   }
   
   .gradient-warning {
-    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
   }
   
   /* Hover Effects */
@@ -176,26 +176,439 @@
   
   .hover-lift:hover {
     transform: translateY(-4px);
-    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    box-shadow: 0 0 30px rgba(227, 28, 37, 0.3);
   }
   
-  /* Custom Scrollbar */
+  /* Custom Scrollbar - Dark Theme */
   .custom-scrollbar::-webkit-scrollbar {
     width: 8px;
     height: 8px;
   }
   
   .custom-scrollbar::-webkit-scrollbar-track {
-    background: #f1f1f1;
+    background: rgba(255, 255, 255, 0.05);
     border-radius: 10px;
   }
   
   .custom-scrollbar::-webkit-scrollbar-thumb {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #E31C25 0%, #b91c1c 100%);
     border-radius: 10px;
   }
   
   .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+    background: linear-gradient(135deg, #b91c1c 0%, #E31C25 100%);
+  }
+
+  /* Magnetic hover effect for buttons */
+  .magnetic-hover {
+    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  
+  .magnetic-hover:hover {
+    transform: translateY(-3px) scale(1.02);
+  }
+  
+  .magnetic-hover:active {
+    transform: translateY(0) scale(0.98);
+  }
+
+  /* Card tilt effect */
+  .card-tilt {
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+  }
+  
+  .card-tilt:hover {
+    transform: perspective(1000px) rotateX(2deg) rotateY(-2deg) translateY(-5px);
+    box-shadow: 0 25px 50px -12px rgba(227, 28, 37, 0.25);
+  }
+
+  /* Text glow on hover */
+  .text-glow-hover:hover {
+    text-shadow: 0 0 20px rgba(227, 28, 37, 0.5), 0 0 40px rgba(227, 28, 37, 0.3);
+  }
+
+  /* Ripple effect */
+  .ripple {
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .ripple::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    transition: width 0.6s ease, height 0.6s ease, opacity 0.6s ease;
+    opacity: 0;
+  }
+  
+  .ripple:active::after {
+    width: 300px;
+    height: 300px;
+    opacity: 1;
+    transition: 0s;
+  }
+
+  /* Shine effect on hover */
+  .shine-effect {
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .shine-effect::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(255, 255, 255, 0.2),
+      transparent
+    );
+    transition: left 0.5s ease;
+  }
+  
+  .shine-effect:hover::before {
+    left: 100%;
+  }
+
+  /* Bouncy button */
+  .bouncy {
+    animation: none;
+    transition: transform 0.2s ease;
+  }
+  
+  .bouncy:hover {
+    animation: bounce 0.5s ease infinite;
+  }
+  
+  @keyframes bounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-5px); }
+  }
+
+  /* Glow pulse for important elements */
+  .glow-pulse {
+    animation: glowPulse 2s ease-in-out infinite;
+  }
+  
+  @keyframes glowPulse {
+    0%, 100% { box-shadow: 0 0 20px rgba(227, 28, 37, 0.4); }
+    50% { box-shadow: 0 0 40px rgba(227, 28, 37, 0.8), 0 0 60px rgba(227, 28, 37, 0.4); }
+  }
+
+  /* Underline animation */
+  .underline-animation {
+    position: relative;
+  }
+  
+  .underline-animation::after {
+    content: '';
+    position: absolute;
+    bottom: -2px;
+    left: 0;
+    width: 0;
+    height: 2px;
+    background: linear-gradient(90deg, #E31C25, #ff4444);
+    transition: width 0.3s ease;
+  }
+  
+  .underline-animation:hover::after {
+    width: 100%;
+  }
+
+  /* ========== CUSTOM CURSOR EFFECTS ========== */
+  
+  /* Custom cursor trail effect */
+  .cursor-glow {
+    cursor: none;
+  }
+
+  /* Click effect - ripple burst */
+  @keyframes click-burst {
+    0% {
+      transform: scale(0);
+      opacity: 1;
+    }
+    100% {
+      transform: scale(2);
+      opacity: 0;
+    }
+  }
+
+  /* Hover scale effect */
+  .hover-scale {
+    transition: transform 0.2s ease;
+  }
+  
+  .hover-scale:hover {
+    transform: scale(1.05);
+  }
+  
+  .hover-scale:active {
+    transform: scale(0.95);
+  }
+
+  /* Click shrink effect */
+  .click-shrink:active {
+    transform: scale(0.92);
+    transition: transform 0.1s ease;
+  }
+
+  /* Wobble on hover */
+  @keyframes wobble {
+    0%, 100% { transform: rotate(0deg); }
+    25% { transform: rotate(-3deg); }
+    75% { transform: rotate(3deg); }
+  }
+  
+  .hover-wobble:hover {
+    animation: wobble 0.5s ease;
+  }
+
+  /* Pop effect on click */
+  @keyframes pop {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.15); }
+    100% { transform: scale(1); }
+  }
+  
+  .click-pop:active {
+    animation: pop 0.3s ease;
+  }
+
+  /* Jello effect */
+  @keyframes jello {
+    0%, 100% { transform: scale3d(1, 1, 1); }
+    30% { transform: scale3d(1.25, 0.75, 1); }
+    40% { transform: scale3d(0.75, 1.25, 1); }
+    50% { transform: scale3d(1.15, 0.85, 1); }
+    65% { transform: scale3d(0.95, 1.05, 1); }
+    75% { transform: scale3d(1.05, 0.95, 1); }
+  }
+  
+  .hover-jello:hover {
+    animation: jello 0.9s ease;
+  }
+
+  /* Glow on hover */
+  .hover-glow {
+    transition: box-shadow 0.3s ease, filter 0.3s ease;
+  }
+  
+  .hover-glow:hover {
+    box-shadow: 0 0 20px rgba(227, 28, 37, 0.5), 0 0 40px rgba(227, 28, 37, 0.3);
+    filter: brightness(1.1);
+  }
+
+  /* Float animation on hover */
+  .hover-float:hover {
+    animation: float 2s ease-in-out infinite;
+  }
+
+  /* Heartbeat on hover */
+  @keyframes heartbeat {
+    0%, 100% { transform: scale(1); }
+    14% { transform: scale(1.1); }
+    28% { transform: scale(1); }
+    42% { transform: scale(1.1); }
+    70% { transform: scale(1); }
+  }
+  
+  .hover-heartbeat:hover {
+    animation: heartbeat 1.5s ease-in-out infinite;
+  }
+
+  /* Shake on hover */
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+    20%, 40%, 60%, 80% { transform: translateX(5px); }
+  }
+  
+  .hover-shake:hover {
+    animation: shake 0.5s ease;
+  }
+
+  /* Rotate on hover */
+  .hover-rotate {
+    transition: transform 0.3s ease;
+  }
+  
+  .hover-rotate:hover {
+    transform: rotate(5deg);
+  }
+
+  /* Slide up on hover */
+  .hover-slide-up {
+    transition: transform 0.3s ease;
+  }
+  
+  .hover-slide-up:hover {
+    transform: translateY(-8px);
+  }
+
+  /* Border glow animation */
+  @keyframes border-glow {
+    0%, 100% { border-color: rgba(227, 28, 37, 0.3); }
+    50% { border-color: rgba(227, 28, 37, 0.8); }
+  }
+  
+  .border-glow-animate {
+    animation: border-glow 2s ease-in-out infinite;
+  }
+
+  /* Neon text effect */
+  .neon-text:hover {
+    text-shadow: 
+      0 0 5px #E31C25,
+      0 0 10px #E31C25,
+      0 0 20px #E31C25,
+      0 0 40px #E31C25;
+  }
+
+  /* Interactive button press */
+  .btn-press {
+    transition: all 0.15s ease;
+    box-shadow: 0 4px 0 rgba(0, 0, 0, 0.3);
+  }
+  
+  .btn-press:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 0 rgba(0, 0, 0, 0.3);
+  }
+  
+  .btn-press:active {
+    transform: translateY(2px);
+    box-shadow: 0 2px 0 rgba(0, 0, 0, 0.3);
+  }
+
+  /* Elastic effect */
+  @keyframes elastic {
+    0% { transform: scale(1); }
+    30% { transform: scale(1.15, 0.85); }
+    40% { transform: scale(0.9, 1.1); }
+    50% { transform: scale(1.05, 0.95); }
+    65% { transform: scale(0.98, 1.02); }
+    75% { transform: scale(1.02, 0.98); }
+    100% { transform: scale(1); }
+  }
+  
+  .click-elastic:active {
+    animation: elastic 0.5s ease;
+  }
+
+  /* Pulse ring effect */
+  .pulse-ring {
+    position: relative;
+  }
+  
+  .pulse-ring::before {
+    content: '';
+    position: absolute;
+    inset: -4px;
+    border-radius: inherit;
+    border: 2px solid rgba(227, 28, 37, 0.5);
+    animation: pulse-ring-anim 1.5s ease-out infinite;
+    pointer-events: none;
+  }
+  
+  @keyframes pulse-ring-anim {
+    0% { transform: scale(1); opacity: 1; }
+    100% { transform: scale(1.3); opacity: 0; }
+  }
+
+  /* Sparkle effect on hover */
+  .sparkle-hover {
+    position: relative;
+    overflow: visible;
+  }
+  
+  .sparkle-hover::after {
+    content: '✦';
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    font-size: 12px;
+    color: #E31C25;
+    opacity: 0;
+    transform: scale(0) rotate(0deg);
+    transition: all 0.3s ease;
+  }
+  
+  .sparkle-hover:hover::after {
+    opacity: 1;
+    transform: scale(1) rotate(360deg);
+  }
+
+  /* Gradient shift on hover */
+  .gradient-shift-hover {
+    background-size: 200% 200%;
+    transition: background-position 0.5s ease;
+  }
+  
+  .gradient-shift-hover:hover {
+    background-position: right center;
+  }
+
+  /* Smooth link underline */
+  .link-hover-line {
+    position: relative;
+  }
+  
+  .link-hover-line::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    width: 0;
+    height: 2px;
+    background: #E31C25;
+    transition: all 0.3s ease;
+    transform: translateX(-50%);
+  }
+  
+  .link-hover-line:hover::after {
+    width: 100%;
+  }
+
+  /* Icon bounce on hover */
+  .icon-bounce:hover svg,
+  .icon-bounce:hover i {
+    animation: bounce 0.5s ease infinite;
+  }
+
+  /* Custom checkbox animation */
+  @keyframes checkmark-draw {
+    0% { stroke-dashoffset: 24; }
+    100% { stroke-dashoffset: 0; }
+  }
+  
+  .checkbox-animated:checked + div svg path {
+    animation: checkmark-draw 0.3s ease-out forwards;
+  }
+
+  /* Letter wave animation for title */
+  @keyframes letter-wave {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-4px); }
+  }
+  
+  .group:hover .hover-letter {
+    animation: letter-wave 0.4s ease-in-out;
+    animation-fill-mode: both;
+  }
+
+  /* Title glow effect */
+  .title-glow:hover {
+    text-shadow: 0 0 10px rgba(227, 28, 37, 0.5), 0 0 20px rgba(227, 28, 37, 0.3);
   }
 }

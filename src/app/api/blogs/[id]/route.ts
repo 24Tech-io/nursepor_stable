@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDatabase } from '@/lib/db';
+import { getDatabaseWithRetry } from '@/lib/db';
 import { blogPosts } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { verifyToken } from '@/lib/auth';
+import { logger } from '@/lib/logger';
+import { extractAndValidate, validateQueryParams, validateRouteParams } from '@/lib/api-validation';
+import { updateBlogSchema } from '@/lib/validation-schemas-extended';
+import { z } from 'zod';
 
 // GET - Fetch single blog post
 export async function GET(
@@ -10,7 +14,7 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const db = getDatabase();
+    const db = await getDatabaseWithRetry();
     const id = parseInt(params.id);
 
     const blog = await db
@@ -52,7 +56,7 @@ export async function GET(
       },
     });
   } catch (error: any) {
-    console.error('Get blog error:', error);
+    logger.error('Get blog error:', error);
     return NextResponse.json(
       { 
         message: 'Failed to get blog',
@@ -74,14 +78,19 @@ export async function PUT(
       return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });
     }
 
-    const decoded = verifyToken(token);
+    const decoded = await verifyToken(token);
     if (!decoded || decoded.role !== 'admin') {
       return NextResponse.json({ message: 'Admin access required' }, { status: 403 });
     }
 
-    const db = getDatabase();
+    const db = await getDatabaseWithRetry();
     const id = parseInt(params.id);
-    const data = await request.json();
+    // Validate request body
+    const bodyValidation = await extractAndValidate(request, updateBlogSchema);
+    if (!bodyValidation.success) {
+      return bodyValidation.error;
+    }
+    const data = bodyValidation.data;
 
     // Check if blog exists
     const existing = await db
@@ -163,7 +172,7 @@ export async function PUT(
       },
     });
   } catch (error: any) {
-    console.error('Update blog error:', error);
+    logger.error('Update blog error:', error);
     return NextResponse.json(
       { 
         message: 'Failed to update blog',
@@ -185,19 +194,19 @@ export async function DELETE(
       return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });
     }
 
-    const decoded = verifyToken(token);
+    const decoded = await verifyToken(token);
     if (!decoded || decoded.role !== 'admin') {
       return NextResponse.json({ message: 'Admin access required' }, { status: 403 });
     }
 
-    const db = getDatabase();
+    const db = await getDatabaseWithRetry();
     const id = parseInt(params.id);
 
     await db.delete(blogPosts).where(eq(blogPosts.id, id));
 
     return NextResponse.json({ message: 'Blog post deleted successfully' });
   } catch (error: any) {
-    console.error('Delete blog error:', error);
+    logger.error('Delete blog error:', error);
     return NextResponse.json(
       { 
         message: 'Failed to delete blog',

@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/auth';
 import { db } from '@/lib/db';
@@ -16,7 +17,7 @@ export async function PATCH(
             return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });
         }
 
-        const decoded = verifyToken(token);
+        const decoded = await verifyToken(token);
         if (!decoded || decoded.role !== 'admin') {
             securityLogger.warn('Unauthorized access attempt', {
                 ip: request.headers.get('x-forwarded-for') || 'unknown',
@@ -66,7 +67,7 @@ export async function PATCH(
             isActive: newStatus
         });
     } catch (error) {
-        console.error('Toggle active error:', error);
+        logger.error('Toggle active error:', error);
         securityLogger.info('Toggle active failed', { error: String(error) });
         return NextResponse.json({
             message: 'Internal server error',

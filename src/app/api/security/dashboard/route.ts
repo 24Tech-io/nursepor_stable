@@ -1,3 +1,6 @@
+import { logger } from '@/lib/logger';
+import { extractAndValidate, validateQueryParams, validateRouteParams } from '@/lib/api-validation';
+import { z } from 'zod';
 /**
  * Security Monitoring Dashboard API
  * Provides real-time security statistics and monitoring
@@ -56,7 +59,7 @@ export async function GET(request: NextRequest) {
       timestamp: new Date().toISOString(),
     });
   } catch (error: any) {
-    console.error('Security dashboard error:', error);
+    logger.error('Security dashboard error:', error);
 
     return NextResponse.json(
       {

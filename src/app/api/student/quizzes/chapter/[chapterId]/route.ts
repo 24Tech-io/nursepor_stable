@@ -1,6 +1,7 @@
+import { logger } from '@/lib/logger';
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/auth';
-import { getDatabase } from '@/lib/db';
+import { getDatabaseWithRetry } from '@/lib/db';
 import { quizzes } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
 
@@ -10,18 +11,18 @@ export async function GET(
   { params }: { params: { chapterId: string } }
 ) {
   try {
-    const token = request.cookies.get('token')?.value;
+    const token = request.cookies.get('student_token')?.value || request.cookies.get('token')?.value;
     if (!token) {
       return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });
     }
 
-    const decoded = verifyToken(token);
+    const decoded = await verifyToken(token);
     if (!decoded || decoded.role !== 'student') {
       return NextResponse.json({ message: 'Student access required' }, { status: 403 });
     }
 
     const chapterId = parseInt(params.chapterId);
-    const db = getDatabase();
+    const db = await getDatabaseWithRetry();
 
     // Get quiz for chapter
     const chapterQuizzes = await db
@@ -41,11 +42,10 @@ export async function GET(
     // Return first published quiz
     return NextResponse.json({ quiz: chapterQuizzes[0] });
   } catch (error: any) {
-    console.error('Get chapter quiz error:', error);
+    logger.error('Get chapter quiz error:', error);
     return NextResponse.json(
       { message: 'Failed to fetch quiz', error: error.message },
       { status: 500 }
     );
   }
 }
-

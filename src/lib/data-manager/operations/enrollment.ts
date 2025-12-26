@@ -8,6 +8,7 @@ import { studentProgress, enrollments, accessRequests } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { EnrollmentParams, UnenrollmentParams, DualTableSyncResult } from '../types';
 import { EventType, EnrollmentEvent } from '../events/event-types';
+import { autoEnrollInCourseQBank } from '@/lib/qbank-auto-enroll';
 import { dataManager } from '../core';
 
 export class EnrollmentOperations {
@@ -28,7 +29,7 @@ export class EnrollmentOperations {
 
     // Check if studentProgress exists
     const existingProgress = await tx
-      .select()
+      .select({ id: studentProgress.id })
       .from(studentProgress)
       .where(
         and(
@@ -56,7 +57,7 @@ export class EnrollmentOperations {
 
     // Check if enrollment exists
     const existingEnrollment = await tx
-      .select()
+      .select({ id: enrollments.id, status: enrollments.status })
       .from(enrollments)
       .where(
         and(
@@ -100,6 +101,11 @@ export class EnrollmentOperations {
           eq(accessRequests.status, 'pending')
         )
       );
+
+    // Auto-enroll in course Q-Bank if it exists
+    if (result.enrollmentCreated || result.studentProgressCreated) {
+      await autoEnrollInCourseQBank(tx, params.userId, params.courseId);
+    }
 
     // Emit event
     const event: EnrollmentEvent = {

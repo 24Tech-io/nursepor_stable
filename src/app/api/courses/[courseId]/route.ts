@@ -1,4 +1,8 @@
-import { NextResponse } from 'next/server';
+import { logger } from '@/lib/logger';
+import { extractAndValidate, validateQueryParams, validateRouteParams } from '@/lib/api-validation';
+import { updateCourseSchema } from '@/lib/validation-schemas-extended';
+import { z } from 'zod';
+import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { courses } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
@@ -6,7 +10,7 @@ import { requireOwnershipOrAdmin } from '@/lib/auth-helpers';
 import { securityLogger } from '@/lib/logger';
 
 export async function GET(
-    request: Request,
+    request: NextRequest,
     { params }: { params: { courseId: string } }
 ) {
     try {
@@ -27,17 +31,22 @@ export async function GET(
 
         return NextResponse.json({ course });
     } catch (error) {
-        console.error('Get course error:', error);
+        logger.error('Get course error:', error);
         return NextResponse.json({ message: 'Internal server error' }, { status: 500 });
     }
 }
 
 export async function PATCH(
-    request: Request,
+    request: NextRequest,
     { params }: { params: { courseId: string } }
 ) {
     try {
-        const body = await request.json();
+        // Validate request body
+        const bodyValidation = await extractAndValidate(request, updateCourseSchema);
+        if (!bodyValidation.success) {
+            return bodyValidation.error;
+        }
+        const body = bodyValidation.data;
         const courseId = parseInt(params.courseId);
 
         // Update course
@@ -67,13 +76,13 @@ export async function PATCH(
         });
 
     } catch (error) {
-        console.error('Update course error:', error);
+        logger.error('Update course error:', error);
         return NextResponse.json({ message: 'Internal server error' }, { status: 500 });
     }
 }
 
 export async function DELETE(
-    request: Request,
+    request: NextRequest,
     { params }: { params: { courseId: string } }
 ) {
     try {
@@ -92,7 +101,7 @@ export async function DELETE(
         return NextResponse.json({ message: 'Course deleted successfully' });
 
     } catch (error) {
-        console.error('Delete course error:', error);
+        logger.error('Delete course error:', error);
         return NextResponse.json({ message: 'Internal server error' }, { status: 500 });
     }
 }

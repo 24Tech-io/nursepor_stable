@@ -1,12 +1,13 @@
+import { logger } from '@/lib/logger';
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/auth';
-import { getDatabase } from '@/lib/db';
+import { getDatabaseWithRetry } from '@/lib/db';
 import { studentProgress, courses, accessRequests, enrollments } from '@/lib/db/schema';
 import { eq, and, or, sql } from 'drizzle-orm';
 
 export async function GET(request: NextRequest) {
   try {
-    const token = request.cookies.get('token')?.value;
+    const token = request.cookies.get('student_token')?.value || request.cookies.get('token')?.value;
 
     if (!token) {
       return NextResponse.json(
@@ -15,7 +16,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const decoded = verifyToken(token);
+    const decoded = await verifyToken(token);
 
     if (!decoded || !decoded.id) {
       return NextResponse.json(
@@ -27,9 +28,9 @@ export async function GET(request: NextRequest) {
     // Get database instance
     let db;
     try {
-      db = getDatabase();
+      db = await getDatabaseWithRetry();
     } catch (dbError: any) {
-      console.error('❌ Database initialization error:', dbError);
+      logger.error('❌ Database initialization error:', dbError);
       return NextResponse.json(
         { 
           message: 'Database connection failed',
@@ -70,7 +71,7 @@ export async function GET(request: NextRequest) {
     
     const approvedRequestCourseIds = approvedRequests.map((r: any) => r.courseId);
     
-    console.log(`🔍 [Progress Details] Student ${decoded.id}: Found ${pendingRequestCourseIds.length} pending requests and ${approvedRequestCourseIds.length} approved requests`);
+    logger.info(`🔍 [Progress Details] Student ${decoded.id}: Found ${pendingRequestCourseIds.length} pending requests and ${approvedRequestCourseIds.length} approved requests`);
     
     // For approved requests, ensure enrollment exists (sync)
     if (approvedRequestCourseIds.length > 0) {
@@ -89,11 +90,11 @@ export async function GET(request: NextRequest) {
             .limit(1);
           
           if (existing.length === 0) {
-            console.log(`🔄 [Progress Details] Syncing enrollment for approved request: student ${decoded.id}, course ${courseId}`);
+            logger.info(`🔄 [Progress Details] Syncing enrollment for approved request: student ${decoded.id}, course ${courseId}`);
             await syncEnrollmentAfterApproval(decoded.id, courseId);
           }
         } catch (syncError: any) {
-          console.error(`❌ [Progress Details] Error syncing enrollment for course ${courseId}:`, syncError);
+          logger.error(`❌ [Progress Details] Error syncing enrollment for course ${courseId}:`, syncError);
         }
       }
     }
@@ -125,21 +126,21 @@ export async function GET(request: NextRequest) {
         .innerJoin(courses, eq(studentProgress.courseId, courses.id))
         .where(eq(studentProgress.studentId, decoded.id));
       
-      console.log(`📊 [Progress Details] Found ${progressRecords.length} progress records from studentProgress table`);
+      logger.info(`📊 [Progress Details] Found ${progressRecords.length} progress records from studentProgress table`);
       
       // Filter by status AFTER fetching (case-insensitive)
       progressRecords = progressRecords.filter((p: any) => {
         const status = (p.course.status || '').toLowerCase();
         const isValid = status === 'published' || status === 'active';
         if (!isValid) {
-          console.log(`⚠️ [Progress Details] Filtering out course ${p.course.id} (${p.course.title}) - status: ${p.course.status}`);
+          logger.info(`⚠️ [Progress Details] Filtering out course ${p.course.id} (${p.course.title}) - status: ${p.course.status}`);
         }
         return isValid;
       });
       
-      console.log(`📊 [Progress Details] After status filter: ${progressRecords.length} records`);
+      logger.info(`📊 [Progress Details] After status filter: ${progressRecords.length} records`);
     } catch (error: any) {
-      console.error('❌ [Progress Details] Error fetching progress records:', error);
+      logger.error('❌ [Progress Details] Error fetching progress records:', error);
     }
     
     try {
@@ -167,10 +168,10 @@ export async function GET(request: NextRequest) {
         return status === 'published' || status === 'active';
       });
       
-      console.log(`📊 [Progress Details] Found ${enrollmentRecords.length} enrollment records`);
+      logger.info(`📊 [Progress Details] Found ${enrollmentRecords.length} enrollment records`);
     } catch (error: any) {
       // If enrollments table doesn't exist or query fails, continue with just progress records
-      console.log('Enrollments table query failed (may not exist):', error.message);
+      logger.info('Enrollments table query failed (may not exist):', error.message);
       enrollmentRecords = [];
     }
 
@@ -217,10 +218,10 @@ export async function GET(request: NextRequest) {
               quizAttempts: '[]',
               totalProgress: e.progress || 0,
             });
-            console.log(`✅ Created progress record for course ${e.courseId} for student ${decoded.id}`);
+            logger.info(`✅ Created progress record for course ${e.courseId} for student ${decoded.id}`);
           }
         } catch (error: any) {
-          console.error(`Error creating progress record for course ${e.courseId}:`, error);
+          logger.error(`Error creating progress record for course ${e.courseId}:`, error);
         }
         
         // Add to map for response
@@ -241,12 +242,12 @@ export async function GET(request: NextRequest) {
     const filteredProgress = allProgress.filter((p: any) => {
       const hasPendingRequest = pendingRequestCourseIds.includes(p.courseId);
       if (hasPendingRequest) {
-        console.log(`⚠️ [Progress Details] Filtering out course ${p.courseId} (${p.course.title}) - has pending request`);
+        logger.info(`⚠️ [Progress Details] Filtering out course ${p.courseId} (${p.course.title}) - has pending request`);
       }
       return !hasPendingRequest;
     });
     
-    console.log(`✅ [Progress Details] Total enrolled courses: ${allProgress.length}, After filtering pending requests: ${filteredProgress.length}`);
+    logger.info(`✅ [Progress Details] Total enrolled courses: ${allProgress.length}, After filtering pending requests: ${filteredProgress.length}`);
 
     // Parse the JSON fields and calculate stats
     const progressList = filteredProgress.map((p: any) => {
@@ -292,9 +293,9 @@ export async function GET(request: NextRequest) {
       };
     });
     
-    console.log(`✅ [Progress Details] Returning ${progressList.length} progress items for student ${decoded.id}`);
+    logger.info(`✅ [Progress Details] Returning ${progressList.length} progress items for student ${decoded.id}`);
     if (progressList.length > 0) {
-      console.log(`📋 [Progress Details] Progress items:`, progressList.map((p: any) => ({
+      logger.info(`📋 [Progress Details] Progress items:`, progressList.map((p: any) => ({
         courseId: p.courseId,
         title: p.course.title,
         totalProgress: p.totalProgress
@@ -305,7 +306,7 @@ export async function GET(request: NextRequest) {
       progress: progressList,
     });
   } catch (error: any) {
-    console.error('❌ Get progress details error:', error);
+    logger.error('❌ Get progress details error:', error);
     return NextResponse.json(
       { 
         message: 'Failed to get progress',

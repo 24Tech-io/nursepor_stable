@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 import { NextRequest, NextResponse } from 'next/server';
 import { resetPassword } from '@/lib/auth';
 import { sanitizeString, validateEmail, validatePassword, getClientIP, rateLimit, validateBodySize } from '@/lib/security';
@@ -80,8 +81,8 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error: any) {
-    console.error('Reset password error:', error);
-    console.error('Error details:', {
+    logger.error('Reset password error:', error);
+    logger.error('Error details:', {
       message: error?.message,
       code: error?.code,
       detail: error?.detail,

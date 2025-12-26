@@ -5,6 +5,7 @@ import type {
   DateRange,
   NursingCandidateFormPayload,
   NursingEducationEntry,
+  NclexExamAttempt,
 } from '@/types/nursing-candidate';
 
 const languageOptions = [
@@ -68,16 +69,13 @@ const employerSuggestions = [
   'NHS Foundation Trust',
 ];
 
-const jobRoleSuggestions = [
-  'Registered Nurse',
-  'Staff Nurse',
-  'Charge Nurse',
-  'Nurse Supervisor',
-  'Nurse Educator',
-  'Clinical Nurse Specialist',
-  'ICU Nurse',
-  'Pediatric Nurse',
-];
+const programTypeSuggestions = [
+  'GNM',
+  'BSc Nursing',
+  'Post Basic BSc Nursing',
+  'MSc Nursing',
+  'Diploma in Nursing',
+]
 
 const employmentTypeOptions: Array<NursingCandidateFormPayload['canadaEmploymentHistory'][number]['employmentType']> = [
   'Full-time',
@@ -90,29 +88,10 @@ const registrationStatusOptions: Array<
   NursingCandidateFormPayload['registrationDetails']['entries'][number]['status']
 > = ['Active', 'Pending', 'Inactive', 'Expired', 'Suspended'];
 
-const educationSections = [
-  { key: 'gnm', label: 'GNM – General Nursing and Midwifery', programType: 'GNM' },
-  { key: 'bsc', label: 'BSc Nursing', programType: 'BSc Nursing' },
-  { key: 'postBasic', label: 'Post Basic BSc Nursing', programType: 'Post Basic BSc Nursing' },
-  { key: 'msc', label: 'MSc Nursing', programType: 'MSc Nursing' },
-  { key: 'plusTwo', label: 'Plus Two / 12th Grade', programType: 'Plus Two / 12th Grade' },
-  { key: 'tenthGrade', label: '10th Grade / Secondary School', programType: '10th Grade / Secondary School' },
-  { key: 'primaryHighSchool', label: 'Primary and High School (Grades 1–10)', programType: 'Primary & High School' },
-] as const;
-
-const programOptions = Array.from(
-  new Set<string>([
-    ...educationSections.map((section) => section.programType),
-    'Diploma in Nursing',
-    'Bridge Program',
-    'Other',
-  ])
-);
-
-const createEducationEntry = (programType: string) => ({
+const createEducationEntry = (): NursingEducationEntry => ({
   institutionName: '',
   address: '',
-  programType,
+  programType: '',
   studyPeriod: { from: '', to: '' },
 });
 
@@ -136,7 +115,15 @@ const createCanadaExperienceEntry = () => ({
   hoursPerMonth: '',
 });
 
+const createNclexAttempt = (): NclexExamAttempt => ({
+  examDate: '',
+  country: '',
+  province: '',
+  result: '',
+});
+
 const initialState: NursingCandidateFormPayload = {
+  targetCountry: 'Canada',
   personalDetails: {
     firstName: '',
     lastName: '',
@@ -152,25 +139,17 @@ const initialState: NursingCandidateFormPayload = {
     email: '',
     firstLanguage: '',
   },
-  educationDetails: {
-    gnm: createEducationEntry('GNM'),
-    bsc: createEducationEntry('BSc Nursing'),
-    postBasic: createEducationEntry('Post Basic BSc Nursing'),
-    msc: createEducationEntry('MSc Nursing'),
-    plusTwo: createEducationEntry('Plus Two / 12th Grade'),
-    tenthGrade: createEducationEntry('10th Grade / Secondary School'),
-    primaryHighSchool: createEducationEntry('Primary & High School'),
-  },
+  educationDetails: [createEducationEntry()],
   registrationDetails: {
     hasDisciplinaryAction: 'No',
-    entries: [createRegistrationEntry(), createRegistrationEntry(), createRegistrationEntry()],
+    entries: [createRegistrationEntry()],
   },
-  employmentHistory: [createExperienceEntry(), createExperienceEntry(), createExperienceEntry()],
-  canadaEmploymentHistory: [
-    createCanadaExperienceEntry(),
-    createCanadaExperienceEntry(),
-    createCanadaExperienceEntry(),
-  ],
+  employmentHistory: [createExperienceEntry()],
+  canadaEmploymentHistory: [createCanadaExperienceEntry()],
+  nclexHistory: {
+    hasTakenBefore: 'No',
+    attempts: [],
+  },
   documentChecklistAcknowledged: false,
 };
 
@@ -272,105 +251,136 @@ export default function NclexRegistrationForm({ variant = 'inline' }: NclexRegis
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error'; message: string; reference?: string } | null>(null);
 
+  const updateForm = (updater: (prev: NursingCandidateFormPayload) => NursingCandidateFormPayload) => {
+    setFormState(updater);
+  };
+
   const handlePersonalChange = (field: keyof NursingCandidateFormPayload['personalDetails'], value: string) => {
-    setFormState((prev: NursingCandidateFormPayload) => ({
+    updateForm((prev) => ({
       ...prev,
-      personalDetails: {
-        ...prev.personalDetails,
-        [field]: value,
-      },
+      personalDetails: { ...prev.personalDetails, [field]: value },
     }));
   };
 
-  const handleEducationChange = (
-    sectionKey: keyof typeof formState.educationDetails,
-    field: keyof NursingEducationEntry,
-    value: string | DateRange
-  ) => {
-    setFormState((prev: NursingCandidateFormPayload) => ({
+  // Education Helpers
+  const addEducation = () => {
+    updateForm((prev) => ({
       ...prev,
-      educationDetails: {
-        ...prev.educationDetails,
-        [sectionKey]: {
-          ...prev.educationDetails[sectionKey],
-          [field]: value as NursingEducationEntry[keyof NursingEducationEntry],
-        },
-      },
+      educationDetails: [...prev.educationDetails, createEducationEntry()],
     }));
   };
 
-  const handleEducationDateChange = (
-    sectionKey: keyof typeof formState.educationDetails,
-    boundary: keyof DateRange,
-    value: string
-  ) => {
-    const existing = formState.educationDetails[sectionKey].studyPeriod;
-    handleEducationChange(sectionKey, 'studyPeriod', {
-      ...existing,
-      [boundary]: value,
+  const removeEducation = (index: number) => {
+    updateForm((prev) => ({
+      ...prev,
+      educationDetails: prev.educationDetails.filter((_, i) => i !== index),
+    }));
+  };
+
+  const updateEducation = (index: number, field: keyof NursingEducationEntry, value: any) => {
+    updateForm((prev) => {
+      const updated = [...prev.educationDetails];
+      updated[index] = { ...updated[index], [field]: value };
+      return { ...prev, educationDetails: updated };
     });
   };
 
-  const handleRegistrationChange = (
-    index: number,
-    field: keyof NursingCandidateFormPayload['registrationDetails']['entries'][number],
-    value: string
-  ) => {
-    setFormState((prev: NursingCandidateFormPayload) => {
+  // Registration Helpers
+  const addRegistration = () => {
+    updateForm((prev) => ({
+      ...prev,
+      registrationDetails: {
+        ...prev.registrationDetails,
+        entries: [...prev.registrationDetails.entries, createRegistrationEntry()],
+      },
+    }));
+  };
+
+  const removeRegistration = (index: number) => {
+    updateForm((prev) => ({
+      ...prev,
+      registrationDetails: {
+        ...prev.registrationDetails,
+        entries: prev.registrationDetails.entries.filter((_, i) => i !== index),
+      },
+    }));
+  };
+
+  const updateRegistration = (index: number, field: string, value: string) => {
+    updateForm((prev) => {
       const updated = [...prev.registrationDetails.entries];
-      updated[index] = {
-        ...updated[index],
-        [field]: value,
-      };
+      updated[index] = { ...updated[index], [field]: value } as any;
       return {
         ...prev,
-        registrationDetails: {
-          ...prev.registrationDetails,
-          entries: updated,
-        },
+        registrationDetails: { ...prev.registrationDetails, entries: updated },
       };
     });
   };
 
-  const handleEmploymentChange = (
-    arrayKey: 'employmentHistory' | 'canadaEmploymentHistory',
-    index: number,
-    field: string,
-    value: string
-  ) => {
-    setFormState((prev: NursingCandidateFormPayload) => {
-      const updated = [...prev[arrayKey]];
-      const entry = { ...updated[index], [field]: value } as (typeof updated)[number];
-      updated[index] = entry;
-      return {
-        ...prev,
-        [arrayKey]: updated,
-      };
+  // Experience Helpers
+  const getExperienceArrayKey = () => (formState.targetCountry === 'Canada' ? 'canadaEmploymentHistory' : 'employmentHistory');
+
+  const addExperience = () => {
+    const key = getExperienceArrayKey();
+    const newEntry = key === 'canadaEmploymentHistory' ? createCanadaExperienceEntry() : createExperienceEntry();
+    updateForm((prev) => ({
+      ...prev,
+      [key]: [...(prev[key] as any), newEntry],
+    }));
+  };
+
+  const removeExperience = (index: number) => {
+    const key = getExperienceArrayKey();
+    updateForm((prev) => ({
+      ...prev,
+      [key]: (prev[key] as any[]).filter((_, i) => i !== index),
+    }));
+  };
+
+  const updateExperience = (index: number, field: string, value: any) => {
+    const key = getExperienceArrayKey();
+    updateForm((prev) => {
+      const updated = [...(prev[key] as any[])];
+      updated[index] = { ...updated[index], [field]: value };
+      return { ...prev, [key]: updated };
     });
   };
 
-  const handleEmploymentDateChange = (
-    arrayKey: 'employmentHistory' | 'canadaEmploymentHistory',
-    index: number,
-    boundary: keyof DateRange,
-    value: string
-  ) => {
-    setFormState((prev: NursingCandidateFormPayload) => {
-      const updated = [...prev[arrayKey]];
-      const entry = updated[index];
-      updated[index] = {
-        ...entry,
-        dates: {
-          ...entry.dates,
-          [boundary]: value,
-        },
-      };
+  // NCLEX History Helpers
+  const addNclexAttempt = () => {
+    updateForm((prev) => ({
+      ...prev,
+      nclexHistory: {
+        ...prev.nclexHistory,
+        attempts: [...prev.nclexHistory.attempts, createNclexAttempt()],
+      }
+    }));
+  }
+
+  const removeNclexAttempt = (index: number) => {
+    updateForm((prev) => ({
+      ...prev,
+      nclexHistory: {
+        ...prev.nclexHistory,
+        attempts: prev.nclexHistory.attempts.filter((_, i) => i !== index),
+      }
+    }));
+  }
+
+  const updateNclexAttempt = (index: number, field: keyof NclexExamAttempt, value: string) => {
+    updateForm((prev) => {
+      const updated = [...prev.nclexHistory.attempts];
+      updated[index] = { ...updated[index], [field]: value };
       return {
         ...prev,
-        [arrayKey]: updated,
-      };
-    });
-  };
+        nclexHistory: {
+          ...prev.nclexHistory,
+          attempts: updated
+        }
+      }
+    })
+  }
+
 
   const validateRequiredFields = () => {
     const missing = personalFields.filter((field) => field.required && !formState.personalDetails[field.name as keyof typeof formState.personalDetails]);
@@ -411,6 +421,7 @@ export default function NclexRegistrationForm({ variant = 'inline' }: NclexRegis
         reference: result.referenceNumber,
       });
       setFormState(initialState);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (error: any) {
       setStatusMessage({
         type: 'error',
@@ -440,29 +451,51 @@ export default function NclexRegistrationForm({ variant = 'inline' }: NclexRegis
       </div>
 
       <div className="max-w-5xl mx-auto">
+        <div className="relative z-10 mb-8 flex justify-center">
+          <div className="bg-white/10 backdrop-blur-md rounded-2xl p-2 flex gap-2 border border-white/20">
+            {(['Canada', 'USA', 'Australia'] as const).map((country) => (
+              <button
+                key={country}
+                type="button"
+                onClick={() => updateForm(prev => ({ ...prev, targetCountry: country }))}
+                className={`px-6 py-2 rounded-xl transition-all duration-300 font-semibold ${formState.targetCountry === country
+                    ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/40'
+                    : 'text-indigo-100 hover:bg-white/5'
+                  }`}
+              >
+                {country}
+              </button>
+            ))}
+          </div>
+        </div>
+
         {variant === 'inline' && (
           <div className="text-center mb-10 relative z-10">
             <p className="inline-flex items-center gap-2 text-xs uppercase tracking-[0.4em] text-indigo-200 font-semibold mb-3">
               <span className="w-10 h-px bg-indigo-400/60" />
-              NCLEX-RN PROTOCOL
+              NCLEX-RN PROTOCOL for {formState.targetCountry.toUpperCase()}
               <span className="w-10 h-px bg-indigo-400/60" />
             </p>
             <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
-              NursePro Academy — Quantum Registration Matrix
+              Registration Information Form for {formState.targetCountry}
             </h2>
-            <p className="text-lg text-indigo-100">
-              Provide accurate information as seen on official records. Fields may be marked “N/A” if they do not apply.
-            </p>
+          </div>
+        )}
+
+        {variant === 'page' && (
+          <div className="text-center mb-8 relative z-10">
+            <h2 className="text-2xl md:text-3xl font-bold text-white mb-2">
+              Registration Information Form for <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-300 to-purple-300">{formState.targetCountry}</span>
+            </h2>
           </div>
         )}
 
         {statusMessage && (
           <div
-            className={`mb-8 p-4 rounded-2xl border relative z-10 ${
-              statusMessage.type === 'success'
+            className={`mb-8 p-4 rounded-2xl border relative z-10 ${statusMessage.type === 'success'
                 ? 'bg-emerald-500/15 border-emerald-400/60 text-emerald-200'
                 : 'bg-rose-500/15 border-rose-400/60 text-rose-200'
-            }`}
+              }`}
           >
             <p className="font-semibold tracking-wide">{statusMessage.message}</p>
             {statusMessage.reference && (
@@ -541,11 +574,10 @@ export default function NclexRegistrationForm({ variant = 'inline' }: NclexRegis
                   {['Yes', 'No'].map((option) => (
                     <label
                       key={option}
-                      className={`flex items-center gap-2 px-4 py-2 rounded-2xl border cursor-pointer ${
-                        formState.personalDetails.hasNameChange === option
+                      className={`flex items-center gap-2 px-4 py-2 rounded-2xl border cursor-pointer ${formState.personalDetails.hasNameChange === option
                           ? 'border-indigo-400 bg-indigo-500/20 text-white'
                           : 'border-white/10 text-slate-200'
-                      }`}
+                        }`}
                     >
                       <input
                         type="radio"
@@ -567,11 +599,10 @@ export default function NclexRegistrationForm({ variant = 'inline' }: NclexRegis
                   {['Female', 'Male', 'Other'].map((option) => (
                     <label
                       key={option}
-                      className={`flex items-center gap-2 px-4 py-2 rounded-2xl border cursor-pointer ${
-                        formState.personalDetails.gender === option
+                      className={`flex items-center gap-2 px-4 py-2 rounded-2xl border cursor-pointer ${formState.personalDetails.gender === option
                           ? 'border-fuchsia-400 bg-fuchsia-500/20 text-white'
                           : 'border-white/10 text-slate-200'
-                      }`}
+                        }`}
                     >
                       <input
                         type="radio"
@@ -604,85 +635,100 @@ export default function NclexRegistrationForm({ variant = 'inline' }: NclexRegis
               </div>
               <h3 className="text-2xl font-semibold text-white">Section 2: Education Details</h3>
             </div>
-            <p className="text-sm text-indigo-200 mb-4">Fill in the programs that apply to you. Use “N/A” if not applicable.</p>
+            <p className="text-sm text-indigo-200 mb-4">Add all your nursing qualifications (Diploma, B.Sc, M.Sc, etc.) and school information.</p>
             <div className="space-y-6">
-              {educationSections.map((section) => (
-                <div key={section.key} className="border border-white/10 rounded-2xl p-5 bg-white/5 backdrop-blur shadow-[0_0_20px_rgba(79,70,229,0.3)]">
+              {formState.educationDetails.map((entry, index) => (
+                <div key={index} className="border border-white/10 rounded-2xl p-5 bg-white/5 backdrop-blur shadow-[0_0_20px_rgba(79,70,229,0.3)] relative">
+                  {formState.educationDetails.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => removeEducation(index)}
+                      className="absolute top-4 right-4 text-xs text-rose-300 hover:text-rose-100 hover:bg-rose-500/20 px-2 py-1 rounded-lg transition"
+                    >
+                      Remove
+                    </button>
+                  )}
                   <h4 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
                     <span className="w-2 h-2 rounded-full bg-gradient-to-r from-indigo-400 to-fuchsia-400 animate-pulse" />
-                    {section.label}
+                    Nursing Institution {index + 1}
                   </h4>
                   <div className="grid md:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <label className="block text-xs uppercase tracking-[0.3em] text-indigo-200">Institution</label>
+                      <label className="block text-xs uppercase tracking-[0.3em] text-indigo-200">College Name</label>
                       <input
-                        className="rounded-2xl border border-white/10 bg-slate-900/40 text-white placeholder:text-slate-400 focus:ring-2 focus:ring-fuchsia-400/60 focus:border-fuchsia-400/60 p-3"
-                        placeholder="College / School name"
+                        className="rounded-2xl border border-white/10 bg-slate-900/40 text-white placeholder:text-slate-400 focus:ring-2 focus:ring-fuchsia-400/60 focus:border-fuchsia-400/60 p-3 w-full"
+                        placeholder="Institution Name"
                         list="institution-suggestions"
-                        value={formState.educationDetails[section.key as keyof typeof formState.educationDetails].institutionName}
-                        onChange={(e) => handleEducationChange(section.key as keyof typeof formState.educationDetails, 'institutionName', e.target.value)}
+                        value={entry.institutionName}
+                        onChange={(e) => updateEducation(index, 'institutionName', e.target.value)}
                       />
                     </div>
                     <div className="space-y-2">
-                      <label className="block text-xs uppercase tracking-[0.3em] text-indigo-200">Program / Degree type</label>
-                      <select
-                        className="rounded-2xl border border-white/10 bg-slate-900/40 text-white focus:ring-2 focus:ring-fuchsia-400/60 focus:border-fuchsia-400/60 p-3"
-                        value={formState.educationDetails[section.key as keyof typeof formState.educationDetails].programType}
-                        onChange={(e) => handleEducationChange(section.key as keyof typeof formState.educationDetails, 'programType', e.target.value)}
-                      >
-                        {programOptions.map((option) => (
-                          <option key={option} value={option}>
-                            {option}
-                          </option>
-                        ))}
-                      </select>
+                      <label className="block text-xs uppercase tracking-[0.3em] text-indigo-200">Qualification</label>
+                      <input
+                        className="rounded-2xl border border-white/10 bg-slate-900/40 text-white placeholder:text-slate-400 focus:ring-2 focus:ring-fuchsia-400/60 focus:border-fuchsia-400/60 p-3 w-full"
+                        placeholder="Degree / Program"
+                        list="program-suggestions"
+                        value={entry.programType}
+                        onChange={(e) => updateEducation(index, 'programType', e.target.value)}
+                      />
                     </div>
                     <div className="md:col-span-2 space-y-2">
                       <label className="block text-xs uppercase tracking-[0.3em] text-indigo-200">Full address</label>
                       <textarea
-                        className="rounded-2xl border border-white/10 bg-slate-900/40 text-white placeholder:text-slate-400 focus:ring-2 focus:ring-fuchsia-400/60 focus:border-fuchsia-400/60 p-3 resize-none min-h-[110px]"
-                        rows={3}
-                        placeholder="Full address (with postal code and country)"
-                        value={formState.educationDetails[section.key as keyof typeof formState.educationDetails].address}
-                        onChange={(e) => handleEducationChange(section.key as keyof typeof formState.educationDetails, 'address', e.target.value)}
+                        className="rounded-2xl border border-white/10 bg-slate-900/40 text-white placeholder:text-slate-400 focus:ring-2 focus:ring-fuchsia-400/60 focus:border-fuchsia-400/60 p-3 resize-none min-h-[80px] w-full"
+                        rows={2}
+                        placeholder="Address with postal code"
+                        value={entry.address}
+                        onChange={(e) => updateEducation(index, 'address', e.target.value)}
                       />
                     </div>
+                    {/* Calendar Dates */}
                     <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <label className="block text-xs uppercase tracking-[0.3em] text-indigo-200">Study period — from</label>
+                        <label className="block text-xs uppercase tracking-[0.3em] text-indigo-200">From</label>
                         <input
                           type="date"
-                          className="rounded-2xl border border-white/10 bg-slate-900/40 text-white focus:ring-2 focus:ring-fuchsia-400/60 focus:border-fuchsia-400/60 p-3"
-                          value={formState.educationDetails[section.key as keyof typeof formState.educationDetails].studyPeriod.from}
-                          onChange={(e) =>
-                            handleEducationDateChange(section.key as keyof typeof formState.educationDetails, 'from', e.target.value)
-                          }
+                          className="rounded-2xl border border-white/10 bg-slate-900/40 text-white focus:ring-2 focus:ring-fuchsia-400/60 focus:border-fuchsia-400/60 p-3 w-full"
+                          value={entry.studyPeriod.from}
+                          onChange={(e) => updateEducation(index, 'studyPeriod', { ...entry.studyPeriod, from: e.target.value })}
                         />
                       </div>
                       <div className="space-y-2">
-                        <label className="block text-xs uppercase tracking-[0.3em] text-indigo-200">Study period — to</label>
+                        <label className="block text-xs uppercase tracking-[0.3em] text-indigo-200">To</label>
                         <input
                           type="date"
-                          className="rounded-2xl border border-white/10 bg-slate-900/40 text-white focus:ring-2 focus:ring-fuchsia-400/60 focus:border-fuchsia-400/60 p-3"
-                          value={formState.educationDetails[section.key as keyof typeof formState.educationDetails].studyPeriod.to}
-                          onChange={(e) =>
-                            handleEducationDateChange(section.key as keyof typeof formState.educationDetails, 'to', e.target.value)
-                          }
+                          className="rounded-2xl border border-white/10 bg-slate-900/40 text-white focus:ring-2 focus:ring-fuchsia-400/60 focus:border-fuchsia-400/60 p-3 w-full"
+                          value={entry.studyPeriod.to}
+                          onChange={(e) => updateEducation(index, 'studyPeriod', { ...entry.studyPeriod, to: e.target.value })}
                         />
                       </div>
                     </div>
                   </div>
                 </div>
               ))}
+              <button
+                type="button"
+                onClick={addEducation}
+                className="w-full py-3 rounded-2xl border border-dashed border-white/20 text-indigo-300 hover:bg-white/5 hover:border-indigo-400/50 transition flex items-center justify-center gap-2"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+                Add another Nursing Institution
+              </button>
             </div>
             <datalist id="institution-suggestions">
               {institutionSuggestions.map((institution) => (
                 <option key={institution} value={institution} />
               ))}
             </datalist>
+            <datalist id="program-suggestions">
+              {programTypeSuggestions.map((prog) => (
+                <option key={prog} value={prog} />
+              ))}
+            </datalist>
           </div>
 
-  {/* Section 3 */}
+          {/* Section 3 */}
           <div>
             <div className="flex items-center gap-3 mb-4">
               <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 to-orange-600 flex items-center justify-center shadow-lg shadow-orange-500/40">
@@ -700,11 +746,10 @@ export default function NclexRegistrationForm({ variant = 'inline' }: NclexRegis
                 {['No', 'Yes'].map((option) => (
                   <label
                     key={option}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-2xl border cursor-pointer ${
-                      formState.registrationDetails.hasDisciplinaryAction === option
+                    className={`flex items-center gap-2 px-4 py-2 rounded-2xl border cursor-pointer ${formState.registrationDetails.hasDisciplinaryAction === option
                         ? 'border-amber-400 bg-amber-500/20 text-white'
                         : 'border-white/10 text-slate-200'
-                    }`}
+                      }`}
                   >
                     <input
                       type="radio"
@@ -713,7 +758,7 @@ export default function NclexRegistrationForm({ variant = 'inline' }: NclexRegis
                       className="text-amber-400 focus:ring-amber-500"
                       checked={formState.registrationDetails.hasDisciplinaryAction === option}
                       onChange={(e) =>
-                        setFormState((prev) => ({
+                        updateForm((prev) => ({
                           ...prev,
                           registrationDetails: {
                             ...prev.registrationDetails,
@@ -729,7 +774,16 @@ export default function NclexRegistrationForm({ variant = 'inline' }: NclexRegis
             </div>
             <div className="space-y-6">
               {formState.registrationDetails.entries.map((entry, index) => (
-                <div key={index} className="border border-white/10 rounded-2xl p-5 bg-white/5 backdrop-blur">
+                <div key={index} className="border border-white/10 rounded-2xl p-5 bg-white/5 backdrop-blur relative">
+                  {formState.registrationDetails.entries.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => removeRegistration(index)}
+                      className="absolute top-4 right-4 text-xs text-rose-300 hover:text-rose-100 hover:bg-rose-500/20 px-2 py-1 rounded-lg transition"
+                    >
+                      Remove
+                    </button>
+                  )}
                   <h4 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
                     <span className="text-xs tracking-[0.4em] text-indigo-300">NR-{index + 1}</span>
                     Nursing Registration {index + 1}
@@ -738,43 +792,47 @@ export default function NclexRegistrationForm({ variant = 'inline' }: NclexRegis
                     <div className="space-y-2">
                       <label className="block text-xs uppercase tracking-[0.3em] text-orange-200">Council / Licensing body</label>
                       <input
-                        className="rounded-2xl border border-white/10 bg-slate-900/40 text-white placeholder:text-slate-400 focus:ring-2 focus:ring-orange-400/60 focus:border-orange-400/60 p-3"
-                        placeholder="Council or licensing body name"
+                        className="rounded-2xl border border-white/10 bg-slate-900/40 text-white placeholder:text-slate-400 focus:ring-2 focus:ring-orange-400/60 focus:border-orange-400/60 p-3 w-full"
+                        placeholder="Council name"
                         list="council-suggestions"
                         value={entry.councilName}
-                        onChange={(e) => handleRegistrationChange(index, 'councilName', e.target.value)}
+                        onChange={(e) => updateRegistration(index, 'councilName', e.target.value)}
                       />
                     </div>
-                    <input
-                      className="rounded-2xl border border-white/10 bg-slate-900/40 text-white placeholder:text-slate-400 focus:ring-2 focus:ring-orange-400/60 focus:border-orange-400/60 p-3"
-                      placeholder="Registration number"
-                      value={entry.registrationNumber}
-                      onChange={(e) => handleRegistrationChange(index, 'registrationNumber', e.target.value)}
-                    />
+                    <div className="space-y-2">
+                      <label className="block text-xs uppercase tracking-[0.3em] text-orange-200">Registration Number</label>
+                      <input
+                        className="rounded-2xl border border-white/10 bg-slate-900/40 text-white placeholder:text-slate-400 focus:ring-2 focus:ring-orange-400/60 focus:border-orange-400/60 p-3 w-full"
+                        placeholder="Reg #"
+                        value={entry.registrationNumber}
+                        onChange={(e) => updateRegistration(index, 'registrationNumber', e.target.value)}
+                      />
+                    </div>
+
                     <div className="space-y-2">
                       <label className="block text-xs uppercase tracking-[0.3em] text-orange-200">Date issued</label>
                       <input
                         type="date"
-                        className="rounded-2xl border border-white/10 bg-slate-900/40 text-white focus:ring-2 focus:ring-orange-400/60 focus:border-orange-400/60 p-3"
+                        className="rounded-2xl border border-white/10 bg-slate-900/40 text-white focus:ring-2 focus:ring-orange-400/60 focus:border-orange-400/60 p-3 w-full"
                         value={entry.issuedDate}
-                        onChange={(e) => handleRegistrationChange(index, 'issuedDate', e.target.value)}
+                        onChange={(e) => updateRegistration(index, 'issuedDate', e.target.value)}
                       />
                     </div>
                     <div className="space-y-2">
                       <label className="block text-xs uppercase tracking-[0.3em] text-orange-200">Expiry / renewal date</label>
                       <input
                         type="date"
-                        className="rounded-2xl border border-white/10 bg-slate-900/40 text-white focus:ring-2 focus:ring-orange-400/60 focus:border-orange-400/60 p-3"
+                        className="rounded-2xl border border-white/10 bg-slate-900/40 text-white focus:ring-2 focus:ring-orange-400/60 focus:border-orange-400/60 p-3 w-full"
                         value={entry.expiryDate}
-                        onChange={(e) => handleRegistrationChange(index, 'expiryDate', e.target.value)}
+                        onChange={(e) => updateRegistration(index, 'expiryDate', e.target.value)}
                       />
                     </div>
-                    <div className="space-y-2">
+                    <div className="space-y-2 md:col-span-2">
                       <label className="block text-xs uppercase tracking-[0.3em] text-orange-200">Current status</label>
                       <select
-                        className="rounded-2xl border border-white/10 bg-slate-900/40 text-white focus:ring-2 focus:ring-orange-400/60 focus:border-orange-400/60 p-3"
+                        className="rounded-2xl border border-white/10 bg-slate-900/40 text-white focus:ring-2 focus:ring-orange-400/60 focus:border-orange-400/60 p-3 w-full"
                         value={entry.status}
-                        onChange={(e) => handleRegistrationChange(index, 'status', e.target.value)}
+                        onChange={(e) => updateRegistration(index, 'status', e.target.value)}
                       >
                         <option value="">Select status</option>
                         {registrationStatusOptions.map((status) => (
@@ -787,6 +845,14 @@ export default function NclexRegistrationForm({ variant = 'inline' }: NclexRegis
                   </div>
                 </div>
               ))}
+              <button
+                type="button"
+                onClick={addRegistration}
+                className="w-full py-3 rounded-2xl border border-dashed border-white/20 text-orange-300 hover:bg-white/5 hover:border-orange-400/50 transition flex items-center justify-center gap-2"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+                Add another Nursing Registration
+              </button>
             </div>
             <datalist id="council-suggestions">
               {councilSuggestions.map((council) => (
@@ -798,216 +864,283 @@ export default function NclexRegistrationForm({ variant = 'inline' }: NclexRegis
           {/* Section 4 */}
           <div>
             <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-400 to-emerald-500 flex items-center justify-center shadow-lg shadow-cyan-500/40">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-400 to-teal-600 flex items-center justify-center shadow-lg shadow-teal-500/40">
                 <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                 </svg>
               </div>
-              <h3 className="text-2xl font-semibold text-white">Section 4: Employment History – USA & Australia</h3>
+              <h3 className="text-2xl font-semibold text-white">Section 4: Employment / Experience Details</h3>
             </div>
-            <p className="text-sm text-cyan-100 mb-4">Provide the most recent nursing roles relevant for NCLEX-RN verification.</p>
+            <p className="text-sm text-indigo-200 mb-4">Past 5 years history.</p>
             <div className="space-y-6">
-              {formState.employmentHistory.map((entry, index) => (
-                <div key={index} className="border border-white/10 rounded-2xl p-5 bg-gradient-to-br from-slate-900/60 to-emerald-900/20 backdrop-blur">
-                  <h4 className="text-lg font-semibold text-white mb-4">Nursing Experience {index + 1}</h4>
-                  <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <div className="space-y-2 lg:col-span-2">
-                      <label className="block text-xs uppercase tracking-[0.3em] text-emerald-200">Employer / hospital</label>
+              {(formState.targetCountry === 'Canada' ? formState.canadaEmploymentHistory : formState.employmentHistory).map((entry, index) => (
+                <div key={index} className="border border-white/10 rounded-2xl p-5 bg-white/5 backdrop-blur relative">
+                  {((formState.targetCountry === 'Canada' ? formState.canadaEmploymentHistory : formState.employmentHistory) as any).length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => removeExperience(index)}
+                      className="absolute top-4 right-4 text-xs text-rose-300 hover:text-rose-100 hover:bg-rose-500/20 px-2 py-1 rounded-lg transition"
+                    >
+                      Remove
+                    </button>
+                  )}
+                  <h4 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                    <span className="text-xs tracking-[0.4em] text-teal-300">EXP-{index + 1}</span>
+                    Nursing Experience {index + 1}
+                  </h4>
+                  <div className="grid md:grid-cols-2 gap-4">
+                    {/* Employer Name */}
+                    <div className="space-y-2">
+                      <label className="block text-xs uppercase tracking-[0.3em] text-teal-200">Employer / Hospital</label>
                       <input
-                        className="rounded-2xl border border-white/10 bg-slate-900/40 text-white placeholder:text-slate-400 focus:ring-2 focus:ring-emerald-400/60 focus:border-emerald-400/60 p-3"
-                        placeholder="Employer / hospital name"
+                        className="rounded-2xl border border-white/10 bg-slate-900/40 text-white placeholder:text-slate-400 focus:ring-2 focus:ring-teal-400/60 focus:border-teal-400/60 p-3 w-full"
                         list="employer-suggestions"
+                        placeholder="Hospital or Org Name"
                         value={entry.employer}
-                        onChange={(e) => handleEmploymentChange('employmentHistory', index, 'employer', e.target.value)}
+                        onChange={(e) => updateExperience(index, 'employer', e.target.value)}
                       />
                     </div>
-                    <div className="space-y-2 lg:col-span-2">
-                      <label className="block text-xs uppercase tracking-[0.3em] text-emerald-200">Job title / position</label>
+
+                    {/* Job Title (Common) - Though requested differently for various countries, usually needed for all. Will keep common. */}
+                    <div className="space-y-2">
+                      <label className="block text-xs uppercase tracking-[0.3em] text-teal-200">Job Title / Position</label>
                       <input
-                        className="rounded-2xl border border-white/10 bg-slate-900/40 text-white placeholder:text-slate-400 focus:ring-2 focus:ring-emerald-400/60 focus:border-emerald-400/60 p-3"
-                        placeholder="Job title / position"
-                        list="job-role-suggestions"
+                        className="rounded-2xl border border-white/10 bg-slate-900/40 text-white placeholder:text-slate-400 focus:ring-2 focus:ring-teal-400/60 focus:border-teal-400/60 p-3 w-full"
+                        placeholder="e.g. Staff Nurse"
                         value={entry.position}
-                        onChange={(e) => handleEmploymentChange('employmentHistory', index, 'position', e.target.value)}
+                        onChange={(e) => updateExperience(index, 'position', e.target.value)}
                       />
                     </div>
+
                     <div className="space-y-2">
-                      <label className="block text-xs uppercase tracking-[0.3em] text-emerald-200">Start date</label>
+                      <label className="block text-xs uppercase tracking-[0.3em] text-teal-200">Joined</label>
                       <input
                         type="date"
-                        className="rounded-2xl border border-white/10 bg-slate-900/40 text-white focus:ring-2 focus:ring-emerald-400/60 focus:border-emerald-400/60 p-3"
+                        className="rounded-2xl border border-white/10 bg-slate-900/40 text-white focus:ring-2 focus:ring-teal-400/60 focus:border-teal-400/60 p-3 w-full"
                         value={entry.dates.from}
-                        onChange={(e) => handleEmploymentDateChange('employmentHistory', index, 'from', e.target.value)}
+                        onChange={(e) => updateExperience(index, 'dates', { ...entry.dates, from: e.target.value })}
                       />
                     </div>
                     <div className="space-y-2">
-                      <label className="block text-xs uppercase tracking-[0.3em] text-emerald-200">End date</label>
+                      <label className="block text-xs uppercase tracking-[0.3em] text-teal-200">Left (or blank if Present)</label>
                       <input
                         type="date"
-                        className="rounded-2xl border border-white/10 bg-slate-900/40 text-white focus:ring-2 focus:ring-emerald-400/60 focus:border-emerald-400/60 p-3"
+                        className="rounded-2xl border border-white/10 bg-slate-900/40 text-white focus:ring-2 focus:ring-teal-400/60 focus:border-teal-400/60 p-3 w-full"
                         value={entry.dates.to}
-                        onChange={(e) => handleEmploymentDateChange('employmentHistory', index, 'to', e.target.value)}
+                        onChange={(e) => updateExperience(index, 'dates', { ...entry.dates, to: e.target.value })}
                       />
                     </div>
+
+                    {/* Canada Specific Fields */}
+                    {formState.targetCountry === 'Canada' && (
+                      <>
+                        <div className="space-y-2">
+                          <label className="block text-xs uppercase tracking-[0.3em] text-teal-200">Employment Type</label>
+                          <select
+                            className="rounded-2xl border border-white/10 bg-slate-900/40 text-white focus:ring-2 focus:ring-teal-400/60 focus:border-teal-400/60 p-3 w-full"
+                            value={(entry as any).employmentType}
+                            onChange={(e) => updateExperience(index, 'employmentType', e.target.value)}
+                          >
+                            <option value="">Select Type</option>
+                            {employmentTypeOptions.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                          </select>
+                        </div>
+                        <div className="space-y-2">
+                          <label className="block text-xs uppercase tracking-[0.3em] text-teal-200">Hours Per Month</label>
+                          <input
+                            type="number"
+                            className="rounded-2xl border border-white/10 bg-slate-900/40 text-white placeholder:text-slate-400 focus:ring-2 focus:ring-teal-400/60 focus:border-teal-400/60 p-3 w-full"
+                            placeholder="Approx. Total Hours"
+                            value={(entry as any).hoursPerMonth}
+                            onChange={(e) => updateExperience(index, 'hoursPerMonth', e.target.value)}
+                          />
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
               ))}
+              <button
+                type="button"
+                onClick={addExperience}
+                className="w-full py-3 rounded-2xl border border-dashed border-white/20 text-teal-300 hover:bg-white/5 hover:border-teal-400/50 transition flex items-center justify-center gap-2"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+                Add another Experience
+              </button>
             </div>
             <datalist id="employer-suggestions">
-              {employerSuggestions.map((employer) => (
-                <option key={employer} value={employer} />
-              ))}
-            </datalist>
-            <datalist id="job-role-suggestions">
-              {jobRoleSuggestions.map((role) => (
-                <option key={role} value={role} />
+              {employerSuggestions.map((emp) => (
+                <option key={emp} value={emp} />
               ))}
             </datalist>
           </div>
 
-          {/* Section 5 */}
+          {/* Section 5: NCLEX History - NEW */}
           <div>
             <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-sky-500 to-blue-600 flex items-center justify-center shadow-lg shadow-sky-500/40">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-fuchsia-600 flex items-center justify-center shadow-lg shadow-fuchsia-500/40">
                 <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-3-3v6m9-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
                 </svg>
               </div>
-              <h3 className="text-2xl font-semibold text-white">Section 5: Employment Details – Canada</h3>
+              <h3 className="text-2xl font-semibold text-white">Section 5: NCLEX-RN Exam History</h3>
             </div>
-            <p className="text-sm text-sky-100 mb-4">Include hospitals, clinics, or community health agencies (last 5 years).</p>
-            <div className="space-y-6">
-              {formState.canadaEmploymentHistory.map((entry, index) => (
-                <div key={index} className="border border-white/10 rounded-2xl p-5 bg-gradient-to-br from-blue-900/40 to-violet-900/30 backdrop-blur">
-                  <h4 className="text-lg font-semibold text-white mb-4">Canada Nursing Experience {index + 1}</h4>
-                  <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    <div className="space-y-2 lg:col-span-2">
-                      <label className="block text-xs uppercase tracking-[0.3em] text-sky-200">Employer / hospital</label>
-                      <input
-                        className="rounded-2xl border border-white/10 bg-slate-900/40 text-white placeholder:text-slate-400 focus:ring-2 focus:ring-sky-400/60 focus:border-sky-400/60 p-3"
-                        placeholder="Employer / hospital name"
-                        list="employer-suggestions"
-                        value={entry.employer}
-                        onChange={(e) => handleEmploymentChange('canadaEmploymentHistory', index, 'employer', e.target.value)}
-                      />
-                    </div>
-                    <div className="space-y-2 lg:col-span-2">
-                      <label className="block text-xs uppercase tracking-[0.3em] text-sky-200">Job title / position</label>
-                      <input
-                        className="rounded-2xl border border-white/10 bg-slate-900/40 text-white placeholder:text-slate-400 focus:ring-2 focus:ring-sky-400/60 focus:border-sky-400/60 p-3"
-                        placeholder="Job title / position"
-                        list="job-role-suggestions"
-                        value={entry.position}
-                        onChange={(e) => handleEmploymentChange('canadaEmploymentHistory', index, 'position', e.target.value)}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="block text-xs uppercase tracking-[0.3em] text-sky-200">Start date</label>
-                      <input
-                        type="date"
-                        className="rounded-2xl border border-white/10 bg-slate-900/40 text-white focus:ring-2 focus:ring-sky-400/60 focus:border-sky-400/60 p-3"
-                        value={entry.dates.from}
-                        onChange={(e) => handleEmploymentDateChange('canadaEmploymentHistory', index, 'from', e.target.value)}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="block text-xs uppercase tracking-[0.3em] text-sky-200">End date</label>
-                      <input
-                        type="date"
-                        className="rounded-2xl border border-white/10 bg-slate-900/40 text-white focus:ring-2 focus:ring-sky-400/60 focus:border-sky-400/60 p-3"
-                        value={entry.dates.to}
-                        onChange={(e) => handleEmploymentDateChange('canadaEmploymentHistory', index, 'to', e.target.value)}
-                      />
-                    </div>
-                    <div className="space-y-2 md:col-span-2 lg:col-span-3">
-                      <label className="block text-xs uppercase tracking-[0.3em] text-sky-200">Employment type</label>
-                      <div className="flex flex-wrap gap-3">
-                        {employmentTypeOptions.map((option) => (
-                          <label
-                            key={option}
-                            className={`flex items-center gap-2 px-4 py-2 rounded-2xl border cursor-pointer ${
-                              entry.employmentType === option
-                                ? 'border-sky-400 bg-sky-500/20 text-white'
-                                : 'border-white/10 text-slate-200'
-                            }`}
-                          >
-                            <input
-                              type="radio"
-                              name={`employment-type-${index}`}
-                              value={option}
-                              className="text-sky-400 focus:ring-sky-500"
-                              checked={entry.employmentType === option}
-                              onChange={(e) => handleEmploymentChange('canadaEmploymentHistory', index, 'employmentType', e.target.value)}
-                            />
-                            <span>{option}</span>
-                          </label>
-                        ))}
+
+            <div className="mb-6">
+              <label className="block text-sm font-semibold text-slate-700 mb-3">
+                Have you written the NCLEX-RN exam before?
+              </label>
+              <div className="flex flex-wrap gap-4">
+                {['No', 'Yes'].map((option) => (
+                  <label
+                    key={option}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-2xl border cursor-pointer ${formState.nclexHistory.hasTakenBefore === option
+                        ? 'border-violet-400 bg-violet-500/20 text-white'
+                        : 'border-white/10 text-slate-200'
+                      }`}
+                  >
+                    <input
+                      type="radio"
+                      name="nclex-taken"
+                      value={option}
+                      className="text-violet-400 focus:ring-violet-500"
+                      checked={formState.nclexHistory.hasTakenBefore === option}
+                      onChange={(e) => updateForm(prev => ({ ...prev, nclexHistory: { ...prev.nclexHistory, hasTakenBefore: e.target.value as 'Yes' | 'No' } }))}
+                    />
+                    <span>{option}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {formState.nclexHistory.hasTakenBefore === 'Yes' && (
+              <div className="space-y-6">
+                {formState.nclexHistory.attempts.map((attempt, index) => (
+                  <div key={index} className="border border-white/10 rounded-2xl p-5 bg-white/5 backdrop-blur relative">
+                    {formState.nclexHistory.attempts.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => removeNclexAttempt(index)}
+                        className="absolute top-4 right-4 text-xs text-rose-300 hover:text-rose-100 hover:bg-rose-500/20 px-2 py-1 rounded-lg transition"
+                      >
+                        Remove
+                      </button>
+                    )}
+                    <h4 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                      <span className="text-xs tracking-[0.4em] text-violet-300">ATTEMPT-{index + 1}</span>
+                    </h4>
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <label className="block text-xs uppercase tracking-[0.3em] text-violet-200">Exam Date</label>
+                        <input
+                          type="date"
+                          className="rounded-2xl border border-white/10 bg-slate-900/40 text-white focus:ring-2 focus:ring-violet-400/60 focus:border-violet-400/60 p-3 w-full"
+                          value={attempt.examDate}
+                          onChange={(e) => updateNclexAttempt(index, 'examDate', e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="block text-xs uppercase tracking-[0.3em] text-violet-200">Country</label>
+                        <input
+                          className="rounded-2xl border border-white/10 bg-slate-900/40 text-white placeholder:text-slate-400 focus:ring-2 focus:ring-violet-400/60 focus:border-violet-400/60 p-3 w-full"
+                          placeholder="e.g. USA"
+                          list="country-suggestions"
+                          value={attempt.country}
+                          onChange={(e) => updateNclexAttempt(index, 'country', e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="block text-xs uppercase tracking-[0.3em] text-violet-200">Province / State</label>
+                        <input
+                          className="rounded-2xl border border-white/10 bg-slate-900/40 text-white placeholder:text-slate-400 focus:ring-2 focus:ring-violet-400/60 focus:border-violet-400/60 p-3 w-full"
+                          placeholder="e.g. New York"
+                          value={attempt.province}
+                          onChange={(e) => updateNclexAttempt(index, 'province', e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="block text-xs uppercase tracking-[0.3em] text-violet-200">Result</label>
+                        <select
+                          className="rounded-2xl border border-white/10 bg-slate-900/40 text-white focus:ring-2 focus:ring-violet-400/60 focus:border-violet-400/60 p-3 w-full"
+                          value={attempt.result}
+                          onChange={(e) => updateNclexAttempt(index, 'result', e.target.value)}
+                        >
+                          <option value="">Select Result</option>
+                          <option value="Pass">Pass</option>
+                          <option value="Fail">Fail</option>
+                        </select>
                       </div>
                     </div>
-                    <div className="space-y-2">
-                      <label className="block text-xs uppercase tracking-[0.3em] text-sky-200">Approx. hours per month</label>
-                      <input
-                        type="number"
-                        min="0"
-                        step="10"
-                        className="rounded-2xl border border-white/10 bg-slate-900/40 text-white placeholder:text-slate-400 focus:ring-2 focus:ring-sky-400/60 focus:border-sky-400/60 p-3"
-                        placeholder="e.g. 160"
-                        value={entry.hoursPerMonth}
-                        onChange={(e) => handleEmploymentChange('canadaEmploymentHistory', index, 'hoursPerMonth', e.target.value)}
-                      />
-                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+                <button
+                  type="button"
+                  onClick={addNclexAttempt}
+                  className="w-full py-3 rounded-2xl border border-dashed border-white/20 text-violet-300 hover:bg-white/5 hover:border-violet-400/50 transition flex items-center justify-center gap-2"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+                  Add another Attempt
+                </button>
+              </div>
+            )}
+
           </div>
 
-          <div className="bg-white/5 border border-white/10 rounded-2xl p-6 space-y-4 backdrop-blur">
-            <h4 className="text-lg font-semibold text-white flex items-center gap-2">
-              <svg className="w-5 h-5 text-indigo-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
-              Document Submission Checklist
-            </h4>
-            <p className="text-sm text-indigo-100">
-              Email colour copies of the following to <span className="font-semibold text-white">nurses@nurseproacademy.ca</span>:
+          <div className="bg-slate-800/50 p-6 rounded-2xl border border-slate-700">
+            <h4 className="text-white font-semibold mb-3">Document Submission Requirements</h4>
+            <p className="text-slate-300 text-sm mb-4">
+              Please email clear color photocopies of the following to <span className="text-indigo-300 select-all font-mono">nurses@nurseproacademy.ca</span>:
             </p>
-            <ul className="grid sm:grid-cols-2 gap-2 text-sm text-indigo-100 list-disc list-inside">
-              <li>All nursing mark lists and transcripts</li>
-              <li>All nursing registration/licence documents</li>
-              <li>Affidavit for any name change (if applicable)</li>
+            <ul className="list-disc list-inside text-slate-400 text-sm space-y-1 mb-6">
+              <li>All nursing mark lists & transcripts</li>
+              <li>Nursing registration / license documents</li>
+              <li>Affidavit for name change (if applicable)</li>
               <li>10th and Plus Two certificates</li>
-              <li>Passport</li>
+              <li>Passport (Color Copy)</li>
             </ul>
-            <label className="flex items-start space-x-3 text-sm text-slate-100">
-              <input
-                type="checkbox"
-                className="mt-1 h-5 w-5 rounded border-indigo-400/70 bg-transparent text-indigo-400 focus:ring-indigo-500/70"
-                checked={formState.documentChecklistAcknowledged}
-                onChange={(e) =>
-                  setFormState((prev) => ({
-                    ...prev,
-                    documentChecklistAcknowledged: e.target.checked,
-                  }))
-                }
-              />
-              <span>I confirm I will email the required documents to the NursePro Academy team.</span>
+            <label className="flex items-start gap-3 cursor-pointer group">
+              <div className="relative pt-1">
+                <input
+                  type="checkbox"
+                  className="peer sr-only"
+                  checked={formState.documentChecklistAcknowledged}
+                  onChange={(e) =>
+                    setFormState((prev) => ({
+                      ...prev,
+                      documentChecklistAcknowledged: e.target.checked,
+                    }))
+                  }
+                />
+                <div className="w-6 h-6 rounded-md border-2 border-slate-500 peer-checked:bg-indigo-500 peer-checked:border-indigo-500 transition-colors" />
+                <svg
+                  className="absolute top-1 left-0 w-6 h-6 text-white opacity-0 peer-checked:opacity-100 transition-opacity pointer-events-none"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              <span className="text-slate-300 text-sm group-hover:text-slate-200 transition">
+                I acknowledge the document submission requirements and certify that the information provided above is true and accurate.
+              </span>
             </label>
           </div>
 
-          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-            <p className="text-sm text-indigo-100">
-              Need help? Contact{' '}
-              <a href="mailto:nurses@nurseproacademy.ca" className="text-white font-semibold">
-                nurses@nurseproacademy.ca
-              </a>
-            </p>
+          <div className="flex justify-end pt-6 border-t border-white/10">
             <button
               type="submit"
               disabled={isSubmitting}
-              className="w-full md:w-auto bg-gradient-to-r from-fuchsia-500 via-purple-600 to-indigo-500 text-white px-8 py-3 rounded-2xl font-semibold shadow-[0_0_35px_rgba(139,92,246,0.6)] hover:scale-[1.01] transition disabled:opacity-60"
+              className={`
+                px-8 py-4 rounded-2xl font-bold text-lg tracking-wide shadow-2xl transition-all duration-300
+                ${isSubmitting
+                  ? 'bg-slate-700 text-slate-400 cursor-not-allowed'
+                  : 'bg-gradient-to-r from-indigo-500 to-fuchsia-600 text-white hover:shadow-indigo-500/30 hover:scale-[1.02] active:scale-[0.98]'
+                }
+              `}
             >
-              {isSubmitting ? 'Submitting...' : 'Submit Registration Form'}
+              {isSubmitting ? 'Submitting...' : 'Submit Registration'}
             </button>
           </div>
         </form>
@@ -1015,4 +1148,3 @@ export default function NclexRegistrationForm({ variant = 'inline' }: NclexRegis
     </section>
   );
 }
-

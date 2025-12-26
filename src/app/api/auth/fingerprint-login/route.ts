@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDatabase } from '@/lib/db';
+import { getDatabaseWithRetry } from '@/lib/db';
 import { users } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { createSession } from '@/lib/auth';
+import { logger } from '@/lib/logger';
+import { extractAndValidate, validateQueryParams, validateRouteParams } from '@/lib/api-validation';
+import { z } from 'zod';
 
 export async function POST(request: NextRequest) {
   try {
@@ -16,7 +19,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get database instance
-    const db = getDatabase();
+    const db = await getDatabaseWithRetry();
 
     // Find user by fingerprint credential ID
     const user = await db
@@ -50,7 +53,6 @@ export async function POST(request: NextRequest) {
       bio: user[0].bio || null,
       role: user[0].role,
       isActive: user[0].isActive,
-      faceIdEnrolled: user[0].faceIdEnrolled || false,
       fingerprintEnrolled: user[0].fingerprintEnrolled || false,
       twoFactorEnabled: user[0].twoFactorEnabled || false,
       joinedDate: user[0].joinedDate || null,
@@ -76,7 +78,7 @@ export async function POST(request: NextRequest) {
     response.cookies.set('token', sessionToken, {
       httpOnly: true,
       sameSite: 'lax',
-      secure: false,
+      secure: process.env.NODE_ENV === 'production', // CRITICAL: true in production
       path: '/',
       maxAge: 7 * 24 * 60 * 60,
     });
@@ -85,7 +87,7 @@ export async function POST(request: NextRequest) {
     const redirectUrl = user[0].role === 'admin' ? '/admin/students' : '/student/dashboard';
     return NextResponse.redirect(new URL(redirectUrl, request.url));
   } catch (error: any) {
-    console.error('Fingerprint login error:', error);
+    logger.error('Fingerprint login error:', error);
     return NextResponse.json(
       {
         message: 'Fingerprint authentication failed',

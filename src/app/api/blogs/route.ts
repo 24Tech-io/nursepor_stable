@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDatabase } from '@/lib/db';
+import { getDatabaseWithRetry } from '@/lib/db';
 import { blogPosts } from '@/lib/db/schema';
 import { desc, eq } from 'drizzle-orm';
+import { logger } from '@/lib/logger';
+import { extractAndValidate, validateQueryParams, validateRouteParams } from '@/lib/api-validation';
+import { createBlogSchema } from '@/lib/validation-schemas-extended';
+import { z } from 'zod';
 
 export async function GET(request: NextRequest) {
   try {
-    const db = getDatabase();
+    const db = await getDatabaseWithRetry();
     const status = request.nextUrl.searchParams.get('status');
     
     let query = db.select().from(blogPosts);
@@ -44,7 +48,7 @@ export async function GET(request: NextRequest) {
       }),
     });
   } catch (error: any) {
-    console.error('Get blogs error:', error);
+    logger.error('Get blogs error:', error);
     return NextResponse.json(
       { 
         message: 'Failed to get blogs',
@@ -57,15 +61,13 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const db = getDatabase();
-    const data = await request.json();
-
-    if (!data.title || !data.slug || !data.content || !data.author) {
-      return NextResponse.json(
-        { message: 'Title, slug, content, and author are required' },
-        { status: 400 }
-      );
+    const db = await getDatabaseWithRetry();
+    // Validate request body
+    const bodyValidation = await extractAndValidate(request, createBlogSchema);
+    if (!bodyValidation.success) {
+      return bodyValidation.error;
     }
+    const data = bodyValidation.data;
 
     // Store additional metadata in tags JSON (we'll enhance schema later)
     const metadata = {
@@ -120,7 +122,7 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error: any) {
-    console.error('Create blog error:', error);
+    logger.error('Create blog error:', error);
     return NextResponse.json(
       { 
         message: 'Failed to create blog',

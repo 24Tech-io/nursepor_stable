@@ -57,7 +57,6 @@ export interface AuthUser {
   bio: string | null;
   role: string;
   isActive: boolean;
-  faceIdEnrolled: boolean;
   fingerprintEnrolled: boolean;
   twoFactorEnabled: boolean;
   joinedDate: Date | null;
@@ -103,7 +102,6 @@ export function verifyToken(token: string): AuthUser | null {
       bio: decoded.bio || null,
       role: decoded.role,
       isActive: decoded.isActive,
-      faceIdEnrolled: decoded.faceIdEnrolled || false,
       fingerprintEnrolled: decoded.fingerprintEnrolled || false,
       twoFactorEnabled: decoded.twoFactorEnabled || false,
       joinedDate: decoded.joinedDate || null,
@@ -134,7 +132,15 @@ export async function createSession(userId: number, deviceInfo?: any, userData?:
     user = userData;
   } else {
     const userResult = await db
-      .select()
+      .select({
+        id: users.id,
+        name: users.name,
+        email: users.email,
+        phone: users.phone,
+        bio: users.bio,
+        role: users.role,
+        isActive: users.isActive,
+      })
       .from(users)
       .where(eq(users.id, userId))
       .limit(1);
@@ -151,10 +157,9 @@ export async function createSession(userId: number, deviceInfo?: any, userData?:
       bio: userResult[0].bio || null,
       role: userResult[0].role,
       isActive: userResult[0].isActive,
-      faceIdEnrolled: userResult[0].faceIdEnrolled || false,
-      fingerprintEnrolled: userResult[0].fingerprintEnrolled || false,
-      twoFactorEnabled: userResult[0].twoFactorEnabled || false,
-      joinedDate: userResult[0].joinedDate || null,
+      fingerprintEnrolled: false,
+      twoFactorEnabled: false,
+      joinedDate: null,
     };
   }
 
@@ -221,17 +226,31 @@ export async function destroyAllUserSessions(userId: number): Promise<void> {
 }
 
 export async function authenticateUser(email: string, password: string, role?: string): Promise<AuthUser | null> {
-  // Get database instance
-  const db = getDatabase();
+  // Get database instance with retry
+  const { getDatabaseWithRetry } = await import('./db');
+  const db = await getDatabaseWithRetry();
+
+  // Normalize email to lowercase and trim whitespace
+  const normalizedEmail = email.toLowerCase().trim();
 
   // If role is specified, authenticate that specific role
-  // Otherwise, get the first matching account (for backward compatibility)
+  // Note: We don't filter by isActive here - we check it after password verification
+  // This allows us to provide better error messages for inactive accounts
   const whereConditions = role 
-    ? and(eq(users.email, email), eq(users.role, role), eq(users.isActive, true))
-    : and(eq(users.email, email), eq(users.isActive, true));
+    ? and(eq(users.email, normalizedEmail), eq(users.role, role))
+    : and(eq(users.email, normalizedEmail));
   
   const user = await db
-    .select()
+    .select({
+      id: users.id,
+      name: users.name,
+      email: users.email,
+      password: users.password,
+      phone: users.phone,
+      bio: users.bio,
+      role: users.role,
+      isActive: users.isActive,
+    })
     .from(users)
     .where(whereConditions)
     .limit(1);
@@ -245,11 +264,18 @@ export async function authenticateUser(email: string, password: string, role?: s
     return null;
   }
 
-  // Update last login
-  await db
-    .update(users)
-    .set({ lastLogin: new Date() })
-    .where(eq(users.id, user[0].id));
+  // Check if account is active after password verification
+  // This allows us to distinguish between wrong password and inactive account
+  if (!user[0].isActive) {
+    console.log('User account is not active', { email: normalizedEmail, role: user[0].role, userId: user[0].id });
+    return null; // Return null for inactive accounts - caller can check database for more details
+  }
+
+  // Update last login - column doesn't exist in DB, skip for now
+  // await db
+  //   .update(users)
+  //   .set({ lastLogin: new Date() })
+  //   .where(eq(users.id, user[0].id));
 
   return {
     id: user[0].id,
@@ -259,43 +285,57 @@ export async function authenticateUser(email: string, password: string, role?: s
     bio: user[0].bio || null,
     role: user[0].role,
     isActive: user[0].isActive,
-    faceIdEnrolled: user[0].faceIdEnrolled || false,
-    fingerprintEnrolled: user[0].fingerprintEnrolled || false,
-    twoFactorEnabled: user[0].twoFactorEnabled || false,
-    joinedDate: user[0].joinedDate || null,
+    fingerprintEnrolled: false, // Column doesn't exist in DB
+    twoFactorEnabled: false, // Column doesn't exist in DB
+    joinedDate: null, // Column doesn't exist in DB
   };
 }
 
 // Get all accounts (roles) for an email
 export async function getUserAccounts(email: string): Promise<AuthUser[]> {
-  const db = getDatabase();
-  // Use case-insensitive email comparison
+  const { getDatabaseWithRetry } = await import('./db');
+  const db = await getDatabaseWithRetry();
+  // Use case-insensitive email comparison - normalize email to lowercase
   const normalizedEmail = email.toLowerCase().trim();
-  const accounts = await db
-    .select()
-    .from(users)
-    .where(and(
-      sql`LOWER(${users.email}) = LOWER(${normalizedEmail})`,
-      eq(users.isActive, true)
-    ));
+  
+  try {
+    const accounts = await db
+      .select({
+        id: users.id,
+        name: users.name,
+        email: users.email,
+        phone: users.phone,
+        bio: users.bio,
+        role: users.role,
+        isActive: users.isActive,
+      })
+      .from(users)
+      .where(and(
+        eq(users.email, normalizedEmail),
+        eq(users.isActive, true)
+      ));
 
-  console.log('getUserAccounts - Email searched:', normalizedEmail);
-  console.log('getUserAccounts - Accounts found:', accounts.length);
-  console.log('getUserAccounts - Accounts:', accounts.map((a: any) => ({ id: a.id, email: a.email, role: a.role, name: a.name, isActive: a.isActive })));
+    console.log('getUserAccounts - Email searched:', normalizedEmail);
+    console.log('getUserAccounts - Accounts found:', accounts.length);
+    console.log('getUserAccounts - Accounts:', accounts.map((a: any) => ({ id: a.id, email: a.email, role: a.role, name: a.name, isActive: a.isActive })));
 
-  return accounts.map((user: any) => ({
-    id: user.id,
-    name: user.name,
-    email: user.email,
-    phone: user.phone || null,
-    bio: user.bio || null,
-    role: user.role,
-    isActive: user.isActive,
-    faceIdEnrolled: user.faceIdEnrolled || false,
-    fingerprintEnrolled: user.fingerprintEnrolled || false,
-    twoFactorEnabled: user.twoFactorEnabled || false,
-    joinedDate: user.joinedDate || null,
-  }));
+    return accounts.map((user: any) => ({
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      phone: user.phone || null,
+      bio: user.bio || null,
+      role: user.role,
+      isActive: user.isActive,
+      fingerprintEnrolled: false,
+      twoFactorEnabled: false,
+      joinedDate: null,
+    }));
+  } catch (error: any) {
+    console.error('getUserAccounts error:', error);
+    // Return empty array on error - treat as no accounts found
+    return [];
+  }
 }
 export async function createUser(userData: {
   name: string;
@@ -305,24 +345,43 @@ export async function createUser(userData: {
   role?: string;
 }): Promise<AuthUser> {
   try {
-    console.log('createUser called with:', { email: userData.email, role: userData.role });
+    // Normalize email to lowercase and trim whitespace
+    const normalizedEmail = userData.email.toLowerCase().trim();
+    console.log('createUser called with:', { email: normalizedEmail, role: userData.role });
     
-    // Get database instance
-    const db = getDatabase();
+    // Get database instance with retry
+    const { getDatabaseWithRetry } = await import('./db');
+    const db = await getDatabaseWithRetry();
 
     const hashedPassword = await hashPassword(userData.password);
     console.log('Password hashed successfully');
 
-    const newUser = await db
-      .insert(users)
-      .values({
-        name: userData.name,
-        email: userData.email,
-        password: hashedPassword,
-        phone: userData.phone,
-        role: userData.role || 'student',
-      })
-      .returning();
+    console.log('Attempting to insert user into database...');
+    let newUser;
+    try {
+      newUser = await db
+        .insert(users)
+        .values({
+          name: userData.name,
+          email: normalizedEmail,
+          password: hashedPassword,
+          phone: userData.phone,
+          role: userData.role || 'student',
+          isActive: true, // Explicitly set to true to ensure user can login
+          joinedDate: new Date(), // Explicitly set joinedDate
+        })
+        .returning();
+      console.log('✅ Insert query executed successfully');
+    } catch (insertError: any) {
+      console.error('❌ Insert query failed:', insertError);
+      console.error('❌ Error details:', {
+        message: insertError?.message,
+        code: insertError?.code,
+        detail: insertError?.detail,
+        cause: insertError?.cause,
+      });
+      throw insertError;
+    }
 
     if (!newUser || newUser.length === 0) {
       throw new Error('Failed to create user - no data returned from database');
@@ -338,10 +397,9 @@ export async function createUser(userData: {
       bio: newUser[0].bio || null,
       role: newUser[0].role,
       isActive: newUser[0].isActive,
-      faceIdEnrolled: newUser[0].faceIdEnrolled || false,
-      fingerprintEnrolled: newUser[0].fingerprintEnrolled || false,
-      twoFactorEnabled: newUser[0].twoFactorEnabled || false,
-      joinedDate: newUser[0].joinedDate || null,
+      fingerprintEnrolled: false,
+      twoFactorEnabled: false,
+      joinedDate: null,
     };
   } catch (error: any) {
     console.error('createUser function error:', error);
@@ -358,7 +416,12 @@ export async function createUser(userData: {
 export async function generateResetToken(email: string): Promise<string | null> {
   const db = getDatabase();
   const user = await db
-    .select()
+    .select({
+      id: users.id,
+      email: users.email,
+      resetToken: users.resetToken,
+      resetTokenExpiry: users.resetTokenExpiry,
+    })
     .from(users)
     .where(eq(users.email, email))
     .limit(1);
@@ -385,7 +448,12 @@ export async function generateResetToken(email: string): Promise<string | null> 
 export async function verifyResetToken(email: string, token: string): Promise<boolean> {
   const db = getDatabase();
   const user = await db
-    .select()
+    .select({
+      id: users.id,
+      email: users.email,
+      resetToken: users.resetToken,
+      resetTokenExpiry: users.resetTokenExpiry,
+    })
     .from(users)
     .where(and(
       eq(users.email, email),

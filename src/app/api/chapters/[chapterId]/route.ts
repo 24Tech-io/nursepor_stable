@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { chapters } from '@/lib/db/schema';
@@ -24,7 +25,7 @@ export async function DELETE(
         return NextResponse.json({ message: 'Chapter deleted successfully' });
 
     } catch (error) {
-        console.error('Delete chapter error:', error);
+        logger.error('Delete chapter error:', error);
         return NextResponse.json({ message: 'Internal server error' }, { status: 500 });
     }
 }

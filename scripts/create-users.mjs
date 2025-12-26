@@ -20,7 +20,6 @@ async function createTestUsers() {
             phone: '+1234567890',
             role: 'admin',
             isActive: true,
-            faceIdEnrolled: false,
             fingerprintEnrolled: false,
             twoFactorEnabled: false,
         });
@@ -34,7 +33,6 @@ async function createTestUsers() {
             phone: '+1234567891',
             role: 'student',
             isActive: true,
-            faceIdEnrolled: false,
             fingerprintEnrolled: false,
             twoFactorEnabled: false,
         });

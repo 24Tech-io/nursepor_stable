@@ -6,25 +6,9 @@ import type {
   NursingExperienceEntry,
   NursingPersonalDetails,
   NursingRegistrationEntry,
+  NclexExamAttempt,
 } from '@/types/nursing-candidate';
 import { sanitizeString, validateEmail } from './security';
-
-const educationSections = [
-  { key: 'gnm', label: 'GNM – General Nursing and Midwifery', programType: 'GNM' },
-  { key: 'bsc', label: 'BSc Nursing', programType: 'BSc Nursing' },
-  { key: 'postBasic', label: 'Post Basic BSc Nursing', programType: 'Post Basic BSc Nursing' },
-  { key: 'msc', label: 'MSc Nursing', programType: 'MSc Nursing' },
-  { key: 'plusTwo', label: 'Plus Two / 12th Grade', programType: 'Plus Two / 12th Grade' },
-  { key: 'tenthGrade', label: '10th Grade / Secondary School', programType: '10th Grade / Secondary School' },
-  { key: 'primaryHighSchool', label: 'Primary and High School (Grades 1–10)', programType: 'Primary & High School' },
-] as const;
-
-const defaultEducationEntry = (programType: string): NursingEducationEntry => ({
-  institutionName: 'N/A',
-  address: 'N/A',
-  programType,
-  studyPeriod: { from: 'N/A', to: 'N/A' },
-});
 
 const cleanString = (value: unknown, fallback = 'N/A', maxLength = 1024) =>
   sanitizeString(typeof value === 'string' ? value : fallback, maxLength) || fallback;
@@ -119,36 +103,24 @@ export function normalizeNursingCandidatePayload(payload: any): NursingCandidate
     firstLanguage: cleanString(personalPayload.firstLanguage),
   };
 
-  const educationSource = payload.educationDetails || {};
-  const educationDetails = educationSections.reduce((acc, section) => {
-    const sectionPayload = educationSource[section.key] || {};
-    acc[section.key] = {
-      institutionName: cleanString(sectionPayload.institutionName),
-      address: cleanString(sectionPayload.address),
-      programType: cleanString(sectionPayload.programType || section.programType),
-      studyPeriod: normalizeDateRange(sectionPayload.studyPeriod),
-    };
-    return acc;
-  }, {} as NursingCandidateFormPayload['educationDetails']);
+  // Education Details: Dynamic Array
+  const rawEducation = payload.educationDetails || [];
+  const educationDetails: NursingEducationEntry[] = (Array.isArray(rawEducation) ? rawEducation : []).map((entry: any) => ({
+    institutionName: cleanString(entry.institutionName),
+    address: cleanString(entry.address),
+    programType: cleanString(entry.programType),
+    studyPeriod: normalizeDateRange(entry.studyPeriod),
+  }));
 
-  const registrationEntries: NursingRegistrationEntry[] = (payload.registrationDetails?.entries || payload.registrationEntries || [])
-    .slice(0, 3)
-    .map((entry: any) => ({
-      councilName: cleanString(entry?.councilName),
-      registrationNumber: cleanString(entry?.registrationNumber),
-      issuedDate: cleanString(entry?.issuedDate),
-      expiryDate: cleanString(entry?.expiryDate),
-      status: cleanString(entry?.status) as NursingRegistrationEntry['status'],
-    }));
-  while (registrationEntries.length < 3) {
-    registrationEntries.push({
-      councilName: 'N/A',
-      registrationNumber: 'N/A',
-      issuedDate: 'N/A',
-      expiryDate: 'N/A',
-      status: 'Inactive',
-    });
-  }
+  // Registration Details: Dynamic Array
+  const rawRegistrations = payload.registrationDetails?.entries || payload.registrationEntries || [];
+  const registrationEntries: NursingRegistrationEntry[] = (Array.isArray(rawRegistrations) ? rawRegistrations : []).map((entry: any) => ({
+    councilName: cleanString(entry?.councilName),
+    registrationNumber: cleanString(entry?.registrationNumber),
+    issuedDate: cleanString(entry?.issuedDate),
+    expiryDate: cleanString(entry?.expiryDate),
+    status: cleanString(entry?.status) as NursingRegistrationEntry['status'],
+  }));
 
   const buildExperience = (entry: any): NursingExperienceEntry => ({
     employer: cleanString(entry?.employer),
@@ -156,12 +128,8 @@ export function normalizeNursingCandidatePayload(payload: any): NursingCandidate
     dates: normalizeDateRange(entry?.dates),
   });
 
-  const employmentHistory: NursingExperienceEntry[] = (payload.employmentHistory || payload.employmentDetails || [])
-    .slice(0, 3)
-    .map(buildExperience);
-  while (employmentHistory.length < 3) {
-    employmentHistory.push(buildExperience({}));
-  }
+  const rawEmployment = payload.employmentHistory || payload.employmentDetails || [];
+  const employmentHistory: NursingExperienceEntry[] = (Array.isArray(rawEmployment) ? rawEmployment : []).map(buildExperience);
 
   const buildCanadaExperience = (entry: any): NursingCanadaExperienceEntry => ({
     ...buildExperience(entry),
@@ -169,26 +137,38 @@ export function normalizeNursingCandidatePayload(payload: any): NursingCandidate
     hoursPerMonth: cleanString(entry?.hoursPerMonth),
   });
 
-  const canadaEmploymentHistory: NursingCanadaExperienceEntry[] = (payload.canadaEmploymentHistory || [])
-    .slice(0, 3)
-    .map(buildCanadaExperience);
-  while (canadaEmploymentHistory.length < 3) {
-    canadaEmploymentHistory.push(buildCanadaExperience({}));
-  }
+  const rawCanadaEmployment = payload.canadaEmploymentHistory || [];
+  const canadaEmploymentHistory: NursingCanadaExperienceEntry[] = (Array.isArray(rawCanadaEmployment) ? rawCanadaEmployment : []).map(buildCanadaExperience);
+
+  // NCLEX History
+  const rawAttemps = payload.nclexHistory?.attempts || [];
+  const nclexHistory = {
+    hasTakenBefore: getYesNo(payload.nclexHistory?.hasTakenBefore),
+    attempts: (Array.isArray(rawAttemps) ? rawAttemps : []).map((attempt: any) => ({
+      examDate: cleanString(attempt.examDate),
+      country: cleanString(attempt.country),
+      province: cleanString(attempt.province),
+      result: cleanString(attempt.result, 'N/A'),
+    })),
+  };
+
+  const targetCountry = (['Canada', 'USA', 'Australia'].includes(payload.targetCountry) ? payload.targetCountry : 'Canada') as 'Canada' | 'USA' | 'Australia';
 
   return {
+    targetCountry,
     personalDetails,
     educationDetails,
     registrationDetails: {
       hasDisciplinaryAction: getYesNo(
         payload.registrationDetails?.hasDisciplinaryAction ??
-          payload.hasDisciplinaryAction ??
-          'No'
+        payload.hasDisciplinaryAction ??
+        'No'
       ),
       entries: registrationEntries,
     },
     employmentHistory,
     canadaEmploymentHistory,
+    nclexHistory,
     documentChecklistAcknowledged: Boolean(payload.documentChecklistAcknowledged),
   };
 }
@@ -196,6 +176,7 @@ export function normalizeNursingCandidatePayload(payload: any): NursingCandidate
 export function formatNursingCandidateDocument(data: NursingCandidateFormPayload): string {
   const lines: string[] = [];
   lines.push('NursePro Academy – NCLEX-RN Registration Information Form');
+  lines.push(`Target Country: ${data.targetCountry}`);
   lines.push(`Reference Number: ${data.referenceNumber ?? 'Pending assignment'}`);
   lines.push('');
   lines.push('Section 1: Personal / Identity Details');
@@ -215,9 +196,8 @@ export function formatNursingCandidateDocument(data: NursingCandidateFormPayload
   lines.push('');
 
   lines.push('Section 2: Education Details');
-  educationSections.forEach((section) => {
-    const entry = data.educationDetails[section.key];
-    lines.push(`${section.label}`);
+  data.educationDetails.forEach((entry, index) => {
+    lines.push(`Institution ${index + 1}`);
     lines.push(`  • Institution name: ${entry.institutionName}`);
     lines.push(`  • Full address: ${entry.address}`);
     lines.push(`  • Program / degree type: ${entry.programType}`);
@@ -239,27 +219,42 @@ export function formatNursingCandidateDocument(data: NursingCandidateFormPayload
     lines.push('');
   });
 
-  lines.push('Section 4: Employment History – USA and Australia');
-  data.employmentHistory.forEach((entry, index) => {
-    lines.push(`Nursing Experience ${index + 1}`);
-    lines.push(`  • Employer / hospital name: ${entry.employer}`);
-    lines.push(`  • Job title / position: ${entry.position}`);
-    lines.push(`  • Dates (Joined – Left): ${formatDateRange(entry.dates)}`);
-    lines.push('');
-  });
+  if (data.targetCountry === 'Canada') {
+    lines.push('Section 4: Employment History (Canada Requirements)');
+    data.canadaEmploymentHistory.forEach((entry, index) => {
+      lines.push(`Experience ${index + 1}`);
+      lines.push(`  • Employer / hospital name: ${entry.employer}`);
+      lines.push(`  • Job title / position: ${entry.position}`);
+      lines.push(`  • Dates (Joined – Left): ${formatDateRange(entry.dates)}`);
+      lines.push(`  • Full-time or part-time: ${entry.employmentType}`);
+      lines.push(`  • Approx. hours per month: ${entry.hoursPerMonth}`);
+      lines.push('');
+    });
+  } else {
+    lines.push(`Section 4: Employment History (${data.targetCountry})`);
+    data.employmentHistory.forEach((entry, index) => {
+      lines.push(`Experience ${index + 1}`);
+      lines.push(`  • Employer / hospital name: ${entry.employer}`);
+      lines.push(`  • Job title / position: ${entry.position}`);
+      lines.push(`  • Dates (Joined – Left): ${formatDateRange(entry.dates)}`);
+      lines.push('');
+    });
+  }
 
-  lines.push('Section 5: Employment / Experience Details – Canada Only');
-  data.canadaEmploymentHistory.forEach((entry, index) => {
-    lines.push(`Canada Nursing Experience ${index + 1}`);
-    lines.push(`  • Employer / hospital name: ${entry.employer}`);
-    lines.push(`  • Job title / position: ${entry.position}`);
-    lines.push(`  • Dates (Joined – Left): ${formatDateRange(entry.dates)}`);
-    lines.push(`  • Full-time or part-time: ${entry.employmentType}`);
-    lines.push(`  • Approx. hours per month: ${entry.hoursPerMonth}`);
-    lines.push('');
-  });
+  lines.push('Section 5: NCLEX-RN Exam History');
+  lines.push(`• Have you taken the NCLEX-RN before? ${data.nclexHistory.hasTakenBefore}`);
+  if (data.nclexHistory.hasTakenBefore === 'Yes') {
+    data.nclexHistory.attempts.forEach((attempt, index) => {
+      lines.push(`Attempt ${index + 1}`);
+      lines.push(`  • Exam Date: ${attempt.examDate}`);
+      lines.push(`  • Country/Province: ${attempt.country}, ${attempt.province}`);
+      lines.push(`  • Result: ${attempt.result}`);
+      lines.push('');
+    });
+  }
+  lines.push('');
 
-  lines.push('Document Submission Checklist (emailed separately to nurses@nurseproacademy.ca)');
+  lines.push('Document Submission Checklist');
   lines.push('• All nursing mark lists and transcripts');
   lines.push('• All nursing registration/licence documents');
   lines.push('• Affidavit for any name change (if applicable)');

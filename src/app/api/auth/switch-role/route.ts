@@ -1,7 +1,10 @@
+import { logger } from '@/lib/logger';
+import { extractAndValidate, validateQueryParams, validateRouteParams } from '@/lib/api-validation';
+import { z } from 'zod';
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth-helpers';
 import { getUserAccounts, authenticateUser, createSession } from '@/lib/auth';
-import { getDatabase } from '@/lib/db';
+import { getDatabaseWithRetry } from '@/lib/db';
 import { users } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
 
@@ -15,7 +18,7 @@ export async function POST(request: NextRequest) {
     const currentUser = authResult.user;
 
     // Get database instance
-    const db = getDatabase();
+    const db = await getDatabaseWithRetry();
 
     const { role, password } = await request.json();
 
@@ -82,14 +85,14 @@ export async function POST(request: NextRequest) {
     response.cookies.set('token', sessionToken, {
       httpOnly: true,
       sameSite: 'lax',
-      secure: false,
+      secure: process.env.NODE_ENV === 'production',
       path: '/',
       maxAge: 7 * 24 * 60 * 60,
     });
 
     return response;
   } catch (error: any) {
-    console.error('Switch role error:', error);
+    logger.error('Switch role error:', error);
     return NextResponse.json(
       { 
         message: 'Failed to switch role',

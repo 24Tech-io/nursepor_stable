@@ -47,7 +47,7 @@ export default function QuizCard({
 
   const handleSelectAnswer = (answer: string) => {
     if (!isSubmitted) {
-      setSelectedAnswers({ ...selectedAnswers, [currentQuestion]: answer });
+      setSelectedAnswers((prev) => ({ ...prev, [currentQuestion]: answer }));
     }
   };
 
@@ -65,9 +65,9 @@ export default function QuizCard({
 
   const handleSubmit = async () => {
     if (isSubmitted) return;
-    
+
     setIsSubmitted(true);
-    
+
     // Prepare answers for API: { questionId: answer }
     const answers: Record<string, string> = {};
     questions.forEach((q, index) => {
@@ -146,57 +146,65 @@ export default function QuizCard({
     const passed = score >= passMark;
 
     return (
-      <div className="bg-white rounded-2xl shadow-xl p-8 text-center">
+      <div className="bg-slate-900 border border-white/10 rounded-2xl shadow-xl p-8 text-center backdrop-blur-sm">
         <div
-          className={`w-24 h-24 mx-auto rounded-full flex items-center justify-center mb-6 ${
-            passed ? 'bg-green-100' : 'bg-red-100'
-          }`}
+          className={`w-24 h-24 mx-auto rounded-full flex items-center justify-center mb-6 border-2 ${passed ? 'bg-green-900/20 border-green-500/30' : 'bg-red-900/20 border-red-500/30'
+            }`}
         >
           {passed ? (
-            <svg className="w-12 h-12 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-12 h-12 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
             </svg>
           ) : (
-            <svg className="w-12 h-12 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-12 h-12 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           )}
         </div>
 
-        <h2 className="text-3xl font-bold text-gray-900 mb-2">
+        <h2 className="text-3xl font-bold text-white mb-2">
           {passed ? 'Congratulations! 🎉' : 'Keep Trying! 💪'}
         </h2>
-        <p className="text-gray-600 mb-6">
+        <p className="text-gray-300 mb-6">
           {passed ? "You've passed the quiz!" : "You didn't pass this time."}
         </p>
 
-        <div className="bg-gray-50 rounded-xl p-6 mb-6">
-          <div className="text-5xl font-bold text-gray-900 mb-2">{score.toFixed(0)}%</div>
-          <div className="text-sm text-gray-600">Your Score</div>
-          <div className="mt-4 text-sm text-gray-500">
-            Pass Mark: {passMark}% | You got {questions.filter((q, i) => selectedAnswers[i] === q.correctAnswer).length}/{totalQuestions} correct
+        <div className="bg-white/5 border border-white/10 rounded-xl p-6 mb-6">
+          <div className="text-5xl font-bold text-white mb-2">{score.toFixed(0)}%</div>
+          <div className="text-sm text-gray-400 uppercase tracking-wider font-medium">Your Score</div>
+          <div className="mt-4 text-sm text-gray-400">
+            Pass Mark: <span className="text-white">{passMark}%</span> | You got <span className="text-white">{questions.filter((q, i) => selectedAnswers[i] === q.correctAnswer).length}/{totalQuestions}</span> correct
           </div>
         </div>
 
         {showAnswers && (
           <div className="space-y-4 mb-6 text-left">
-            <h3 className="font-bold text-gray-900 text-lg">Review Answers</h3>
+            <h3 className="font-bold text-white text-lg">Review Answers</h3>
             {questions.map((q, index) => {
               const isCorrect = selectedAnswers[index] === q.correctAnswer;
               return (
-                <div key={q.id} className={`p-4 rounded-xl border-2 ${isCorrect ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'}`}>
-                  <p className="font-semibold text-gray-900 mb-2">
-                    {index + 1}. {q.question}
+                <div key={q.id} className={`p-4 rounded-xl border ${isCorrect ? 'border-green-500/30 bg-green-900/10' : 'border-red-500/30 bg-red-900/10'}`}>
+                  <p className="font-semibold text-white mb-2">
+                    <span className="text-gray-400 mr-2">{index + 1}.</span> {q.question}
                   </p>
-                  <p className="text-sm text-gray-600 mb-1">
-                    Your answer: <span className={isCorrect ? 'text-green-600 font-semibold' : 'text-red-600 font-semibold'}>{selectedAnswers[index]}</span>
-                  </p>
-                  {!isCorrect && (
-                    <p className="text-sm text-green-600 font-semibold mb-2">
-                      Correct answer: {q.correctAnswer}
+                  <div className="flex flex-col gap-1 text-sm">
+                    <p className="text-gray-300">
+                      Your answer: <span className={isCorrect ? 'text-green-400 font-semibold' : 'text-red-400 font-semibold'}>{selectedAnswers[index]}</span>
                     </p>
+                    {!isCorrect && (
+                      <p className="text-green-400 font-semibold">
+                        Correct answer: {q.correctAnswer}
+                      </p>
+                    )}
+                  </div>
+                  {q.explanation && (
+                    <div className="mt-3 pt-3 border-t border-white/5">
+                      <p className="text-sm text-gray-400 italic">
+                        <span className="font-semibold text-gray-500 not-italic mr-1">Explanation:</span>
+                        {q.explanation}
+                      </p>
+                    </div>
                   )}
-                  <p className="text-sm text-gray-700 italic">{q.explanation}</p>
                 </div>
               );
             })}
@@ -204,8 +212,14 @@ export default function QuizCard({
         )}
 
         <button
-          onClick={() => window.location.reload()}
-          className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-8 py-3 rounded-xl font-semibold hover:from-blue-700 hover:to-purple-700 transition"
+          onClick={() => {
+            // Reset quiz state instead of reloading page
+            setCurrentQuestion(0);
+            setSelectedAnswers({});
+            setIsSubmitted(false);
+            setTimeRemaining(timeLimit ? timeLimit * 60 : null);
+          }}
+          className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-8 py-3 rounded-xl font-semibold hover:from-blue-500 hover:to-purple-500 transition shadow-lg shadow-purple-900/20"
         >
           Retake Quiz
         </button>
@@ -214,25 +228,28 @@ export default function QuizCard({
   }
 
   return (
-    <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
+    <div className="bg-slate-900 border border-white/10 rounded-2xl shadow-xl overflow-hidden backdrop-blur-sm">
       {/* Header */}
-      <div className="bg-gradient-to-r from-purple-600 to-blue-600 p-6 text-white">
+      <div className="bg-gradient-to-r from-purple-900/50 to-blue-900/50 p-6 text-white border-b border-white/5">
         <div className="flex items-center justify-between mb-4">
-          <div>
-            <h3 className="text-lg font-semibold">
-              Question {currentQuestion + 1} of {totalQuestions}
+          <div className="w-full mr-8">
+            <h3 className="text-lg font-semibold flex items-center gap-2 mb-2">
+              <span className="text-purple-400">Question {currentQuestion + 1}</span>
+              <span className="text-gray-400 text-sm font-normal">of {totalQuestions}</span>
             </h3>
-            <div className="w-full bg-white bg-opacity-20 rounded-full h-2 mt-2">
+            <div className="w-full bg-white/10 rounded-full h-2">
               <div
-                className="bg-white h-2 rounded-full transition-all duration-300"
+                className="bg-purple-500 h-2 rounded-full transition-all duration-300 shadow-[0_0_10px_rgba(168,85,247,0.5)]"
                 style={{ width: `${((currentQuestion + 1) / totalQuestions) * 100}%` }}
               />
             </div>
           </div>
           {timeRemaining !== null && (
-            <div className="text-right">
-              <div className="text-sm opacity-90">Time Left</div>
-              <div className="text-2xl font-bold">{formatTime(timeRemaining)}</div>
+            <div className="text-right whitespace-nowrap bg-black/20 px-4 py-2 rounded-lg border border-white/5">
+              <div className="text-xs text-gray-400 uppercase tracking-wider font-semibold mb-1">Time Left</div>
+              <div className={`text-xl font-bold font-mono ${timeRemaining < 60 ? 'text-red-400 animate-pulse' : 'text-white'}`}>
+                {formatTime(timeRemaining)}
+              </div>
             </div>
           )}
         </div>
@@ -240,50 +257,92 @@ export default function QuizCard({
 
       {/* Question */}
       <div className="p-8">
-        <h2 className="text-2xl font-bold text-gray-900 mb-8">{question.question}</h2>
+        <h2 className="text-2xl font-bold text-white mb-8 leading-relaxed">{question?.question || 'Question unavailable'}</h2>
 
         {/* Options */}
-        <div className="space-y-3 mb-8">
-          {Object.entries(question.options).map(([key, value]) => {
-            const isSelected = selectedAnswers[currentQuestion] === key;
-            return (
-              <button
-                key={key}
-                onClick={() => handleSelectAnswer(key)}
-                className={`w-full text-left p-5 rounded-xl border-2 transition-all duration-200 ${
-                  isSelected
-                    ? 'border-purple-500 bg-purple-50 shadow-md'
-                    : 'border-gray-200 hover:border-purple-300 hover:bg-gray-50'
-                }`}
-              >
-                <div className="flex items-center">
-                  <div
-                    className={`w-6 h-6 rounded-full border-2 mr-4 flex items-center justify-center ${
-                      isSelected ? 'border-purple-500 bg-purple-500' : 'border-gray-300'
-                    }`}
+        <div className="space-y-4 mb-8">
+          {(() => {
+            const opts: any = question?.options;
+
+            // QBank/custom can provide options as arrays; legacy provides a Record.
+            if (Array.isArray(opts)) {
+              return opts.map((opt: any, idx: number) => {
+                const key = opt?.id !== null && opt?.id !== undefined ? String(opt.id) : String(idx);
+                const label = String.fromCharCode(65 + idx);
+                const value = typeof opt === 'string' ? opt : (opt?.text !== null && opt?.text !== undefined ? String(opt.text) : String(opt));
+                const isSelected = selectedAnswers[currentQuestion] === key;
+
+                return (
+                  <button
+                    key={key}
+                    onClick={() => handleSelectAnswer(key)}
+                    className={`w-full text-left p-5 rounded-xl border transition-all duration-200 group ${isSelected
+                      ? 'border-purple-500 bg-purple-900/20 shadow-[0_0_15px_rgba(168,85,247,0.15)]'
+                      : 'border-white/10 hover:border-purple-500/50 hover:bg-white/5'
+                      }`}
                   >
-                    {isSelected && (
-                      <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
-                        <path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" />
-                      </svg>
-                    )}
+                    <div className="flex items-center">
+                      <div
+                        className={`w-8 h-8 rounded-full border-2 mr-4 flex items-center justify-center transition-colors ${isSelected ? 'border-purple-500 bg-purple-600 text-white' : 'border-gray-600 text-gray-400 group-hover:border-purple-400 group-hover:text-purple-400'
+                          }`}
+                      >
+                        {isSelected ? (
+                          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" />
+                          </svg>
+                        ) : (
+                          <span className="font-bold text-sm">{label}</span>
+                        )}
+                      </div>
+                      <div>
+                        <span className={`text-lg ${isSelected ? 'text-white font-medium' : 'text-gray-300'}`}>{value}</span>
+                      </div>
+                    </div>
+                  </button>
+                );
+              });
+            }
+
+            return Object.entries(opts || {}).map(([key, value]) => {
+              const isSelected = selectedAnswers[currentQuestion] === key;
+              return (
+                <button
+                  key={key}
+                  onClick={() => handleSelectAnswer(key)}
+                  className={`w-full text-left p-5 rounded-xl border transition-all duration-200 group ${isSelected
+                    ? 'border-purple-500 bg-purple-900/20 shadow-[0_0_15px_rgba(168,85,247,0.15)]'
+                    : 'border-white/10 hover:border-purple-500/50 hover:bg-white/5'
+                    }`}
+                >
+                  <div className="flex items-center">
+                    <div
+                      className={`w-8 h-8 rounded-full border-2 mr-4 flex items-center justify-center transition-colors ${isSelected ? 'border-purple-500 bg-purple-600 text-white' : 'border-gray-600 text-gray-400 group-hover:border-purple-400 group-hover:text-purple-400'
+                        }`}
+                    >
+                      {isSelected ? (
+                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                          <path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" />
+                        </svg>
+                      ) : (
+                        <span className="font-bold text-sm">{key}</span>
+                      )}
+                    </div>
+                    <div>
+                      <span className={`text-lg ${isSelected ? 'text-white font-medium' : 'text-gray-300'}`}>{String(value)}</span>
+                    </div>
                   </div>
-                  <div>
-                    <span className="font-semibold text-gray-900 mr-3">{key}.</span>
-                    <span className="text-gray-700">{value}</span>
-                  </div>
-                </div>
-              </button>
-            );
-          })}
+                </button>
+              );
+            });
+          })()}
         </div>
 
         {/* Navigation */}
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between pt-6 border-t border-white/10">
           <button
             onClick={handlePrevious}
             disabled={currentQuestion === 0}
-            className="px-6 py-3 border-2 border-gray-300 rounded-xl font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition"
+            className="px-6 py-3 border border-white/20 rounded-xl font-semibold text-gray-300 hover:bg-white/5 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center gap-2"
           >
             ← Previous
           </button>
@@ -292,14 +351,17 @@ export default function QuizCard({
             <button
               onClick={handleSubmit}
               disabled={Object.keys(selectedAnswers).length !== totalQuestions}
-              className="px-8 py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-xl font-semibold hover:from-green-700 hover:to-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition shadow-lg"
+              className="px-8 py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-xl font-semibold hover:from-green-500 hover:to-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed transition shadow-lg shadow-green-900/20 flex items-center gap-2"
             >
               Submit Quiz
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
             </button>
           ) : (
             <button
               onClick={handleNext}
-              className="px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl font-semibold hover:from-purple-700 hover:to-blue-700 transition shadow-md"
+              className="px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl font-semibold hover:from-purple-500 hover:to-blue-500 transition shadow-lg shadow-purple-900/20 flex items-center gap-2"
             >
               Next →
             </button>
@@ -307,17 +369,16 @@ export default function QuizCard({
         </div>
 
         {/* Progress Indicator */}
-        <div className="mt-6 flex justify-center space-x-2">
+        <div className="mt-8 flex justify-center space-x-2">
           {questions.map((_, index) => (
             <div
               key={index}
-              className={`w-2 h-2 rounded-full transition-all ${
-                index === currentQuestion
-                  ? 'bg-purple-600 w-8'
-                  : selectedAnswers[index]
-                  ? 'bg-green-400'
-                  : 'bg-gray-300'
-              }`}
+              className={`h-1.5 rounded-full transition-all duration-300 ${index === currentQuestion
+                ? 'bg-purple-500 w-8'
+                : selectedAnswers[index]
+                  ? 'bg-green-500 w-2'
+                  : 'bg-white/10 w-2'
+                }`}
             />
           ))}
         </div>

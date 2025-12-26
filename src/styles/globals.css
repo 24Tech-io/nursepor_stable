@@ -12,61 +12,87 @@
 
   body {
     @apply antialiased;
-    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+    background: #020617;
     min-height: 100vh;
   }
 
   * {
-    @apply border-border;
-  }
-
-  body {
-    @apply bg-background text-foreground;
+    @apply border-white/10;
   }
 }
 
 @layer components {
-  /* Enhanced Button Components */
+  /* ========================================
+     NURSE PRO ACADEMY - DARK ELEGANCE THEME
+     ======================================== */
+
+  /* Primary Button - Nurse Red */
   .btn-primary {
-    @apply bg-gradient-to-r from-blue-600 via-purple-600 to-blue-700 text-white px-8 py-4 rounded-2xl font-semibold hover:from-blue-700 hover:via-purple-700 hover:to-blue-800 transition-all duration-300 shadow-xl hover:shadow-2xl transform hover:-translate-y-0.5 hover:scale-105;
+    @apply bg-gradient-to-r from-nurse-red-500 via-red-600 to-nurse-red-700 text-white px-8 py-4 rounded-2xl font-semibold hover:from-nurse-red-600 hover:via-red-700 hover:to-nurse-red-800 transition-all duration-300 shadow-xl hover:shadow-glow-red transform hover:-translate-y-0.5 hover:scale-105;
   }
 
+  /* Secondary Button - Silver/Grey outline */
   .btn-secondary {
-    @apply border-2 border-gray-200 text-gray-700 px-8 py-4 rounded-2xl font-semibold hover:border-purple-300 hover:bg-purple-50 hover:text-purple-700 transition-all duration-300 shadow-lg hover:shadow-xl;
+    @apply border-2 border-nurse-silver-400/30 text-nurse-silver-300 px-8 py-4 rounded-2xl font-semibold hover:border-nurse-red-500/50 hover:bg-nurse-red-500/10 hover:text-white transition-all duration-300 shadow-lg hover:shadow-glow-red;
   }
 
+  /* Ghost Button */
   .btn-ghost {
-    @apply text-gray-600 hover:text-purple-600 hover:bg-purple-50 px-4 py-2 rounded-xl transition-all duration-200;
+    @apply text-nurse-silver-400 hover:text-nurse-red-500 hover:bg-nurse-red-500/10 px-4 py-2 rounded-xl transition-all duration-200;
   }
 
-  /* Enhanced Card Components */
+  /* ========================================
+     DARK GLASSMORPHISM CARDS
+     ======================================== */
+  
   .card {
-    @apply bg-white/80 backdrop-blur-sm rounded-3xl shadow-lg border border-white/20 p-8 hover:shadow-2xl hover:bg-white/90 transition-all duration-300;
+    @apply bg-white/5 backdrop-blur-xl rounded-3xl shadow-dark-lg border border-white/10 p-8 hover:shadow-dark-xl hover:bg-white/[0.07] hover:border-white/20 transition-all duration-300;
+  }
+
+  .card-dark {
+    @apply bg-slate-900/80 backdrop-blur-xl rounded-3xl shadow-dark-lg border border-white/10 p-8 hover:shadow-dark-xl hover:border-nurse-red-500/30 transition-all duration-300;
   }
 
   .card-hover {
-    @apply hover:shadow-2xl hover:-translate-y-1 transition-all duration-300;
+    @apply hover:shadow-glow-red hover:-translate-y-1 transition-all duration-300;
   }
 
-  /* Enhanced Input Components */
+  .card-glass {
+    @apply bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl;
+  }
+
+  /* ========================================
+     DARK THEME INPUT COMPONENTS
+     ======================================== */
+  
   .input-field {
-    @apply w-full px-4 py-4 border border-gray-200 rounded-2xl shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 bg-white/50 backdrop-blur-sm;
+    @apply w-full px-4 py-4 border border-white/10 rounded-2xl shadow-sm placeholder-nurse-silver-500 focus:outline-none focus:ring-2 focus:ring-nurse-red-500 focus:border-transparent transition-all duration-200 bg-white/5 backdrop-blur-sm text-white;
   }
 
   .input-field:focus {
-    @apply ring-4 ring-purple-100;
+    @apply ring-4 ring-nurse-red-500/20;
   }
 
-  /* Glass Effect Components */
+  /* ========================================
+     GLASS EFFECT COMPONENTS
+     ======================================== */
+  
   .glass {
-    @apply bg-white/10 backdrop-blur-lg border border-white/20;
+    @apply bg-white/5 backdrop-blur-xl border border-white/10;
   }
 
   .glass-card {
-    @apply bg-white/80 backdrop-blur-xl border border-white/30 shadow-2xl;
+    @apply bg-white/5 backdrop-blur-xl border border-white/10 shadow-dark-xl;
   }
 
-  /* Animation Classes */
+  .glass-nav {
+    @apply bg-slate-900/80 backdrop-blur-xl border-b border-white/10;
+  }
+
+  /* ========================================
+     ANIMATION CLASSES
+     ======================================== */
+  
   .animate-fade-in {
     animation: fadeIn 0.6s ease-out;
   }
@@ -83,65 +109,124 @@
     animation: float 6s ease-in-out infinite;
   }
 
-  /* Gradient Text */
+  /* ========================================
+     GRADIENT TEXT - NURSE RED
+     ======================================== */
+  
   .text-gradient {
-    @apply bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent;
+    @apply bg-gradient-to-r from-nurse-red-500 via-red-400 to-nurse-red-600 bg-clip-text text-transparent;
   }
 
   .text-gradient-primary {
-    @apply bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent;
+    @apply bg-gradient-to-r from-nurse-red-500 to-red-600 bg-clip-text text-transparent;
   }
 
-  /* Enhanced Background Gradients */
+  .text-gradient-silver {
+    @apply bg-gradient-to-r from-nurse-silver-300 to-nurse-silver-400 bg-clip-text text-transparent;
+  }
+
+  /* ========================================
+     BACKGROUND GRADIENTS - DARK THEME
+     ======================================== */
+  
   .bg-gradient-primary {
-    @apply bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600;
+    @apply bg-gradient-to-br from-nurse-red-600 via-red-600 to-nurse-red-700;
   }
 
   .bg-gradient-secondary {
-    @apply bg-gradient-to-br from-gray-50 via-blue-50 to-purple-50;
+    @apply bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800;
   }
 
   .bg-gradient-hero {
-    @apply bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600;
+    background: linear-gradient(135deg, #020617 0%, #0f172a 50%, #1e293b 100%);
   }
 
   .bg-gradient-card {
-    @apply bg-gradient-to-br from-white via-blue-50/30 to-purple-50/30;
+    @apply bg-gradient-to-br from-white/5 via-white/[0.02] to-transparent;
   }
 
-  /* Status Badges */
+  .bg-red-spotlight {
+    background: radial-gradient(ellipse at top right, rgba(227, 28, 37, 0.15), transparent 70%);
+  }
+
+  .bg-red-glow {
+    background: radial-gradient(ellipse at center, rgba(227, 28, 37, 0.1), transparent 60%);
+  }
+
+  /* ========================================
+     STATUS BADGES - DARK THEME
+     ======================================== */
+  
   .badge-success {
-    @apply bg-gradient-to-r from-green-400 to-emerald-500 text-white px-3 py-1 rounded-full text-xs font-bold shadow-lg;
+    @apply bg-gradient-to-r from-green-500/20 to-emerald-500/20 text-green-400 border border-green-500/30 px-3 py-1 rounded-full text-xs font-bold;
   }
 
   .badge-warning {
-    @apply bg-gradient-to-r from-yellow-400 to-orange-500 text-white px-3 py-1 rounded-full text-xs font-bold shadow-lg;
+    @apply bg-gradient-to-r from-yellow-500/20 to-orange-500/20 text-yellow-400 border border-yellow-500/30 px-3 py-1 rounded-full text-xs font-bold;
   }
 
   .badge-info {
-    @apply bg-gradient-to-r from-blue-400 to-cyan-500 text-white px-3 py-1 rounded-full text-xs font-bold shadow-lg;
+    @apply bg-gradient-to-r from-nurse-red-500/20 to-red-500/20 text-nurse-red-400 border border-nurse-red-500/30 px-3 py-1 rounded-full text-xs font-bold;
   }
 
-  /* Loading States */
+  .badge-neutral {
+    @apply bg-white/10 text-nurse-silver-300 border border-white/20 px-3 py-1 rounded-full text-xs font-bold;
+  }
+
+  /* ========================================
+     LOADING STATES - DARK THEME
+     ======================================== */
+  
   .skeleton {
-    @apply bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 bg-[length:200%_100%] animate-pulse;
+    @apply bg-gradient-to-r from-white/5 via-white/10 to-white/5 bg-[length:200%_100%] animate-pulse rounded-lg;
   }
 
-  /* Hover Effects */
+  /* ========================================
+     HOVER EFFECTS
+     ======================================== */
+  
   .hover-lift {
-    @apply transition-all duration-300 hover:shadow-2xl hover:-translate-y-2;
+    @apply transition-all duration-300 hover:shadow-dark-xl hover:-translate-y-2;
   }
 
   .hover-glow {
-    @apply transition-all duration-300 hover:shadow-2xl hover:shadow-purple-500/25;
+    @apply transition-all duration-300 hover:shadow-glow-red;
+  }
+
+  .hover-glow-red {
+    @apply transition-all duration-300 hover:shadow-[0_0_30px_rgba(227,28,37,0.4)];
+  }
+
+  /* ========================================
+     STAT CARD - DARK GLASS STYLE
+     ======================================== */
+  
+  .stat-card {
+    @apply bg-white/5 backdrop-blur-xl rounded-2xl border border-white/10 p-6 hover:bg-white/[0.08] hover:border-nurse-red-500/30 hover:shadow-glow-red transition-all duration-300;
+  }
+
+  .stat-card-icon {
+    @apply w-14 h-14 rounded-xl flex items-center justify-center bg-nurse-red-500/20 text-nurse-red-400 border border-nurse-red-500/30;
+  }
+
+  /* ========================================
+     NAVIGATION - DARK THEME
+     ======================================== */
+  
+  .nav-link {
+    @apply px-4 py-2 rounded-xl font-medium text-sm transition-all duration-200 flex items-center space-x-2 text-nurse-silver-400 hover:text-white hover:bg-white/10;
+  }
+
+  .nav-link-active {
+    @apply bg-gradient-to-r from-nurse-red-600 to-red-600 text-white shadow-glow-red;
   }
 }
 
 @layer utilities {
-  /* Custom scrollbar */
+  /* Custom scrollbar - Dark Theme */
   .scrollbar-thin {
     scrollbar-width: thin;
-    scrollbar-color: rgb(203 213 225) transparent;
+    scrollbar-color: rgba(148, 163, 184, 0.3) transparent;
   }
 
   .scrollbar-thin::-webkit-scrollbar {
@@ -153,12 +238,12 @@
   }
 
   .scrollbar-thin::-webkit-scrollbar-thumb {
-    background-color: rgb(203 213 225);
+    background-color: rgba(148, 163, 184, 0.3);
     border-radius: 3px;
   }
 
   .scrollbar-thin::-webkit-scrollbar-thumb:hover {
-    background-color: rgb(148 163 184);
+    background-color: rgba(227, 28, 37, 0.5);
   }
 
   /* Text truncation */
@@ -174,6 +259,19 @@
     -webkit-line-clamp: 3;
     -webkit-box-orient: vertical;
     overflow: hidden;
+  }
+
+  /* Glow utilities */
+  .glow-red {
+    box-shadow: 0 0 20px rgba(227, 28, 37, 0.3);
+  }
+
+  .glow-red-lg {
+    box-shadow: 0 0 40px rgba(227, 28, 37, 0.4);
+  }
+
+  .glow-red-xl {
+    box-shadow: 0 0 60px rgba(227, 28, 37, 0.5);
   }
 }
 
@@ -227,6 +325,48 @@
   }
 }
 
+/* Heartbeat Animation for Loading */
+@keyframes heartbeat {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  14% {
+    transform: scale(1.15);
+    opacity: 1;
+  }
+  28% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  42% {
+    transform: scale(1.15);
+    opacity: 1;
+  }
+  70% {
+    transform: scale(1);
+    opacity: 0.8;
+  }
+}
+
+.animate-heartbeat {
+  animation: heartbeat 1.5s ease-in-out infinite;
+}
+
+/* Pulse Glow for Logo */
+@keyframes pulseGlow {
+  0%, 100% {
+    filter: drop-shadow(0 0 10px rgba(227, 28, 37, 0.3));
+  }
+  50% {
+    filter: drop-shadow(0 0 30px rgba(227, 28, 37, 0.6));
+  }
+}
+
+.animate-pulse-glow {
+  animation: pulseGlow 2s ease-in-out infinite;
+}
+
 /* Responsive Design Enhancements */
 @media (max-width: 768px) {
   .card {
@@ -238,13 +378,13 @@
   }
 }
 
-/* Dark mode support (optional) */
-@media (prefers-color-scheme: dark) {
-  .dark\:bg-gray-900 {
-    background-color: rgb(17 24 39);
-  }
+/* Selection Color */
+::selection {
+  background-color: rgba(227, 28, 37, 0.3);
+  color: white;
+}
 
-  .dark\:text-white {
-    color: rgb(255 255 255);
-  }
+::-moz-selection {
+  background-color: rgba(227, 28, 37, 0.3);
+  color: white;
 }

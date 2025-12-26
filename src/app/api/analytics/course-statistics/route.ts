@@ -1,6 +1,7 @@
+import { logger } from '@/lib/logger';
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/auth';
-import { getDatabase } from '@/lib/db';
+import { getDatabaseWithRetry } from '@/lib/db';
 import { courses, enrollments, accessRequests } from '@/lib/db/schema';
 import { eq, and, or, sql } from 'drizzle-orm';
 import cache, { CacheKeys, CacheTTL, setInCache, getFromCache } from '@/lib/cache';
@@ -18,7 +19,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });
     }
 
-    const decoded = verifyToken(token);
+    const decoded = await verifyToken(token);
     if (!decoded || decoded.role !== 'admin') {
       return NextResponse.json({ message: 'Admin access required' }, { status: 403 });
     }
@@ -30,7 +31,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(cached);
     }
 
-    const db = getDatabase();
+    const db = await getDatabaseWithRetry();
 
     // Get all published/active courses
     const allCourses = await db
@@ -43,9 +44,7 @@ export async function GET(request: NextRequest) {
       .where(
         or(
           eq(courses.status, 'published'),
-          eq(courses.status, 'active'),
-          eq(courses.status, 'Published'),
-          eq(courses.status, 'Active')
+          eq(courses.status, 'active')
         )
       );
 
@@ -158,7 +157,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(result);
   } catch (error: any) {
-    console.error('❌ Analytics course statistics error:', error);
+    logger.error('❌ Analytics course statistics error:', error);
     return NextResponse.json(
       { 
         message: 'Failed to get course statistics',

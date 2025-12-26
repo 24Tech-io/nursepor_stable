@@ -1,5 +1,6 @@
+import { logger } from '@/lib/logger';
 import { NextRequest, NextResponse } from 'next/server';
-import { getDatabase } from '@/lib/db';
+import { getDatabaseWithRetry } from '@/lib/db';
 import { courses, questionBanks } from '@/lib/db/schema';
 import { eq, or } from 'drizzle-orm';
 
@@ -11,9 +12,9 @@ export async function POST(request: NextRequest) {
   try {
     let db;
     try {
-      db = getDatabase();
+      db = await getDatabaseWithRetry();
     } catch (dbError: any) {
-      console.error('Database connection error in fix-course:', dbError);
+      logger.error('Database connection error in fix-course:', dbError);
       return NextResponse.json(
         {
           message: 'Database connection error',
@@ -146,9 +147,9 @@ export async function POST(request: NextRequest) {
       }))),
     });
   } catch (error: any) {
-    console.error('Fix Nurse Pro course error:', error);
-    console.error('Error stack:', error.stack);
-    console.error('Error details:', {
+    logger.error('Fix Nurse Pro course error:', error);
+    logger.error('Error stack:', error.stack);
+    logger.error('Error details:', {
       message: error.message,
       name: error.name,
       code: error.code,

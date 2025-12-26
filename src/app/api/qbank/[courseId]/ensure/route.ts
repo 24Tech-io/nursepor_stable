@@ -1,6 +1,7 @@
+import { logger } from '@/lib/logger';
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/auth';
-import { getDatabase } from '@/lib/db';
+import { getDatabaseWithRetry } from '@/lib/db';
 import { courses, questionBanks, studentProgress } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
 
@@ -16,7 +17,7 @@ export async function POST(request: NextRequest, { params }: { params: { courseI
       );
     }
 
-    const decoded = verifyToken(token);
+    const decoded = await verifyToken(token);
 
     if (!decoded || !decoded.id) {
       return NextResponse.json(
@@ -33,7 +34,7 @@ export async function POST(request: NextRequest, { params }: { params: { courseI
       );
     }
 
-    const db = getDatabase();
+    const db = await getDatabaseWithRetry();
 
     // Check if course exists
     const course = await db
@@ -101,7 +102,7 @@ export async function POST(request: NextRequest, { params }: { params: { courseI
       },
     });
   } catch (error: any) {
-    console.error('Ensure Q-Bank error:', error);
+    logger.error('Ensure Q-Bank error:', error);
     return NextResponse.json(
       { 
         message: 'Failed to ensure question bank',

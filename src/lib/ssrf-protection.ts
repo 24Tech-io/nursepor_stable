@@ -44,12 +44,12 @@ const BLOCKED_PROTOCOLS = [
 function isIPInBlockedRange(ip: string): boolean {
   // Simple check for obvious private IPs
   // In production, use a proper IP range checker library
-  if (ip.startsWith('127.') || 
-      ip.startsWith('10.') || 
-      ip.startsWith('192.168.') ||
-      ip.startsWith('169.254.') ||
-      ip === 'localhost' ||
-      ip === '::1') {
+  if (ip.startsWith('127.') ||
+    ip.startsWith('10.') ||
+    ip.startsWith('192.168.') ||
+    ip.startsWith('169.254.') ||
+    ip === 'localhost' ||
+    ip === '::1') {
     return true;
   }
 
@@ -67,10 +67,10 @@ function isIPInBlockedRange(ip: string): boolean {
 /**
  * Validate if a URL is safe to request
  */
-export function validateURL(urlString: string, clientIP?: string): { 
-  valid: boolean; 
-  error?: string; 
-  url?: URL 
+export function validateURL(urlString: string, clientIP?: string): {
+  valid: boolean;
+  error?: string;
+  url?: URL
 } {
   try {
     const url = new URL(urlString);
@@ -78,22 +78,22 @@ export function validateURL(urlString: string, clientIP?: string): {
     // Check protocol
     if (BLOCKED_PROTOCOLS.includes(url.protocol)) {
       if (clientIP) {
-        securityLogger.logSSRFAttempt(clientIP, urlString);
+        securityLogger.warn('SSRF Attempt blocked - Blocked Protocol', { clientIP, url: urlString, protocol: url.protocol });
       }
-      return { 
-        valid: false, 
-        error: `Protocol ${url.protocol} is not allowed` 
+      return {
+        valid: false,
+        error: `Protocol ${url.protocol} is not allowed`
       };
     }
 
     // Only allow HTTP/HTTPS
     if (!['http:', 'https:'].includes(url.protocol)) {
       if (clientIP) {
-        securityLogger.logSSRFAttempt(clientIP, urlString);
+        securityLogger.warn('SSRF Attempt blocked - Invalid Protocol', { clientIP, url: urlString });
       }
-      return { 
-        valid: false, 
-        error: 'Only HTTP and HTTPS protocols are allowed' 
+      return {
+        valid: false,
+        error: 'Only HTTP and HTTPS protocols are allowed'
       };
     }
 
@@ -109,30 +109,30 @@ export function validateURL(urlString: string, clientIP?: string): {
 
     if (!isWhitelisted) {
       if (clientIP) {
-        securityLogger.logSSRFAttempt(clientIP, urlString);
+        securityLogger.warn('SSRF Attempt blocked - Domain not allowed', { clientIP, url: urlString, hostname: url.hostname });
       }
-      return { 
-        valid: false, 
-        error: `Domain ${url.hostname} is not in the allowed list` 
+      return {
+        valid: false,
+        error: `Domain ${url.hostname} is not in the allowed list`
       };
     }
 
     // Check for IP-based URLs trying to access internal resources
     if (isIPInBlockedRange(url.hostname)) {
       if (clientIP) {
-        securityLogger.logSSRFAttempt(clientIP, urlString);
+        securityLogger.warn('SSRF Attempt blocked - Blocked IP Range', { clientIP, url: urlString, hostname: url.hostname });
       }
-      return { 
-        valid: false, 
-        error: 'Cannot access internal/private IP addresses' 
+      return {
+        valid: false,
+        error: 'Cannot access internal/private IP addresses'
       };
     }
 
     return { valid: true, url };
   } catch (error) {
-    return { 
-      valid: false, 
-      error: 'Invalid URL format' 
+    return {
+      valid: false,
+      error: 'Invalid URL format'
     };
   }
 }
@@ -141,7 +141,7 @@ export function validateURL(urlString: string, clientIP?: string): {
  * Safe fetch wrapper with SSRF protection
  */
 export async function safeFetch(
-  urlString: string, 
+  urlString: string,
   options: RequestInit = {},
   clientIP?: string
 ): Promise<Response> {

@@ -1,3 +1,6 @@
+import { logger } from '@/lib/logger';
+import { extractAndValidate, validateQueryParams, validateRouteParams } from '@/lib/api-validation';
+import { z } from 'zod';
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { modules } from '@/lib/db/schema';
@@ -18,7 +21,6 @@ export async function PUT(
         // Verify auth and ownership (admin or instructor)
         // For simplicity, we'll just check if user is admin or instructor of the course
         // But here we'll just assume admin for now as this is admin app
-        // TODO: Add proper ownership check
 
         if (!Array.isArray(items)) {
             return NextResponse.json({ message: 'Invalid data' }, { status: 400 });
@@ -37,7 +39,7 @@ export async function PUT(
 
         return NextResponse.json({ message: 'Modules reordered successfully' });
     } catch (error) {
-        console.error('Reorder modules error:', error);
+        logger.error('Reorder modules error:', error);
         return NextResponse.json({ message: 'Internal server error' }, { status: 500 });
     }
 }

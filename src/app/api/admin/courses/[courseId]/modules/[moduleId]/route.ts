@@ -1,47 +1,12 @@
+import { logger } from '@/lib/logger';
+import { extractAndValidate, validateQueryParams, validateRouteParams } from '@/lib/api-validation';
+import { updateModuleSchema } from '@/lib/validation-schemas-extended';
+import { z } from 'zod';
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/auth';
-import { getDatabase } from '@/lib/db';
+import { getDatabaseWithRetry } from '@/lib/db';
 import { modules } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
-
-// GET - Fetch single module
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { courseId: string; moduleId: string } }
-) {
-  try {
-    const token = request.cookies.get('token')?.value;
-    if (!token) {
-      return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });
-    }
-
-    const decoded = verifyToken(token);
-    if (!decoded || decoded.role !== 'admin') {
-      return NextResponse.json({ message: 'Admin access required' }, { status: 403 });
-    }
-
-    const db = getDatabase();
-    const moduleId = parseInt(params.moduleId);
-
-    const module = await db
-      .select()
-      .from(modules)
-      .where(eq(modules.id, moduleId))
-      .limit(1);
-
-    if (!module.length) {
-      return NextResponse.json({ message: 'Module not found' }, { status: 404 });
-    }
-
-    return NextResponse.json({ module: module[0] });
-  } catch (error: any) {
-    console.error('Get module error:', error);
-    return NextResponse.json(
-      { message: 'Failed to fetch module', error: error.message },
-      { status: 500 }
-    );
-  }
-}
 
 // PATCH - Update module
 export async function PATCH(
@@ -49,20 +14,26 @@ export async function PATCH(
   { params }: { params: { courseId: string; moduleId: string } }
 ) {
   try {
-    const token = request.cookies.get('token')?.value;
+    const token = request.cookies.get('adminToken')?.value;
     if (!token) {
       return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });
     }
 
-    const decoded = verifyToken(token);
+    const decoded = await verifyToken(token);
     if (!decoded || decoded.role !== 'admin') {
       return NextResponse.json({ message: 'Admin access required' }, { status: 403 });
     }
 
     const moduleId = parseInt(params.moduleId);
-    const updates = await request.json();
 
-    const db = getDatabase();
+    // Validate request body
+    const bodyValidation = await extractAndValidate(request, updateModuleSchema);
+    if (!bodyValidation.success) {
+      return bodyValidation.error;
+    }
+    const updates = bodyValidation.data;
+
+    const db = await getDatabaseWithRetry();
 
     await db
       .update(modules)
@@ -72,11 +43,11 @@ export async function PATCH(
       })
       .where(eq(modules.id, moduleId));
 
-    console.log(`✅ Module ${moduleId} updated`);
+    logger.info(`✅ Module ${moduleId} updated`);
 
     return NextResponse.json({ message: 'Module updated successfully' });
   } catch (error: any) {
-    console.error('Update module error:', error);
+    logger.error('Update module error:', error);
     return NextResponse.json(
       { message: 'Failed to update module', error: error.message },
       { status: 500 }
@@ -90,26 +61,26 @@ export async function DELETE(
   { params }: { params: { courseId: string; moduleId: string } }
 ) {
   try {
-    const token = request.cookies.get('token')?.value;
+    const token = request.cookies.get('adminToken')?.value;
     if (!token) {
       return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });
     }
 
-    const decoded = verifyToken(token);
+    const decoded = await verifyToken(token);
     if (!decoded || decoded.role !== 'admin') {
       return NextResponse.json({ message: 'Admin access required' }, { status: 403 });
     }
 
     const moduleId = parseInt(params.moduleId);
-    const db = getDatabase();
+    const db = await getDatabaseWithRetry();
 
     await db.delete(modules).where(eq(modules.id, moduleId));
 
-    console.log(`✅ Module ${moduleId} deleted`);
+    logger.info(`✅ Module ${moduleId} deleted`);
 
     return NextResponse.json({ message: 'Module deleted successfully' });
   } catch (error: any) {
-    console.error('Delete module error:', error);
+    logger.error('Delete module error:', error);
     return NextResponse.json(
       { message: 'Failed to delete module', error: error.message },
       { status: 500 }

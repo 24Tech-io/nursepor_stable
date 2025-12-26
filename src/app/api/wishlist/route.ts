@@ -8,6 +8,9 @@ import { db } from '@/lib/db';
 import { wishlist } from '@/lib/db/schema';
 import { verifyToken } from '@/lib/auth';
 import { eq, and } from 'drizzle-orm';
+import { extractAndValidate } from '@/lib/api-validation';
+import { wishlistSchema } from '@/lib/validation-schemas-extended';
+import { logger } from '@/lib/logger';
 
 // GET - Get user's wishlist
 export async function GET(request: NextRequest) {
@@ -30,7 +33,8 @@ export async function GET(request: NextRequest) {
     });
 
     return NextResponse.json({ wishlist: items });
-  } catch (error) {
+  } catch (error: any) {
+    logger.error('Get wishlist error:', error);
     return NextResponse.json({ error: 'Failed to fetch wishlist' }, { status: 500 });
   }
 }
@@ -68,7 +72,8 @@ export async function POST(request: NextRequest) {
     });
 
     return NextResponse.json({ success: true, message: 'Added to wishlist' });
-  } catch (error) {
+  } catch (error: any) {
+    logger.error('Add to wishlist error:', error);
     return NextResponse.json({ error: 'Failed to add to wishlist' }, { status: 500 });
   }
 }
@@ -86,7 +91,12 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
     }
 
-    const { courseId } = await request.json();
+    // Validate request body
+    const bodyValidation = await extractAndValidate(request, wishlistSchema);
+    if (!bodyValidation.success) {
+      return bodyValidation.error;
+    }
+    const { courseId } = bodyValidation.data;
 
     await db.delete(wishlist).where(
       and(
@@ -96,7 +106,8 @@ export async function DELETE(request: NextRequest) {
     );
 
     return NextResponse.json({ success: true, message: 'Removed from wishlist' });
-  } catch (error) {
+  } catch (error: any) {
+    logger.error('Remove from wishlist error:', error);
     return NextResponse.json({ error: 'Failed to remove from wishlist' }, { status: 500 });
   }
 }

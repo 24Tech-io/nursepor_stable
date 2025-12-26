@@ -1,3 +1,6 @@
+import { logger } from '@/lib/logger';
+import { extractAndValidate, validateQueryParams, validateRouteParams } from '@/lib/api-validation';
+import { z } from 'zod';
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { chapters } from '@/lib/db/schema';
@@ -31,7 +34,7 @@ export async function PUT(
 
         return NextResponse.json({ message: 'Chapters reordered successfully' });
     } catch (error) {
-        console.error('Reorder chapters error:', error);
+        logger.error('Reorder chapters error:', error);
         return NextResponse.json({ message: 'Internal server error' }, { status: 500 });
     }
 }

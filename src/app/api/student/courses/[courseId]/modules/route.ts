@@ -1,7 +1,8 @@
+import { logger } from '@/lib/logger';
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/auth';
-import { getDatabase } from '@/lib/db';
-import { modules, chapters, studentProgress } from '@/lib/db/schema';
+import { getDatabaseWithRetry } from '@/lib/db';
+import { modules, chapters, enrollments } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
 
 // GET - Fetch course modules with chapters for student
@@ -10,31 +11,42 @@ export async function GET(
   { params }: { params: { courseId: string } }
 ) {
   try {
-    const token = request.cookies.get('token')?.value;
+    const token = request.cookies.get('student_token')?.value || request.cookies.get('token')?.value;
     if (!token) {
       return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });
     }
 
-    const decoded = verifyToken(token);
+    let decoded: any = null;
+    try {
+      decoded = await verifyToken(token);
+    } catch {
+      return NextResponse.json({ message: 'Invalid token' }, { status: 401 });
+    }
     if (!decoded || decoded.role !== 'student') {
       return NextResponse.json({ message: 'Student access required' }, { status: 403 });
     }
 
-    const db = getDatabase();
+    const db = await getDatabaseWithRetry();
     const courseId = parseInt(params.courseId);
 
-    // Check if student has access to this course
+    if (isNaN(courseId)) {
+      return NextResponse.json({ message: 'Invalid course ID' }, { status: 400 });
+    }
+
+    // Check if student has access to this course via enrollments
     const access = await db
       .select()
-      .from(studentProgress)
+      .from(enrollments)
       .where(
         and(
-          eq(studentProgress.studentId, decoded.id),
-          eq(studentProgress.courseId, courseId)
+          eq(enrollments.userId, decoded.id),
+          eq(enrollments.courseId, courseId),
+          eq(enrollments.status, 'active')
         )
       );
 
     if (access.length === 0) {
+      logger.warn(`Student ${decoded.id} tried to access course ${courseId} without enrollment`);
       return NextResponse.json(
         { message: 'You do not have access to this course' },
         { status: 403 }
@@ -76,7 +88,7 @@ export async function GET(
 
     return NextResponse.json({ modules: modulesWithChapters });
   } catch (error: any) {
-    console.error('Get student modules error:', error);
+    logger.error('Get student modules error:', error);
     return NextResponse.json(
       { message: 'Failed to fetch modules', error: error.message },
       { status: 500 }

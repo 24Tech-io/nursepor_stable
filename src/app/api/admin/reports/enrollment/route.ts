@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/auth';
-import { db } from '@/lib/db';
+import { getDatabaseWithRetry } from '@/lib/db';
 import { studentProgress, courses, enrollments } from '@/lib/db/schema';
 import { eq, sql, desc, and } from 'drizzle-orm';
+import { log } from '@/lib/logger-helper';
+import { handleApiError } from '@/lib/api-error';
+
+export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
   try {
@@ -12,10 +16,12 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });
     }
 
-    const decoded = verifyToken(token);
+    const decoded = await verifyToken(token);
     if (!decoded || decoded.role !== 'admin') {
       return NextResponse.json({ message: 'Admin access required' }, { status: 403 });
     }
+
+    const db = await getDatabaseWithRetry();
 
     // Get enrollment stats per course with proper SQL - query BOTH tables
     const enrollmentStats = await db
@@ -39,11 +45,8 @@ export async function GET(request: NextRequest) {
       enrollmentStats,
       totalCourses: enrollmentStats.length
     });
-  } catch (error) {
-    console.error('Get enrollment report error:', error);
-    return NextResponse.json({
-      message: 'Internal server error',
-      error: process.env.NODE_ENV === 'development' ? String(error) : undefined
-    }, { status: 500 });
+  } catch (error: any) {
+    log.error('Get enrollment report error', error);
+    return handleApiError(error, request.nextUrl.pathname);
   }
 }

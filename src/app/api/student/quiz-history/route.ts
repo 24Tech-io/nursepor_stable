@@ -1,22 +1,27 @@
+import { logger } from '@/lib/logger';
+import { extractAndValidate, validateQueryParams, validateRouteParams } from '@/lib/api-validation';
+import { z } from 'zod';
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/auth';
-import { db } from '@/lib/db';
+import { getDatabaseWithRetry } from '@/lib/db';
 import { qbankQuestionAttempts, qbankTests, qbankQuestions } from '@/lib/db/schema';
 import { eq, desc } from 'drizzle-orm';
 
 // GET - Fetch quiz history for a student
 export async function GET(request: NextRequest) {
     try {
-        const token = request.cookies.get('token')?.value;
+        const token = request.cookies.get('student_token')?.value || request.cookies.get('token')?.value;
 
         if (!token) {
             return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });
         }
 
-        const decoded = verifyToken(token);
+        const decoded = await verifyToken(token);
         if (!decoded) {
             return NextResponse.json({ message: 'Invalid token' }, { status: 403 });
         }
+
+        const db = await getDatabaseWithRetry();
 
         // Get all quiz tests for this user
         const quizTests = await db
@@ -42,7 +47,7 @@ export async function GET(request: NextRequest) {
             total: quizTests.length
         });
     } catch (error) {
-        console.error('Get quiz history error:', error);
+        logger.error('Get quiz history error:', error);
         return NextResponse.json({
             message: 'Internal server error',
             error: process.env.NODE_ENV === 'development' ? String(error) : undefined
@@ -53,13 +58,13 @@ export async function GET(request: NextRequest) {
 // POST - Submit quiz attempt
 export async function POST(request: NextRequest) {
     try {
-        const token = request.cookies.get('token')?.value;
+        const token = request.cookies.get('student_token')?.value || request.cookies.get('token')?.value;
 
         if (!token) {
             return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });
         }
 
-        const decoded = verifyToken(token);
+        const decoded = await verifyToken(token);
         if (!decoded) {
             return NextResponse.json({ message: 'Invalid token' }, { status: 403 });
         }
@@ -69,6 +74,8 @@ export async function POST(request: NextRequest) {
         if (!testId || !answers) {
             return NextResponse.json({ message: 'Missing required fields' }, { status: 400 });
         }
+
+        const db = await getDatabaseWithRetry();
 
         // Get the test
         const test = await db
@@ -139,7 +146,7 @@ export async function POST(request: NextRequest) {
             }
         });
     } catch (error) {
-        console.error('Submit quiz error:', error);
+        logger.error('Submit quiz error:', error);
         return NextResponse.json({
             message: 'Internal server error',
             error: process.env.NODE_ENV === 'development' ? String(error) : undefined

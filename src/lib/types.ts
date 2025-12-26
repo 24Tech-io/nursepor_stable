@@ -6,7 +6,6 @@ export interface User {
   phone?: string
   isActive?: boolean
   joinedDate?: Date
-  faceIdEnrolled?: boolean
   bio?: string
 }
 
@@ -58,7 +57,7 @@ export interface Quiz {
 export interface MCQQuestion {
   id: string
   question: string
-  options: Record<string, string>
+  options: Record<string, string> | any[]
   correctAnswer: string
   explanation: string
 }
@@ -109,17 +108,6 @@ export interface Achievement {
   unlockedAt?: Date
 }
 
-export interface DailyVideo {
-  id: string
-  title: string
-  description: string
-  url: string
-  provider: 'youtube' | 'vimeo'
-  duration: number
-  day: number
-  isCompleted: boolean
-  completedAt?: Date
-}
 
 export interface Notification {
   id: string

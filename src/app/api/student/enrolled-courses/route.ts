@@ -1,65 +1,60 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/auth';
-import { getDatabase } from '@/lib/db';
+import { getDatabaseWithRetry } from '@/lib/db';
 import { studentProgress, courses, accessRequests, enrollments, users } from '@/lib/db/schema';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, sql } from 'drizzle-orm';
 import { mergeEnrollmentData } from '@/lib/progress-utils';
 import { getPublishedCourseFilter } from '@/lib/enrollment-helpers';
 import { createErrorResponse, createAuthError } from '@/lib/error-handler';
 import { retryDatabase } from '@/lib/retry';
+import { logger } from '@/lib/logger';
+import { withCache, CacheKeys, CacheTTL } from '@/lib/api-cache';
+import { startRouteMonitoring, trackQuery } from '@/lib/performance-monitor';
+import { getUserAccessRequests, getUserEnrollments } from '@/lib/optimized-queries';
 
 export async function GET(request: NextRequest) {
+  const stopMonitoring = startRouteMonitoring('/api/student/enrolled-courses');
   try {
-    const token = request.cookies.get('token')?.value;
+    const token = request.cookies.get('student_token')?.value || request.cookies.get('token')?.value;
 
     if (!token) {
+      stopMonitoring();
       return createAuthError('Not authenticated');
     }
 
-    const decoded = verifyToken(token);
+    const decoded = await verifyToken(token);
 
     if (!decoded || !decoded.id) {
+      stopMonitoring();
       return createAuthError('Invalid token');
     }
 
-    // Get database instance
-    const db = getDatabase();
+    // Get database instance with retry
+    const db = await getDatabaseWithRetry();
 
-    // IMPORTANT: First get all pending request course IDs to exclude them
-    // Also get approved requests - these should be treated as enrolled
-    const [pendingRequests, approvedRequests] = await Promise.all([
-      retryDatabase(async () => {
-        return await db
-          .select({
-            courseId: accessRequests.courseId,
-          })
-          .from(accessRequests)
-          .where(
-            and(
-              eq(accessRequests.studentId, decoded.id),
-              eq(accessRequests.status, 'pending')
-            )
-          );
-      }),
-      retryDatabase(async () => {
-        return await db
-          .select({
-            courseId: accessRequests.courseId,
-          })
-          .from(accessRequests)
-          .where(
-            and(
-              eq(accessRequests.studentId, decoded.id),
-              eq(accessRequests.status, 'approved')
-            )
-          );
-      }),
-    ]);
+    // Cache access requests lookup
+    const requestsCacheKey = `cache:student:access-requests:${decoded.id}`;
+    const accessRequestsData = await withCache(
+      requestsCacheKey,
+      async () => {
+        try {
+          return await getUserAccessRequests(decoded.id);
+        } catch (error: any) {
+          logger.warn('⚠️ Error fetching access requests:', error?.message);
+          return [];
+        }
+      },
+      { ttl: CacheTTL.USER_DATA, dedupe: true }
+    );
 
-    const pendingRequestCourseIds = pendingRequests.map((r: any) => r.courseId);
-    const approvedRequestCourseIds = approvedRequests.map((r: any) => r.courseId);
+    const pendingRequestCourseIds = accessRequestsData
+      .filter((r: any) => r.status === 'pending')
+      .map((r: any) => r.courseId);
+    const approvedRequestCourseIds = accessRequestsData
+      .filter((r: any) => r.status === 'approved')
+      .map((r: any) => r.courseId);
     
-    console.log(`🔍 Student ${decoded.id}: Found ${pendingRequestCourseIds.length} pending requests and ${approvedRequestCourseIds.length} approved requests`);
+    logger.info(`🔍 Student ${decoded.id}: Found ${pendingRequestCourseIds.length} pending requests and ${approvedRequestCourseIds.length} approved requests`);
     
     // For approved requests, ensure enrollment exists (sync)
     // CRITICAL: Only sync approved requests - don't treat them as enrolled until enrollment records exist
@@ -70,16 +65,21 @@ export async function GET(request: NextRequest) {
           // Check if already enrolled in either table
           const [existingProgress, existingEnrollment] = await Promise.all([
             retryDatabase(async () => {
-              return await db
-                .select({ id: studentProgress.id })
-                .from(studentProgress)
-                .where(
-                  and(
-                    eq(studentProgress.studentId, decoded.id),
-                    eq(studentProgress.courseId, courseId)
+              try {
+                return await db
+                  .select({ id: studentProgress.id })
+                  .from(studentProgress)
+                  .where(
+                    and(
+                      eq(studentProgress.studentId, decoded.id),
+                      eq(studentProgress.courseId, courseId)
+                    )
                   )
-                )
-                .limit(1);
+                  .limit(1);
+              } catch (error: any) {
+                logger.warn('⚠️ student_progress table not accessible for enrollment check:', error?.message);
+                return [];
+              }
             }),
             retryDatabase(async () => {
               return await db
@@ -99,11 +99,11 @@ export async function GET(request: NextRequest) {
           // Only sync if no enrollment exists in either table
           if (existingProgress.length === 0 && existingEnrollment.length === 0) {
             // Not enrolled yet - sync it
-            console.log(`🔄 Syncing enrollment for approved request: student ${decoded.id}, course ${courseId}`);
+            logger.info(`🔄 Syncing enrollment for approved request: student ${decoded.id}, course ${courseId}`);
             await syncEnrollmentAfterApproval(decoded.id, courseId);
           }
         } catch (syncError: any) {
-          console.error(`❌ Error syncing enrollment for course ${courseId}:`, syncError);
+          logger.error(`❌ Error syncing enrollment for course ${courseId}:`, syncError);
           // Continue with other courses - don't fail the entire request
         }
       }
@@ -111,59 +111,73 @@ export async function GET(request: NextRequest) {
 
     // Get enrolled courses from BOTH tables
     // IMPORTANT: Exclude courses that have pending requests
-    const [allProgress, allEnrollments] = await Promise.all([
-      retryDatabase(async () => {
-        return await db
-          .select({
-            courseId: studentProgress.courseId,
-            totalProgress: studentProgress.totalProgress,
-            lastAccessed: studentProgress.lastAccessed,
-            course: {
-              id: courses.id,
-              title: courses.title,
-              description: courses.description,
-              instructor: courses.instructor,
-              thumbnail: courses.thumbnail,
-              pricing: courses.pricing,
-              status: courses.status,
-            },
-          })
-          .from(studentProgress)
-          .innerJoin(courses, eq(studentProgress.courseId, courses.id))
-          .where(
-            and(
-              eq(studentProgress.studentId, decoded.id),
-              getPublishedCourseFilter()
-            )
-          );
-      }),
-      retryDatabase(async () => {
-        return await db
-          .select({
-            courseId: enrollments.courseId,
-            progress: enrollments.progress,
-            lastAccessed: enrollments.updatedAt,
-            course: {
-              id: courses.id,
-              title: courses.title,
-              description: courses.description,
-              instructor: courses.instructor,
-              thumbnail: courses.thumbnail,
-              pricing: courses.pricing,
-              status: courses.status,
-            },
-          })
-          .from(enrollments)
-          .innerJoin(courses, eq(enrollments.courseId, courses.id))
-          .where(
-            and(
-              eq(enrollments.userId, decoded.id),
-              eq(enrollments.status, 'active'),
-              getPublishedCourseFilter()
-            )
-          );
-      }),
-    ]);
+    // Handle case where student_progress table might not exist
+    let allProgress = [];
+    let allEnrollments = [];
+    
+    try {
+      [allProgress, allEnrollments] = await Promise.all([
+        retryDatabase(async () => {
+          try {
+            return await db
+              .select({
+                courseId: studentProgress.courseId,
+                totalProgress: studentProgress.totalProgress,
+                lastAccessed: studentProgress.lastAccessed,
+                course: {
+                  id: courses.id,
+                  title: courses.title,
+                  description: courses.description,
+                  instructor: courses.instructor,
+                  thumbnail: courses.thumbnail,
+                  pricing: courses.pricing,
+                  status: courses.status,
+                },
+              })
+              .from(studentProgress)
+              .innerJoin(courses, eq(studentProgress.courseId, courses.id))
+              .where(
+                and(
+                  eq(studentProgress.studentId, decoded.id),
+                  getPublishedCourseFilter()
+                )
+              );
+          } catch (error: any) {
+            logger.warn('⚠️ student_progress table not accessible:', error?.message);
+            return [];
+          }
+        }),
+        retryDatabase(async () => {
+          return await db
+            .select({
+              courseId: enrollments.courseId,
+              progress: enrollments.progress,
+              lastAccessed: enrollments.updatedAt,
+              course: {
+                id: courses.id,
+                title: courses.title,
+                description: courses.description,
+                instructor: courses.instructor,
+                thumbnail: courses.thumbnail,
+                pricing: courses.pricing,
+                status: courses.status,
+              },
+            })
+            .from(enrollments)
+            .innerJoin(courses, eq(enrollments.courseId, courses.id))
+            .where(
+              and(
+                eq(enrollments.userId, decoded.id),
+                eq(enrollments.status, 'active'),
+                getPublishedCourseFilter()
+              )
+            );
+        }),
+      ]);
+    } catch (error: any) {
+      logger.warn('⚠️ Error fetching enrolled courses:', error?.message);
+      // Continue with empty arrays
+    }
 
     // Merge data from both tables (prefer enrollments.progress)
     const mergedData = mergeEnrollmentData(allProgress, allEnrollments);
@@ -174,8 +188,9 @@ export async function GET(request: NextRequest) {
       !pendingRequestCourseIds.includes(p.courseId)
     );
 
-    console.log(`✅ Student ${decoded.id}: Showing ${enrolledProgress.length} enrolled courses (merged from both tables, excluded ${mergedData.length - enrolledProgress.length} with pending requests)`);
+    logger.info(`✅ Student ${decoded.id}: Showing ${enrolledProgress.length} enrolled courses (merged from both tables, excluded ${mergedData.length - enrolledProgress.length} with pending requests)`);
 
+    stopMonitoring();
     return NextResponse.json({
       enrolledCourses: enrolledProgress.map((p: any) => ({
         courseId: p.courseId.toString(),
@@ -185,7 +200,9 @@ export async function GET(request: NextRequest) {
       })),
     });
   } catch (error: any) {
-    console.error('❌ Get enrolled courses error:', error);
+    stopMonitoring();
+    logger.error('❌ Get enrolled courses error:', error);
+    logger.error('Error details:', error?.message, error?.stack);
     return createErrorResponse(error, 'Failed to get enrolled courses');
   }
 }

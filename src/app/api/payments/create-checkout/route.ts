@@ -1,6 +1,7 @@
+import { logger } from '@/lib/logger';
 import { NextRequest, NextResponse } from 'next/server';
 import { stripe, convertToStripeAmount } from '@/lib/stripe';
-import { getDatabase } from '@/lib/db';
+import { getDatabaseWithRetry } from '@/lib/db';
 import { courses, payments } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { requireAuth } from '@/lib/auth-helpers';
@@ -22,7 +23,7 @@ export async function POST(request: NextRequest) {
   const user = authResult.user;
 
   // Get database instance
-  const db = getDatabase();
+  const db = await getDatabaseWithRetry();
 
   try {
     // Validate request body size
@@ -160,7 +161,7 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error: any) {
-    console.error('Payment checkout error:', error);
+    logger.error('Payment checkout error:', error);
     return NextResponse.json(
       {
         error: 'Failed to create checkout session',

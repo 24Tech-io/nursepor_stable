@@ -1,6 +1,10 @@
+import { logger } from '@/lib/logger';
+import { extractAndValidate, validateQueryParams, validateRouteParams } from '@/lib/api-validation';
+import { updateProfileSchema } from '@/lib/validation-schemas-extended';
+import { z } from 'zod';
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/auth';
-import { getDatabase } from '@/lib/db';
+import { getDatabaseWithRetry } from '@/lib/db';
 import { users } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 
@@ -15,7 +19,7 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    const decoded = verifyToken(token);
+    const decoded = await verifyToken(token);
 
     if (!decoded || !decoded.id) {
       return NextResponse.json(
@@ -25,32 +29,15 @@ export async function PUT(request: NextRequest) {
     }
 
     // Get database instance
-    const db = getDatabase();
+    const db = await getDatabaseWithRetry();
 
-    const body = await request.json();
+    // Validate request body
+    const bodyValidation = await extractAndValidate(request, updateProfileSchema);
+    if (!bodyValidation.success) {
+      return bodyValidation.error;
+    }
+    const body = bodyValidation.data;
     const { name, phone, bio } = body;
-
-    // Validate input
-    if (name && (name.trim().length < 2 || name.trim().length > 100)) {
-      return NextResponse.json(
-        { message: 'Name must be between 2 and 100 characters' },
-        { status: 400 }
-      );
-    }
-
-    if (phone && phone.trim() && phone.trim().length > 20) {
-      return NextResponse.json(
-        { message: 'Phone number is too long' },
-        { status: 400 }
-      );
-    }
-
-    if (bio && bio.trim().length > 500) {
-      return NextResponse.json(
-        { message: 'Bio must be less than 500 characters' },
-        { status: 400 }
-      );
-    }
 
     // Update user in database
     const updateData: any = {
@@ -80,7 +67,7 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    console.log('✅ Profile updated for user:', decoded.id);
+    logger.info('✅ Profile updated for user:', decoded.id);
 
     return NextResponse.json({
       success: true,
@@ -96,7 +83,7 @@ export async function PUT(request: NextRequest) {
       },
     });
   } catch (error: any) {
-    console.error('Update profile error:', error);
+    logger.error('Update profile error:', error);
     return NextResponse.json(
       { 
         message: 'Failed to update profile',

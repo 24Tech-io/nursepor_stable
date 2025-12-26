@@ -1,6 +1,9 @@
+import { logger } from '@/lib/logger';
+import { extractAndValidate, validateQueryParams, validateRouteParams } from '@/lib/api-validation';
+import { z } from 'zod';
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/auth';
-import { getDatabase } from '@/lib/db';
+import { getDatabaseWithRetry } from '@/lib/db';
 import { 
   questionBanks, 
   qbankQuestions,
@@ -22,7 +25,7 @@ export async function GET(
       );
     }
 
-    const decoded = verifyToken(token);
+    const decoded = await verifyToken(token);
 
     if (!decoded || !decoded.id) {
       return NextResponse.json(
@@ -31,7 +34,7 @@ export async function GET(
       );
     }
 
-    const db = getDatabase();
+    const db = await getDatabaseWithRetry();
     const courseIdNum = parseInt(params.courseId);
     const { searchParams } = new URL(request.url);
 
@@ -163,7 +166,7 @@ export async function GET(
       totalCount: questions.length,
     });
   } catch (error: any) {
-    console.error('Get questions error:', error);
+    logger.error('Get questions error:', error);
     return NextResponse.json(
       { message: 'Internal server error', error: error.message },
       { status: 500 }

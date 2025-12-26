@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/auth';
 import { db } from '@/lib/db';
@@ -17,7 +18,7 @@ export async function DELETE(
             return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });
         }
 
-        const decoded = verifyToken(token);
+        const decoded = await verifyToken(token);
         if (!decoded) {
             return NextResponse.json({ message: 'Invalid token' }, { status: 403 });
         }
@@ -60,7 +61,7 @@ export async function DELETE(
             message: 'Session terminated successfully'
         });
     } catch (error) {
-        console.error('Force logout error:', error);
+        logger.error('Force logout error:', error);
         securityLogger.error('Force logout failed', { error: String(error) });
         return NextResponse.json({
             message: 'Internal server error',
@@ -78,7 +79,7 @@ export async function GET(request: NextRequest) {
             return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });
         }
 
-        const decoded = verifyToken(token);
+        const decoded = await verifyToken(token);
         if (!decoded) {
             return NextResponse.json({ message: 'Invalid token' }, { status: 403 });
         }
@@ -104,7 +105,7 @@ export async function GET(request: NextRequest) {
             total: userSessions.length
         });
     } catch (error) {
-        console.error('Get sessions error:', error);
+        logger.error('Get sessions error:', error);
         return NextResponse.json({
             message: 'Internal server error',
             error: process.env.NODE_ENV === 'development' ? String(error) : undefined

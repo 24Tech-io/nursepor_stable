@@ -37,42 +37,42 @@ export class BroadcastManager {
    */
   private setupEventListeners(): void {
     // Enrollment events
-    dataManagerEvents.onEvent(EventType.ENROLLMENT_CREATED, (event: EnrollmentEvent) => {
-      this.broadcastEnrollmentEvent(event);
+    dataManagerEvents.onEvent(EventType.ENROLLMENT_CREATED, (event: DataManagerEvent) => {
+      this.broadcastEnrollmentEvent(event as EnrollmentEvent);
     });
-    dataManagerEvents.onEvent(EventType.ENROLLMENT_REMOVED, (event: EnrollmentEvent) => {
-      this.broadcastEnrollmentEvent(event);
+    dataManagerEvents.onEvent(EventType.ENROLLMENT_REMOVED, (event: DataManagerEvent) => {
+      this.broadcastEnrollmentEvent(event as EnrollmentEvent);
     });
-    dataManagerEvents.onEvent(EventType.ENROLLMENT_UPDATED, (event: EnrollmentEvent) => {
-      this.broadcastEnrollmentEvent(event);
+    dataManagerEvents.onEvent(EventType.ENROLLMENT_UPDATED, (event: DataManagerEvent) => {
+      this.broadcastEnrollmentEvent(event as EnrollmentEvent);
     });
 
     // Progress events
-    dataManagerEvents.onEvent(EventType.PROGRESS_UPDATED, (event: ProgressEvent) => {
-      this.broadcastProgressEvent(event);
+    dataManagerEvents.onEvent(EventType.PROGRESS_UPDATED, (event: DataManagerEvent) => {
+      this.broadcastProgressEvent(event as ProgressEvent);
     });
-    dataManagerEvents.onEvent(EventType.CHAPTER_COMPLETED, (event: ProgressEvent) => {
-      this.broadcastProgressEvent(event);
+    dataManagerEvents.onEvent(EventType.CHAPTER_COMPLETED, (event: DataManagerEvent) => {
+      this.broadcastProgressEvent(event as ProgressEvent);
     });
-    dataManagerEvents.onEvent(EventType.VIDEO_COMPLETED, (event: ProgressEvent) => {
-      this.broadcastProgressEvent(event);
+    dataManagerEvents.onEvent(EventType.VIDEO_COMPLETED, (event: DataManagerEvent) => {
+      this.broadcastProgressEvent(event as ProgressEvent);
     });
-    dataManagerEvents.onEvent(EventType.QUIZ_SUBMITTED, (event: ProgressEvent) => {
-      this.broadcastProgressEvent(event);
+    dataManagerEvents.onEvent(EventType.QUIZ_SUBMITTED, (event: DataManagerEvent) => {
+      this.broadcastProgressEvent(event as ProgressEvent);
     });
 
     // Request events
-    dataManagerEvents.onEvent(EventType.REQUEST_CREATED, (event: RequestEvent) => {
-      this.broadcastRequestEvent(event);
+    dataManagerEvents.onEvent(EventType.REQUEST_CREATED, (event: DataManagerEvent) => {
+      this.broadcastRequestEvent(event as RequestEvent);
     });
-    dataManagerEvents.onEvent(EventType.REQUEST_APPROVED, (event: RequestEvent) => {
-      this.broadcastRequestEvent(event);
+    dataManagerEvents.onEvent(EventType.REQUEST_APPROVED, (event: DataManagerEvent) => {
+      this.broadcastRequestEvent(event as RequestEvent);
     });
-    dataManagerEvents.onEvent(EventType.REQUEST_REJECTED, (event: RequestEvent) => {
-      this.broadcastRequestEvent(event);
+    dataManagerEvents.onEvent(EventType.REQUEST_REJECTED, (event: DataManagerEvent) => {
+      this.broadcastRequestEvent(event as RequestEvent);
     });
-    dataManagerEvents.onEvent(EventType.REQUEST_DELETED, (event: RequestEvent) => {
-      this.broadcastRequestEvent(event);
+    dataManagerEvents.onEvent(EventType.REQUEST_DELETED, (event: DataManagerEvent) => {
+      this.broadcastRequestEvent(event as RequestEvent);
     });
   }
 

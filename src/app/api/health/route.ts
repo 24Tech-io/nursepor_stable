@@ -1,10 +1,14 @@
+import { logger } from '@/lib/logger';
 /**
  * Health Check Endpoint
  * Used for monitoring and load balancer health checks
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { getDatabaseWithRetry } from '@/lib/db';
+import { sql } from 'drizzle-orm';
+
+export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
   const startTime = Date.now();
@@ -16,11 +20,12 @@ export async function GET(request: NextRequest) {
     
     try {
       const dbStart = Date.now();
-      await db.query.users.findFirst();
+      const db = await getDatabaseWithRetry();
+      await db.execute(sql`SELECT 1`);
       dbResponseTime = Date.now() - dbStart;
     } catch (error) {
       dbStatus = 'unhealthy';
-      console.error('Database health check failed:', error);
+      logger.error('Database health check failed:', error);
     }
     
     // Check overall health
@@ -58,7 +63,7 @@ export async function GET(request: NextRequest) {
     
     return NextResponse.json(healthData, { status: statusCode });
   } catch (error: any) {
-    console.error('Health check error:', error);
+    logger.error('Health check error:', error);
     
     return NextResponse.json(
       {
@@ -74,7 +79,8 @@ export async function GET(request: NextRequest) {
 // Also support HEAD requests for simple health checks
 export async function HEAD(request: NextRequest) {
   try {
-    await db.query.users.findFirst();
+    const db = await getDatabaseWithRetry();
+    await db.execute(sql`SELECT 1`);
     return new NextResponse(null, { status: 200 });
   } catch {
     return new NextResponse(null, { status: 503 });

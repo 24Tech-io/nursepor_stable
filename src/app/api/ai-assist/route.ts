@@ -1,3 +1,7 @@
+import { logger } from '@/lib/logger';
+import { extractAndValidate, validateQueryParams, validateRouteParams } from '@/lib/api-validation';
+import { aiAssistSchema } from '@/lib/validation-schemas-extended';
+import { z } from 'zod';
 import { NextRequest, NextResponse } from 'next/server';
 import {
   getCodeSuggestion,
@@ -10,15 +14,12 @@ import {
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { action, code, error, description, language, question, context } = body;
-
-    if (!action) {
-      return NextResponse.json(
-        { error: 'Action is required' },
-        { status: 400 }
-      );
+    // Validate request body
+    const bodyValidation = await extractAndValidate(request, aiAssistSchema);
+    if (!bodyValidation.success) {
+      return bodyValidation.error;
     }
+    const { action, code, error, description, language, question, context } = bodyValidation.data;
 
     let result: string;
 
@@ -92,7 +93,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ result });
   } catch (error) {
-    console.error('AI Assist API Error:', error);
+    logger.error('AI Assist API Error:', error);
     return NextResponse.json(
       { error: 'Failed to process AI request' },
       { status: 500 }

@@ -1,6 +1,7 @@
+import { logger } from '@/lib/logger';
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/auth';
-import { getDatabase } from '@/lib/db';
+import { getDatabaseWithRetry } from '@/lib/db';
 import { courses, studentProgress, accessRequests, users, payments } from '@/lib/db/schema';
 import { eq, and, or, sql, inArray } from 'drizzle-orm';
 
@@ -16,12 +17,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });
     }
 
-    const decoded = verifyToken(token);
+    const decoded = await verifyToken(token);
     if (!decoded || decoded.role !== 'admin') {
       return NextResponse.json({ message: 'Admin access required' }, { status: 403 });
     }
 
-    const db = getDatabase();
+    const db = await getDatabaseWithRetry();
     const fixes: any[] = [];
     let totalFixed = 0;
 
@@ -133,7 +134,7 @@ export async function POST(request: NextRequest) {
       message: `Fixed ${totalFixed} data inconsistency issue(s)`
     });
   } catch (error: any) {
-    console.error('Sync fix error:', error);
+    logger.error('Sync fix error:', error);
     return NextResponse.json(
       { 
         success: false,

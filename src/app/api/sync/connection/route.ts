@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/auth';
-import { getDatabase } from '@/lib/db';
+import { getDatabaseWithRetry } from '@/lib/db';
 import { courses, studentProgress, accessRequests, users, notifications } from '@/lib/db/schema';
 import { eq, sql, and, or } from 'drizzle-orm';
+import { logger } from '@/lib/logger';
 
 /**
  * Real-time Sync Connection Endpoint
@@ -11,20 +12,32 @@ import { eq, sql, and, or } from 'drizzle-orm';
  */
 export async function GET(request: NextRequest) {
   try {
-    const token = request.cookies.get('token')?.value || request.cookies.get('adminToken')?.value;
+    const token = request.cookies.get('student_token')?.value || request.cookies.get('token')?.value || request.cookies.get('admin_token')?.value || request.cookies.get('adminToken')?.value;
 
     if (!token) {
       return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });
     }
 
-    const decoded = verifyToken(token);
+    const decoded = await verifyToken(token);
     if (!decoded) {
       return NextResponse.json({ message: 'Invalid token' }, { status: 403 });
     }
 
-    const db = getDatabase();
+    const db = await getDatabaseWithRetry();
     const userId = decoded.id;
     const isAdmin = decoded.role === 'admin';
+
+    // Safely run a count query; if table is missing (42P01) or other errors occur,
+    // log and return 0 instead of crashing the endpoint.
+    const safeCount = async (label: string, fn: () => Promise<{ count: number }[]>) => {
+      try {
+        const [row] = await fn();
+        return Number(row?.count || 0);
+      } catch (err: any) {
+        logger.warn(`[sync] ${label} count failed, returning 0`, err?.cause || err);
+        return 0;
+      }
+    };
 
     // Get comprehensive sync data
     const syncData: any = {
@@ -36,31 +49,35 @@ export async function GET(request: NextRequest) {
     if (isAdmin) {
       // Admin sync data - optimized with parallel queries
       const [coursesCount, studentsCount, pendingRequestsCount] = await Promise.all([
-        db
-          .select({ count: sql<number>`count(*)` })
-          .from(courses)
-          .where(
-            or(
-              eq(courses.status, 'published'),
-              eq(courses.status, 'active'),
-              eq(courses.status, 'Published'),
-              eq(courses.status, 'Active')
+        safeCount('courses', () =>
+          db
+            .select({ count: sql<number>`count(*)` })
+            .from(courses)
+            .where(
+              or(
+                eq(courses.status, 'published'),
+                eq(courses.status, 'active')
+              )
             )
-          ),
-        db
-          .select({ count: sql<number>`count(*)` })
-          .from(users)
-          .where(eq(users.role, 'student')),
-        db
-          .select({ count: sql<number>`count(*)` })
-          .from(accessRequests)
-          .where(eq(accessRequests.status, 'pending')),
+        ),
+        safeCount('students', () =>
+          db
+            .select({ count: sql<number>`count(*)` })
+            .from(users)
+            .where(eq(users.role, 'student'))
+        ),
+        safeCount('access_requests', () =>
+          db
+            .select({ count: sql<number>`count(*)` })
+            .from(accessRequests)
+            .where(eq(accessRequests.status, 'pending'))
+        ),
       ]);
 
       syncData.admin = {
-        publishedCourses: Number(coursesCount[0]?.count || 0),
-        totalStudents: Number(studentsCount[0]?.count || 0),
-        pendingRequests: Number(pendingRequestsCount[0]?.count || 0),
+        publishedCourses: coursesCount,
+        totalStudents: studentsCount,
+        pendingRequests: pendingRequestsCount,
       };
     } else {
       // Student sync data - exclude courses with pending requests
@@ -85,9 +102,7 @@ export async function GET(request: NextRequest) {
             eq(studentProgress.studentId, userId),
             or(
               eq(courses.status, 'published'),
-              eq(courses.status, 'active'),
-              eq(courses.status, 'Published'),
-              eq(courses.status, 'Active')
+              eq(courses.status, 'active')
             )
           )
         );
@@ -99,30 +114,34 @@ export async function GET(request: NextRequest) {
 
       const enrolledCount = actualEnrolled.length;
 
-      const [unreadNotificationsCount] = await db
-        .select({ count: sql<number>`count(*)` })
-        .from(notifications)
-        .where(
-          and(
-            eq(notifications.userId, userId),
-            eq(notifications.isRead, false)
+      const unreadNotificationsCount = await safeCount('notifications', () =>
+        db
+          .select({ count: sql<number>`count(*)` })
+          .from(notifications)
+          .where(
+            and(
+              eq(notifications.userId, userId),
+              eq(notifications.isRead, false)
+            )
           )
-        );
+      );
 
-      const [pendingRequestsCount] = await db
-        .select({ count: sql<number>`count(*)` })
-        .from(accessRequests)
-        .where(
-          and(
-            eq(accessRequests.studentId, userId),
-            eq(accessRequests.status, 'pending')
+      const pendingRequestsCount = await safeCount('access_requests', () =>
+        db
+          .select({ count: sql<number>`count(*)` })
+          .from(accessRequests)
+          .where(
+            and(
+              eq(accessRequests.studentId, userId),
+              eq(accessRequests.status, 'pending')
+            )
           )
-        );
+      );
 
       syncData.student = {
         enrolledCourses: Number(enrolledCount?.count || 0),
-        unreadNotifications: Number(unreadNotificationsCount?.count || 0),
-        pendingRequests: Number(pendingRequestsCount?.count || 0),
+        unreadNotifications: unreadNotificationsCount,
+        pendingRequests: pendingRequestsCount,
       };
     }
 
@@ -132,7 +151,7 @@ export async function GET(request: NextRequest) {
       message: 'Sync connection established',
     });
   } catch (error: any) {
-    console.error('Sync connection error:', error);
+    logger.error('Sync connection error:', error);
     return NextResponse.json(
       { 
         success: false,

@@ -1,0 +1,68 @@
+{
+  "timestamp": "2025-12-19T09:06:42.824Z",
+  "summary": {
+    "totalTests": 34,
+    "totalPassed": 32,
+    "totalFailed": 2
+  },
+  "testResults": {
+    "authentication": {
+      "passed": 7,
+      "failed": 0,
+      "issues": []
+    },
+    "studentManagement": {
+      "passed": 4,
+      "failed": 0,
+      "issues": []
+    },
+    "courseBuilder": {
+      "passed": 6,
+      "failed": 2,
+      "issues": []
+    },
+    "qbankManager": {
+      "passed": 5,
+      "failed": 0,
+      "issues": []
+    },
+    "studentPages": {
+      "passed": 6,
+      "failed": 0,
+      "issues": []
+    },
+    "adminPages": {
+      "passed": 0,
+      "failed": 0,
+      "issues": []
+    },
+    "dataSync": {
+      "passed": 4,
+      "failed": 0,
+      "issues": []
+    },
+    "apiEndpoints": {
+      "passed": 0,
+      "failed": 0,
+      "issues": []
+    }
+  },
+  "issues": {
+    "errors": [],
+    "syncIssues": [],
+    "mismatches": [],
+    "inconsistencies": [
+      "src/app/api/admin/courses/route.ts: Using uppercase status values (should be lowercase)",
+      "src/app/api/admin/courses/[courseId]/route.ts: Using uppercase status values (should be lowercase)",
+      "src\\app\\api\\admin\\courses\\route.ts: Using uppercase status values",
+      "src\\app\\api\\admin\\courses\\[courseId]\\route.ts: Using uppercase status values",
+      "src\\app\\api\\debug\\fix-course-statuses\\route.ts: Using uppercase status values",
+      "src\\app\\api\\debug\\student-courses-test\\route.ts: Using uppercase status values",
+      "src\\app\\api\\dev\\security\\status\\route.ts: Using uppercase status values"
+    ],
+    "missingFeatures": [],
+    "brokenEndpoints": [],
+    "validationIssues": [],
+    "dataIssues": []
+  }
+}

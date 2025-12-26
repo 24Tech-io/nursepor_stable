@@ -1,5 +1,6 @@
+import { logger } from '@/lib/logger';
 import { NextRequest, NextResponse } from 'next/server';
-import { getDatabase } from '@/lib/db';
+import { getDatabaseWithRetry } from '@/lib/db';
 import { courses } from '@/lib/db/schema';
 
 /**
@@ -8,7 +9,7 @@ import { courses } from '@/lib/db/schema';
  */
 export async function GET(request: NextRequest) {
   try {
-    const db = getDatabase();
+    const db = await getDatabaseWithRetry();
 
     // Get ALL courses from database (no filtering)
     const allCourses = await db
@@ -56,7 +57,7 @@ export async function GET(request: NextRequest) {
       message: `Found ${allCourses.length} total courses in database. Published: ${byStatus['published']?.length || 0}, Draft: ${byStatus['draft']?.length || 0}`,
     });
   } catch (error: any) {
-    console.error('Debug courses error:', error);
+    logger.error('Debug courses error:', error);
     return NextResponse.json(
       { 
         success: false,

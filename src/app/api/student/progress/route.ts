@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { studentProgress } from '@/lib/db/schema';
@@ -26,7 +27,7 @@ export async function GET(request: NextRequest) {
 
         return NextResponse.json({ completedChapters });
     } catch (error) {
-        console.error('Get student progress error:', error);
+        logger.error('Get student progress error:', error);
         return NextResponse.json({ message: 'Internal server error' }, { status: 500 });
     }
 }

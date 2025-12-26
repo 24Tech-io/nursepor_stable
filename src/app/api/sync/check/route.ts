@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/auth';
 import { performSyncCheck } from '@/lib/sync-service';
@@ -14,7 +15,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });
     }
 
-    const decoded = verifyToken(token);
+    const decoded = await verifyToken(token);
     if (!decoded || decoded.role !== 'admin') {
       return NextResponse.json({ message: 'Admin access required' }, { status: 403 });
     }
@@ -28,7 +29,7 @@ export async function GET(request: NextRequest) {
         : 'Sync check failed',
     });
   } catch (error: any) {
-    console.error('Sync check error:', error);
+    logger.error('Sync check error:', error);
     return NextResponse.json(
       { 
         success: false,

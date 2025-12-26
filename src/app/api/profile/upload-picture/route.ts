@@ -1,6 +1,7 @@
+import { logger } from '@/lib/logger';
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth-helpers';
-import { getDatabase } from '@/lib/db';
+import { getDatabaseWithRetry } from '@/lib/db';
 import { users } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { writeFile, mkdir } from 'fs/promises';
@@ -20,7 +21,7 @@ export async function POST(request: NextRequest) {
   const user = authResult.user;
 
   // Get database instance
-  const db = getDatabase();
+  const db = await getDatabaseWithRetry();
 
   try {
     const formData = await request.formData();
@@ -33,6 +34,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Enhanced file validation
+    const blockedExtensions = ['exe', 'bat', 'sh', 'php', 'js', 'html', 'htm', 'svg', 'xml', 'jar', 'war'];
+
     // Validate file type
     if (!ALLOWED_TYPES.includes(file.type)) {
       return NextResponse.json(
@@ -41,10 +45,45 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Validate file extension
+    const fileExtension = file.name.split('.').pop()?.toLowerCase();
+    if (fileExtension && blockedExtensions.includes(fileExtension)) {
+      return NextResponse.json(
+        { error: 'File type not allowed for security reasons' },
+        { status: 400 }
+      );
+    }
+
+    // Validate MIME type matches extension
+    const expectedMimeTypes: Record<string, string[]> = {
+      'jpg': ['image/jpeg', 'image/jpg'],
+      'jpeg': ['image/jpeg', 'image/jpg'],
+      'png': ['image/png'],
+      'webp': ['image/webp'],
+      'gif': ['image/gif'],
+    };
+
+    if (fileExtension && expectedMimeTypes[fileExtension]) {
+      if (!expectedMimeTypes[fileExtension].includes(file.type)) {
+        return NextResponse.json(
+          { error: 'File type mismatch detected. MIME type does not match file extension.' },
+          { status: 400 }
+        );
+      }
+    }
+
     // Validate file size
     if (file.size > MAX_FILE_SIZE) {
       return NextResponse.json(
         { error: 'File size exceeds 5MB limit' },
+        { status: 400 }
+      );
+    }
+
+    // Additional security: Validate file is actually an image
+    if (file.size < 100) {
+      return NextResponse.json(
+        { error: 'File appears to be invalid or corrupted' },
         { status: 400 }
       );
     }
@@ -56,7 +95,6 @@ export async function POST(request: NextRequest) {
     }
 
     // Generate unique filename: userId_timestamp.extension
-    const fileExtension = file.name.split('.').pop() || 'jpg';
     const timestamp = Date.now();
     const filename = `${user.id}_${timestamp}.${fileExtension}`;
     const filepath = join(uploadsDir, filename);
@@ -78,7 +116,7 @@ export async function POST(request: NextRequest) {
       })
       .where(eq(users.id, user.id));
 
-    console.log(`✅ Profile picture uploaded for user ${user.id}: ${publicUrl}`);
+    logger.info(`✅ Profile picture uploaded for user ${user.id}: ${publicUrl}`);
 
     return NextResponse.json({
       success: true,
@@ -86,7 +124,7 @@ export async function POST(request: NextRequest) {
       message: 'Profile picture uploaded successfully',
     });
   } catch (error: any) {
-    console.error('Profile picture upload error:', error);
+    logger.error('Profile picture upload error:', error);
     return NextResponse.json(
       {
         error: 'Failed to upload profile picture',

@@ -1,6 +1,9 @@
+import { logger } from '@/lib/logger';
+import { extractAndValidate, validateQueryParams, validateRouteParams } from '@/lib/api-validation';
+import { z } from 'zod';
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/auth';
-import { getDatabase } from '@/lib/db';
+import { getDatabaseWithRetry } from '@/lib/db';
 import { enrollments, courses, accessRequests, studentProgress } from '@/lib/db/schema';
 import { eq, and, or, desc } from 'drizzle-orm';
 import { requireStudentOrAdmin } from '@/lib/auth-helpers';
@@ -35,7 +38,7 @@ export async function GET(request: NextRequest) {
     if (auth instanceof NextResponse) return auth;
     const user = auth.user;
 
-    const db = getDatabase();
+    const db = await getDatabaseWithRetry();
 
     // Get pending request course IDs to exclude them
     const pendingRequests = await db
@@ -74,18 +77,16 @@ export async function GET(request: NextRequest) {
           eq(enrollments.status, 'active'),
           or(
             eq(courses.status, 'published'),
-            eq(courses.status, 'active'),
-            eq(courses.status, 'Published'),
-            eq(courses.status, 'Active')
+            eq(courses.status, 'active')
           )
         )
       );
 
     // TEMPORARY FALLBACK: If no enrollments found, check studentProgress table
     // This ensures students see their courses during migration period
-    // TODO: Remove this fallback after migration is complete
+    // Note: This fallback should be removed after migration is complete
     if (enrollmentData.length === 0) {
-      console.log(`⚠️ No enrollments found in enrollments table for student ${studentIdNum}, checking studentProgress as fallback...`);
+      logger.info(`⚠️ No enrollments found in enrollments table for student ${studentIdNum}, checking studentProgress as fallback...`);
       try {
         const progressData = await db
           .select({
@@ -107,9 +108,7 @@ export async function GET(request: NextRequest) {
               eq(studentProgress.studentId, studentIdNum),
               or(
                 eq(courses.status, 'published'),
-                eq(courses.status, 'active'),
-                eq(courses.status, 'Published'),
-                eq(courses.status, 'Active')
+                eq(courses.status, 'active')
               )
             )
           );
@@ -123,10 +122,10 @@ export async function GET(request: NextRequest) {
         }));
 
         if (enrollmentData.length > 0) {
-          console.log(`✅ Found ${enrollmentData.length} enrollments in studentProgress table (fallback)`);
+          logger.info(`✅ Found ${enrollmentData.length} enrollments in studentProgress table (fallback)`);
         }
       } catch (fallbackError: any) {
-        console.error('⚠️ Error checking studentProgress fallback:', fallbackError);
+        logger.error('⚠️ Error checking studentProgress fallback:', fallbackError);
         // Continue with empty array if fallback fails
       }
     }
@@ -155,7 +154,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ enrollments: filteredEnrollments });
 
   } catch (error: any) {
-    console.error('❌ Error fetching enrollments:', error);
+    logger.error('❌ Error fetching enrollments:', error);
     return NextResponse.json(
       { message: 'Failed to fetch enrollments', error: error.message },
       { status: 500 }

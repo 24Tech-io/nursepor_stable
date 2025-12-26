@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 import { NextRequest, NextResponse } from 'next/server';
 import { generateResetToken } from '@/lib/auth';
 import { sendPasswordResetEmail } from '@/lib/email';
@@ -75,7 +76,7 @@ export async function POST(request: NextRequest) {
       // If SMTP is not configured, provide the reset link in the response for development
       if (emailError?.message?.includes('SMTP is not configured')) {
         const resetUrl = `${process.env.NEXT_PUBLIC_APP_URL}/reset-password?email=${encodeURIComponent(email)}&token=${resetToken}`;
-        console.log('📧 Password reset link (SMTP not configured):', resetUrl);
+        logger.info('📧 Password reset link (SMTP not configured):', resetUrl);
         return NextResponse.json({
           message: 'SMTP not configured. Password reset link generated. Check server console for the link.',
           resetUrl: process.env.NODE_ENV === 'development' ? resetUrl : undefined,
@@ -86,8 +87,8 @@ export async function POST(request: NextRequest) {
     }
 
   } catch (error: any) {
-    console.error('Forgot password error:', error);
-    console.error('Error details:', {
+    logger.error('Forgot password error:', error);
+    logger.error('Error details:', {
       message: error?.message,
       code: error?.code,
       detail: error?.detail,

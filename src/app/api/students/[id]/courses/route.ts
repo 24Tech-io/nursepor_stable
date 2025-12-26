@@ -1,3 +1,6 @@
+import { logger } from '@/lib/logger';
+import { extractAndValidate, validateQueryParams, validateRouteParams } from '@/lib/api-validation';
+import { z } from 'zod';
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/auth';
 import { db } from '@/lib/db';
@@ -17,7 +20,7 @@ export async function POST(
             return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });
         }
 
-        const decoded = verifyToken(token);
+        const decoded = await verifyToken(token);
         if (!decoded || decoded.role !== 'admin') {
             securityLogger.warn('Unauthorized access attempt', {
                 ip: request.headers.get('x-forwarded-for') || 'unknown',
@@ -97,7 +100,7 @@ export async function POST(
             }
         });
     } catch (error) {
-        console.error('Assign course error:', error);
+        logger.error('Assign course error:', error);
         securityLogger.info('Course assignment failed', { error: String(error) });
         return NextResponse.json({
             message: 'Internal server error',
@@ -118,7 +121,7 @@ export async function DELETE(
             return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });
         }
 
-        const decoded = verifyToken(token);
+        const decoded = await verifyToken(token);
         if (!decoded || decoded.role !== 'admin') {
             securityLogger.warn('Unauthorized access attempt', {
                 ip: request.headers.get('x-forwarded-for') || 'unknown',
@@ -160,7 +163,7 @@ export async function DELETE(
             message: 'Course access revoked successfully'
         });
     } catch (error) {
-        console.error('Revoke course error:', error);
+        logger.error('Revoke course error:', error);
         securityLogger.info('Course revocation failed', { error: String(error) });
         return NextResponse.json({
             message: 'Internal server error',

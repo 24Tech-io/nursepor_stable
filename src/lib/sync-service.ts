@@ -1,6 +1,7 @@
 import { getDatabase } from './db';
 import { notifications, courses, users, accessRequests } from './db/schema';
-import { eq, and, desc } from 'drizzle-orm';
+import { studentProgress } from './db/schema-indices';
+import { eq, and, desc, sql } from 'drizzle-orm';
 
 /**
  * Advanced Sync Service
@@ -110,7 +111,7 @@ export async function performSyncCheck() {
     const courseIds = new Set(allCourses.map(c => c.id));
     const userIds = new Set(allUsers.map(u => u.id));
 
-    const orphanedProgress = allProgress.filter(p => 
+    const orphanedProgress = allProgress.filter(p =>
       !courseIds.has(p.courseId) || !userIds.has(p.studentId)
     );
 

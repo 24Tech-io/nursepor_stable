@@ -1,21 +1,42 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/auth';
-import { getDatabase } from '@/lib/db';
+import { getDatabaseWithRetry } from '@/lib/db';
 import { users } from '@/lib/db/schema';
-import { eq } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
+import { logger } from '@/lib/logger';
+import { extractAndValidate, validateQueryParams, validateRouteParams } from '@/lib/api-validation';
+import { z } from 'zod';
+import { withCache, withAuthCache, CacheKeys, CacheTTL } from '@/lib/api-cache';
+import { startRouteMonitoring, recordCacheHit, recordCacheMiss } from '@/lib/performance-monitor';
+
+// Force dynamic rendering since this route uses request.url and cookies
+export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
+  const stopMonitoring = startRouteMonitoring('/api/auth/me');
   try {
-    const token = request.cookies.get('token')?.value;
+    // Get type from query parameter (admin or student, defaults to student)
+    const { searchParams } = new URL(request.url);
+    const type = searchParams.get('type') || 'student';
+
+    // Get the appropriate token based on type
+    const cookieName = type === 'admin' ? 'admin_token' : 'student_token';
+    const token = request.cookies.get(cookieName)?.value;
 
     if (!token) {
+      stopMonitoring();
       return NextResponse.json(
         { message: 'Not authenticated' },
         { status: 401 }
       );
     }
 
-    let decoded = verifyToken(token);
+    // Cache token verification (5 min TTL)
+    let decoded = await withAuthCache(
+      token,
+      async () => verifyToken(token),
+      CacheTTL.AUTH_TOKEN
+    );
 
     // If token is expired, try to extract user ID from payload
     if (!decoded || !decoded.id) {
@@ -41,11 +62,11 @@ export async function GET(request: NextRequest) {
     // Get database instance (will throw if not available)
     let db;
     try {
-      db = getDatabase();
+      db = await getDatabaseWithRetry();
     } catch (dbError: any) {
-      console.error('Database connection error:', dbError);
+      logger.error('Database connection error:', dbError);
       return NextResponse.json(
-        { 
+        {
           message: 'Database connection error. Please check your DATABASE_URL in .env.local',
           error: process.env.NODE_ENV === 'development' ? dbError.message : undefined
         },
@@ -53,12 +74,33 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Get user from database
-    const user = await db
-      .select()
-      .from(users)
-      .where(eq(users.id, decoded?.id || 0))
-      .limit(1);
+    // Get user from database with caching (user data changes infrequently)
+    const userId = decoded?.id || 0;
+    const cacheKey = CacheKeys.AUTH_USER(userId);
+    
+    const user = await withCache(
+      cacheKey,
+      async () => {
+        return await db
+          .select({
+            id: users.id,
+            name: users.name,
+            email: users.email,
+            phone: users.phone,
+            bio: users.bio,
+            profilePicture: users.profilePicture,
+            role: users.role,
+            isActive: users.isActive,
+            twoFactorEnabled: users.twoFactorEnabled,
+            joinedDate: users.joinedDate,
+            lastLogin: users.lastLogin,
+          })
+          .from(users)
+          .where(eq(users.id, userId))
+          .limit(1);
+      },
+      { ttl: CacheTTL.USER_DATA, dedupe: true }
+    );
 
     if (!user.length) {
       return NextResponse.json(
@@ -70,9 +112,9 @@ export async function GET(request: NextRequest) {
     // Log user data for debugging
     const phoneValue = user[0].phone;
     const phoneString = phoneValue && String(phoneValue).trim() ? String(phoneValue).trim() : null;
-    
-    console.log('🔍 /api/auth/me - Token decoded ID:', decoded?.id);
-    console.log('🔍 /api/auth/me - User found in database:', {
+
+    logger.info('🔍 /api/auth/me - Token decoded ID:', decoded?.id);
+    logger.info('🔍 /api/auth/me - User found in database:', {
       id: user[0].id,
       name: user[0].name,
       email: user[0].email,
@@ -97,33 +139,33 @@ export async function GET(request: NextRequest) {
       profilePicture: user[0].profilePicture || null,
       role: user[0].role,
       isActive: user[0].isActive,
-      faceIdEnrolled: user[0].faceIdEnrolled || false,
-      fingerprintEnrolled: user[0].fingerprintEnrolled || false,
       twoFactorEnabled: user[0].twoFactorEnabled || false,
       joinedDate: user[0].joinedDate ? new Date(user[0].joinedDate).toISOString() : null,
       lastLogin: user[0].lastLogin ? new Date(user[0].lastLogin).toISOString() : null,
     };
 
-    console.log('✅ /api/auth/me - Returning user data:', userResponse);
+    logger.info('✅ /api/auth/me - Returning user data:', userResponse);
 
+    stopMonitoring();
     return NextResponse.json({
       user: userResponse,
     });
   } catch (error: any) {
-    console.error('Get current user error:', error);
-    console.error('Error details:', {
+    stopMonitoring();
+    logger.error('Get current user error:', error);
+    logger.error('Error details:', {
       message: error?.message,
       code: error?.code,
       detail: error?.detail,
     });
 
     // Handle database connection errors
-    if (error?.message?.includes('DATABASE_URL') || 
-        error?.message?.includes('Database is not available') ||
-        error?.message?.includes('connection') ||
-        error?.code === 'ECONNREFUSED') {
+    if (error?.message?.includes('DATABASE_URL') ||
+      error?.message?.includes('Database is not available') ||
+      error?.message?.includes('connection') ||
+      error?.code === 'ECONNREFUSED') {
       return NextResponse.json(
-        { 
+        {
           message: 'Database connection error. Please check your DATABASE_URL in .env.local',
           error: process.env.NODE_ENV === 'development' ? error.message : undefined
         },
@@ -132,10 +174,10 @@ export async function GET(request: NextRequest) {
     }
 
     // Handle table not found errors (migrations not run)
-    if (error?.message?.includes('does not exist') || 
-        error?.code === '42P01') {
+    if (error?.message?.includes('does not exist') ||
+      error?.code === '42P01') {
       return NextResponse.json(
-        { 
+        {
           message: 'Database tables not found. Please run migrations: npx drizzle-kit migrate',
           error: process.env.NODE_ENV === 'development' ? error.message : undefined
         },
@@ -144,7 +186,7 @@ export async function GET(request: NextRequest) {
     }
 
     return NextResponse.json(
-      { 
+      {
         message: 'Failed to get user',
         error: process.env.NODE_ENV === 'development' ? error.message : undefined
       },
@@ -152,4 +194,3 @@ export async function GET(request: NextRequest) {
     );
   }
 }
-

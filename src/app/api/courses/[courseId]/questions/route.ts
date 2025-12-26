@@ -8,6 +8,10 @@ import { db } from '@/lib/db';
 import { courseQuestions, courseAnswers } from '@/lib/db/schema';
 import { verifyToken } from '@/lib/auth';
 import { eq, desc } from 'drizzle-orm';
+import { extractAndValidate, validateRouteParams } from '@/lib/api-validation';
+import { createCourseQuestionSchema } from '@/lib/validation-schemas-extended';
+import { z } from 'zod';
+import { logger } from '@/lib/logger';
 
 // GET - Get questions for a course
 export async function GET(
@@ -15,6 +19,14 @@ export async function GET(
   { params }: { params: { courseId: string } }
 ) {
   try {
+    // Validate route params
+    const paramsValidation = validateRouteParams(
+      z.object({ courseId: z.string().regex(/^\d+$/, 'Invalid course ID') }),
+      params
+    );
+    if (!paramsValidation.success) {
+      return paramsValidation.error;
+    }
     const courseId = parseInt(params.courseId);
 
     const questions = await db.query.courseQuestions.findMany({
@@ -45,7 +57,8 @@ export async function GET(
     });
 
     return NextResponse.json({ questions });
-  } catch (error) {
+  } catch (error: any) {
+    logger.error('Get questions error:', error);
     return NextResponse.json({ error: 'Failed to fetch questions' }, { status: 500 });
   }
 }
@@ -66,15 +79,22 @@ export async function POST(
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
     }
 
-    const courseId = parseInt(params.courseId);
-    const { question, chapterId } = await request.json();
-
-    if (!question || question.trim().length < 10) {
-      return NextResponse.json(
-        { error: 'Question must be at least 10 characters' },
-        { status: 400 }
-      );
+    // Validate route params
+    const paramsValidation = validateRouteParams(
+      z.object({ courseId: z.string().regex(/^\d+$/, 'Invalid course ID') }),
+      params
+    );
+    if (!paramsValidation.success) {
+      return paramsValidation.error;
     }
+    const courseId = parseInt(params.courseId);
+    
+    // Validate request body
+    const bodyValidation = await extractAndValidate(request, createCourseQuestionSchema);
+    if (!bodyValidation.success) {
+      return bodyValidation.error;
+    }
+    const { question, chapterId } = bodyValidation.data;
 
     const [newQuestion] = await db.insert(courseQuestions).values({
       courseId,
@@ -84,7 +104,8 @@ export async function POST(
     }).returning();
 
     return NextResponse.json({ success: true, question: newQuestion });
-  } catch (error) {
+  } catch (error: any) {
+    logger.error('Create question error:', error);
     return NextResponse.json({ error: 'Failed to create question' }, { status: 500 });
   }
 }

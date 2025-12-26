@@ -1,3 +1,6 @@
+import { logger } from '@/lib/logger';
+import { extractAndValidate, validateQueryParams, validateRouteParams } from '@/lib/api-validation';
+import { z } from 'zod';
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/auth';
 import { getStudentEnrollmentStatus } from '@/lib/enrollment-helpers';
@@ -14,13 +17,15 @@ import { retryDatabase } from '@/lib/retry';
 // GET - Get enrollment status for a student
 export async function GET(request: NextRequest) {
   try {
-    const token = request.cookies.get('token')?.value || request.cookies.get('adminToken')?.value;
+    const token = request.cookies.get('admin_token')?.value ||
+      request.cookies.get('adminToken')?.value ||
+      request.cookies.get('token')?.value;
 
     if (!token) {
       return createAuthError('Not authenticated');
     }
 
-    const decoded = verifyToken(token);
+    const decoded = await verifyToken(token);
     if (!decoded || decoded.role !== 'admin') {
       return createAuthzError('Admin access required');
     }
@@ -53,7 +58,7 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error: any) {
-    console.error('Get enrollment status error:', error);
+    logger.error('Get enrollment status error:', error);
     return createErrorResponse(error, 'Failed to get enrollment status');
   }
 }
@@ -61,13 +66,15 @@ export async function GET(request: NextRequest) {
 // POST - Enroll student in a course (direct enrollment by admin)
 export async function POST(request: NextRequest) {
   try {
-    const token = request.cookies.get('token')?.value || request.cookies.get('adminToken')?.value;
+    const token = request.cookies.get('admin_token')?.value ||
+      request.cookies.get('adminToken')?.value ||
+      request.cookies.get('token')?.value;
 
     if (!token) {
       return createAuthError('Not authenticated');
     }
 
-    const decoded = verifyToken(token);
+    const decoded = await verifyToken(token);
     if (!decoded || decoded.role !== 'admin') {
       return createAuthzError('Admin access required');
     }
@@ -109,7 +116,7 @@ export async function POST(request: NextRequest) {
       operationId: result.operationId,
     });
   } catch (error: any) {
-    console.error('Enroll student error:', error);
+    logger.error('Enroll student error:', error);
     return createErrorResponse(error, 'Failed to enroll student');
   }
 }
@@ -117,13 +124,15 @@ export async function POST(request: NextRequest) {
 // DELETE - Unenroll student from a course
 export async function DELETE(request: NextRequest) {
   try {
-    const token = request.cookies.get('token')?.value || request.cookies.get('adminToken')?.value;
+    const token = request.cookies.get('admin_token')?.value ||
+      request.cookies.get('adminToken')?.value ||
+      request.cookies.get('token')?.value;
 
     if (!token) {
       return createAuthError('Not authenticated');
     }
 
-    const decoded = verifyToken(token);
+    const decoded = await verifyToken(token);
     if (!decoded || decoded.role !== 'admin') {
       return createAuthzError('Admin access required');
     }
@@ -167,7 +176,7 @@ export async function DELETE(request: NextRequest) {
       operationId: result.operationId,
     });
   } catch (error: any) {
-    console.error('Unenroll student error:', error);
+    logger.error('Unenroll student error:', error);
     return createErrorResponse(error, 'Failed to unenroll student');
   }
 }

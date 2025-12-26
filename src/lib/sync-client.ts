@@ -16,22 +16,24 @@ export class SyncClient {
   private useSSE = true; // Try SSE first, fallback to polling
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 5;
+  private lastHealthCheckAt = 0;
+  private healthCheckIntervalMs = 60000;
 
-  constructor(private pollInterval: number = 5000) {} // Polling interval (fallback only)
+  constructor(private pollInterval: number = 5000) { } // Polling interval (fallback only)
 
   /**
    * Start sync connection (tries SSE first, falls back to polling)
    */
   start() {
     this.subscribers++;
-    
+
     if (this.isConnected) {
-      console.log(`🔄 Sync client already connected (${this.subscribers} subscribers)`);
+      // console.log(`🔄 Sync client already connected (${this.subscribers} subscribers)`);
       return;
     }
 
     this.isConnected = true;
-    
+
     // Try SSE first
     if (this.useSSE && typeof EventSource !== 'undefined') {
       this.connectSSE();
@@ -47,12 +49,6 @@ export class SyncClient {
   private connectSSE() {
     try {
       this.connectionState = 'connecting';
-      const token = this.getToken();
-      if (!token) {
-        console.warn('⚠️ No token found, falling back to polling');
-        this.startPolling();
-        return;
-      }
 
       // Create SSE connection
       const sseUrl = '/api/sync/sse';
@@ -63,19 +59,19 @@ export class SyncClient {
       this.eventSource.onopen = () => {
         this.connectionState = 'connected';
         this.reconnectAttempts = 0;
-        console.log('✅ SSE connection established');
+        // console.log('✅ SSE connection established');
         this.emit('connected', { method: 'sse' });
       };
 
       this.eventSource.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
-          
+
           if (data.type === 'connected') {
-            console.log('✅ SSE connection confirmed:', data);
+            // console.log('✅ SSE connection confirmed:', data);
           } else if (data.type === 'sync') {
             this.emit('sync', data.event);
-            console.log('📡 SSE sync event received:', data.event);
+            // console.log('📡 SSE sync event received:', data.event);
           } else if (data.type === 'heartbeat') {
             // Heartbeat received, connection is alive
           }
@@ -87,13 +83,13 @@ export class SyncClient {
       this.eventSource.onerror = (error) => {
         console.error('❌ SSE connection error:', error);
         this.connectionState = 'disconnected';
-        
+
         // Try to reconnect
         if (this.reconnectAttempts < this.maxReconnectAttempts) {
           this.reconnectAttempts++;
           this.connectionState = 'reconnecting';
-          console.log(`🔄 Attempting SSE reconnect (${this.reconnectAttempts}/${this.maxReconnectAttempts})...`);
-          
+          // console.log(`🔄 Attempting SSE reconnect (${this.reconnectAttempts}/${this.maxReconnectAttempts})...`);
+
           setTimeout(() => {
             if (this.isConnected) {
               this.connectSSE();
@@ -101,7 +97,7 @@ export class SyncClient {
           }, 2000 * this.reconnectAttempts); // Exponential backoff
         } else {
           // Fallback to polling
-          console.log('⚠️ SSE failed after max attempts, falling back to polling');
+          // console.log('⚠️ SSE failed after max attempts, falling back to polling');
           this.useSSE = false;
           this.startPolling();
         }
@@ -116,11 +112,17 @@ export class SyncClient {
    * Start polling (fallback method)
    */
   private startPolling() {
+    // Clear existing interval to prevent leaks
+    if (this.intervalId) {
+      clearInterval(this.intervalId);
+      this.intervalId = null;
+    }
+
     this.connectionState = 'connected';
     this.useSSE = false;
     this.poll();
     this.intervalId = setInterval(() => this.poll(), this.pollInterval);
-    console.log('🔄 Sync client started (polling mode)');
+    // console.log('🔄 Sync client started (polling mode)');
     this.emit('connected', { method: 'polling' });
   }
 
@@ -129,7 +131,7 @@ export class SyncClient {
    */
   private getToken(): string | null {
     if (typeof document === 'undefined') return null;
-    
+
     const cookies = document.cookie.split(';');
     for (const cookie of cookies) {
       const [name, value] = cookie.trim().split('=');
@@ -145,27 +147,27 @@ export class SyncClient {
    */
   stop() {
     this.subscribers = Math.max(0, this.subscribers - 1);
-    
+
     if (this.subscribers > 0) {
-      console.log(`🔄 Sync client has ${this.subscribers} remaining subscribers, keeping connection alive`);
+      // console.log(`🔄 Sync client has ${this.subscribers} remaining subscribers, keeping connection alive`);
       return;
     }
-    
+
     // Close SSE connection
     if (this.eventSource) {
       this.eventSource.close();
       this.eventSource = null;
     }
-    
+
     // Stop polling
     if (this.intervalId) {
       clearInterval(this.intervalId);
       this.intervalId = null;
     }
-    
+
     this.isConnected = false;
     this.connectionState = 'disconnected';
-    console.log('🛑 Sync client stopped (no subscribers)');
+    // console.log('🛑 Sync client stopped (no subscribers)');
   }
 
   /**
@@ -187,17 +189,23 @@ export class SyncClient {
    */
   private async poll() {
     try {
-      // First check health
-      const healthResponse = await fetch('/api/sync/health', {
-        credentials: 'include',
-        cache: 'no-store',
-      });
+      const now = Date.now();
+      const shouldRunHealthCheck = (now - this.lastHealthCheckAt) >= this.healthCheckIntervalMs;
 
-      if (healthResponse.ok) {
-        const healthData = await healthResponse.json();
-        if (healthData.health?.status === 'warning' || healthData.health?.status === 'unhealthy') {
-          console.warn('⚠️ Sync health check detected issues:', healthData.health);
-          this.emit('health-warning', healthData.health);
+      if (shouldRunHealthCheck) {
+        this.lastHealthCheckAt = now;
+
+        const healthResponse = await fetch('/api/sync/health', {
+          credentials: 'include',
+          cache: 'no-store',
+        });
+
+        if (healthResponse.ok) {
+          const healthData = await healthResponse.json();
+          if (healthData.health?.status === 'warning' || healthData.health?.status === 'unhealthy') {
+            console.warn('⚠️ Sync health check detected issues:', healthData.health);
+            this.emit('health-warning', healthData.health);
+          }
         }
       }
 
@@ -213,12 +221,12 @@ export class SyncClient {
       if (response.ok) {
         const data = await response.json();
         this.emit('sync', data.sync);
-        console.log('✅ Sync poll successful:', data.sync);
+        // console.log('✅ Sync poll successful:', data.sync);
       } else {
-        console.error('❌ Sync poll failed:', response.status);
+        // console.error('❌ Sync poll failed:', response.status);
       }
     } catch (error) {
-      console.error('❌ Sync poll error:', error);
+      // console.error('❌ Sync poll error:', error);
     }
   }
 
@@ -300,5 +308,4 @@ export class SyncClient {
 }
 
 // Export singleton instance
-export const syncClient = new SyncClient(5000); // Poll every 5 seconds for maximum sync speed
-
+export const syncClient = new SyncClient(15000); // Poll every 15 seconds for valid sync speed

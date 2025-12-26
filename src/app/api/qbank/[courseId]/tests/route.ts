@@ -1,6 +1,10 @@
+import { logger } from '@/lib/logger';
+import { extractAndValidate, validateQueryParams, validateRouteParams } from '@/lib/api-validation';
+import { createQBankTestSchema } from '@/lib/validation-schemas-extended';
+import { z } from 'zod';
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/auth';
-import { getDatabase } from '@/lib/db';
+import { getDatabaseWithRetry } from '@/lib/db';
 import { 
   questionBanks, 
   qbankTests,
@@ -22,7 +26,7 @@ export async function GET(
       );
     }
 
-    const decoded = verifyToken(token);
+    const decoded = await verifyToken(token);
 
     if (!decoded || !decoded.id) {
       return NextResponse.json(
@@ -31,7 +35,7 @@ export async function GET(
       );
     }
 
-    const db = getDatabase();
+    const db = await getDatabaseWithRetry();
     const courseIdNum = parseInt(params.courseId);
 
     // Check enrollment
@@ -110,7 +114,7 @@ export async function GET(
       completedCount: completedTests.length,
     });
   } catch (error: any) {
-    console.error('Get tests error:', error);
+    logger.error('Get tests error:', error);
     return NextResponse.json(
       { message: 'Internal server error', error: error.message },
       { status: 500 }
@@ -132,7 +136,7 @@ export async function POST(
       );
     }
 
-    const decoded = verifyToken(token);
+    const decoded = await verifyToken(token);
 
     if (!decoded || !decoded.id) {
       return NextResponse.json(
@@ -141,8 +145,13 @@ export async function POST(
       );
     }
 
-    const body = await request.json();
-    const db = getDatabase();
+    // Validate request body
+    const bodyValidation = await extractAndValidate(request, createQBankTestSchema);
+    if (!bodyValidation.success) {
+      return bodyValidation.error;
+    }
+    const body = bodyValidation.data;
+    const db = await getDatabaseWithRetry();
     const courseIdNum = parseInt(params.courseId);
 
     // Check enrollment
@@ -209,7 +218,7 @@ export async function POST(
       message: 'Test created successfully',
     });
   } catch (error: any) {
-    console.error('Create test error:', error);
+    logger.error('Create test error:', error);
     return NextResponse.json(
       { message: 'Internal server error', error: error.message },
       { status: 500 }

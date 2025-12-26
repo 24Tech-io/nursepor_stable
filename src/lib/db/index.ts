@@ -6,32 +6,41 @@ import { retry } from '@/lib/retry';
 
 let db: any;
 let lastHealthCheck: number = 0;
-const HEALTH_CHECK_INTERVAL = 30000; // 30 seconds
+const HEALTH_CHECK_INTERVAL = 60000; // 60 seconds - increased to reduce lag
 let isHealthy: boolean = true;
 
 function initializeDatabase() {
   // Ensure DATABASE_URL is set for Neon DB
   if (!process.env.DATABASE_URL) {
-    console.warn('⚠️ DATABASE_URL is not set! Database features will be disabled.');
-    console.warn('   Please set DATABASE_URL in .env.local');
-    console.warn('   Example: DATABASE_URL="postgresql://user:pass@host.neon.tech/dbname?sslmode=require"');
+    // Use logger if available, otherwise minimal console (only in development)
+    if (process.env.NODE_ENV === 'development') {
+      console.warn('⚠️ DATABASE_URL is not set! Database features will be disabled.');
+      console.warn('   Please set DATABASE_URL in .env.local');
+    }
     return null;
   }
 
   try {
-    // Neon Postgres configuration with optimized settings
+    // Neon Postgres configuration with optimized settings for ultra-fast performance
     // Using neon-serverless with Pool for transaction support
-    const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-    db = drizzle(pool, { 
+    const pool = new Pool({
+      connectionString: process.env.DATABASE_URL,
+    });
+    db = drizzle(pool, {
       schema,
       // Optimize for performance
       logger: process.env.NODE_ENV === 'development' ? true : false,
     });
-    console.log('✅ Database connection initialized (Neon Postgres - Serverless with Transaction Support)');
+    // Only log in development
+    if (process.env.NODE_ENV === 'development') {
+      console.log('✅ Database connection initialized (Neon Postgres - Serverless with Transaction Support)');
+    }
     return db;
   } catch (error: any) {
-    console.error('❌ Failed to initialize database connection:', error?.message || error);
-    console.error('   Database features will be disabled until DATABASE_URL is properly configured');
+    // Only log in development
+    if (process.env.NODE_ENV === 'development') {
+      console.error('❌ Failed to initialize database connection:', error?.message || error);
+    }
     return null;
   }
 }
@@ -56,7 +65,9 @@ export async function checkDatabaseHealth(): Promise<boolean> {
     lastHealthCheck = Date.now();
     return true;
   } catch (error: any) {
-    console.error('❌ Database health check failed:', error.message);
+    if (process.env.NODE_ENV === 'development') {
+      console.error('❌ Database health check failed:', error.message);
+    }
     isHealthy = false;
     lastHealthCheck = Date.now();
     return false;
@@ -68,7 +79,7 @@ export async function checkDatabaseHealth(): Promise<boolean> {
  */
 export async function getDatabaseHealth(): Promise<boolean> {
   const now = Date.now();
-  
+
   // Return cached result if recent
   if (now - lastHealthCheck < HEALTH_CHECK_INTERVAL) {
     return isHealthy;
@@ -83,20 +94,27 @@ export async function getDatabaseHealth(): Promise<boolean> {
  */
 export async function reconnectDatabase(): Promise<boolean> {
   try {
-    console.log('🔄 Attempting to reconnect database...');
+    // Only log in development
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🔄 Attempting to reconnect database...');
+    }
     db = initializeDatabase();
-    
+
     if (db) {
       const healthy = await checkDatabaseHealth();
       if (healthy) {
-        console.log('✅ Database reconnected successfully');
+        if (process.env.NODE_ENV === 'development') {
+          console.log('✅ Database reconnected successfully');
+        }
         return true;
       }
     }
-    
+
     return false;
   } catch (error: any) {
-    console.error('❌ Database reconnection failed:', error.message);
+    if (process.env.NODE_ENV === 'development') {
+      console.error('❌ Database reconnection failed:', error.message);
+    }
     return false;
   }
 }
@@ -115,29 +133,32 @@ export function getDatabase() {
 }
 
 /**
- * Get database with automatic retry on connection failure
+ * Get database with automatic retry on connection failure.
+ * ⚡ PERFORMANCE: Removed per-request health checks. The Neon Pool handles
+ * connection validity internally. We only reconnect if db is completely null.
  */
 export async function getDatabaseWithRetry() {
-  if (!db) {
-    // Try to reconnect
+  // Fast path: if db exists, return it immediately (no health check overhead)
+  if (db) {
+    return db;
+  }
+
+  // Slow path: db is null, try to reconnect
+  try {
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🔄 Database not initialized, attempting to reconnect...');
+    }
     const reconnected = await reconnectDatabase();
     if (!reconnected) {
       throw new Error('Database is not available. Please check your DATABASE_URL in .env.local');
     }
+    return db;
+  } catch (error: any) {
+    if (process.env.NODE_ENV === 'development') {
+      console.error('❌ getDatabaseWithRetry error:', error?.message || error);
+    }
+    throw error;
   }
-
-  // Check health and reconnect if needed
-  const healthy = await getDatabaseHealth();
-  if (!healthy && db) {
-    console.warn('⚠️ Database health check failed, attempting reconnection...');
-    await reconnectDatabase();
-  }
-
-  if (!db) {
-    throw new Error('Database is not available. Please check your DATABASE_URL in .env.local');
-  }
-
-  return db;
 }
 
 export { db };

@@ -1,5 +1,6 @@
 import { pgTable, serial, text, timestamp, integer, boolean, varchar, jsonb } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
+import { courses } from './schema';
 
 // Enhanced users table with indices
 export const users = pgTable('users', {
@@ -12,8 +13,6 @@ export const users = pgTable('users', {
     profilePicture: text('profile_picture'),
     bio: text('bio'),
     isActive: boolean('is_active').notNull().default(true),
-    faceIdEnrolled: boolean('face_id_enrolled').notNull().default(false),
-    faceTemplate: text('face_template'),
     fingerprintEnrolled: boolean('fingerprint_enrolled').notNull().default(false),
     fingerprintTemplate: text('fingerprint_template'),
     lastLogin: timestamp('last_login'),

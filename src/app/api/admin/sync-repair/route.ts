@@ -1,6 +1,10 @@
+import { logger } from '@/lib/logger';
+import { extractAndValidate, validateQueryParams, validateRouteParams } from '@/lib/api-validation';
+import { syncRepairSchema } from '@/lib/validation-schemas-extended';
+import { z } from 'zod';
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/auth';
-import { getDatabase } from '@/lib/db';
+import { getDatabaseWithRetry } from '@/lib/db';
 import { studentProgress, enrollments, accessRequests } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 
@@ -11,12 +15,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });
     }
 
-    const decoded = verifyToken(token);
+    const decoded = await verifyToken(token);
     if (!decoded || decoded.role !== 'admin') {
       return NextResponse.json({ message: 'Admin access required' }, { status: 403 });
     }
 
-    const db = getDatabase();
+    const db = await getDatabaseWithRetry();
     const repaired = {
       progressCreated: 0,
       enrollmentsCreated: 0,
@@ -25,8 +29,11 @@ export async function POST(request: NextRequest) {
     };
 
     // Get inconsistencies from request body
-    const body = await request.json();
-    const { progressOnly, enrollmentsOnly, pendingEnrolled } = body;
+    const bodyValidation = await extractAndValidate(request, syncRepairSchema);
+    if (!bodyValidation.success) {
+      return bodyValidation.error;
+    }
+    const { progressOnly, enrollmentsOnly, pendingEnrolled } = bodyValidation.data;
 
     // 1. Create missing enrollments records
     if (progressOnly && progressOnly.length > 0) {
@@ -86,7 +93,7 @@ export async function POST(request: NextRequest) {
       repaired,
     });
   } catch (error) {
-    console.error('Repair error:', error);
+    logger.error('Repair error:', error);
     return NextResponse.json({
       message: 'Internal server error',
       error: process.env.NODE_ENV === 'development' ? String(error) : undefined
