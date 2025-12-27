@@ -4,14 +4,32 @@ import { z } from 'zod';
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/auth';
 import { getDatabaseWithRetry } from '@/lib/db';
-import { 
-  questionBanks, 
-  qbankQuestions, 
+import {
+  questionBanks,
+  qbankQuestions,
   qbankQuestionStatistics,
   qbankMarkedQuestions,
-  courseQuestionAssignments 
+  courseQuestionAssignments
 } from '@/lib/db/schema';
 import { eq, and, sql, or } from 'drizzle-orm';
+
+function getQuestionTypeLabel(type: string | null): string {
+  if (!type) return 'Multiple Choice';
+  const labels: Record<string, string> = {
+    multiple_choice: 'Multiple Choice',
+    sata: 'Select All That Apply',
+    case_study: 'Case Study',
+    bow_tie: 'Bow Tie',
+    trend: 'Trend',
+    matrix: 'Matrix',
+    ordered_response: 'Ordered Response',
+    calculation: 'Dosage Calculation',
+    extended_drag_drop: 'Drag & Drop',
+    highlight_text: 'Highlight Text',
+    cloze: 'Cloze (Drop-Down)',
+  };
+  return labels[type] || type.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+}
 
 // Safe JSON parser that handles both JSON strings and plain values
 function safeJsonParse(value: any, fallback: any = null) {
@@ -25,6 +43,26 @@ function safeJsonParse(value: any, fallback: any = null) {
     return value;
   }
 }
+
+// Helper to verify auth
+async function verifyAuth(request: NextRequest) {
+  const token = request.cookies.get('student_token')?.value || request.cookies.get('token')?.value;
+  if (!token) {
+    return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });
+  }
+  const decoded = await verifyToken(token);
+  if (!decoded || !decoded.id) {
+    return NextResponse.json({ message: 'Invalid token' }, { status: 401 });
+  }
+  return { user: decoded };
+}
+
+export async function GET(
+  request: NextRequest,
+  { params }: { params: { courseId: string } }
+) {
+  try {
+    const token = request.cookies.get('student_token')?.value || request.cookies.get('token')?.value;
 
     if (!token) {
       return NextResponse.json(
@@ -43,15 +81,9 @@ function safeJsonParse(value: any, fallback: any = null) {
     }
 
     const db = await getDatabaseWithRetry();
-    const courseIdNum = parseInt(params.courseId);
-    const { searchParams } = new URL(request.url);
+    const courseId = parseInt(params.courseId);
 
-    // Verify authentication
-    const authResult = await verifyAuth(request);
-    if (authResult instanceof NextResponse) {
-      return authResult;
-    }
-    const user = authResult.user;
+    const user = decoded;
 
     // Get or create question bank for this course
     let [qbank] = await db
@@ -75,7 +107,7 @@ function safeJsonParse(value: any, fallback: any = null) {
     // Get ALL questions for this course:
     // 1. Questions directly in this course's question bank
     // 2. Questions assigned to this course via course_question_assignments
-    
+
     // Get directly assigned questions (from course-specific bank)
     const directQuestions = await db
       .select()
@@ -109,10 +141,10 @@ function safeJsonParse(value: any, fallback: any = null) {
 
     // Combine both sources and remove duplicates
     const questionMap = new Map();
-    
+
     // Add direct questions
-    directQuestions.forEach(q => questionMap.set(q.id, q));
-    
+    directQuestions.forEach((q: any) => questionMap.set(q.id, q));
+
     // Add assigned questions
     assignedQuestionsData.forEach(q => questionMap.set(q.id, q));
 
@@ -161,7 +193,7 @@ function safeJsonParse(value: any, fallback: any = null) {
       const isMarked = markedMap.has(q.id);
       const isClassic = q.testType === 'classic' || q.testType === 'mixed';
       const isNGN = q.testType === 'ngn' || q.testType === 'mixed';
-      
+
       // Count for 'all'
       if (isClassic) counts.all.classic++;
       if (isNGN) counts.all.ngn++;
@@ -262,7 +294,7 @@ function safeJsonParse(value: any, fallback: any = null) {
 
 export async function POST(request: NextRequest, { params }: { params: { courseId: string } }) {
   try {
-    const db = getDatabase();
+    const db = await getDatabaseWithRetry(); // Use getDatabaseWithRetry
     const courseId = parseInt(params.courseId);
     const { questions: questionsData } = await request.json();
 

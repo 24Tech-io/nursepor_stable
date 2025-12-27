@@ -74,22 +74,21 @@ export async function middleware(request: NextRequest) {
     !pathname.startsWith('/admin/login') &&
     !pathname.startsWith('/admin/register') &&
     pathname !== '/admin') {
-    const adminToken = request.cookies.get('admin_token')?.value;
+    const adminToken = request.cookies.get('admin_token')?.value || request.cookies.get('adminToken')?.value;
     if (!adminToken) {
       return NextResponse.redirect(new URL('/admin/login', request.url));
     }
   }
 
   // Protect student routes - require student_token
-  // Allow /student/register
-  // Note: We allow pages to load and handle auth client-side for better UX
-  // This prevents 404s and allows pages to show loading states
-  // Pages will check auth via /api/auth/me and redirect if needed
-  if (pathname.startsWith('/student') && !pathname.startsWith('/student/register')) {
+  // Allow /student/register, /register, and generic paths
+  const studentPaths = ['/dashboard', '/courses', '/qbanks', '/progress', '/student'];
+  const isStudentPath = studentPaths.some(path => pathname.startsWith(path));
+
+  if (isStudentPath && !pathname.startsWith('/student/register') && !pathname.startsWith('/register')) {
     const studentToken = request.cookies.get('student_token')?.value;
     // Allow route to load - pages handle auth client-side
     // This is better UX than blocking at middleware level
-    // If no token, pages will show loading then redirect
   }
 
   const response = NextResponse.next();

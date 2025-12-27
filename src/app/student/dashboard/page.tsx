@@ -236,7 +236,7 @@ export default function StudentDashboard() {
       }
     };
 
-    fetchStats();
+    fetchDashboardData();
 
     return () => {
       isMounted = false;

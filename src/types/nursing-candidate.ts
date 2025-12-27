@@ -3,6 +3,13 @@ export interface DateRange {
   to: string;
 }
 
+export interface SchoolEntry {
+  institutionName: string;
+  address: StructuredAddress;
+  studyPeriod: DateRange;
+  gradeStudied?: string; // For "Other Schools"
+}
+
 export interface StructuredAddress {
   addressLine: string;
   city: string;
@@ -66,6 +73,14 @@ export interface NclexExamAttempt {
 export interface NursingCandidateFormPayload {
   targetCountry: 'Canada' | 'USA' | 'Australia';
   personalDetails: NursingPersonalDetails;
+
+  // School Information (New Section)
+  schoolDetails: {
+    class10: SchoolEntry;
+    class12: SchoolEntry;
+    otherSchools: SchoolEntry[];
+  };
+
   educationDetails: NursingEducationEntry[];
   registrationDetails: {
     hasDisciplinaryAction: 'Yes' | 'No';
@@ -77,10 +92,11 @@ export interface NursingCandidateFormPayload {
   };
   employmentHistory: NursingExperienceEntry[];
   canadaEmploymentHistory: NursingCanadaExperienceEntry[];
-  nclexHistory: {
-    hasTakenBefore: 'Yes' | 'No';
-    attempts: NclexExamAttempt[];
-  };
+
+  // Country Specific
+  canadianImmigrationApplied?: 'Yes' | 'No';
+
   referenceNumber?: string;
   documentChecklistAcknowledged: boolean;
+  createdAt?: string; // Changed to string to match JSON payload easier
 }

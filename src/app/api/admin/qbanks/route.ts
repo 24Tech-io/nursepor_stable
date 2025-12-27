@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyToken } from '@/lib/auth';
+import { verifyToken, verifyAuth } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { questionBanks, qbankQuestions } from '@/lib/db/schema';
 import { eq, desc, sql, count } from 'drizzle-orm';
@@ -14,16 +14,11 @@ export const dynamic = 'force-dynamic';
 export async function GET(request: NextRequest) {
   try {
     // Check authentication
-    const token = request.cookies.get('admin_token')?.value || request.cookies.get('adminToken')?.value || request.cookies.get('token')?.value;
-
-    if (!token) {
-      return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });
+    const auth = await verifyAuth(request, { requiredRole: 'admin' });
+    if (!auth.isAuthorized) {
+      return auth.response;
     }
-
-    const decoded = await verifyToken(token);
-    if (!decoded || decoded.role !== 'admin') {
-      return NextResponse.json({ message: 'Admin access required' }, { status: 403 });
-    }
+    const { user: decoded } = auth;
 
     // Get all Q-Banks with question counts
     const qbanks = await db
@@ -57,16 +52,11 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     // Check authentication
-    const token = request.cookies.get('admin_token')?.value || request.cookies.get('adminToken')?.value || request.cookies.get('token')?.value;
-
-    if (!token) {
-      return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });
+    const auth = await verifyAuth(request, { requiredRole: 'admin' });
+    if (!auth.isAuthorized) {
+      return auth.response;
     }
-
-    const decoded = await verifyToken(token);
-    if (!decoded || decoded.role !== 'admin') {
-      return NextResponse.json({ message: 'Admin access required' }, { status: 403 });
-    }
+    const { user: decoded } = auth;
 
     // Validate request body
     const bodyValidation = await extractAndValidate(request, createQBankSchema);

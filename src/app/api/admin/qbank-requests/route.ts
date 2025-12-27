@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyToken } from '@/lib/auth';
+import { verifyToken, verifyAuth } from '@/lib/auth';
 import { getDatabaseWithRetry } from '@/lib/db';
 import { qbankAccessRequests, questionBanks, users } from '@/lib/db/schema';
 import { eq, and, desc } from 'drizzle-orm';
@@ -13,15 +13,11 @@ export const dynamic = 'force-dynamic';
 // GET - List pending access requests
 export async function GET(request: NextRequest) {
   try {
-    const token = request.cookies.get('admin_token')?.value || request.cookies.get('adminToken')?.value || request.cookies.get('token')?.value;
-    if (!token) {
-      return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });
+    const auth = await verifyAuth(request, { requiredRole: 'admin' });
+    if (!auth.isAuthorized) {
+      return auth.response;
     }
-
-    const decoded = await verifyToken(token);
-    if (!decoded || decoded.role !== 'admin') {
-      return NextResponse.json({ message: 'Admin access required' }, { status: 403 });
-    }
+    const { user: decoded } = auth;
 
     const db = await getDatabaseWithRetry();
     const url = new URL(request.url);

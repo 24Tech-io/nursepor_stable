@@ -19,7 +19,6 @@ export default function ProfilePage() {
     hoursLearned: 0,
     avgRating: 0,
   });
-  const [notifications, setNotifications] = useState<any[]>([]);
   const [isLoadingNotifications, setIsLoadingNotifications] = useState(false);
 
   useEffect(() => {
@@ -45,13 +44,13 @@ export default function ProfilePage() {
           console.error('Failed to parse stored user data:', e);
         }
       }
-      
+
       await new Promise(resolve => setTimeout(resolve, 1000));
-      
+
       if (!isMounted) return;
 
       try {
-        const response = await fetch('/api/auth/me', { 
+        const response = await fetch('/api/auth/me', {
           credentials: 'include',
           signal: abortController.signal,
           cache: 'no-store',
@@ -294,7 +293,7 @@ export default function ProfilePage() {
               Member since {user.joinedDate ? (typeof user.joinedDate === 'string' ? new Date(user.joinedDate) : user.joinedDate).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : 'Recently'}
             </p>
           </div>
-          <Link 
+          <Link
             href="/student/settings"
             className="px-4 py-2 bg-white/10 text-nurse-silver-300 rounded-xl font-medium hover:bg-white/20 transition border border-white/10 flex items-center gap-2"
           >
@@ -314,11 +313,10 @@ export default function ProfilePage() {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id as any)}
-              className={`flex-1 py-4 px-6 text-center font-semibold transition ${
-                activeTab === tab.id
-                  ? 'bg-gradient-to-r from-nurse-red-600 to-red-600 text-white'
-                  : 'text-nurse-silver-400 hover:text-white hover:bg-white/5'
-              }`}
+              className={`flex-1 py-4 px-6 text-center font-semibold transition ${activeTab === tab.id
+                ? 'bg-gradient-to-r from-nurse-red-600 to-red-600 text-white'
+                : 'text-nurse-silver-400 hover:text-white hover:bg-white/5'
+                }`}
             >
               <span className="mr-2">{tab.icon}</span>
               {tab.label}
@@ -421,7 +419,7 @@ export default function ProfilePage() {
             <div className="space-y-6">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-2xl font-bold text-white">Notifications</h2>
-                <button 
+                <button
                   onClick={handleMarkAllRead}
                   disabled={notifications.length === 0 || notifications.every(n => n.read)}
                   className="px-4 py-2 bg-gradient-to-r from-nurse-red-600 to-red-600 text-white rounded-xl font-semibold hover:from-nurse-red-700 hover:to-red-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
@@ -433,21 +431,19 @@ export default function ProfilePage() {
               <div className="space-y-4">
                 {notifications.length > 0 ? (
                   notifications.map(notification => (
-                    <div key={notification.id} className={`p-6 rounded-2xl border transition ${
-                      notification.read
-                        ? 'bg-white/5 border-white/10'
-                        : 'bg-nurse-red-500/10 border-nurse-red-500/30'
-                    }`}>
+                    <div key={notification.id} className={`p-6 rounded-2xl border transition ${notification.read
+                      ? 'bg-white/5 border-white/10'
+                      : 'bg-nurse-red-500/10 border-nurse-red-500/30'
+                      }`}>
                       <div className="flex items-start space-x-4">
-                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-                          notification.type === 'success' ? 'bg-green-500/20 text-green-400' :
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${notification.type === 'success' ? 'bg-green-500/20 text-green-400' :
                           notification.type === 'warning' ? 'bg-yellow-500/20 text-yellow-400' :
-                          notification.type === 'error' ? 'bg-red-500/20 text-red-400' :
-                          'bg-nurse-red-500/20 text-nurse-red-400'
-                        }`}>
+                            notification.type === 'error' ? 'bg-red-500/20 text-red-400' :
+                              'bg-nurse-red-500/20 text-nurse-red-400'
+                          }`}>
                           {notification.type === 'success' ? '✓' :
-                           notification.type === 'warning' ? '⚠' :
-                           notification.type === 'error' ? '✕' : 'ℹ'}
+                            notification.type === 'warning' ? '⚠' :
+                              notification.type === 'error' ? '✕' : 'ℹ'}
                         </div>
                         <div className="flex-1">
                           <h3 className="font-semibold text-white mb-1">{notification.title}</h3>

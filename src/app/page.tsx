@@ -121,7 +121,7 @@ export default function HomePage() {
 
               <h1 className="text-5xl md:text-7xl font-bold text-white mb-6">
                 Learn Without
-                <span className="italic font-bold" style={{ 
+                <span className="italic font-bold" style={{
                   background: 'linear-gradient(135deg, #E31C25 0%, #ff6b6b 50%, #E31C25 100%)',
                   WebkitBackgroundClip: 'text',
                   WebkitTextFillColor: 'transparent',
@@ -192,7 +192,7 @@ export default function HomePage() {
           <div className="relative rounded-3xl overflow-hidden">
             <div className="absolute inset-0 bg-gradient-to-r from-nurse-red-600 to-red-600" />
             <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_rgba(255,255,255,0.1),_transparent_70%)]" />
-            
+
             <div className="relative p-12">
               <div className="text-center mb-10">
                 <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">Join Our Growing Community</h2>

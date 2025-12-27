@@ -188,23 +188,6 @@ export default function QuizCard({
     );
   }
 
-  const handleSelectAnswer = (answer: string) => {
-    if (!isSubmitted) {
-      setSelectedAnswers({ ...selectedAnswers, [currentQuestion]: answer });
-    }
-  };
-
-  const handleNext = () => {
-    if (currentQuestion < totalQuestions - 1) {
-      setCurrentQuestion(currentQuestion + 1);
-    }
-  };
-
-  const handlePrevious = () => {
-    if (currentQuestion > 0) {
-      setCurrentQuestion(currentQuestion - 1);
-    }
-  };
 
   const getScore = () => {
     let correct = 0;

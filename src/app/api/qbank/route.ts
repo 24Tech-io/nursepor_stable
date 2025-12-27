@@ -1,70 +1,65 @@
 import { logger } from '@/lib/logger';
 import { extractAndValidate, validateQueryParams, validateRouteParams } from '@/lib/api-validation';
 import { z } from 'zod';
-import { NextResponse } from 'next/server';
-import { db } from '@/lib/db';
-import { qbankQuestions, questionBanks } from '@/lib/db/schema';
-import { desc, eq, count } from 'drizzle-orm';
+import { NextRequest, NextResponse } from 'next/server';
+import { getDatabaseWithRetry } from '@/lib/db';
+import { qbankQuestions, questionBanks, courses, courseQuestionAssignments } from '@/lib/db/schema';
+import { desc, eq, count, sql } from 'drizzle-orm';
+import { verifyToken, verifyAuth } from '@/lib/auth';
 
 // Force dynamic rendering - this route uses request.url
 export const dynamic = 'force-dynamic';
 
 // Safe JSON parser that handles both JSON strings and plain values
 function safeJsonParse(value: any, fallback: any = null) {
-    if (!value) return fallback;
-    if (typeof value !== 'string') return value;
+  if (!value) return fallback;
+  if (typeof value !== 'string') return value;
 
-    try {
-        return JSON.parse(value);
-    } catch {
-        // If it's not valid JSON, return as-is (e.g., single letter answers like 'b')
-        return value;
-    }
+  try {
+    return JSON.parse(value);
+  } catch {
+    // If it's not valid JSON, return as-is (e.g., single letter answers like 'b')
+    return value;
+  }
 }
 
-export async function GET(request: Request) {
-    try {
-        // Parse query parameters for pagination
-        const url = new URL(request.url);
-        const limit = parseInt(url.searchParams.get('limit') || '50');
-        const offset = parseInt(url.searchParams.get('offset') || '0');
-        const countOnly = url.searchParams.get('countOnly') === 'true';
-
-        // ⚡ PERFORMANCE: If only count is needed, use efficient COUNT query
-        if (countOnly) {
-            const [result] = await db
-                .select({ count: count() })
-                .from(qbankQuestions);
-
-            return NextResponse.json({
-                totalCount: result.count
-            });
-        }
+function getQuestionTypeLabel(type: string | null): string {
+  if (!type) return 'Multiple Choice';
+  const labels: Record<string, string> = {
+    multiple_choice: 'Multiple Choice',
+    sata: 'Select All That Apply',
+    case_study: 'Case Study',
+    bow_tie: 'Bow Tie',
+    trend: 'Trend',
+    matrix: 'Matrix',
+    ordered_response: 'Ordered Response',
+    calculation: 'Dosage Calculation',
+    extended_drag_drop: 'Drag & Drop',
+    highlight_text: 'Highlight Text',
+    cloze: 'Cloze (Drop-Down)',
+  };
+  return labels[type] || type.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+}
 
 export async function GET(request: NextRequest) {
   try {
-    const token = request.cookies.get('adminToken')?.value;
-
-    if (!token) {
-      return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });
+    const auth = await verifyAuth(request, { requiredRole: 'admin' });
+    if (!auth.isAuthorized) {
+      return auth.response;
     }
+    const { user: decoded } = auth;
 
-    const decoded = verifyToken(token);
-    if (!decoded || decoded.role !== 'admin') {
-      return NextResponse.json({ message: 'Admin access required' }, { status: 403 });
-    }
-
-    const db = getDatabase();
+    const db = await getDatabaseWithRetry();
     const url = new URL(request.url);
     const limit = parseInt(url.searchParams.get('limit') || '1000');
     const categoryId = url.searchParams.get('categoryId');
+    const countOnly = url.searchParams.get('countOnly') === 'true';
 
     // If we just need count for dashboard, return early with optimized count query
-    if (limit === 0 || url.searchParams.get('countOnly') === 'true') {
+    if (limit === 0 || countOnly) {
       const [result] = await db
-        .select({ count: sql<number>`COUNT(${qbankQuestions.id})` })
-        .from(qbankQuestions)
-        .leftJoin(questionBanks, eq(qbankQuestions.questionBankId, questionBanks.id));
+        .select({ count: count() })
+        .from(qbankQuestions);
 
       return NextResponse.json({
         questions: [],
@@ -74,9 +69,8 @@ export async function GET(request: NextRequest) {
 
     // Get total count for response
     const [countResult] = await db
-      .select({ count: sql<number>`COUNT(${qbankQuestions.id})` })
-      .from(qbankQuestions)
-      .leftJoin(questionBanks, eq(qbankQuestions.questionBankId, questionBanks.id));
+      .select({ count: count() })
+      .from(qbankQuestions);
 
     // Build query with optional category filter
     let query = db
@@ -94,7 +88,6 @@ export async function GET(request: NextRequest) {
         testType: qbankQuestions.testType,
       })
       .from(qbankQuestions)
-      .leftJoin(questionBanks, eq(qbankQuestions.questionBankId, questionBanks.id))
       .$dynamic();
 
     // Apply category filter if provided
@@ -102,13 +95,13 @@ export async function GET(request: NextRequest) {
       query = query.where(eq(qbankQuestions.categoryId, parseInt(categoryId)));
     }
 
-    // ✅ FIX: Add ordering by ID for consistent display
+    // Add ordering by ID for consistent display
     const questions = await query.orderBy(qbankQuestions.id).limit(limit);
 
     return NextResponse.json({
       questions: questions.map((q: any) => ({
         id: q.id.toString(),
-        categoryId: q.categoryId, // ✅ FIXED: Include categoryId for folder display
+        categoryId: q.categoryId,
         stem: q.question
           ? q.question.substring(0, 100) + (q.question.length > 100 ? '...' : '')
           : 'No question text',
@@ -121,9 +114,9 @@ export async function GET(request: NextRequest) {
         subject: q.subject,
         difficulty: q.difficulty,
         testType: q.testType,
-        questionType: q.questionType, // ✅ Add for cloning
-        options: safeJsonParse(q.options, []), // ✅ Flatten for easier access
-        correctAnswer: safeJsonParse(q.correctAnswer, null), // ✅ Flatten for easier access
+        questionType: q.questionType,
+        options: safeJsonParse(q.options, []),
+        correctAnswer: safeJsonParse(q.correctAnswer, null),
         data: {
           options: safeJsonParse(q.options, []),
           correctAnswer: safeJsonParse(q.correctAnswer, null),
@@ -132,7 +125,7 @@ export async function GET(request: NextRequest) {
       totalCount: Number(countResult?.count || 0),
     });
   } catch (error: any) {
-    console.error('Get Q-bank questions error:', error);
+    logger.error('Get Q-bank questions error:', error);
     return NextResponse.json(
       { message: 'Failed to fetch questions', error: error.message },
       { status: 500 }
@@ -142,21 +135,16 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const token = request.cookies.get('adminToken')?.value;
-
-    if (!token) {
-      return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });
+    const auth = await verifyAuth(request, { requiredRole: 'admin' });
+    if (!auth.isAuthorized) {
+      return auth.response;
     }
+    const { user: decoded } = auth;
 
-    const decoded = verifyToken(token);
-    if (!decoded || decoded.role !== 'admin') {
-      return NextResponse.json({ message: 'Admin access required' }, { status: 403 });
-    }
-
-    const db = getDatabase();
+    const db = await getDatabaseWithRetry();
     const body = await request.json();
 
-    console.log('POST /api/qbank - Received data:', JSON.stringify(body, null, 2));
+    logger.info('POST /api/qbank - Received data:', JSON.stringify(body, null, 2));
 
     // Support both single question and array of questions
     const questionsData = Array.isArray(body) ? body : [body];
@@ -173,7 +161,7 @@ export async function POST(request: NextRequest) {
       .limit(1);
 
     if (!qbank) {
-      console.log('Creating general Q-Bank...');
+      logger.info('Creating general Q-Bank...');
       [qbank] = await db
         .insert(questionBanks)
         .values({
@@ -181,11 +169,11 @@ export async function POST(request: NextRequest) {
           name: 'General Q-Bank',
         })
         .returning();
-      console.log('General Q-Bank created:', qbank.id);
+      logger.info('General Q-Bank created:', qbank.id);
     }
 
     // Insert questions
-    console.log('Inserting questions into Q-Bank:', qbank.id);
+    logger.info('Inserting questions into Q-Bank:', qbank.id);
     const insertedQuestions = await db
       .insert(qbankQuestions)
       .values(
@@ -195,7 +183,7 @@ export async function POST(request: NextRequest) {
             q.type || q.questionType || q.format || q.questionFormat || 'multiple_choice',
           question: q.question || q.questionStem || '',
           explanation: q.explanation || q.rationale || null,
-          imageUrl: q.imageUrl || q.image_url || null, // Handle image URL
+          imageUrl: q.imageUrl || q.image_url || null,
           points: q.points || 1,
           options: q.options
             ? typeof q.options === 'string'
@@ -217,12 +205,11 @@ export async function POST(request: NextRequest) {
       )
       .returning();
 
-    console.log('Questions inserted:', insertedQuestions.length);
+    logger.info('Questions inserted:', insertedQuestions.length);
 
-    // ✅ AUTO-ASSIGN: Automatically assign these questions to ALL courses
-    // This makes admin-created questions immediately visible to all students
+    // AUTO-ASSIGN: Automatically assign these questions to ALL courses
     const allCourses = await db.select({ id: courses.id }).from(courses);
-    
+
     if (allCourses.length > 0 && insertedQuestions.length > 0) {
       const assignments = [];
       for (const course of allCourses) {
@@ -235,14 +222,14 @@ export async function POST(request: NextRequest) {
           });
         }
       }
-      
+
       // Batch insert all assignments
       if (assignments.length > 0) {
         await db.insert(courseQuestionAssignments)
           .values(assignments)
           .onConflictDoNothing();
-        
-        console.log(`✅ Auto-assigned ${insertedQuestions.length} questions to ${allCourses.length} courses`);
+
+        logger.info(`✅ Auto-assigned ${insertedQuestions.length} questions to ${allCourses.length} courses`);
       }
     }
 
@@ -272,73 +259,13 @@ export async function POST(request: NextRequest) {
       { status: 201 }
     );
   } catch (error: any) {
-    console.error('Create Q-bank questions error:', error);
-    console.error('Error stack:', error.stack);
+    logger.error('Create Q-bank questions error:', error);
+    logger.error('Error stack:', error.stack);
     return NextResponse.json(
       {
         message: 'Failed to create questions',
         error: process.env.NODE_ENV === 'development' ? error.message : undefined,
       },
-      { status: 500 }
-    );
-  }
-}
-
-        return NextResponse.json({
-            questions: formattedQuestions,
-            total: questions.length,
-            limit,
-            offset
-        });
-    } catch (error) {
-        logger.error('Get qbank error:', error);
-        return NextResponse.json({
-            message: 'Internal server error',
-            error: process.env.NODE_ENV === 'development' ? String(error) : undefined
-        }, { status: 500 });
-    }
-
-    const decoded = verifyToken(token);
-    if (!decoded || decoded.role !== 'admin') {
-      return NextResponse.json({ message: 'Admin access required' }, { status: 403 });
-    }
-
-    const body = await request.json();
-    const { questionId, categoryId } = body;
-
-    if (!questionId) {
-      return NextResponse.json({ message: 'Question ID is required' }, { status: 400 });
-    }
-
-    const db = getDatabase();
-
-    // ✅ FIXED: Properly handle categoryId updates (including null)
-    const updateData: any = { updatedAt: new Date() };
-
-    if ('categoryId' in body) {
-      updateData.categoryId = categoryId; // Can be null, number, or undefined
-    }
-
-    const [updatedQuestion] = await db
-      .update(qbankQuestions)
-      .set(updateData)
-      .where(eq(qbankQuestions.id, parseInt(questionId)))
-      .returning();
-
-    if (!updatedQuestion) {
-      return NextResponse.json({ message: 'Question not found' }, { status: 404 });
-    }
-
-    console.log(`✅ Question ${questionId} updated: categoryId = ${categoryId}`);
-
-    return NextResponse.json({
-      message: 'Question updated successfully',
-      question: updatedQuestion,
-    });
-  } catch (error: any) {
-    console.error('Update question error:', error);
-    return NextResponse.json(
-      { message: 'Failed to update question', error: error.message },
       { status: 500 }
     );
   }

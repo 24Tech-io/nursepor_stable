@@ -1,257 +1,148 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyToken } from '@/lib/auth';
+import { verifyAuth } from '@/lib/auth';
 import { getDatabaseWithRetry } from '@/lib/db';
-import { studentProgress, courses, users, accessRequests, enrollments } from '@/lib/db/schema';
-import { eq, and, sql } from 'drizzle-orm';
+import { studentProgress, courses, accessRequests, qbankEnrollments, qbankTests } from '@/lib/db/schema';
+import { eq, and, sql, gte } from 'drizzle-orm';
 import { getPublishedCourseFilter } from '@/lib/enrollment-helpers';
 import { createErrorResponse, createAuthError } from '@/lib/error-handler';
-import { retryDatabase } from '@/lib/retry';
 import { logger } from '@/lib/logger';
 
-// Cache for 30 seconds - allows stale-while-revalidate
-export const revalidate = 30;
+// CACHE DISABLED - Force fresh data
+export const revalidate = 0;
 
 export async function GET(request: NextRequest) {
   try {
-    const token = request.cookies.get('student_token')?.value || request.cookies.get('token')?.value;
+    const auth = await verifyAuth(request);
 
-    if (!token) {
+    if (!auth.isAuthenticated || !auth.user) {
       return createAuthError('Not authenticated');
     }
-
-    const decoded = await verifyToken(token);
-
-    if (!decoded || !decoded.id) {
-      return createAuthError('Invalid token');
-    }
+    const decoded = auth.user;
 
     // Get database instance with retry
     const db = await getDatabaseWithRetry();
 
     const userId = decoded.id;
+    logger.info(`📊 Fetching stats for user ID: ${userId}`);
 
-    // IMPORTANT: Get pending request course IDs to exclude from enrolled count
-    // Handle case where access_requests table might not exist
-    let pendingRequests = [];
+    // Get pending request course IDs to exclude from enrolled count
+    let pendingRequests: { courseId: number }[] = [];
     try {
       pendingRequests = await db
-          .select({
-            courseId: accessRequests.courseId,
-          })
-          .from(accessRequests)
-          .where(
-            and(
-              eq(accessRequests.studentId, userId),
-              eq(accessRequests.status, 'pending')
+        .select({
+          courseId: accessRequests.courseId,
+        })
+        .from(accessRequests)
+        .where(
+          and(
+            eq(accessRequests.studentId, userId),
+            eq(accessRequests.status, 'pending')
           )
-      );
+        );
     } catch (error: any) {
-      // Table doesn't exist or query failed - continue with empty array
-      logger.warn('⚠️ access_requests table not accessible, continuing without pending requests filter:', error?.message);
+      logger.warn('⚠️ access_requests table not accessible:', error?.message);
     }
 
-    const pendingRequestCourseIds = pendingRequests.map((r: any) => r.courseId);
+    const pendingRequestCourseIds = pendingRequests.map(r => r.courseId);
 
-    // Get all enrolled courses from BOTH tables
-    // Handle case where student_progress table might not exist
-    let allEnrolledProgress = [];
-    let allEnrolledRecords = [];
-    
+    // Get enrolled courses from student_progress table (the ONLY course enrollment table)
+    let enrolledCourses: { courseId: number; totalProgress: number }[] = [];
     try {
-      [allEnrolledProgress, allEnrolledRecords] = await Promise.all([
-        // Try student_progress table (may not exist)
-        (async () => {
-          try {
-            return await db
-              .select({
-                courseId: studentProgress.courseId,
-              })
-              .from(studentProgress)
-              .innerJoin(courses, eq(studentProgress.courseId, courses.id))
-              .where(
-                and(
-                  eq(studentProgress.studentId, userId),
-                  getPublishedCourseFilter()
-              )
-            );
-          } catch (error: any) {
-            logger.warn('⚠️ student_progress table not accessible:', error?.message);
-            return [];
-          }
-        })(),
-        // enrollments table should exist
-        db
-          .select({
-            courseId: enrollments.courseId,
-          })
-          .from(enrollments)
-          .innerJoin(courses, eq(enrollments.courseId, courses.id))
-          .where(
-            and(
-              eq(enrollments.userId, userId),
-              eq(enrollments.status, 'active'),
-              getPublishedCourseFilter()
+      enrolledCourses = await db
+        .select({
+          courseId: studentProgress.courseId,
+          totalProgress: studentProgress.totalProgress,
+        })
+        .from(studentProgress)
+        .innerJoin(courses, eq(studentProgress.courseId, courses.id))
+        .where(
+          and(
+            eq(studentProgress.studentId, userId),
+            getPublishedCourseFilter()
           )
-      ),
-      ]);
+        );
+      logger.info(`📚 Found ${enrolledCourses.length} enrolled courses`);
     } catch (error: any) {
-      logger.warn('⚠️ Error fetching enrolled courses:', error?.message);
-      // Continue with empty arrays
+      logger.warn('⚠️ student_progress table error:', error?.message);
     }
-
-    // Merge course IDs from both tables
-    const allEnrolledCourseIds = new Set([
-      ...allEnrolledProgress.map((p: any) => p.courseId),
-      ...allEnrolledRecords.map((e: any) => e.courseId),
-    ]);
 
     // Filter out courses with pending requests
-    // A course with a pending request should NOT be counted as enrolled
-    const actualEnrolledCourseIds = Array.from(allEnrolledCourseIds).filter(
-      (courseId: number) => !pendingRequestCourseIds.includes(courseId)
+    const actualEnrolledCourses = enrolledCourses.filter(
+      c => !pendingRequestCourseIds.includes(c.courseId)
     );
 
-    const coursesEnrolled = actualEnrolledCourseIds.length;
+    const coursesEnrolled = actualEnrolledCourses.length;
+    logger.info(`📚 Courses enrolled (excluding pending): ${coursesEnrolled}`);
 
-    // Get completed courses (progress >= 100) from BOTH tables - exclude courses with pending requests
-    let allCompletedProgress = [];
-    let allCompletedEnrollments = [];
-    
-    try {
-      [allCompletedProgress, allCompletedEnrollments] = await Promise.all([
-        // Try student_progress table (may not exist)
-        (async () => {
-          try {
-            return await db
-              .select({
-                courseId: studentProgress.courseId,
-                totalProgress: studentProgress.totalProgress,
-              })
-              .from(studentProgress)
-              .innerJoin(courses, eq(studentProgress.courseId, courses.id))
-              .where(
-                and(
-                  eq(studentProgress.studentId, userId),
-                  getPublishedCourseFilter(),
-                  sql`${studentProgress.totalProgress} >= 100`
-              )
-            );
-          } catch (error: any) {
-            logger.warn('⚠️ student_progress table not accessible for completed courses:', error?.message);
-            return [];
-          }
-        })(),
-        // enrollments table should exist
-        db
-          .select({
-            courseId: enrollments.courseId,
-            progress: enrollments.progress,
-          })
-          .from(enrollments)
-          .innerJoin(courses, eq(enrollments.courseId, courses.id))
-          .where(
-            and(
-              eq(enrollments.userId, userId),
-              eq(enrollments.status, 'active'),
-              getPublishedCourseFilter(),
-              sql`${enrollments.progress} >= 100`
-          )
-      ),
-      ]);
-    } catch (error: any) {
-      logger.warn('⚠️ Error fetching completed courses:', error?.message);
-      // Continue with empty arrays
-    }
+    // Count completed courses (progress >= 100)
+    const completedCourses = actualEnrolledCourses.filter(c => c.totalProgress >= 100);
+    const coursesCompleted = completedCourses.length;
 
-    // Merge completed course IDs from both tables
-    const allCompletedCourseIds = new Set([
-      ...allCompletedProgress.map((p: any) => p.courseId),
-      ...allCompletedEnrollments.map((e: any) => e.courseId),
-    ]);
-
-    // Filter out courses with pending requests
-    const actualCompletedCourseIds = Array.from(allCompletedCourseIds).filter(
-      (courseId: number) => !pendingRequestCourseIds.includes(courseId)
-    );
-
-    const coursesCompleted = actualCompletedCourseIds.length;
-
-    // Calculate total hours learned (sum of progress from both tables)
-    // Prefer enrollments.progress, fallback to studentProgress.totalProgress
-    let progressSum = [{ totalProgress: 0 }];
-    let enrollmentSum = [{ totalProgress: 0 }];
-    
-    try {
-      [progressSum, enrollmentSum] = await Promise.all([
-        // Try student_progress table (may not exist)
-        (async () => {
-          try {
-            return await db
-              .select({
-                totalProgress: sql<number>`coalesce(sum(${studentProgress.totalProgress}), 0)`,
-              })
-              .from(studentProgress)
-              .where(eq(studentProgress.studentId, userId));
-          } catch (error: any) {
-            logger.warn('⚠️ student_progress table not accessible for progress sum:', error?.message);
-            return [{ totalProgress: 0 }];
-          }
-        })(),
-        // enrollments table should exist
-        db
-          .select({
-            totalProgress: sql<number>`coalesce(sum(${enrollments.progress}), 0)`,
-          })
-          .from(enrollments)
-          .where(
-            and(
-              eq(enrollments.userId, userId),
-              eq(enrollments.status, 'active')
-          )
-      ),
-      ]);
-    } catch (error: any) {
-      logger.warn('⚠️ Error calculating progress sum:', error?.message);
-      // Continue with default values
-    }
-
-    // Use enrollments.progress as primary source, fallback to studentProgress
-    const totalProgress = Number(
-      enrollmentSum[0]?.totalProgress || progressSum[0]?.totalProgress || 0
-    );
-
+    // Calculate total progress and estimated hours
+    const totalProgress = actualEnrolledCourses.reduce((sum, c) => sum + c.totalProgress, 0);
     // Estimate: assume average course is 10 hours, multiply by progress percentage
-    // Average 10 hours per course, calculate based on progress
-    const estimatedHours =
-      coursesEnrolled > 0 ? Math.round((totalProgress / coursesEnrolled / 100) * 10 * 10) / 10 : 0;
+    const estimatedHours = coursesEnrolled > 0
+      ? Math.round((totalProgress / coursesEnrolled / 100) * 10 * 10) / 10
+      : 0;
 
-    // Get quizzes completed count
-    // For now, we'll estimate based on progress (assume 1 quiz per 20% progress)
-    // In a real system, you'd have a quizAttempts table
-    const quizzesCompleted =
-      coursesEnrolled > 0 ? Math.floor(totalProgress / coursesEnrolled / 20) : 0;
+    // Get Q-Bank stats
+    let qbankStats = { enrolled: 0, testsCompleted: 0 };
+    try {
+      // Count Q-Bank enrollments
+      const qbankEnrollmentCount = await db
+        .select({
+          count: sql<number>`count(*)`,
+        })
+        .from(qbankEnrollments)
+        .where(eq(qbankEnrollments.studentId, userId));
 
-    // Calculate login streak
-    // Note: lastLogin column doesn't exist in current DB schema
-    // Simplified streak calculation - always return 0 for now
-    // In a real system, you'd track daily logins in a separate table
+      qbankStats.enrolled = Number(qbankEnrollmentCount[0]?.count || 0);
+      logger.info(`📝 Q-Banks enrolled: ${qbankStats.enrolled}`);
+
+      // Count completed tests
+      const testCount = await db
+        .select({
+          count: sql<number>`count(*)`,
+        })
+        .from(qbankTests)
+        .where(
+          and(
+            eq(qbankTests.userId, userId),
+            eq(qbankTests.status, 'completed')
+          )
+        );
+
+      qbankStats.testsCompleted = Number(testCount[0]?.count || 0);
+      logger.info(`✅ Tests completed: ${qbankStats.testsCompleted}`);
+    } catch (error: any) {
+      logger.warn('⚠️ Q-Bank stats error:', error?.message);
+    }
+
+    // Use Q-Bank tests as quizzes completed count
+    const quizzesCompleted = qbankStats.testsCompleted;
+
+    // Calculate login streak (placeholder - would need a login tracking table)
     const currentStreak = 0;
 
     // Calculate total points
     // Points = (courses completed * 100) + (quizzes completed * 10)
-    // Streak does not contribute to points to avoid initial points confusion
     const totalPoints = coursesCompleted * 100 + quizzesCompleted * 10;
 
-    return NextResponse.json({
-      stats: {
-        coursesEnrolled,
-        coursesCompleted,
-        hoursLearned: estimatedHours,
-        quizzesCompleted,
-        currentStreak,
-        totalPoints,
-      },
-    });
+    const stats = {
+      coursesEnrolled,
+      coursesCompleted,
+      hoursLearned: estimatedHours,
+      quizzesCompleted,
+      currentStreak,
+      totalPoints,
+      // Additional stats for Q-Banks
+      qbanksEnrolled: qbankStats.enrolled,
+      testsCompleted: qbankStats.testsCompleted,
+    };
+
+    logger.info(`📊 Final stats:`, stats);
+
+    return NextResponse.json({ stats });
   } catch (error: any) {
     logger.error('Get student stats error:', error);
     logger.error('Error details:', error?.message, error?.stack);

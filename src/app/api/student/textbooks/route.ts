@@ -1,6 +1,6 @@
 import { logger } from '@/lib/logger';
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyToken } from '@/lib/auth';
+import { verifyToken, verifyAuth } from '@/lib/auth';
 import { getDatabaseWithRetry } from '@/lib/db';
 import { textbooks, textbookPurchases, courses } from '@/lib/db/schema';
 import { eq, and, desc } from 'drizzle-orm';
@@ -10,15 +10,13 @@ export const dynamic = 'force-dynamic';
 // GET - List available textbooks with purchase status
 export async function GET(request: NextRequest) {
   try {
-    const token = request.cookies.get('student_token')?.value || request.cookies.get('token')?.value;
-    if (!token) {
-      return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });
+    const auth = await verifyAuth(request, { requiredRole: 'student' });
+    if (!auth.isAuthorized) {
+      // For textbooks, we might want to allow public viewing of catalog?
+      // But preserving existing logic which restricted it to students.
+      return auth.response;
     }
-
-    const decoded = await verifyToken(token);
-    if (!decoded || decoded.role !== 'student') {
-      return NextResponse.json({ message: 'Student access required' }, { status: 403 });
-    }
+    const { user: decoded } = auth;
 
     const studentId = decoded.id;
     const db = await getDatabaseWithRetry();

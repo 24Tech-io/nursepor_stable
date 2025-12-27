@@ -1,0 +1,4 @@
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0100    73    0    73    0     0    801      0 --:--:-- --:--:-- --:--:--   811
+{"message":"Failed to fetch Q-Banks","error":"verifyAuth is not defined"}

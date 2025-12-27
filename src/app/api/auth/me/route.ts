@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyToken } from '@/lib/auth';
+import { verifyToken, validateSession } from '@/lib/auth';
 import { getDatabaseWithRetry } from '@/lib/db';
 import { users } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
@@ -10,8 +10,6 @@ import { withCache, withAuthCache, CacheKeys, CacheTTL } from '@/lib/api-cache';
 import { startRouteMonitoring, recordCacheHit, recordCacheMiss } from '@/lib/performance-monitor';
 
 // Force dynamic rendering since this route uses request.url and cookies
-export const dynamic = 'force-dynamic';
-
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
@@ -26,23 +24,27 @@ export async function GET(request: NextRequest) {
     const token = request.cookies.get(cookieName)?.value;
 
     // Check for both admin and student tokens
-    const adminToken = request.cookies.get('adminToken')?.value;
-    const studentToken = request.cookies.get('studentToken')?.value;
+    // Login sets: student_token (snake_case) and token
+    const adminToken = request.cookies.get('admin_token')?.value;
+    const studentToken = request.cookies.get('student_token')?.value;
 
-    let token;
+    let selectedToken;
 
     // Strict Mode: If type is specified, ONLY check that specific token
-    if (authType === 'student') {
-      token = studentToken;
-    } else if (authType === 'admin') {
-      token = adminToken;
+    if (type === 'student') {
+      selectedToken = studentToken || token; // Also check the generic 'student_token' 
+    } else if (type === 'admin') {
+      selectedToken = adminToken;
     } else {
       // Default / Legacy Mode: Check Admin first, then Student (fallback)
-      token = adminToken || studentToken;
+      selectedToken = adminToken || studentToken || token;
     }
 
+    // Use specific token if found, otherwise fall back to generic cookie name check
+    const finalToken = selectedToken || token;
+
     // During build time, this is expected to have no token (static page generation)
-    if (!token) {
+    if (!finalToken) {
       stopMonitoring();
       return NextResponse.json(
         { message: 'Not authenticated' },
@@ -50,15 +52,37 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Cache token verification (5 min TTL)
-    let decoded = await withAuthCache(
-      token,
-      async () => verifyToken(token),
-      CacheTTL.AUTH_TOKEN
-    );
+    // Verify token (Try Session first, then JWT)
+    let decoded = null;
+
+    // 1. Try validating as a database session
+    try {
+      decoded = await validateSession(finalToken);
+      if (decoded) {
+        logger.info('✅ /api/auth/me - Valid session found');
+      }
+    } catch (sessionErr) {
+      logger.error('Session validation error:', sessionErr);
+    }
+
+    // 2. Fallback to JWT verification if not a valid session
+    if (!decoded) {
+      try {
+        decoded = await withAuthCache(
+          finalToken,
+          async () => verifyToken(finalToken),
+          CacheTTL.AUTH_TOKEN
+        );
+        if (decoded) {
+          logger.info('✅ /api/auth/me - Valid JWT found');
+        }
+      } catch (jwtErr) {
+        logger.error('JWT verification error:', jwtErr);
+      }
+    }
 
     if (!decoded) {
-      return NextResponse.json({ message: 'Invalid token' }, { status: 401 });
+      return NextResponse.json({ message: 'Invalid token or session' }, { status: 401 });
     }
 
     // Get database instance (will throw if not available)
@@ -79,7 +103,7 @@ export async function GET(request: NextRequest) {
     // Get user from database with caching (user data changes infrequently)
     const userId = decoded?.id || 0;
     const cacheKey = CacheKeys.AUTH_USER(userId);
-    
+
     const user = await withCache(
       cacheKey,
       async () => {
@@ -104,7 +128,7 @@ export async function GET(request: NextRequest) {
       { ttl: CacheTTL.USER_DATA, dedupe: true }
     );
 
-    if (!userResult.length) {
+    if (!user || !user.length) {
       return NextResponse.json({ message: 'User not found' }, { status: 404 });
     }
 
@@ -113,21 +137,6 @@ export async function GET(request: NextRequest) {
     const phoneString = phoneValue && String(phoneValue).trim() ? String(phoneValue).trim() : null;
 
     logger.info('🔍 /api/auth/me - Token decoded ID:', decoded?.id);
-    logger.info('🔍 /api/auth/me - User found in database:', {
-      id: user[0].id,
-      name: user[0].name,
-      email: user[0].email,
-      phone: phoneValue,
-      phoneType: typeof phoneValue,
-      phoneIsNull: phoneValue === null,
-      phoneIsUndefined: phoneValue === undefined,
-      phoneIsEmptyString: phoneValue === '',
-      phoneAfterProcessing: phoneString,
-      role: user[0].role,
-      bio: user[0].bio,
-      profilePicture: user[0].profilePicture,
-      joinedDate: user[0].joinedDate,
-    });
 
     const userResponse = {
       id: user[0].id,
@@ -141,27 +150,16 @@ export async function GET(request: NextRequest) {
       twoFactorEnabled: user[0].twoFactorEnabled || false,
       joinedDate: user[0].joinedDate ? new Date(user[0].joinedDate).toISOString() : null,
       lastLogin: user[0].lastLogin ? new Date(user[0].lastLogin).toISOString() : null,
+      faceIdEnrolled: false, // Default pending schema update
+      fingerprintEnrolled: false, // Default pending schema update
+      createdAt: user[0].joinedDate ? new Date(user[0].joinedDate).toISOString() : null,
     };
 
     logger.info('✅ /api/auth/me - Returning user data:', userResponse);
 
     stopMonitoring();
     return NextResponse.json({
-      user: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        phone: user.phone && user.phone.trim() ? user.phone.trim() : null, // Return null for empty strings
-        bio: user.bio && user.bio.trim() ? user.bio.trim() : null,
-        role: user.role,
-        isActive: user.isActive,
-        profilePicture: user.profilePicture,
-        faceIdEnrolled: user.faceIdEnrolled,
-        fingerprintEnrolled: user.fingerprintEnrolled,
-        twoFactorEnabled: user.twoFactorEnabled,
-        joinedDate: user.joinedDate,
-        createdAt: user.createdAt,
-      },
+      user: userResponse,
     });
   } catch (error: any) {
     stopMonitoring();

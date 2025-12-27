@@ -1,0 +1,46 @@
+* Host localhost:3000 was resolved.
+* IPv6: ::1
+* IPv4: 127.0.0.1
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0*   Trying [::1]:3000...
+* Established connection to localhost (::1 port 3000) from ::1 port 33920 
+* using HTTP/1.x
+> POST /api/auth/admin-login HTTP/1.1
+> Host: localhost:3000
+> User-Agent: curl/8.16.0
+> Accept: */*
+> Content-Type: application/json
+> Content-Length: 73
+> 
+} [73 bytes data]
+* upload completely sent off: 73 bytes
+100    73    0     0  100    73      0     59  0:00:01  0:00:01 --:--:--    59100    73    0     0  100    73      0     32  0:00:02  0:00:02 --:--:--    32100    73    0     0  100    73      0     22  0:00:03  0:00:03 --:--:--    22100    73    0     0  100    73      0     17  0:00:04  0:00:04 --:--:--    17100    73    0     0  100    73      0     13  0:00:05  0:00:05 --:--:--    13< HTTP/1.1 200 OK
+< X-DNS-Prefetch-Control: on
+< X-Download-Options: noopen
+< X-Permitted-Cross-Domain-Policies: none
+< content-security-policy: default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https:; frame-src 'self' https://js.stripe.com https://hooks.stripe.com https://docs.google.com https://www.youtube.com https://player.vimeo.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'
+< permissions-policy: camera=(), microphone=(), geolocation=()
+< referrer-policy: strict-origin-when-cross-origin
+< strict-transport-security: max-age=31536000; includeSubDomains; preload
+< x-content-type-options: nosniff
+< x-frame-options: DENY
+< x-ratelimit-limit: 1000
+< x-ratelimit-remaining: 999
+< x-ratelimit-reset: 1766802460073
+< x-xss-protection: 1; mode=block
+< vary: RSC, Next-Router-State-Tree, Next-Router-Prefetch, Next-Url
+< content-type: application/json
+* Added cookie admin_token="b7cdcfae79b9072461bb83f16a8276de0fad2b375ac52fa90f08c541bc2b1674" for domain localhost, path /, expire 1767407206
+< set-cookie: admin_token=b7cdcfae79b9072461bb83f16a8276de0fad2b375ac52fa90f08c541bc2b1674; Path=/; Expires=Sat, 03 Jan 2026 02:26:46 GMT; Max-Age=604800; HttpOnly; SameSite=lax
+* Added cookie token="b7cdcfae79b9072461bb83f16a8276de0fad2b375ac52fa90f08c541bc2b1674" for domain localhost, path /, expire 1767407206
+< set-cookie: token=b7cdcfae79b9072461bb83f16a8276de0fad2b375ac52fa90f08c541bc2b1674; Path=/; Expires=Sat, 03 Jan 2026 02:26:46 GMT; Max-Age=604800; HttpOnly; SameSite=lax
+< Date: Sat, 27 Dec 2025 02:26:46 GMT
+< Connection: keep-alive
+< Keep-Alive: timeout=5
+< Transfer-Encoding: chunked
+< 
+{ [297 bytes data]
+100   358    0   285  100    73     46     11  0:00:06  0:00:06 --:--:--    57100   358    0   285  100    73     46     11  0:00:06  0:00:06 --:--:--    72
+* Connection #0 to host localhost:3000 left intact
+{"message":"Login successful","user":{"id":10,"name":"Adhithiyan Maliackal","email":"adhithiyanmaliackal@gmail.com","phone":"07559964383","bio":null,"role":"admin","isActive":true,"fingerprintEnrolled":false,"twoFactorEnabled":false,"joinedDate":null},"redirectUrl":"/admin/dashboard"}

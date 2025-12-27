@@ -8,7 +8,6 @@ import { getDatabaseWithRetry } from '@/lib/db';
 import { qbankEnrollments, qbankTestAttempts } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { sql } from 'drizzle-orm';
-import { fetchFilteredQuestions } from '@/lib/qbank-helpers';
 
 export async function POST(
   request: NextRequest,

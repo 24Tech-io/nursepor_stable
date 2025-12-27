@@ -1,0 +1,9 @@
+@echo off
+echo Testing Admin Students API...
+C:\Windows\System32\curl.exe -I -b cookies.txt http://localhost:3000/api/admin/students
+echo.
+echo Testing Unified Student Data API...
+C:\Windows\System32\curl.exe -I -b cookies.txt "http://localhost:3000/api/unified/student-data?studentId=10"
+echo.
+echo Testing Student Courses API (as Admin)...
+C:\Windows\System32\curl.exe -I -b cookies.txt http://localhost:3000/api/student/courses

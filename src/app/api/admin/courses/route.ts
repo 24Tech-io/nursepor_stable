@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyToken } from '@/lib/auth';
+import { verifyToken, verifyAuth } from '@/lib/auth';
 import { getDatabaseWithRetry } from '@/lib/db';
 import { courses } from '@/lib/db/schema';
 import { desc, sql } from 'drizzle-orm';
@@ -14,25 +14,11 @@ export const dynamic = 'force-dynamic';
 export async function GET(request: NextRequest) {
   try {
     // Check authentication
-    const token = request.cookies.get('adminToken')?.value || request.cookies.get('admin_token')?.value;
-
-    if (!token) {
-      logger.warn('⚠️ [Admin Courses API] No token found');
-      return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });
+    const auth = await verifyAuth(request, { requiredRole: 'admin' });
+    if (!auth.isAuthorized) {
+      return auth.response;
     }
-
-    let decoded;
-    try {
-      decoded = await verifyToken(token);
-    } catch (tokenError: any) {
-      logger.error('❌ [Admin Courses API] Token verification failed:', tokenError);
-      return NextResponse.json({ message: 'Invalid token' }, { status: 401 });
-    }
-
-    if (!decoded || decoded.role !== 'admin') {
-      logger.warn('⚠️ [Admin Courses API] Non-admin user attempted access:', decoded?.role);
-      return NextResponse.json({ message: 'Admin access required' }, { status: 403 });
-    }
+    const { user: decoded } = auth;
 
     const { searchParams } = new URL(request.url);
     const countOnly = searchParams.get('countOnly') === 'true';
@@ -144,16 +130,11 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const token = request.cookies.get('admin_token')?.value || request.cookies.get('adminToken')?.value;
-
-    if (!token) {
-      return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });
+    const auth = await verifyAuth(request, { requiredRole: 'admin' });
+    if (!auth.isAuthorized) {
+      return auth.response;
     }
-
-    const decoded = await verifyToken(token);
-    if (!decoded || decoded.role !== 'admin') {
-      return NextResponse.json({ message: 'Admin access required' }, { status: 403 });
-    }
+    const { user: decoded } = auth;
 
     // Validate request body
     const bodyValidation = await extractAndValidate(request, createCourseSchema);

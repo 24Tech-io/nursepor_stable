@@ -1,6 +1,6 @@
 import { logger } from '@/lib/logger';
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyToken } from '@/lib/auth';
+import { verifyAuth } from '@/lib/auth';
 import { getDatabaseWithRetry } from '@/lib/db';
 import { qbankEnrollments } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
@@ -12,17 +12,12 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const token = request.cookies.get('student_token')?.value || request.cookies.get('token')?.value;
-    if (!token) {
+    const auth = await verifyAuth(request);
+    if (!auth.isAuthenticated || !auth.user) {
       return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });
     }
 
-    const decoded = await verifyToken(token);
-    if (!decoded || !decoded.id) {
-      return NextResponse.json({ message: 'Invalid token' }, { status: 401 });
-    }
-
-    const studentId = decoded.id;
+    const studentId = auth.user.id;
     const qbankId = parseInt(params.id);
     const db = await getDatabaseWithRetry();
 

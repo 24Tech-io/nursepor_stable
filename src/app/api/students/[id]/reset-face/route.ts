@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyToken } from '@/lib/auth';
+import { verifyToken, verifyAuth } from '@/lib/auth';
 import { getDatabase } from '@/lib/db';
 import { users } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
@@ -7,15 +7,9 @@ import { eq } from 'drizzle-orm';
 // POST - Reset student's Face ID enrollment
 export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const token = request.cookies.get('token')?.value;
-
-    if (!token) {
-      return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });
-    }
-
-    const decoded = verifyToken(token);
-    if (!decoded || decoded.role !== 'admin') {
-      return NextResponse.json({ message: 'Admin access required' }, { status: 403 });
+    const auth = await verifyAuth(request, { requiredRole: 'admin' });
+    if (!auth.isAuthorized) {
+      return auth.response;
     }
 
     const studentId = parseInt(params.id);

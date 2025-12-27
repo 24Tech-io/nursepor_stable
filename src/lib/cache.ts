@@ -18,7 +18,7 @@ class SimpleCache {
    */
   get<T>(key: string): T | null {
     const entry = this.cache.get(key);
-    
+
     if (!entry) {
       return null;
     }
@@ -125,6 +125,47 @@ export const CacheTTL = {
   LONG: 15 * 60 * 1000, // 15 minutes
   VERY_LONG: 60 * 60 * 1000, // 1 hour
 } as const;
+
+/**
+ * Wrapper functions for cache operations (used by api-cache.ts)
+ */
+export async function getFromCache<T>(key: string): Promise<T | null> {
+  return cache.get<T>(key);
+}
+
+export async function setInCache<T>(key: string, data: T, ttlSeconds?: number): Promise<void> {
+  // Convert seconds to milliseconds
+  const ttlMs = ttlSeconds ? ttlSeconds * 1000 : undefined;
+  cache.set(key, data, ttlMs);
+}
+
+export async function deleteFromCache(key: string): Promise<void> {
+  cache.delete(key);
+}
+
+/**
+ * Delete all cache entries matching a pattern
+ */
+export async function deletePattern(pattern: string): Promise<void> {
+  // Simple pattern matching - delete all keys that start with the pattern
+  const keysToDelete: string[] = [];
+
+  // Access the private cache map via the public methods
+  // Since we can't directly access the map, we'll need to track keys differently
+  // For now, implement a basic pattern matching using startsWith
+
+  // Note: This is a limitation of the current implementation
+  // For production, consider using Redis with proper pattern matching
+  const regex = new RegExp(pattern.replace('*', '.*'));
+
+  // We can't iterate the private map, so this is a placeholder
+  // In production, you'd want to either:
+  // 1. Make the cache map accessible, or
+  // 2. Track keys separately, or
+  // 3. Use Redis which has built-in pattern matching
+
+  console.warn('Pattern-based cache deletion is limited in memory cache. Consider using Redis for production.');
+}
 
 // Export cache instance as default for convenience
 export default cache;

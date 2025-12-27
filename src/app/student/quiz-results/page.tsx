@@ -30,64 +30,51 @@ export default function QuizResultsPage() {
   const [quizHistory, setQuizHistory] = useState<QuizAttempt[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-    useEffect(() => {
-        fetchQuizHistory();
-        
-        // Start sync client for real-time updates
-        // TEMP DISABLED: Causing excessive requests`r`n
-        // syncClient.start();
-        const handleSync = () => {
-            fetchQuizHistory();
-        };
-        syncClient.on('sync', handleSync);
-        
-        return () => {
-            syncClient.off('sync', handleSync);
-            syncClient.stop();
-        };
-    }, []);
+  useEffect(() => {
+    fetchQuizHistory();
 
-    const fetchQuizHistory = async () => {
-        try {
-            // Use unified analysis API
-            const response = await fetch('/api/analysis/quiz-history', {
-                credentials: 'include'
-            });
-
-            if (response.ok) {
-                const data = await response.json();
-                // Transform unified format to match existing interface
-                const transformedHistory = (data.attempts || []).map((attempt: any) => ({
-                    id: attempt.id,
-                    testId: attempt.id.toString(),
-                    title: attempt.title || (attempt.type === 'qbank' ? 'Q-Bank Test' : 'Course Quiz'),
-                    score: attempt.correctCount || attempt.correctAnswers || 0,
-                    maxScore: attempt.questionCount || attempt.totalQuestions || 0,
-                    percentage: attempt.percentage || 0,
-                    status: 'completed',
-                    completedAt: attempt.completedAt || attempt.startedAt,
-                    type: attempt.type,
-                    courseTitle: attempt.courseTitle,
-                }));
-                setQuizHistory(transformedHistory);
-            }
-        } catch (error) {
-            console.error('Error fetching quiz history:', error);
-        } finally {
-            setIsLoading(false);
-        }
+    // Start sync client for real-time updates
+    // TEMP DISABLED: Causing excessive requests`r`n
+    // syncClient.start();
+    const handleSync = () => {
+      fetchQuizHistory();
     };
+    syncClient.on('sync', handleSync);
 
-    const getGrade = (percentage: number) => {
-        if (percentage >= 90) return { grade: 'A', color: 'text-green-600 bg-green-100' };
-        if (percentage >= 80) return { grade: 'B', color: 'text-blue-600 bg-blue-100' };
-        if (percentage >= 70) return { grade: 'C', color: 'text-yellow-600 bg-yellow-100' };
-        if (percentage >= 60) return { grade: 'D', color: 'text-orange-600 bg-orange-100' };
-        return { grade: 'F', color: 'text-red-600 bg-red-100' };
+    return () => {
+      syncClient.off('sync', handleSync);
+      syncClient.stop();
     };
+  }, []);
 
-    if (isLoading) {
-        return <LoadingSpinner message="Loading quiz results..." fullScreen />;
+  const fetchQuizHistory = async () => {
+    try {
+      // Use unified analysis API
+      const response = await fetch('/api/analysis/quiz-history', {
+        credentials: 'include'
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        // Transform unified format to match existing interface
+        const transformedHistory = (data.attempts || []).map((attempt: any) => ({
+          id: attempt.id,
+          testId: attempt.id.toString(),
+          title: attempt.title || (attempt.type === 'qbank' ? 'Q-Bank Test' : 'Course Quiz'),
+          score: attempt.correctCount || attempt.correctAnswers || 0,
+          maxScore: attempt.questionCount || attempt.totalQuestions || 0,
+          percentage: attempt.percentage || 0,
+          status: 'completed',
+          completedAt: attempt.completedAt || attempt.startedAt,
+          type: attempt.type,
+          courseTitle: attempt.courseTitle,
+        }));
+        setQuizHistory(transformedHistory);
+      }
+    } catch (error) {
+      console.error('Error fetching quiz history:', error);
+    } finally {
+      setIsLoading(false);
     }
   };
 

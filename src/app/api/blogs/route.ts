@@ -12,21 +12,15 @@ export async function GET(request: NextRequest) {
   try {
     const db = await getDatabaseWithRetry();
     const status = request.nextUrl.searchParams.get('status');
-    
-    let query = db.select().from(blogPosts);
-    
+
+    let query = db.select().from(blogPosts).orderBy(desc(blogPosts.createdAt));
+
     if (status) {
-      query = query.where(eq(blogPosts.status, status)) as any;
+      // @ts-ignore
+      query = query.where(eq(blogPosts.status, status));
     }
 
-    const decoded = verifyToken(token);
-    if (!decoded || decoded.role !== 'admin') {
-      return NextResponse.json({ message: 'Admin access required' }, { status: 403 });
-    }
-
-    const db = getDatabase();
-
-    const blogs = await db.select().from(blogPosts).orderBy(desc(blogPosts.createdAt));
+    const blogs = await query;
 
     return NextResponse.json({ blogs });
   } catch (error: any) {
@@ -49,7 +43,7 @@ export async function POST(request: NextRequest) {
     }
     const data = bodyValidation.data;
 
-    const db = getDatabase();
+    const { title, slug, content, author, cover, tags, status } = data;
 
     const result = await db
       .insert(blogPosts)

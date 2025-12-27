@@ -24,7 +24,7 @@ export default function LoginPage() {
   const [requires2FA, setRequires2FA] = useState(false);
   const [twoFAOtp, setTwoFAOtp] = useState('');
   const [tempToken, setTempToken] = useState('');
-  
+
   // For OTP login with 2FA
   const [otpLoginRequires2FA, setOtpLoginRequires2FA] = useState(false);
   const [otpLoginPassword, setOtpLoginPassword] = useState('');
@@ -71,9 +71,9 @@ export default function LoginPage() {
       const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          email, 
-          password, 
+        body: JSON.stringify({
+          email,
+          password,
           role: 'student',
           rememberMe: rememberMe
         }),
@@ -114,7 +114,7 @@ export default function LoginPage() {
       const response = await fetch('/api/auth/verify-2fa', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           tempToken,
           otp: twoFAOtp,
           email
@@ -182,9 +182,9 @@ export default function LoginPage() {
       const response = await fetch('/api/auth/verify-otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          email, 
-          otp, 
+        body: JSON.stringify({
+          email,
+          otp,
           role: 'student',
           password: otpLoginRequires2FA ? otpLoginPassword : undefined
         }),
@@ -254,8 +254,8 @@ export default function LoginPage() {
                 setError('');
               }}
               className={`flex-1 py-2.5 px-4 rounded-lg font-medium text-sm transition-all ${activeTab === 'email'
-                  ? 'bg-gradient-to-r from-nurse-red-600 to-red-600 text-white shadow-glow-red'
-                  : 'text-nurse-silver-400 hover:text-white'
+                ? 'bg-gradient-to-r from-nurse-red-600 to-red-600 text-white shadow-glow-red'
+                : 'text-nurse-silver-400 hover:text-white'
                 }`}
             >
               Password
@@ -267,8 +267,8 @@ export default function LoginPage() {
                 setError('');
               }}
               className={`flex-1 py-2.5 px-4 rounded-lg font-medium text-sm transition-all ${activeTab === 'otp'
-                  ? 'bg-gradient-to-r from-nurse-red-600 to-red-600 text-white shadow-glow-red'
-                  : 'text-nurse-silver-400 hover:text-white'
+                ? 'bg-gradient-to-r from-nurse-red-600 to-red-600 text-white shadow-glow-red'
+                : 'text-nurse-silver-400 hover:text-white'
                 }`}
             >
               OTP
@@ -324,20 +324,19 @@ export default function LoginPage() {
 
               <div className="flex items-center justify-between text-sm">
                 <label className="flex items-center cursor-pointer group">
-                  <div 
-                    className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all duration-300 ${
-                      rememberMe 
-                        ? 'bg-nurse-red-500 border-nurse-red-500' 
-                        : 'border-white/30 bg-white/5 group-hover:border-nurse-red-500/50'
-                    }`}
+                  <div
+                    className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all duration-300 ${rememberMe
+                      ? 'bg-nurse-red-500 border-nurse-red-500'
+                      : 'border-white/30 bg-white/5 group-hover:border-nurse-red-500/50'
+                      }`}
                     onClick={() => setRememberMe(!rememberMe)}
                   >
                     {rememberMe && (
-                      <svg 
+                      <svg
                         className="w-3 h-3 text-white"
-                        viewBox="0 0 24 24" 
-                        fill="none" 
-                        stroke="currentColor" 
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
                         strokeWidth="4"
                         strokeLinecap="round"
                         strokeLinejoin="round"

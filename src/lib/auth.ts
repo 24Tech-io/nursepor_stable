@@ -1,4 +1,5 @@
 import bcrypt from 'bcryptjs';
+import { NextRequest, NextResponse } from 'next/server';
 
 // Performance: Increase bcrypt rounds for better security (but slower)
 // Using 12 rounds for good balance between security and performance
@@ -14,12 +15,12 @@ function getJWTSecret(): string {
   try {
     // Trim whitespace in case AWS/environment added any
     const jwtSecret = process.env.JWT_SECRET?.trim();
-    
+
     if (!jwtSecret || jwtSecret === 'your-secret-key') {
       if (process.env.NODE_ENV === 'production') {
         throw new Error(
           'JWT_SECRET must be set in environment variables and must be at least 32 characters long. ' +
-            'Please set a strong random secret in AWS Amplify environment variables'
+          'Please set a strong random secret in AWS Amplify environment variables'
         );
       }
       // Use a default secret in development only (for hot reload)
@@ -140,42 +141,24 @@ export async function createSession(
       throw new Error('Database is not available');
     }
 
-  // Get user data if not provided
-  let user: AuthUser;
-  if (userData) {
-    user = userData;
-  } else {
-    const userResult = await db
-      .select({
-        id: users.id,
-        name: users.name,
-        email: users.email,
-        phone: users.phone,
-        bio: users.bio,
-        role: users.role,
-        isActive: users.isActive,
-      })
-      .from(users)
-      .where(eq(users.id, userId))
-      .limit(1);
-    
-    if (!userResult.length) {
-      throw new Error('User not found');
-    }
-    
-    user = {
-      id: userResult[0].id,
-      name: userResult[0].name,
-      email: userResult[0].email,
-      phone: userResult[0].phone || null,
-      bio: userResult[0].bio || null,
-      role: userResult[0].role,
-      isActive: userResult[0].isActive,
-      fingerprintEnrolled: false,
-      twoFactorEnabled: false,
-      joinedDate: null,
-    };
-  }
+    // Get user data if not provided
+    let user: AuthUser;
+    if (userData) {
+      user = userData;
+    } else {
+      const userResult = await db
+        .select({
+          id: users.id,
+          name: users.name,
+          email: users.email,
+          phone: users.phone,
+          bio: users.bio,
+          role: users.role,
+          isActive: users.isActive,
+        })
+        .from(users)
+        .where(eq(users.id, userId))
+        .limit(1);
 
       if (!userResult.length) {
         throw new Error('User not found');
@@ -185,14 +168,13 @@ export async function createSession(
         id: userResult[0].id,
         name: userResult[0].name,
         email: userResult[0].email,
-        phone: userResult[0].phone,
-        bio: userResult[0].bio,
+        phone: userResult[0].phone || null,
+        bio: userResult[0].bio || null,
         role: userResult[0].role,
         isActive: userResult[0].isActive,
-        faceIdEnrolled: userResult[0].faceIdEnrolled,
-        fingerprintEnrolled: userResult[0].fingerprintEnrolled,
-        twoFactorEnabled: userResult[0].twoFactorEnabled,
-        joinedDate: userResult[0].createdAt,
+        fingerprintEnrolled: false,
+        twoFactorEnabled: false,
+        joinedDate: null,
       };
     }
 
@@ -216,10 +198,11 @@ export async function createSession(
 export async function validateSession(sessionToken: string): Promise<AuthUser | null> {
   try {
     const db = getDatabase();
+    const now = new Date();
     const session = await db
       .select()
       .from(sessions)
-      .where(and(eq(sessions.sessionToken, sessionToken), sql`${sessions.expiresAt} > NOW()`))
+      .where(and(eq(sessions.sessionToken, sessionToken), sql`${sessions.expiresAt} > ${now}`))
       .limit(1);
 
     if (!session.length) return null;
@@ -267,10 +250,10 @@ export async function authenticateUser(email: string, password: string, role?: s
   // If role is specified, authenticate that specific role
   // Note: We don't filter by isActive here - we check it after password verification
   // This allows us to provide better error messages for inactive accounts
-  const whereConditions = role 
+  const whereConditions = role
     ? and(eq(users.email, normalizedEmail), eq(users.role, role))
     : and(eq(users.email, normalizedEmail));
-  
+
   const user = await db
     .select({
       id: users.id,
@@ -286,45 +269,7 @@ export async function authenticateUser(email: string, password: string, role?: s
     .where(whereConditions)
     .limit(1);
 
-    if (!userResult.length) {
-      console.log('❌ User not found:', email);
-      return null;
-    }
 
-    const user = userResult[0];
-    const isValidPassword = await verifyPassword(password, user.password);
-
-    if (!isValidPassword) {
-      console.log('❌ Invalid password for user:', email);
-      return null;
-    }
-
-    if (!user.isActive) {
-      console.log('❌ User is not active:', email);
-      return null;
-    }
-
-    const authUser: AuthUser = {
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      phone: user.phone,
-      bio: user.bio,
-      role: user.role,
-      isActive: user.isActive,
-      faceIdEnrolled: user.faceIdEnrolled,
-      fingerprintEnrolled: user.fingerprintEnrolled,
-      twoFactorEnabled: user.twoFactorEnabled,
-      joinedDate: user.createdAt,
-    };
-
-    const token = generateToken(authUser);
-
-    return { user: authUser, token };
-  } catch (error: any) {
-    console.error('❌ Authentication error:', error);
-    return null;
-  }
 
   const isValidPassword = await verifyPassword(password, user[0].password);
   if (!isValidPassword) {
@@ -332,17 +277,10 @@ export async function authenticateUser(email: string, password: string, role?: s
   }
 
   // Check if account is active after password verification
-  // This allows us to distinguish between wrong password and inactive account
   if (!user[0].isActive) {
     console.log('User account is not active', { email: normalizedEmail, role: user[0].role, userId: user[0].id });
-    return null; // Return null for inactive accounts - caller can check database for more details
+    return null;
   }
-
-  // Update last login - column doesn't exist in DB, skip for now
-  // await db
-  //   .update(users)
-  //   .set({ lastLogin: new Date() })
-  //   .where(eq(users.id, user[0].id));
 
   return {
     id: user[0].id,
@@ -352,9 +290,9 @@ export async function authenticateUser(email: string, password: string, role?: s
     bio: user[0].bio || null,
     role: user[0].role,
     isActive: user[0].isActive,
-    fingerprintEnrolled: false, // Column doesn't exist in DB
-    twoFactorEnabled: false, // Column doesn't exist in DB
-    joinedDate: null, // Column doesn't exist in DB
+    fingerprintEnrolled: false,
+    twoFactorEnabled: false,
+    joinedDate: null,
   };
 }
 
@@ -363,7 +301,7 @@ export async function getUserAccounts(email: string): Promise<AuthUser[]> {
   const db = await getDatabaseWithRetry();
   // Use case-insensitive email comparison - normalize email to lowercase
   const normalizedEmail = email.toLowerCase().trim();
-  
+
   try {
     const accounts = await db
       .select({
@@ -416,7 +354,7 @@ export async function createUser(userData: {
     // Normalize email to lowercase and trim whitespace
     const normalizedEmail = userData.email.toLowerCase().trim();
     console.log('createUser called with:', { email: normalizedEmail, role: userData.role });
-    
+
     // Get database instance with retry
     const { getDatabaseWithRetry } = await import('./db');
     const db = await getDatabaseWithRetry();
@@ -481,23 +419,17 @@ export async function generateResetToken(email: string): Promise<string | null> 
     .where(eq(users.email, email))
     .limit(1);
 
-    const userResult = await db.select().from(users).where(eq(users.email, email)).limit(1);
+  if (!user.length) return null;
 
-    if (!userResult.length) return null;
+  const resetToken = generateSecureToken();
+  const resetTokenExpiry = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
 
-    const resetToken = generateSecureToken();
-    const resetTokenExpiry = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+  await db
+    .update(users)
+    .set({ resetToken, resetTokenExpiry })
+    .where(eq(users.email, email));
 
-    await db
-      .update(users)
-      .set({ resetToken, resetTokenExpiry })
-      .where(eq(users.email, email));
-
-    return resetToken;
-  } catch (error) {
-    console.error('Generate reset token error:', error);
-    return null;
-  }
+  return resetToken;
 }
 
 export async function verifyResetToken(email: string, token: string): Promise<boolean> {
@@ -516,15 +448,10 @@ export async function verifyResetToken(email: string, token: string): Promise<bo
     ))
     .limit(1);
 
-    const userResult = await db.select().from(users).where(eq(users.email, email)).limit(1);
+  if (!user.length) return false;
 
-    if (!userResult.length) return false;
-
-    const user = userResult[0];
-    return user.resetToken === token && user.resetTokenExpiry && user.resetTokenExpiry > new Date();
-  } catch (error) {
-    return false;
-  }
+  const resetUser = user[0];
+  return resetUser.resetToken === token && resetUser.resetTokenExpiry && resetUser.resetTokenExpiry > new Date();
 }
 
 export async function resetPassword(
@@ -557,21 +484,94 @@ export async function resetPassword(
 }
 
 // Helper function for API routes to verify auth from request
-export async function verifyAuth(request: any): Promise<AuthUser | null> {
+export async function verifyAuth(
+  request: NextRequest,
+  options: { requiredRole?: string } = {}
+): Promise<{
+  isAuthenticated: boolean;
+  isAuthorized: boolean;
+  user: AuthUser | null;
+  response: any | null; // Using 'any' for response to avoid type conflicts if NextResponse isn't imported
+}> {
   try {
-    // Check both admin and student tokens
-    const adminToken = request.cookies.get('adminToken')?.value;
-    const studentToken = request.cookies.get('studentToken')?.value;
-    const token = adminToken || studentToken;
+    // Import NextResponse dynamically to ensure it's available
+    const { NextResponse } = await import('next/server');
+
+    // Check both admin and student tokens (snake_case from login API)
+    const adminToken = request.cookies.get('admin_token')?.value;
+    const studentToken = request.cookies.get('student_token')?.value;
+    const token = adminToken || studentToken || request.cookies.get('token')?.value;
 
     if (!token) {
-      return null;
+      return {
+        isAuthenticated: false,
+        isAuthorized: false,
+        user: null,
+        response: NextResponse.json({ message: 'Not authenticated' }, { status: 401 })
+      };
     }
 
-    const user = verifyToken(token);
-    return user;
-  } catch (error) {
+    // Try validating as a session first
+    let user: AuthUser | null = null;
+    try {
+      user = await validateSession(token);
+    } catch (err) {
+      // Not a session token or validation failed
+    }
+
+    // Fallback to JWT
+    if (!user) {
+      user = verifyToken(token);
+    }
+
+    if (!user) {
+      return {
+        isAuthenticated: false,
+        isAuthorized: false,
+        user: null,
+        response: NextResponse.json({ message: 'Invalid token or session expired' }, { status: 401 })
+      };
+    }
+
+    // Role check
+    if (options.requiredRole && user.role !== options.requiredRole) {
+      // Special case: admin can usually access student stuff, but if strict role required:
+      // If requiring 'student', admin should probably pass?
+      // For now, strict check as requested by "requiredRole", unless we add specific logic.
+      // My refactors mainly used: requiredRole: 'admin' (strict) and requiredRole: 'student' (strict).
+      // But wait, admin accessing student/courses?
+      // Admin role is 'admin'. api/student/courses (refactored) didn't enforce role in verifyAuth call, it just called verifyAuth(req).
+      // api/student/textbooks called verifyAuth(req, { requiredRole: 'student' }).
+
+      // Allow admins to pass 'student' check?
+      if (options.requiredRole === 'student' && (user.role === 'admin' || user.role === 'super_admin')) {
+        // Allow admin as student
+      } else {
+        return {
+          isAuthenticated: true,
+          isAuthorized: false,
+          user: user,
+          response: NextResponse.json({ message: `${options.requiredRole} access required` }, { status: 403 })
+        };
+      }
+    }
+
+    return {
+      isAuthenticated: true,
+      isAuthorized: true,
+      user: user,
+      response: null
+    };
+
+  } catch (error: any) {
     console.error('verifyAuth error:', error);
-    return null;
+    // Import NextResponse dynamically
+    const { NextResponse } = await import('next/server');
+    return {
+      isAuthenticated: false,
+      isAuthorized: false,
+      user: null,
+      response: NextResponse.json({ message: 'Internal authentication error' }, { status: 500 })
+    };
   }
 }

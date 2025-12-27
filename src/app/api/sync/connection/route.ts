@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
       role: decoded.role,
     };
 
-    if (isAdmin) {
+    if (decoded.role === 'admin') {
       // Admin sync data - optimized with parallel queries
       const [coursesCount, studentsCount, pendingRequestsCount] = await Promise.all([
         safeCount('courses', () =>
@@ -107,7 +107,7 @@ export async function GET(request: NextRequest) {
         );
 
       // Filter out courses with pending requests
-      const actualEnrolled = allEnrolledProgress.filter((p: any) => 
+      const actualEnrolled = allEnrolledProgress.filter((p: any) =>
         !pendingRequestCourseIds.has(p.courseId)
       );
 
@@ -138,7 +138,7 @@ export async function GET(request: NextRequest) {
       );
 
       syncData.student = {
-        enrolledCourses: Number(enrolledCount?.count || 0),
+        enrolledCourses: enrolledCount,
         unreadNotifications: unreadNotificationsCount,
         pendingRequests: pendingRequestsCount,
       };

@@ -16,91 +16,8 @@ export async function POST(request: NextRequest) {
     const { email, otp, role } = await request.json();
     const ip = getClientIP(request) || 'unknown';
 
-        if (!email || !otp) {
-            return NextResponse.json({ message: 'Email and OTP are required' }, { status: 400 });
-        }
-
-        // Find user
-        const user = await db.query.users.findFirst({
-            where: eq(users.email, email),
-        });
-
-        if (!user) {
-            securityLogger.error(ip, email, 'User not found during OTP login');
-            return NextResponse.json({ message: 'Invalid OTP' }, { status: 400 });
-        }
-
-        // Check if OTP exists and is not expired
-        if (!user.otpSecret || !user.otpExpiry) {
-            securityLogger.error(ip, email, 'No OTP requested');
-            return NextResponse.json({ message: 'No OTP requested' }, { status: 400 });
-        }
-
-        if (new Date() > user.otpExpiry) {
-            securityLogger.error(ip, email, 'OTP expired');
-            return NextResponse.json({ message: 'OTP expired' }, { status: 400 });
-        }
-
-        // Verify OTP
-        const isValid = await bcrypt.compare(otp, user.otpSecret);
-
-        if (!isValid) {
-            securityLogger.error(ip, email, 'Invalid OTP');
-            return NextResponse.json({ message: 'Invalid OTP' }, { status: 400 });
-        }
-
-        // Clear OTP
-        await db.update(users)
-            .set({
-                otpSecret: null,
-                otpExpiry: null,
-            })
-            .where(eq(users.id, user.id));
-
-        // Check role if specified
-        if (role && user.role !== role) {
-            securityLogger.warn('Unauthorized access', { ip, path: '/api/auth/otp/verify', userId: user.id });
-            return NextResponse.json({ message: 'Unauthorized role' }, { status: 403 });
-        }
-
-        // Generate Token
-        const token = generateToken({
-            id: user.id,
-            name: user.name,
-            email: user.email,
-            role: user.role,
-            isActive: user.isActive,
-            phone: user.phone,
-            bio: user.bio,
-            fingerprintEnrolled: user.fingerprintEnrolled || false,
-            twoFactorEnabled: user.twoFactorEnabled || false,
-            joinedDate: user.joinedDate,
-        });
-
-        // Set Cookie
-        cookies().set('token', token, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'lax',
-            maxAge: 60 * 60 * 24 * 7, // 7 days
-            path: '/',
-        });
-
-        securityLogger.info(ip, email);
-
-        return NextResponse.json({
-            message: 'Login successful',
-            user: {
-                id: user.id,
-                name: user.name,
-                email: user.email,
-                role: user.role,
-            },
-        });
-
-    } catch (error) {
-        logger.error('Verify OTP error:', error);
-        return NextResponse.json({ message: 'Internal server error' }, { status: 500 });
+    if (!email || !otp) {
+      return NextResponse.json({ message: 'Email and OTP are required' }, { status: 400 });
     }
 
     // Find user
@@ -133,8 +50,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Clear OTP
-    await db
-      .update(users)
+    await db.update(users)
       .set({
         otpSecret: null,
         otpExpiry: null,
@@ -143,11 +59,7 @@ export async function POST(request: NextRequest) {
 
     // Check role if specified
     if (role && user.role !== role) {
-      securityLogger.warn('Unauthorized access', {
-        ip,
-        path: '/api/auth/otp/verify',
-        userId: user.id,
-      });
+      securityLogger.warn('Unauthorized access', { ip, path: '/api/auth/otp/verify', userId: user.id });
       return NextResponse.json({ message: 'Unauthorized role' }, { status: 403 });
     }
 
@@ -160,7 +72,6 @@ export async function POST(request: NextRequest) {
       isActive: user.isActive,
       phone: user.phone,
       bio: user.bio,
-      faceIdEnrolled: user.faceIdEnrolled || false,
       fingerprintEnrolled: user.fingerprintEnrolled || false,
       twoFactorEnabled: user.twoFactorEnabled || false,
       joinedDate: user.joinedDate,
@@ -186,8 +97,9 @@ export async function POST(request: NextRequest) {
         role: user.role,
       },
     });
+
   } catch (error) {
-    console.error('Verify OTP error:', error);
+    logger.error('Verify OTP error:', error);
     return NextResponse.json({ message: 'Internal server error' }, { status: 500 });
   }
 }

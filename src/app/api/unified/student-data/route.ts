@@ -12,7 +12,7 @@ import { z } from 'zod';
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyToken } from '@/lib/auth';
+import { verifyToken, verifyAuth } from '@/lib/auth';
 import { getDatabase } from '@/lib/db';
 import { studentProgress, enrollments, accessRequests, courses } from '@/lib/db/schema';
 import { eq, or } from 'drizzle-orm';
@@ -58,15 +58,11 @@ function mergeEnrollmentData(progressRecords: any[], enrollmentRecords: any[]) {
 export async function GET(request: NextRequest) {
   try {
     // Authenticate admin
-    const token = request.cookies.get('token')?.value;
-    if (!token) {
-      return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });
+    const auth = await verifyAuth(request, { requiredRole: 'admin' });
+    if (!auth.isAuthorized) {
+      return auth.response;
     }
-
-    const decoded = await verifyToken(token);
-    if (!decoded || !decoded.id) {
-      return createAuthError('Invalid token');
-    }
+    const { user: decoded } = auth;
 
     logger.info(`📊 [Unified API] Fetching data for user ${decoded.id}`);
 
@@ -79,9 +75,9 @@ export async function GET(request: NextRequest) {
     }
 
     const studentId = parseInt(studentIdParam);
-    console.log(`📊 [Admin Unified API] Fetching data for student ${studentId}`);
+    logger.info(`📊 [Admin Unified API] Fetching data for student ${studentId}`);
 
-    logger.info(`✅ [Unified API] Returning data: ${response.enrollments.length} enrollments, ${response.courses.length} courses, ${response.requests.length} requests`);
+    const db = getDatabase();
 
     // Fetch ALL data in single transaction
     const snapshot = await db.transaction(async (tx) => {
@@ -117,7 +113,7 @@ export async function GET(request: NextRequest) {
       };
     });
 
-    console.log(
+    logger.info(
       `✅ [Admin Unified API] Returning data: ${snapshot.enrollments.length} enrollments, ${snapshot.courses.length} courses`
     );
 
@@ -133,28 +129,3 @@ export async function GET(request: NextRequest) {
     );
   }
 }
-
-
-    const decoded = await verifyToken(token);
-    if (!decoded || !decoded.id) {
-      return createAuthError('Invalid token');
-    }
-
-
-    return NextResponse.json({
-      message: 'Cache invalidated',
-      userId: decoded.id,
-    });
-
-  } catch (error: any) {
-    logger.error('❌ [Unified API] Cache invalidation error:', error);
-    return NextResponse.json(
-      {
-        message: 'Failed to invalidate cache',
-        error: process.env.NODE_ENV === 'development' ? error.message : undefined,
-      },
-      { status: 500 }
-    );
-  }
-}
-

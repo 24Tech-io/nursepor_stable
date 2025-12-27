@@ -14,31 +14,16 @@ export async function PUT(request: NextRequest, { params }: { params: { moduleId
     const moduleId = parseInt(params.moduleId);
     const ip = getClientIP(request) || 'unknown';
 
-        if (!Array.isArray(items)) {
-            return NextResponse.json({ message: 'Invalid data' }, { status: 400 });
-        }
-
-        // Update order for each chapter
-        await db.transaction(async (tx) => {
-            for (const item of items) {
-                await tx.update(chapters)
-                    .set({ order: item.order })
-                    .where(eq(chapters.id, item.id));
-            }
-        });
-
-        securityLogger.info('Chapters Reordered', { moduleId, count: items.length });
-
-        return NextResponse.json({ message: 'Chapters reordered successfully' });
-    } catch (error) {
-        logger.error('Reorder chapters error:', error);
-        return NextResponse.json({ message: 'Internal server error' }, { status: 500 });
+    if (!Array.isArray(items)) {
+      return NextResponse.json({ message: 'Invalid data' }, { status: 400 });
     }
 
     // Update order for each chapter
     await db.transaction(async (tx) => {
       for (const item of items) {
-        await tx.update(chapters).set({ order: item.order }).where(eq(chapters.id, item.id));
+        await tx.update(chapters)
+          .set({ order: item.order })
+          .where(eq(chapters.id, item.id));
       }
     });
 
@@ -46,7 +31,7 @@ export async function PUT(request: NextRequest, { params }: { params: { moduleId
 
     return NextResponse.json({ message: 'Chapters reordered successfully' });
   } catch (error) {
-    console.error('Reorder chapters error:', error);
+    logger.error('Reorder chapters error:', error);
     return NextResponse.json({ message: 'Internal server error' }, { status: 500 });
   }
 }

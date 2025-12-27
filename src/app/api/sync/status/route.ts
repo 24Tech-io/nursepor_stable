@@ -1,6 +1,6 @@
 import { logger } from '@/lib/logger';
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyToken } from '@/lib/auth';
+import { verifyToken, verifyAuth } from '@/lib/auth';
 import { getSyncStatus } from '@/lib/sync-service';
 
 /**
@@ -9,16 +9,11 @@ import { getSyncStatus } from '@/lib/sync-service';
  */
 export async function GET(request: NextRequest) {
   try {
-    const token = request.cookies.get('token')?.value || request.cookies.get('token')?.value;
-
-    if (!token) {
+    const auth = await verifyAuth(request);
+    if (!auth.isAuthenticated) {
       return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });
     }
-
-    const decoded = await verifyToken(token);
-    if (!decoded) {
-      return NextResponse.json({ message: 'Invalid token' }, { status: 403 });
-    }
+    const { user: decoded } = auth;
 
     const status = await getSyncStatus();
 

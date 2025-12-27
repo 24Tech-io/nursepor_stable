@@ -110,9 +110,11 @@ export function normalizeNursingCandidatePayload(payload: any): NursingCandidate
   const rawEducation = payload.educationDetails || [];
   const educationDetails: NursingEducationEntry[] = (Array.isArray(rawEducation) ? rawEducation : []).map((entry: any) => ({
     institutionName: cleanString(entry.institutionName),
-    address: cleanString(entry.address),
+    address: normalizeStructuredAddress(entry.address),
     programType: cleanString(entry.programType),
     studyPeriod: normalizeDateRange(entry.studyPeriod),
+    languageOfInstruction: cleanString(entry.languageOfInstruction),
+    isCollegeOperational: getYesNo(entry.isCollegeOperational),
   }));
 
   // Registration Details: Dynamic Array
@@ -125,6 +127,7 @@ export function normalizeNursingCandidatePayload(payload: any): NursingCandidate
     status: cleanString(entry?.status) as NursingRegistrationEntry['status'],
   }));
 
+  // Experience Helper
   const buildExperience = (entry: any): NursingExperienceEntry => ({
     employer: cleanString(entry?.employer),
     position: cleanString(entry?.position),
@@ -145,11 +148,12 @@ export function normalizeNursingCandidatePayload(payload: any): NursingCandidate
   const rawCanadaEmployment = payload.canadaEmploymentHistory || [];
   const canadaEmploymentHistory: NursingCanadaExperienceEntry[] = (Array.isArray(rawCanadaEmployment) ? rawCanadaEmployment : []).map(buildCanadaExperience);
 
-  // NCLEX History
-  const rawAttemps = payload.nclexHistory?.attempts || [];
-  const nclexHistory = {
-    hasTakenBefore: getYesNo(payload.nclexHistory?.hasTakenBefore),
-    attempts: (Array.isArray(rawAttemps) ? rawAttemps : []).map((attempt: any) => ({
+  const targetCountry = (['Canada', 'USA', 'Australia'].includes(payload.targetCountry) ? payload.targetCountry : 'Canada') as 'Canada' | 'USA' | 'Australia';
+
+  // Normalize NCLEX exam history (Consolidated)
+  const nclexExamHistory = {
+    hasWrittenExam: getYesNo(payload.nclexExamHistory?.hasWrittenExam || payload.hasWrittenNclexExam),
+    attempts: (payload.nclexExamHistory?.attempts || payload.nclexAttempts || []).map((attempt: any): NclexExamAttempt => ({
       examDate: cleanString(attempt.examDate),
       country: cleanString(attempt.country),
       province: cleanString(attempt.province),
@@ -157,32 +161,30 @@ export function normalizeNursingCandidatePayload(payload: any): NursingCandidate
     })),
   };
 
-  const targetCountry = (['Canada', 'USA', 'Australia'].includes(payload.targetCountry) ? payload.targetCountry : 'Canada') as 'Canada' | 'USA' | 'Australia';
-
-  // Normalize NCLEX exam history
-  const nclexExamHistory = {
-    hasWrittenExam: getYesNo(payload.nclexExamHistory?.hasWrittenExam || payload.hasWrittenNclexExam),
-    attempts: (payload.nclexExamHistory?.attempts || payload.nclexAttempts || []).map((attempt: any, index: number): NclexExamAttempt => ({
-      examDate: cleanString(attempt.examDate),
-      country: cleanString(attempt.country),
-      province: cleanString(attempt.province),
-      state: cleanString(attempt.state),
-      result: ['Pass', 'Fail', 'Pending'].includes(attempt.result) ? attempt.result : undefined,
-      attemptNumber: attempt.attemptNumber || index + 1,
+  // Normalize School Details
+  const schoolDetails = {
+    class10: {
+      institutionName: cleanString(payload.schoolDetails?.class10?.institutionName),
+      address: normalizeStructuredAddress(payload.schoolDetails?.class10?.address),
+      studyPeriod: normalizeDateRange(payload.schoolDetails?.class10?.studyPeriod),
+    },
+    class12: {
+      institutionName: cleanString(payload.schoolDetails?.class12?.institutionName),
+      address: normalizeStructuredAddress(payload.schoolDetails?.class12?.address),
+      studyPeriod: normalizeDateRange(payload.schoolDetails?.class12?.studyPeriod),
+    },
+    otherSchools: (Array.isArray(payload.schoolDetails?.otherSchools) ? payload.schoolDetails.otherSchools : []).map((school: any) => ({
+      gradeStudied: cleanString(school.gradeStudied),
+      institutionName: cleanString(school.institutionName),
+      address: normalizeStructuredAddress(school.address),
+      studyPeriod: normalizeDateRange(school.studyPeriod),
     })),
   };
-
-  // Normalize other schools
-  const otherSchools: OtherSchoolEntry[] = (payload.otherSchools || []).map((school: any): OtherSchoolEntry => ({
-    gradeStudied: cleanString(school.gradeStudied),
-    institutionName: cleanString(school.institutionName),
-    address: normalizeStructuredAddress(school.address),
-    studyPeriod: normalizeDateRange(school.studyPeriod),
-  }));
 
   return {
     targetCountry,
     personalDetails,
+    schoolDetails,
     educationDetails,
     registrationDetails: {
       hasDisciplinaryAction: getYesNo(
@@ -195,8 +197,9 @@ export function normalizeNursingCandidatePayload(payload: any): NursingCandidate
     nclexExamHistory,
     employmentHistory,
     canadaEmploymentHistory,
-    nclexHistory,
+    canadianImmigrationApplied: targetCountry === 'Canada' ? getYesNo(payload.canadianImmigrationApplied, undefined) : undefined,
     documentChecklistAcknowledged: Boolean(payload.documentChecklistAcknowledged),
+    createdAt: payload.createdAt ? new Date(payload.createdAt).toISOString() : new Date().toISOString(),
   };
 }
 

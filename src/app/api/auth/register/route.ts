@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-    
+
     log.debug('Phone number processed', { phone: sanitizedPhone });
 
     // Validate password strength
@@ -50,14 +50,14 @@ export async function POST(request: NextRequest) {
     const finalRole = 'student';
 
     log.debug('Attempting to create user', { name: sanitizedName, email: sanitizedEmail, phone: sanitizedPhone, role: finalRole });
-    
+
     // Check if account with this email+role already exists
     // Temporarily skip this check to test if createUser works
     try {
       const { getUserAccounts } = await import('@/lib/auth');
       const existingAccounts = await getUserAccounts(sanitizedEmail);
       const existingRole = existingAccounts.find(acc => acc.role === finalRole);
-      
+
       if (existingRole) {
         return NextResponse.json(
           { message: `An account with this email already exists as ${finalRole}. Please use a different email or try logging in.` },
@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
       log.warn('getUserAccounts check failed, proceeding with registration', { error: checkError.message });
       // Continue with registration - let database unique constraint handle duplicates
     }
-    
+
     // Create user
     let user;
     try {
@@ -126,7 +126,7 @@ export async function POST(request: NextRequest) {
     const errorMessage = (error?.message || '').toLowerCase();
     const errorDetail = (error?.detail || error?.cause?.detail || '').toLowerCase();
     const errorConstraint = error?.constraint || error?.cause?.constraint || '';
-    
+
     log.debug('Checking for duplicate email+role error', {
       errorCode,
       errorMessage: errorMessage.substring(0, 100),
@@ -135,16 +135,16 @@ export async function POST(request: NextRequest) {
       hasCause: !!error?.cause,
       causeCode: error?.cause?.code,
     });
-    
+
     // Check for composite unique constraint violation (email + role)
-    const isDuplicateEmailRole = 
+    const isDuplicateEmailRole =
       errorCode === '23505' ||
-      errorMessage.includes('duplicate key') || 
+      errorMessage.includes('duplicate key') ||
       errorMessage.includes('unique constraint') ||
       errorDetail.includes('already exists') ||
       errorConstraint === 'users_email_role_unique' ||
       error?.cause?.code === '23505';
-    
+
     if (isDuplicateEmailRole) {
       log.debug('Duplicate email+role detected - returning user-friendly message');
       // Try to extract role from error or use 'student' as default
@@ -155,41 +155,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Phone is optional for admin
-    const phoneValue = body.phone || null;
-
-    // Create new admin account
-    const hashedPassword = await hashPassword(password);
-
-    const [newUser] = await db
-      .insert(users)
-      .values({
-        name: name.trim(),
-        email: email.toLowerCase().trim(),
-        password: hashedPassword,
-        phone: phoneValue,
-        role: 'admin',
-        isActive: true,
-      })
-      .returning();
-
     return NextResponse.json(
       {
-        message: 'Admin account created successfully',
-        user: {
-          id: newUser.id,
-          name: newUser.name,
-          email: newUser.email,
-          role: newUser.role,
-        },
-      },
-      { status: 201 }
-    );
-  } catch (error: any) {
-    console.error('Admin registration error:', error);
-    return NextResponse.json(
-      {
-        message: 'Failed to create admin account',
+        message: 'Registration failed',
         error: process.env.NODE_ENV === 'development' ? error.message : undefined,
       },
       { status: 500 }

@@ -250,7 +250,6 @@ export const studentProgress = pgTable('student_progress', {
   courseIdIdx: index('student_progress_course_id_idx').on(table.courseId),
 }));
 
-
 // Notifications table
 export const notifications = pgTable('notifications', {
   id: serial('id').primaryKey(),

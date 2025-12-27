@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyToken } from '@/lib/auth';
+import { verifyToken, verifyAuth } from '@/lib/auth';
 import { getDatabaseWithRetry } from '@/lib/db';
 import { accessRequests, users, courses, studentProgress } from '@/lib/db/schema';
 import { eq, desc, and, ne, or, isNotNull } from 'drizzle-orm';
@@ -10,17 +10,12 @@ export const dynamic = 'force-dynamic';
 // GET - Fetch all access requests
 export async function GET(request: NextRequest) {
   try {
-    // Check for admin_token first (new auth system), then fallback to adminToken for backward compatibility
-    const token = request.cookies.get('admin_token')?.value || request.cookies.get('adminToken')?.value;
-
-    if (!token) {
-      return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });
+    // Check authentication
+    const auth = await verifyAuth(request, { requiredRole: 'admin' });
+    if (!auth.isAuthorized) {
+      return auth.response;
     }
-
-    const decoded = await verifyToken(token);
-    if (!decoded || decoded.role !== 'admin') {
-      return NextResponse.json({ message: 'Admin access required' }, { status: 403 });
-    }
+    const { user: decoded } = auth;
 
     const db = await getDatabaseWithRetry();
 

@@ -16,7 +16,7 @@ const nextConfig = {
   // Next.js optimizations
   experimental: {
     // Enable Webpack build worker for better performance
-    webpackBuildWorker: true,
+    webpackBuildWorker: false,
     // Note: Turbopack disabled due to @tanstack module resolution issues
   },
 
@@ -68,7 +68,7 @@ const nextConfig = {
           framework: {
             name: 'framework',
             chunks: 'all',
-            test: /(?<!node_modules.*[\\/])(react|react-dom|scheduler|prop-types|use-subscription)[\\/]/,
+            test: /(?<!node_modules.*[\\\/])(react|react-dom|scheduler|prop-types|use-subscription)[\\\/]/,
             priority: 40,
             enforce: true,
           },

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/auth';
-import { eq, desc } from 'drizzle-orm';
+import { db } from '@/lib/db';
+import { courseQuestions, courseQuestionAssignments, courseAnswers, users as usersTable } from '@/lib/db/schema';
+import { eq, desc, and, inArray } from 'drizzle-orm';
 import { extractAndValidate, validateRouteParams } from '@/lib/api-validation';
 import { createCourseQuestionSchema } from '@/lib/validation-schemas-extended';
 import { z } from 'zod';
@@ -56,21 +58,21 @@ export async function GET(
   }
 }
 
-// POST - Create a question
+// POST - Create a question OR Assign questions
 export async function POST(
   request: NextRequest,
   { params }: { params: { courseId: string } }
 ) {
   try {
-    const token = request.cookies.get('token')?.value;
+    const token = request.cookies.get('token')?.value || request.cookies.get('adminToken')?.value;
 
     if (!token) {
       return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });
     }
 
-    const decoded = verifyToken(token);
-    if (!decoded || decoded.role !== 'admin') {
-      return NextResponse.json({ message: 'Admin access required' }, { status: 403 });
+    const decoded = await verifyToken(token);
+    if (!decoded || (decoded.role !== 'admin' && decoded.role !== 'instructor')) {
+      return NextResponse.json({ message: 'Admin or Instructor access required' }, { status: 403 });
     }
 
     // Validate route params
@@ -82,84 +84,66 @@ export async function POST(
       return paramsValidation.error;
     }
     const courseId = parseInt(params.courseId);
-    
-    // Validate request body
-    const bodyValidation = await extractAndValidate(request, createCourseQuestionSchema);
-    if (!bodyValidation.success) {
-      return bodyValidation.error;
-    }
-    const { question, chapterId } = bodyValidation.data;
 
-    const [newQuestion] = await db.insert(courseQuestions).values({
-      courseId,
-      chapterId: chapterId || null,
-      userId: user.id,
-      question: question.trim(),
-    }).returning();
-
-    return NextResponse.json({ success: true, question: newQuestion });
-  } catch (error: any) {
-    logger.error('Create question error:', error);
-    return NextResponse.json({ error: 'Failed to create question' }, { status: 500 });
-  }
-}
-
-// POST - Assign questions to course/module
-export async function POST(request: NextRequest, { params }: { params: { courseId: string } }) {
-  try {
-    const token = request.cookies.get('token')?.value;
-
-    if (!token) {
-      return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });
-    }
-
-    const decoded = verifyToken(token);
-    if (!decoded || decoded.role !== 'admin') {
-      return NextResponse.json({ message: 'Admin access required' }, { status: 403 });
-    }
-
-    const courseId = parseInt(params.courseId);
+    // Read body once
     const body = await request.json();
-    const { questionIds, moduleId, isModuleSpecific } = body;
 
-    if (!questionIds || !Array.isArray(questionIds) || questionIds.length === 0) {
-      return NextResponse.json({ message: 'questionIds array is required' }, { status: 400 });
+    if (body.questionIds) {
+      // --- ASSIGNMENT LOGIC ---
+      const { questionIds, moduleId, isModuleSpecific } = body;
+
+      if (!Array.isArray(questionIds) || questionIds.length === 0) {
+        return NextResponse.json({ message: 'questionIds array is required' }, { status: 400 });
+      }
+
+      // Insert assignments (ignore duplicates)
+      const assignments = questionIds.map((questionId: number, index: number) => ({
+        courseId,
+        moduleId: moduleId || null,
+        questionId,
+        isModuleSpecific: isModuleSpecific || false,
+        sortOrder: index,
+      }));
+
+      const inserted = await db
+        .insert(courseQuestionAssignments)
+        .values(assignments)
+        .onConflictDoNothing()
+        .returning();
+
+      logger.info(
+        `✅ Assigned ${inserted.length} questions to course ${courseId}${moduleId ? ` / module ${moduleId}` : ''}`
+      );
+
+      return NextResponse.json(
+        {
+          message: `${inserted.length} questions assigned successfully`,
+          assignments: inserted,
+        },
+        { status: 201 }
+      );
+    } else {
+      // --- CREATION LOGIC ---
+      const validation = createCourseQuestionSchema.safeParse(body);
+      if (!validation.success) {
+        return NextResponse.json({ message: 'Validation failed', errors: validation.error.format() }, { status: 400 });
+      }
+
+      const { question, chapterId } = validation.data;
+
+      const [newQuestion] = await db.insert(courseQuestions).values({
+        courseId,
+        chapterId: chapterId || null,
+        userId: decoded.id, // Use authenticated user ID
+        question: question.trim(),
+      }).returning();
+
+      return NextResponse.json({ success: true, question: newQuestion });
     }
 
-    const db = getDatabase();
-
-    // Insert assignments (ignore duplicates)
-    const assignments = questionIds.map((questionId: number, index: number) => ({
-      courseId,
-      moduleId: moduleId || null,
-      questionId,
-      isModuleSpecific: isModuleSpecific || false,
-      sortOrder: index,
-    }));
-
-    const inserted = await db
-      .insert(courseQuestionAssignments)
-      .values(assignments)
-      .onConflictDoNothing()
-      .returning();
-
-    console.log(
-      `✅ Assigned ${inserted.length} questions to course ${courseId}${moduleId ? ` / module ${moduleId}` : ''}`
-    );
-
-    return NextResponse.json(
-      {
-        message: `${inserted.length} questions assigned successfully`,
-        assignments: inserted,
-      },
-      { status: 201 }
-    );
   } catch (error: any) {
-    console.error('Assign questions error:', error);
-    return NextResponse.json(
-      { message: 'Failed to assign questions', error: error.message },
-      { status: 500 }
-    );
+    logger.error('Create/Assign question error:', error);
+    return NextResponse.json({ error: 'Failed to process request' }, { status: 500 });
   }
 }
 

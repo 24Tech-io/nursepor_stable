@@ -1,24 +1,18 @@
-import { logger } from '@/lib/logger';
-/**
- * Health check endpoint with performance metrics
- */
-export async function GET() {
-  const startTime = performance.now();
-
 import { NextRequest, NextResponse } from 'next/server';
 import { getDatabaseWithRetry } from '@/lib/db';
 import { sql } from 'drizzle-orm';
+import { logger } from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
   const startTime = Date.now();
-  
+
   try {
     // Check database connection
     let dbStatus = 'healthy';
     let dbResponseTime = 0;
-    
+
     try {
       const dbStart = Date.now();
       const db = await getDatabaseWithRetry();
@@ -28,29 +22,27 @@ export async function GET(request: NextRequest) {
       dbStatus = 'unhealthy';
       logger.error('Database health check failed:', error);
     }
-    
+
     // Check overall health
     const isHealthy = dbStatus === 'healthy';
     const responseTime = Date.now() - startTime;
-    
+
     const healthData = {
       status: isHealthy ? 'healthy' : 'degraded',
       timestamp: new Date().toISOString(),
       responseTime: `${responseTime.toFixed(2)}ms`,
       database: {
-        connected: dbHealthy,
-        status: dbHealthy ? 'healthy' : 'unhealthy',
-      },
-      performance: {
-        longTasks: perfReport.longTasks.length,
-        averageTaskTime: `${perfReport.averageTaskTime.toFixed(2)}ms`,
-      },
-      connection: connectionInfo,
-      cache: apiStats,
-    });
+        connected: isHealthy,
+        status: dbStatus,
+        responseTime: `${dbResponseTime}ms`
+      }
+    };
+
+    return NextResponse.json(healthData, { status: isHealthy ? 200 : 503 });
+
   } catch (error: any) {
     logger.error('Health check error:', error);
-    
+
     return NextResponse.json(
       {
         status: 'unhealthy',
@@ -72,4 +64,3 @@ export async function HEAD(request: NextRequest) {
     return new NextResponse(null, { status: 503 });
   }
 }
-

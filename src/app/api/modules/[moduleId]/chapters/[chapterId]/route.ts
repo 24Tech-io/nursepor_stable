@@ -10,10 +10,11 @@ export async function PUT(
   { params }: { params: { moduleId: string; chapterId: string } }
 ) {
   try {
-    const user = await verifyAuth(request);
-    if (!user || user.role !== 'admin') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const auth = await verifyAuth(request, { requiredRole: 'admin' });
+    if (!auth.isAuthorized) {
+      return auth.response;
     }
+    const user = auth.user;
 
     const body = await request.json();
     const { title, description, videoUrl, videoProvider, textbookContent, textbookFileUrl, readingTime, videoDuration, order } = body;
@@ -53,10 +54,11 @@ export async function DELETE(
   { params }: { params: { moduleId: string; chapterId: string } }
 ) {
   try {
-    const user = await verifyAuth(request);
-    if (!user || user.role !== 'admin') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const auth = await verifyAuth(request, { requiredRole: 'admin' });
+    if (!auth.isAuthorized) {
+      return auth.response;
     }
+    const user = auth.user;
 
     await db
       .delete(chapters)

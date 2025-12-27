@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyToken } from '@/lib/auth';
+import { verifyToken, verifyAuth } from '@/lib/auth';
 import { getDatabaseWithRetry } from '@/lib/db';
 import {
   questionBanks,
@@ -11,20 +11,18 @@ import {
 import { eq, and, count } from 'drizzle-orm';
 import { logger } from '@/lib/logger';
 
+// CACHE DISABLED - Force fresh data
+export const revalidate = 0;
 export const dynamic = 'force-dynamic';
 
 // GET - List all Q-Banks with access status
 export async function GET(request: NextRequest) {
   try {
-    const token = request.cookies.get('student_token')?.value || request.cookies.get('token')?.value;
-    if (!token) {
+    const auth = await verifyAuth(request);
+    if (!auth.isAuthenticated || !auth.user) {
       return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });
     }
-
-    const decoded = await verifyToken(token);
-    if (!decoded || !decoded.id) {
-      return NextResponse.json({ message: 'Invalid token' }, { status: 401 });
-    }
+    const decoded = auth.user;
 
     const studentId = decoded.id;
     const db = await getDatabaseWithRetry();

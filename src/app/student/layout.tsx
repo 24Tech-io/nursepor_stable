@@ -283,7 +283,7 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
 
             {/* Desktop Navigation */}
             <div className="hidden md:flex items-center space-x-0.5">
-              {getNavigation(hasDailyVideo).map((item) => {
+              {navigation.map((item) => {
                 const isActive = pathname === item.href;
                 return (
                   <Link

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyToken } from '@/lib/auth';
+import { verifyAuth } from '@/lib/auth';
 import { getDatabaseWithRetry } from '@/lib/db';
 import { accessRequests, courses, enrollments, studentProgress } from '@/lib/db/schema';
 import { eq, and, desc } from 'drizzle-orm';
@@ -7,22 +7,18 @@ import { logger } from '@/lib/logger';
 import { extractAndValidate, validateQueryParams, validateRouteParams } from '@/lib/api-validation';
 import { z } from 'zod';
 
-// Cache for 30 seconds - allows stale-while-revalidate
-export const revalidate = 30;
+// CACHE DISABLED - Force fresh data
+export const revalidate = 0;
 
 // GET - Fetch student's own access requests
 export async function GET(request: NextRequest) {
   try {
-    const token = request.cookies.get('student_token')?.value || request.cookies.get('token')?.value;
+    const auth = await verifyAuth(request);
 
-    if (!token) {
-      return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });
+    if (!auth.isAuthenticated || !auth.user) {
+      return NextResponse.json({ message: 'Authentication required' }, { status: 401 });
     }
-
-    const decoded = await verifyToken(token);
-    if (!decoded || decoded.role !== 'student') {
-      return NextResponse.json({ message: 'Student access required' }, { status: 403 });
-    }
+    const decoded = auth.user;
 
     const db = await getDatabaseWithRetry();
 
@@ -64,16 +60,11 @@ export async function GET(request: NextRequest) {
 // POST - Create new access request
 export async function POST(request: NextRequest) {
   try {
-    const token = request.cookies.get('student_token')?.value || request.cookies.get('token')?.value;
-
-    if (!token) {
-      return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });
+    const auth = await verifyAuth(request);
+    if (!auth.isAuthenticated || !auth.user) {
+      return NextResponse.json({ message: 'Authentication required' }, { status: 401 });
     }
-
-    const decoded = await verifyToken(token);
-    if (!decoded || decoded.role !== 'student') {
-      return NextResponse.json({ message: 'Student access required' }, { status: 403 });
-    }
+    const decoded = auth.user;
 
     const { courseId, reason } = await request.json();
 

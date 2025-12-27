@@ -49,7 +49,7 @@ export default function RoleSwitcher() {
           if (accountsResponse.ok) {
             const accountsData = await accountsResponse.json();
             if (process.env.NODE_ENV === 'development') {
-            console.log('RoleSwitcher - Accounts received:', accountsData);
+              console.log('RoleSwitcher - Accounts received:', accountsData);
             }
             if (accountsData.accounts) {
               setAccounts(accountsData.accounts);
@@ -122,10 +122,10 @@ export default function RoleSwitcher() {
 
   // Debug logging (development only)
   if (process.env.NODE_ENV === 'development') {
-  console.log('RoleSwitcher - Current user:', currentUser);
-  console.log('RoleSwitcher - Accounts:', accounts);
-  console.log('RoleSwitcher - Has multiple accounts:', hasMultipleAccounts);
-  console.log('RoleSwitcher - Other account:', otherAccount);
+    console.log('RoleSwitcher - Current user:', currentUser);
+    console.log('RoleSwitcher - Accounts:', accounts);
+    console.log('RoleSwitcher - Has multiple accounts:', hasMultipleAccounts);
+    console.log('RoleSwitcher - Other account:', otherAccount);
   }
 
   return (

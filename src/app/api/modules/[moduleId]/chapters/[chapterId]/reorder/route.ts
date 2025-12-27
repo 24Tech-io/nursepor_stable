@@ -10,10 +10,11 @@ export async function PATCH(
   { params }: { params: { moduleId: string; chapterId: string } }
 ) {
   try {
-    const user = await verifyAuth(request);
-    if (!user || user.role !== 'admin') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const auth = await verifyAuth(request, { requiredRole: 'admin' });
+    if (!auth.isAuthorized) {
+      return auth.response;
     }
+    const user = auth.user;
 
     const body = await request.json();
     const { direction } = body; // 'up' or 'down'
@@ -39,7 +40,7 @@ export async function PATCH(
       .orderBy(chapters.order);
 
     const currentIndex = allChapters.findIndex((c) => c.id === chapterId);
-    
+
     if (currentIndex === -1) {
       return NextResponse.json({ error: 'Chapter not found' }, { status: 404 });
     }

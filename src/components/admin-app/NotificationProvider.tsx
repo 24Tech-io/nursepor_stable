@@ -116,116 +116,40 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const showPrompt = useCallback((title: string, message: string, defaultValue?: string): Promise<string | null> => {
     return new Promise((resolve) => {
       const id = Math.random().toString(36).substring(2, 15);
-      const newNotification: Notification = {
-        ...notification,
+      let inputValue = defaultValue || '';
+
+      const promptNotification: Notification & {
+        onInputChange?: (value: string) => void;
+        defaultValue?: string;
+      } = {
         id,
-        duration: notification.duration ?? (notification.type === 'confirm' ? 0 : 5000),
-      };
-
-      setNotifications((prev) => [...prev, newNotification]);
-
-      if (newNotification.duration && newNotification.duration > 0) {
-        setTimeout(() => {
-          removeNotification(id);
-        }, newNotification.duration);
-      }
-
-      return id;
-    },
-    [removeNotification]
-  );
-
-  const showSuccess = useCallback(
-    (title: string, message?: string) => {
-      showNotification({ type: 'success', title, message });
-    },
-    [showNotification]
-  );
-
-  const showError = useCallback(
-    (title: string, message?: string) => {
-      showNotification({ type: 'error', title, message });
-    },
-    [showNotification]
-  );
-
-  const showWarning = useCallback(
-    (title: string, message?: string) => {
-      showNotification({ type: 'warning', title, message });
-    },
-    [showNotification]
-  );
-
-  const showInfo = useCallback(
-    (title: string, message?: string) => {
-      showNotification({ type: 'info', title, message });
-    },
-    [showNotification]
-  );
-
-  const showConfirm = useCallback(
-    (title: string, message: string, onConfirm: () => void, onCancel?: () => void) => {
-      const id = Math.random().toString(36).substring(2, 15);
-
-      const newNotification: Notification = {
-        id,
-        type: 'confirm',
+        type: 'info',
         title,
         message,
-        duration: 0, // Don't auto-dismiss
+        duration: 0,
         onConfirm: () => {
-          onConfirm();
+          resolve(inputValue || null);
           removeNotification(id);
         },
         onCancel: () => {
-          if (onCancel) onCancel();
+          resolve(null);
           removeNotification(id);
         },
-        confirmText: 'Confirm',
+        confirmText: 'OK',
         cancelText: 'Cancel',
+        defaultValue: defaultValue || '',
+        onInputChange: (value: string) => {
+          inputValue = value;
+        },
       };
 
-      setNotifications((prev) => [...prev, newNotification]);
-    },
-    [removeNotification]
-  );
+      setNotifications((prev) => [...prev, promptNotification]);
+    });
+  }, [removeNotification]);
 
-  const showPrompt = useCallback(
-    (title: string, message: string, defaultValue?: string): Promise<string | null> => {
-      return new Promise((resolve) => {
-        const id = Math.random().toString(36).substring(2, 15);
-        let inputValue = defaultValue || '';
 
-        const PromptNotification: Notification & {
-          onInputChange?: (value: string) => void;
-          defaultValue?: string;
-        } = {
-          id,
-          type: 'info',
-          title,
-          message,
-          duration: 0,
-          onConfirm: () => {
-            resolve(inputValue || null);
-            removeNotification(id);
-          },
-          onCancel: () => {
-            resolve(null);
-            removeNotification(id);
-          },
-          confirmText: 'OK',
-          cancelText: 'Cancel',
-          defaultValue: defaultValue || '',
-          onInputChange: (value: string) => {
-            inputValue = value;
-          },
-        };
 
-        setNotifications((prev) => [...prev, PromptNotification]);
-      });
-    },
-    [removeNotification]
-  );
+
 
   return (
     <NotificationContext.Provider

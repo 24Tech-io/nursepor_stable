@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyToken } from '@/lib/auth';
+import { verifyToken, verifyAuth } from '@/lib/auth';
 import { getDatabaseWithRetry } from '@/lib/db';
 import { users, studentProgress, courses, accessRequests, enrollments } from '@/lib/db/schema';
 import { eq, sql, and, or } from 'drizzle-orm';
@@ -21,18 +21,12 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const countOnly = searchParams.get('countOnly') === 'true';
 
-    const token = request.cookies.get('admin_token')?.value || request.cookies.get('adminToken')?.value;
-
-    if (!token) {
+    const auth = await verifyAuth(request, { requiredRole: 'admin' });
+    if (!auth.isAuthorized) {
       stopMonitoring();
-      return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });
+      return auth.response;
     }
-
-    const decoded = await verifyToken(token);
-    if (!decoded || decoded.role !== 'admin') {
-      stopMonitoring();
-      return NextResponse.json({ message: 'Admin access required' }, { status: 403 });
-    }
+    const { user: decoded } = auth;
 
     let db;
     try {

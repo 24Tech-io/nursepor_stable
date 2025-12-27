@@ -56,6 +56,7 @@ logs/
 *.log
 build-log.txt
 console-log-report.txt
+debug-stats.txt
 
 # ----------------------------------------------------------------------
 # Build Artifacts
@@ -75,3 +76,13 @@ tsconfig.tsbuildinfo
 # Maintenance Scripts
 maintenance_scripts/
 
+# ----------------------------------------------------------------------
+# Debugging & Diagnosis
+# ----------------------------------------------------------------------
+src/app/api/debug-user/
+scripts/check-user-id.ts
+scripts/check-course.ts
+scripts/check-all-users.ts
+scripts/diagnose-dashboard.ts
+scripts/sync-enrollments.ts
+scripts/verify-dashboard-api.ts

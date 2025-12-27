@@ -258,17 +258,6 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // If admin is trying to use this endpoint, redirect them
-    if (role === 'admin') {
-      return NextResponse.json(
-        {
-          message: 'Authentication failed',
-          error: process.env.NODE_ENV === 'development' ? authError.message : undefined
-        },
-        { status: 500 }
-      );
-    }
-
     if (!user) {
       log.warn('Authentication failed', { email: sanitizedEmail, reason: 'Invalid credentials' });
 
@@ -486,8 +475,6 @@ export async function POST(request: NextRequest) {
     log.debug('Login response prepared', { userId: user.id, role: user.role });
 
     return jsonResponse;
-
-    return response;
   } catch (error: any) {
     log.error('Login API error', error);
     return handleApiError(error, request.nextUrl.pathname);

@@ -6,7 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { wishlist } from '@/lib/db/schema';
-import { verifyToken } from '@/lib/auth';
+import { verifyToken, verifyAuth } from '@/lib/auth';
 import { eq, and } from 'drizzle-orm';
 import { extractAndValidate } from '@/lib/api-validation';
 import { wishlistSchema } from '@/lib/validation-schemas-extended';
@@ -15,15 +15,11 @@ import { logger } from '@/lib/logger';
 // GET - Get user's wishlist
 export async function GET(request: NextRequest) {
   try {
-    const token = request.cookies.get('adminToken')?.value;
-    if (!token) {
+    const auth = await verifyAuth(request);
+    if (!auth.isAuthenticated || !auth.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-
-    const user = verifyToken(token);
-    if (!user) {
-      return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
-    }
+    const user = auth.user;
 
     const items = await db.query.wishlist.findMany({
       where: eq(wishlist.userId, user.id),
@@ -42,15 +38,11 @@ export async function GET(request: NextRequest) {
 // POST - Add to wishlist
 export async function POST(request: NextRequest) {
   try {
-    const token = request.cookies.get('adminToken')?.value;
-    if (!token) {
+    const auth = await verifyAuth(request);
+    if (!auth.isAuthenticated || !auth.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-
-    const user = verifyToken(token);
-    if (!user) {
-      return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
-    }
+    const user = auth.user;
 
     const { courseId } = await request.json();
 
@@ -78,15 +70,11 @@ export async function POST(request: NextRequest) {
 // DELETE - Remove from wishlist
 export async function DELETE(request: NextRequest) {
   try {
-    const token = request.cookies.get('adminToken')?.value;
-    if (!token) {
+    const auth = await verifyAuth(request);
+    if (!auth.isAuthenticated || !auth.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-
-    const user = verifyToken(token);
-    if (!user) {
-      return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
-    }
+    const user = auth.user;
 
     // Validate request body
     const bodyValidation = await extractAndValidate(request, wishlistSchema);

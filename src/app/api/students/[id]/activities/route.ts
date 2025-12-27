@@ -1,6 +1,6 @@
 
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyToken } from '@/lib/auth';
+import { verifyToken, verifyAuth } from '@/lib/auth';
 import { getDatabaseWithRetry } from '@/lib/db';
 import { studentActivityLogs } from '@/lib/db/schema';
 import { eq, desc } from 'drizzle-orm';
@@ -13,18 +13,15 @@ export async function GET(
     { params }: { params: { id: string } }
 ) {
     try {
-        const token = request.cookies.get('admin_token')?.value ||
-            request.cookies.get('adminToken')?.value ||
-            request.cookies.get('token')?.value;
-
-        if (!token) {
+        const auth = await verifyAuth(request);
+        if (!auth.isAuthenticated || !auth.user) {
             return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });
         }
+        const decoded = auth.user;
 
-        const decoded = await verifyToken(token);
         // Allow admins to view any student's activity
-        // Allow students to view ONLY their own activity (though this route seems admin-focused)
-        if (!decoded || (decoded.role !== 'admin' && decoded.role !== 'super_admin' && decoded.id.toString() !== params.id)) {
+        // Allow students to view ONLY their own activity
+        if (decoded.role !== 'admin' && decoded.role !== 'super_admin' && (decoded.id && decoded.id.toString() !== params.id)) {
             return NextResponse.json({ message: 'Unauthorized' }, { status: 403 });
         }
 

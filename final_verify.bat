@@ -1,0 +1,6 @@
+@echo off
+echo Testing Student Courses API...
+C:\Windows\System32\curl.exe -I -b cookies.txt http://localhost:3000/api/student/courses
+echo.
+echo Testing Student QBanks API...
+C:\Windows\System32\curl.exe -I -b cookies.txt http://localhost:3000/api/student/qbanks
